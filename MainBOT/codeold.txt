@@ -1,0 +1,43 @@
+                    interaction.reply({ embeds: [embed], ephemeral: true }).then(() => {
+                        interaction.fetchReply().then(sentEmbed => {
+                            setTimeout(() => {
+                                embed.setImage('https://img.freepik.com/premium-vector/open-golden-gift-box-gold-confetti_302982-1365.jpg');
+                                sentEmbed.edit({ embeds: [embed] });
+
+                                setTimeout(() => {
+                                    const isRareCutscene = isRarer(bestFumo.rarity, 'LEGENDARY');
+                                    embed.setTitle(isRareCutscene ? "✨ A golden box shines brighter than usual... ✨" : '🎁 The golden box reveals...')
+                                        .setImage(isRareCutscene
+                                            ? 'https://previews.123rf.com/images/baks/baks1412/baks141200006/34220442-christmas-background-with-open-golden-box-with-stars-and-confetti.jpg'
+                                            : 'https://media.istockphoto.com/id/865744872/photo/golden-glowing-box-of-light.jpg?s=612x612&w=0&k=20&c=14_RsYdmgE8OLV70elc3sLQRuuK3i_IYA0M5aGPiTtA=');
+
+                                    sentEmbed.edit({ embeds: [embed] });
+
+                                    setTimeout(() => {
+                                        const fumoCounts = fumosBought.reduce((acc, fumo) => {
+                                            if (!acc[fumo.rarity]) acc[fumo.rarity] = {};
+                                            acc[fumo.rarity][fumo.name] = (acc[fumo.rarity][fumo.name] || 0) + 1;
+                                            return acc;
+                                        }, {});
+
+                                        const sortedRarities = Object.keys(fumoCounts).sort((a, b) =>
+                                            rarityPriority.indexOf(b.toUpperCase()) - rarityPriority.indexOf(a.toUpperCase())
+                                        );
+
+                                        const fumoList = sortedRarities.map(rarity => {
+                                            const entries = Object.entries(fumoCounts[rarity]).map(([name, count]) => {
+                                                const cleanName = name.replace(/\(.*?\)/g, '');
+                                                return `${cleanName.trim()} (x${count})`;
+                                            });
+                                            const totalCount = entries.reduce((sum, _, i) => sum + Object.values(fumoCounts[rarity])[i], 0);
+                                            return `**${rarity.charAt(0).toUpperCase() + rarity.slice(1).toLowerCase()} (x${totalCount}):**\n${entries.join(', ')}`;
+                                        }).join('\n\n');
+
+                                        embed.setTitle('🎉 You’ve unlocked 10 fumos!')
+                                            .setDescription(`${fumoList}\n\n**Best fumo:** ${bestFumo.name}`)
+                                            .setColor(isRareCutscene ? Colors.Gold : Colors.White);
+
+                                        sentEmbed.edit({ embeds: [embed] });
+                                    }, 2000);
+                                }, 2000);
+                            }, 2000);
