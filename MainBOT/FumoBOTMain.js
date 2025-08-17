@@ -1107,6 +1107,8 @@ client.on(Events.MessageCreate, async message => {
     }
 });
 //-----------------Functionality of the OTHER-----------------\\
+const { clientId, token } = require('./config.json');
+client.commands = new Collection();
 const avatar = require('./OtherFunCommand/avatar');
 const otherCMD = require('./OtherFunCommand/tutorialHelp');
 const roleinfo = require('./OtherFunCommand/roleinfo');
@@ -1122,7 +1124,10 @@ avatar(client);
 roleinfo(client);
 
 //Define .afk command
-afk(client);
+client.commands.set(afk.name, afk);
+client.on('messageCreate', message => {
+    afk.onMessage(message, client);
+});
 
 //Define .groupInform command
 groupInform(client);
@@ -2037,11 +2042,10 @@ client.on('messageCreate', async (message) => {
 });
 
 // Handle owner's special command
-const { clientId, token } = require('./config.json');
-client.commands = new Collection();
 const commandsPath = path.join(__dirname, 'BotTrollinCommand(Owner)');
 const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
 const commands = [];
+const rest = new REST({ version: '10' }).setToken(token);
 for (const file of commandFiles) {
     const command = require(path.join(commandsPath, file));
     if ('data' in command && 'execute' in command) {
@@ -2051,27 +2055,20 @@ for (const file of commandFiles) {
         console.warn(`[WARNING] The command at ${file} is missing "data" or "execute".`);
     }
 }
-const rest = new REST({ version: '10' }).setToken(token);
 (async () => {
     try {
-        // console.log(`🌍 Started refreshing ${commands.length} global application (/) commands.`);
-
         await rest.put(
             Routes.applicationCommands(clientId),
             { body: commands }
         );
-
-        // console.log('✅ Successfully reloaded global application (/) commands.');
     } catch (error) {
         console.error(error);
     }
 })();
 client.on(Events.InteractionCreate, async interaction => {
     if (!interaction.isChatInputCommand()) return;
-
     const command = client.commands.get(interaction.commandName);
     if (!command) return;
-
     try {
         await command.execute(interaction);
     } catch (error) {
