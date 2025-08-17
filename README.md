@@ -13,7 +13,7 @@ FumoBOT is a versatile and feature-rich Discord bot designed to enhance your ser
 
 1. **Invite FumoBOT to Your Server:** Use the official invite link to add FumoBOT to your Discord server.
 2. **Configure Settings:** Access the bot’s configuration panel to set up roles, permissions, and custom preferences.
-3. **Explore Commands:** Type `/help` or `!help` to see a full list of available commands and modules.
+3. **Explore Commands:** Type `.help` to see a full list of available commands and modules.
 4. **Join the Community:** Connect with other users, share suggestions, and get support through the Discord server.
 
 ## Contributing

@@ -7,7 +7,10 @@ const {
     ButtonBuilder,
     ButtonStyle,
     ActivityType,
-    Events
+    Events,
+    Collection,
+    REST,
+    Routes
 } = require('discord.js');
 const db = require('./Command/database/db');
 const fs = require('fs');
@@ -2032,37 +2035,51 @@ client.on('messageCreate', async (message) => {
         return message.reply({ embeds: [embed] });
     }
 });
-// Auto-delete message thats contain the word
-// List of bad words to block
-const badWords = ['fuck', 'kys', 'bitch', 'sex', 'cunny', 'loli', 'cock', 'dick', 'pussy', 'gyatt', 'ass'];
-let friendlyMode = false;
 
-client.on('messageCreate', async (message) => {
-    if (message.author.bot) return;
-
-    const content = message.content.toLowerCase();
-
-    // Toggle friendly mode
-    if (content === '.enablefriendly') {
-        friendlyMode = true;
-        return message.channel.send('Friendly mode enabled lol get real');
+// Handle owner's special command
+const { clientId, token } = require('./config.json');
+client.commands = new Collection();
+const commandsPath = path.join(__dirname, 'BotTrollinCommand(Owner)');
+const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+const commands = [];
+for (const file of commandFiles) {
+    const command = require(path.join(commandsPath, file));
+    if ('data' in command && 'execute' in command) {
+        client.commands.set(command.data.name, command);
+        commands.push(command.data.toJSON());
+    } else {
+        console.warn(`[WARNING] The command at ${file} is missing "data" or "execute".`);
     }
-    if (content === '.disablefriendly') {
-        friendlyMode = false;
-        return message.channel.send('Friendly mode disabled hahahaha');
-    }
+}
+const rest = new REST({ version: '10' }).setToken(token);
+(async () => {
+    try {
+        // console.log(`🌍 Started refreshing ${commands.length} global application (/) commands.`);
 
-    // Delete if message contains any bad word as substring (case-insensitive)
-    if (friendlyMode) {
-        for (const word of badWords) {
-            if (content.includes(word)) {
-                try {
-                    await message.delete();
-                } catch (err) {
-                    console.error('Failed to delete message:', err);
-                }
-                break;
-            }
+        await rest.put(
+            Routes.applicationCommands(clientId),
+            { body: commands }
+        );
+
+        // console.log('✅ Successfully reloaded global application (/) commands.');
+    } catch (error) {
+        console.error(error);
+    }
+})();
+client.on(Events.InteractionCreate, async interaction => {
+    if (!interaction.isChatInputCommand()) return;
+
+    const command = client.commands.get(interaction.commandName);
+    if (!command) return;
+
+    try {
+        await command.execute(interaction);
+    } catch (error) {
+        console.error(error);
+        if (interaction.replied || interaction.deferred) {
+            await interaction.followUp({ content: '❌ There was an error executing this command.', ephemeral: true });
+        } else {
+            await interaction.reply({ content: '❌ There was an error executing this command.', ephemeral: true });
         }
     }
 });
