@@ -191,7 +191,7 @@ module.exports = async (client) => {
                     { name: "Bear", rarity: "Rare", chance: 30 },
                     { name: "Pig", rarity: "Epic", chance: 15 },
                     { name: "Chicken", rarity: "Legendary", chance: 6 },
-                    { name: "Owl", rarity: "Mythical", chance: 4 }
+                    { name: "Owl", rarity: "Mythical", chance: 4 } // Done?
                 ],
                 DivineEgg: [
                     { name: "SilverMonkey", rarity: "Legendary", chance: 50 },
