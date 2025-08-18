@@ -7,10 +7,7 @@ const {
     ButtonBuilder,
     ButtonStyle,
     ActivityType,
-    Events,
-    Collection,
-    REST,
-    Routes
+    Events
 } = require('discord.js');
 const db = require('./Command/database/db');
 const fs = require('fs');
@@ -1106,74 +1103,38 @@ client.on(Events.MessageCreate, async message => {
         }
     }
 });
+//-----------------Functionality of the OTHER-----------------\\
+const avatar = require('./OtherFunCommand/avatar');
+const otherCMD = require('./OtherFunCommand/tutorialHelp');
+const roleinfo = require('./OtherFunCommand/roleinfo');
+const anime = require('./OtherFunCommand/anime');
+const afk = require('./OtherFunCommand/afk');
+const deathbattleJJK = require('./OtherFunCommand/deathbattleJJK');
+const groupInform = require('./OtherFunCommand/groupInform');
+const ping = require('./OtherFunCommand/ping');
+//Define .avatar command
+avatar(client);
 
-// ------- Enhanced OtherFunCommand & Owner Command Loader ------- //
-const { clientId, token } = require('./config.json');
-client.commands = new Collection();
+//Define .roleinfo command
+roleinfo(client);
 
-// Fun/Utility Commands
-const funCommands = [
-    require('./OtherFunCommand/avatar'),
-    require('./OtherFunCommand/tutorialHelp'),
-    require('./OtherFunCommand/roleinfo'),
-    require('./OtherFunCommand/anime'),
-    require('./OtherFunCommand/afk'),
-    require('./OtherFunCommand/deathbattleJJK'),
-    require('./OtherFunCommand/groupInform'),
-    require('./OtherFunCommand/ping')
-];
-// Register fun commands (if they export .data, add to slash registry)
-funCommands.forEach(cmd => {
-    if (cmd.data?.name) client.commands.set(cmd.data.name, cmd);
-    // If classic handler, call with client
-    if (typeof cmd === 'function') cmd(client);
-});
+//Define .afk command
+// afk(client);
 
-client.on('messageCreate', message => {
-    if (typeof funCommands[4]?.onMessage === 'function') {
-        funCommands[4].onMessage(message, client);
-    }
-});
+//Define .groupInform command
+groupInform(client);
 
-client.on(Events.InteractionCreate, async interaction => {
-    if (!interaction.isChatInputCommand()) return;
-    const command = client.commands.get(interaction.commandName);
-    if (!command) return;
-    try {
-        await command.execute(interaction);
-    } catch (error) {
-        console.error(error);
-        const replyObj = { content: '❌ There was an error executing this command.', ephemeral: true };
-        if (interaction.replied || interaction.deferred) {
-            await interaction.followUp(replyObj);
-        } else {
-            await interaction.reply(replyObj);
-        }
-    }
-});
+//Define .ping command
+ping(client);
 
-// ----- Owner-Only Command Loader ----- //
-const commandsPath = path.join(__dirname, 'BotTrollinCommand(Owner)');
-const commandFiles = fs.readdirSync(commandsPath).filter(f => f.endsWith('.js'));
-const ownerCommands = [];
-const rest = new REST({ version: '10' }).setToken(token);
-for (const file of commandFiles) {
-    const cmd = require(path.join(commandsPath, file));
-    if (cmd.data && cmd.execute) {
-        client.commands.set(cmd.data.name, cmd);
-        ownerCommands.push(cmd.data.toJSON());
-    } else {
-        console.warn(`[WARNING] Owner command at ${file} missing "data" or "execute".`);
-    }
-}
-(async () => {
-    try {
-        await rest.put(Routes.applicationCommands(clientId), { body: ownerCommands });
-    } catch (error) {
-        console.error('Failed to register owner commands:', error);
-    }
-})();
+//Define .deathbattle command
+deathbattleJJK(client);
 
+//Define .anime command
+anime(client);
+
+//Define .otherCMD command
+otherCMD(client);
 
 //-----------------Functionality of the BOT-----------------\\
 function setStaticStatus() {
@@ -2071,7 +2032,6 @@ client.on('messageCreate', async (message) => {
         return message.reply({ embeds: [embed] });
     }
 });
-
 //-----------------Functionality of the BOT_token-----------------\\
 client.login(process.env.BOT_TOKEN);
 
