@@ -1,4 +1,4 @@
-const { EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 const afkFilePath = 'MainBOT/SillyAFK.json';
 
@@ -23,26 +23,22 @@ function saveAfkUsers(data) {
 }
 
 module.exports = {
-    name: 'afk',
-    description: 'Set your AFK status (guild or global)',
-    options: [
-        {
-            name: 'type',
-            description: 'AFK type',
-            type: 3, // STRING
-            required: false,
-            choices: [
-                { name: 'guild', value: 'guild' },
-                { name: 'global', value: 'global' }
-            ]
-        },
-        {
-            name: 'reason',
-            description: 'Reason for AFK',
-            type: 3, // STRING
-            required: false
-        }
-    ],
+    data: new SlashCommandBuilder()
+        .setName('afk')
+        .setDescription('Set your AFK status (guild or global)')
+        .addStringOption(option =>
+            option.setName('type')
+                .setDescription('AFK type')
+                .addChoices(
+                    { name: 'guild', value: 'guild' },
+                    { name: 'global', value: 'global' }
+                )
+        )
+        .addStringOption(option =>
+            option.setName('reason')
+                .setDescription('Reason for AFK')
+        ),
+
     async execute(interaction) {
         const afkData = loadAfkUsers();
         const userId = interaction.user.id;
@@ -66,7 +62,7 @@ module.exports = {
             .setThumbnail(interaction.user.displayAvatarURL({ dynamic: true }))
             .setFooter({ text: 'I will let others know if they mention you 💬', iconURL: interaction.client.user.displayAvatarURL() });
 
-        await interaction.reply({ embeds: [embed]});
+        await interaction.reply({ embeds: [embed] });
     },
     // Message event handler for AFK logic
     
