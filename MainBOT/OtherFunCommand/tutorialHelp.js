@@ -71,14 +71,14 @@ module.exports = (client) => {
             .setTitle('🛠️ FumoBOT(OtherCMD) - List of Commands')
             .setColor('#00ccff')
             .addFields(
-                { name: '.anime [nameAnime]', value: 'Displays detailed information about this anime' },
-                { name: '.groupInform', value: 'Displays detailed information about the server.' },
-                { name: '.avatar help', value: 'Shows information about a user. If no user is mentioned, shows info about the command user.' },
-                { name: '.ping', value: 'Checks the bot\'s latency and API latency.' },
-                { name: '.roleinfo [@role]', value: 'Displays information about a specific role.' },
-                { name: '.leaderboard', value: 'Displays the no-life' },
-                { name: '.afk', value: 'If you want to afk sure' },
-                { name: '.deathbattle [@username] [set-hp] [jjk / ??? anime]', value: 'Deathbattle with a friend in anime..' },
+                { name: '/anime [nameAnime]', value: 'Displays detailed information about this anime' },
+                { name: '/groupInform', value: 'Displays detailed information about the server.' },
+                { name: '/avatar help', value: 'Shows information about a user. If no user is mentioned, shows info about the command user.' },
+                { name: '/ping', value: 'Checks the bot\'s latency and API latency.' },
+                { name: '/roleinfo [@role]', value: 'Displays information about a specific role.' },
+                { name: '/leaderboard', value: 'Displays the no-life' },
+                { name: '/afk', value: 'If you want to afk sure' },
+                { name: '/deathbattle [@username] [set-hp] [jjk / ??? anime]', value: 'Deathbattle with a friend in anime..' },
             )
             .setTimestamp()
             .setFooter({ text: `Requested by ${message.author.tag}`, iconURL: message.author.displayAvatarURL() });
