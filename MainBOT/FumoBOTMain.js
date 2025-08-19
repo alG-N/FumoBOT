@@ -7,7 +7,8 @@ const {
     ButtonBuilder,
     ButtonStyle,
     ActivityType,
-    Events
+    Events,
+    Collection
 } = require('discord.js');
 const db = require('./Command/database/db');
 const fs = require('fs');
@@ -24,6 +25,28 @@ const client = new Client({
 });
 require('dotenv').config();
 client.setMaxListeners(150);
+
+const path = require('path');
+client.commands = new Collection();
+const commandFolders = [
+    'BotTrollinCommand(Owner)',
+    'OtherFunCommand'
+];
+for (const folder of commandFolders) {
+    const commandsPath = path.join(__dirname, folder);
+    const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+
+    for (const file of commandFiles) {
+        const command = require(path.join(commandsPath, file));
+        if ('data' in command && 'execute' in command) {
+            client.commands.set(command.data.name, command);
+        } else {
+            console.log(`[WARNING] The command at ${file} in ${folder} is missing "data" or "execute".`);
+        }
+    }
+}
+
+// Load all event files
 const gacha = require('./Command/Gacha/crategacha');
 const fumos = require('./ThyFumoStorage');
 const help = require('./Command/Tutorial/help');
@@ -75,7 +98,6 @@ console.log(`Maintenance mode is currently: ${maintenance}`);
 const DB_PATH = './MainBOT/Command/database/fumos.db';
 const BACKUP_DIR = './backup';
 const CHANNEL_ID = '1367500981809447054';
-const path = require('path');
 const AdmZip = require('adm-zip');
 
 if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR);
@@ -1119,7 +1141,9 @@ avatar(client);
 roleinfo(client);
 
 //Define .afk command
-// afk(client);
+client.on(Events.MessageCreate, message => {
+    afk.onMessage(message, client);
+});
 
 //Define .groupInform command
 groupInform(client);
@@ -1131,10 +1155,30 @@ ping(client);
 deathbattleJJK(client);
 
 //Define .anime command
-anime(client);
+client.on(Events.MessageCreate, message => {
+    anime.onMessage(message, client);
+});
 
 //Define .otherCMD command
 otherCMD(client);
+
+client.on(Events.InteractionCreate, async interaction => {
+    if (!interaction.isChatInputCommand()) return;
+
+    const command = client.commands.get(interaction.commandName);
+
+    if (!command) return;
+
+    try {
+        await command.execute(interaction);
+    } catch (error) {
+        console.error(error);
+        await interaction.reply({
+            content: "❌ There was an error executing this command!",
+            ephemeral: true
+        });
+    }
+});
 
 //-----------------Functionality of the BOT-----------------\\
 function setStaticStatus() {
