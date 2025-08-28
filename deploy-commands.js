@@ -1,49 +1,68 @@
-const path = require('path');
-const { REST, Routes } = require('discord.js');
-const { clientId, guildId, token } = require('../FumoBOT/MainBOT/config.json');
+const path = require("path");
+const fs = require("fs");
+const { REST, Routes } = require("discord.js");
+const { clientId, guildId, token } = require("../FumoBOT/MainBOT/config.json");
 
-// Collect commands here
+// Array to collect all commands
 const commands = [];
 
-// Require each command file
-const sayCommand = require('../FumoBOT/MainBOT/BotTrollinCommand(Owner)/say.js');
-const afkCommand = require('../FumoBOT/MainBOT/OtherFunCommand/afk');
-const animeCommand = require('../FumoBOT/MainBOT/OtherFunCommand/anime');
+/**
+ * Load commands from a specific folder
+ */
+function loadCommandsFrom(folderPath) {
+    const files = fs.readdirSync(folderPath).filter(file => file.endsWith(".js"));
 
-// Push commands if valid
-if ('data' in sayCommand && 'execute' in sayCommand) {
+    for (const file of files) {
+        const command = require(path.join(folderPath, file));
+        if ("data" in command && "execute" in command) {
+            commands.push(command.data.toJSON());
+        } else {
+            console.warn(`⚠️ ${file} in ${folderPath} is missing "data" or "execute".`);
+        }
+    }
+}
+
+// node deploy-commands.js
+// ---------------- Load Commands ---------------- \\
+// Manual single-file commands
+const sayCommand = require("../FumoBOT/MainBOT/BotTrollinCommand(Owner)/say.js");
+if ("data" in sayCommand && "execute" in sayCommand) {
     commands.push(sayCommand.data.toJSON());
 } else {
-    console.warn('⚠️ say.js is missing "data" or "execute".');
+    console.warn("⚠️ say.js is missing 'data' or 'execute'.");
 }
 
-if ('data' in afkCommand && 'execute' in afkCommand) {
+const afkCommand = require("../FumoBOT/MainBOT/OtherFunCommand/afk");
+if ("data" in afkCommand && "execute" in afkCommand) {
     commands.push(afkCommand.data.toJSON());
 } else {
-    console.warn('⚠️ afk.js is missing "data" or "execute".');
+    console.warn("⚠️ afk.js is missing 'data' or 'execute'.");
 }
 
-if ('data' in animeCommand && 'execute' in animeCommand) {
+const animeCommand = require("../FumoBOT/MainBOT/OtherFunCommand/anime");
+if ("data" in animeCommand && "execute" in animeCommand) {
     commands.push(animeCommand.data.toJSON());
 } else {
-    console.warn('⚠️ anime.js is missing "data" or "execute".');
+    console.warn("⚠️ anime.js is missing 'data' or 'execute'.");
 }
 
-// REST client
-const rest = new REST({ version: '10' }).setToken(token);
+// Auto-load everything from MusicBot folder
+loadCommandsFrom(path.join(__dirname, "../FumoBOT/MainBOT/OtherFunCommand/MusicBot"));
 
-// Deploy commands
+// ---------------- Deploy Commands ---------------- \\
+const rest = new REST({ version: "10" }).setToken(token);
+
 (async () => {
     try {
-        console.log('🔄 Started refreshing application (/) commands.');
+        console.log("🔄 Started refreshing application (/) commands.");
 
         await rest.put(
-            Routes.applicationGuildCommands(clientId, guildId), // use guild deploy for testing
+            Routes.applicationGuildCommands(clientId, guildId), // guild deploy
             { body: commands }
         );
 
-        console.log('✅ Successfully reloaded application (/) commands.');
+        console.log("✅ Successfully reloaded application (/) commands.");
     } catch (error) {
-        console.error(error);
+        console.error("❌ Error deploying commands:", error);
     }
 })();
