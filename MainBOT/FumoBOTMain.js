@@ -19,7 +19,8 @@ const client = new Client({
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.MessageContent
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildVoiceStates,
     ],
     partials: [Partials.Message, Partials.Channel, Partials.Reaction]
 });
@@ -1134,6 +1135,8 @@ const afk = require('./OtherFunCommand/afk');
 const deathbattleJJK = require('./OtherFunCommand/deathbattleJJK');
 const groupInform = require('./OtherFunCommand/groupInform');
 const ping = require('./OtherFunCommand/ping');
+const musicCommands = require('./OtherFunCommand/MusicBot/MainMusic');
+
 //Define .avatar command
 avatar(client);
 
@@ -1161,6 +1164,9 @@ client.on(Events.MessageCreate, message => {
 
 //Define .otherCMD command
 otherCMD(client);
+
+//Define music command
+musicCommands(client);
 
 client.on(Events.InteractionCreate, async interaction => {
     if (!interaction.isChatInputCommand()) return;

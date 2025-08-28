@@ -137,6 +137,44 @@ function disableNotify(userId, animeId) {
     db.run(`INSERT OR REPLACE INTO notifications (user_id, anime_id, notify) VALUES (?, ?, 0)`, [userId, animeId]);
 }
 
+async function findNextOngoingSeason(animeId) {
+    let currentId = animeId;
+
+    while (true) {
+        const data = await aniClient.request(gql`
+            query ($id: Int) {
+                Media(id: $id) {
+                    id
+                    title { romaji english }
+                    status
+                    relations {
+                        edges {
+                            relationType
+                            node {
+                                id
+                                title { romaji english }
+                                status
+                            }
+                        }
+                    }
+                }
+            }`, { id: currentId });
+
+        const media = data.Media;
+
+        if (!media) return null;
+
+        // if ongoing, stop
+        if (media.status === "RELEASING") return media;
+
+        // look for sequel
+        const sequel = media.relations.edges.find(e => e.relationType === "SEQUEL");
+        if (!sequel) return null;
+
+        currentId = sequel.node.id;
+    }
+}
+
 // Core handler: builds embed + buttons
 // Change: Enhanced button persistence, user-only interaction, detailed favourite list, notify prompt, and more features.
 async function handleAnimeSearch(context, animeName, isSlash = true) {
@@ -147,7 +185,9 @@ async function handleAnimeSearch(context, animeName, isSlash = true) {
 
         const userId = isSlash ? context.user.id : context.author.id;
         const title = anime.title.romaji || anime.title.english || anime.title.native;
-        const description = anime.description?.replace(/<\/?[^>]+(>|$)/g, "").slice(0, 300) || "No description available.";
+        const description = anime.description
+            ? truncate(anime.description.replace(/<\/?[^>]+(>|$)/g, ""), 500)
+            : "No description available.";
         const startDate = anime.startDate?.year
             ? `${anime.startDate.day}/${anime.startDate.month}/${anime.startDate.year}`
             : "Unknown";
@@ -179,25 +219,24 @@ async function handleAnimeSearch(context, animeName, isSlash = true) {
             episodeStatus = `${anime.episodes} / ${anime.episodes}`;
         }
 
-        const seenTitles = new Set();
         const relatedEntries = anime.relations.edges
-            .filter(rel => rel.node.type === "ANIME" || rel.node.type === "MOVIE")
-            .filter(rel => {
-                if (seenTitles.has(rel.node.title.romaji)) return false;
-                seenTitles.add(rel.node.title.romaji);
-                return true;
-            })
-            .map(rel => {
-                const tag = rel.node.type === "ANIME" ? "[TV]" : `[${rel.node.type}]`;
-                return `${tag} ${rel.node.title.romaji} - Score: ${rel.node.averageScore || "?"} - ${getRecommendation(rel.node.averageScore || 0)}`;
-            })
-            .join("\n") || "No other seasons or movies available.";
+            .filter(rel => ["ANIME", "MOVIE"].includes(rel.node.type))
+            .reduce((acc, rel) => {
+                const key = rel.node.title.romaji;
+                if (!acc.seen.has(key)) {
+                    acc.seen.add(key);
+                    acc.list.push(
+                        `${rel.node.type === "ANIME" ? "[TV]" : `[${rel.node.type}]`} ${key} - Score: ${rel.node.averageScore || "?"} - ${getRecommendation(rel.node.averageScore || 0)}`
+                    );
+                }
+                return acc;
+            }, { seen: new Set(), list: [] }).list.join("\n") || "No other seasons or movies available.";
 
         const mainCharacters = anime.characters.edges
-            .map((c) => c.node.name.full)
+            .map(c => c.node.name.full)
             .join(", ") || "N/A";
 
-        const rankingObj = anime.rankings.find((r) => r.type === "RATED" && r.allTime);
+        const rankingObj = anime.rankings.find(r => r.type === "RATED" && r.allTime);
         const rankings = rankingObj ? `#${rankingObj.rank}` : "#??? (No Info)";
 
         let trailerUrl = "None";
@@ -212,19 +251,18 @@ async function handleAnimeSearch(context, animeName, isSlash = true) {
         // Get favourite status and notify status
         let favourited = await isFavourited(userId, anime.id);
         let notifyEnabled = await isNotifyEnabled(userId, anime.id);
-        const favouriteList = await getUserFavourites(userId);
 
-        // Buttons always reflect latest state
+        // Button builder
         function buildRow(favourited, notifyEnabled) {
             return new ActionRowBuilder()
                 .addComponents(
                     new ButtonBuilder()
-                        .setCustomId(`fav_${userId}`)
+                        .setCustomId(`fav_${userId}_${anime.id}`)
                         .setLabel(favourited ? 'Unfavourite' : 'Favourite')
                         .setEmoji('❤️')
                         .setStyle(favourited ? ButtonStyle.Danger : ButtonStyle.Success),
                     new ButtonBuilder()
-                        .setCustomId(`notify_${userId}`)
+                        .setCustomId(`notify_${userId}_${anime.id}`)
                         .setLabel(favourited ? (notifyEnabled ? 'Stop Notifying' : 'Notify') : 'Notify')
                         .setStyle(ButtonStyle.Primary)
                         .setDisabled(!favourited),
@@ -247,7 +285,7 @@ async function handleAnimeSearch(context, animeName, isSlash = true) {
             .setURL(anime.siteUrl)
             .setColor(anime.coverImage.color || "#3498db")
             .setThumbnail(anime.coverImage.large)
-            .setDescription(description + (anime.description?.length > 300 ? "..." : "") + (finalEpisodeMsg ? `\n${finalEpisodeMsg}` : ""))
+            .setDescription(description + (finalEpisodeMsg ? `\n${finalEpisodeMsg}` : ""))
             .addFields(
                 { name: "Score", value: anime.averageScore ? `${anime.averageScore}/100` : "N/A", inline: true },
                 { name: "Episodes", value: `${episodeStatus}${nextEpisodeCountdown}`, inline: true },
@@ -262,7 +300,7 @@ async function handleAnimeSearch(context, animeName, isSlash = true) {
                 { name: "Characters", value: mainCharacters, inline: false },
                 { name: "Leaderboard Rank", value: rankings, inline: true },
                 { name: "Recommendation", value: anime.averageScore ? getRecommendation(anime.averageScore) : "N/A", inline: true },
-                { name: "Other Seasons/Movies", value: truncate(relatedEntries), inline: false },
+                { name: "Other Seasons/Movies", value: truncate(relatedEntries, 800), inline: false },
             )
             .setFooter({ text: "Powered by AniList" });
 
@@ -273,7 +311,7 @@ async function handleAnimeSearch(context, animeName, isSlash = true) {
             msg = await context.reply({ embeds: [embed], components: [row] });
         }
 
-        // Collector persists and always updates state for 60s
+        // Collector for button interactions
         const collector = msg.createMessageComponentCollector({
             componentType: ComponentType.Button,
             time: 60 * 1000,
@@ -286,42 +324,209 @@ async function handleAnimeSearch(context, animeName, isSlash = true) {
             notifyEnabled = await isNotifyEnabled(userId, anime.id);
             row = buildRow(favourited, notifyEnabled);
 
-            if (!i.customId.endsWith(`_${userId}`)) {
-                await i.reply({ content: "These buttons are not for you!", ephemeral: true });
+            if (!i.customId.includes(`_${userId}`)) {
+                await i.deferUpdate();
                 return;
             }
 
             if (i.customId.startsWith('fav_')) {
                 if (favourited) {
                     removeFavourite(userId, anime.id);
+                    disableNotify(userId, anime.id);
                     favourited = false;
                     notifyEnabled = false;
                     row = buildRow(favourited, notifyEnabled);
-                    await i.update({ content: 'Removed from favourites.', embeds: [embed], components: [row] });
+                    await i.update({
+                        embeds: [
+                            EmbedBuilder.from(embed)
+                                .setColor('#e74c3c')
+                                .setFooter({ text: "Removed from favourites ❌" })
+                        ],
+                        components: [row]
+                    });
                 } else {
                     addFavourite(userId, anime.id, title);
                     favourited = true;
                     row = buildRow(favourited, notifyEnabled);
-                    await i.update({ content: 'Added to favourites.', embeds: [embed], components: [row] });
-                    const notifyRow = new ActionRowBuilder().addComponents(
-                        new ButtonBuilder()
-                            .setCustomId(`notify_yes_${userId}_${anime.id}`)
-                            .setLabel('Yes, notify me!')
-                            .setStyle(ButtonStyle.Success),
-                        new ButtonBuilder()
-                            .setCustomId(`notify_no_${userId}_${anime.id}`)
-                            .setLabel('No, thanks')
-                            .setStyle(ButtonStyle.Secondary)
-                    );
-                    await i.followUp({
-                        content: 'Would you like to be notified when new episodes release?',
-                        components: [notifyRow],
-                        ephemeral: true
+                    await i.update({
+                        embeds: [
+                            EmbedBuilder.from(embed)
+                                .setColor('#2ecc71')
+                                .setFooter({ text: "Added to favourites ✅" })
+                        ],
+                        components: [row]
                     });
+
+                    // Movie prompt
+                    if (anime.format === "MOVIE") {
+                        const movieRow = new ActionRowBuilder().addComponents(
+                            new ButtonBuilder()
+                                .setCustomId(`watch_yes_${userId}_${anime.id}`)
+                                .setLabel('Yes, I want to watch it!')
+                                .setEmoji('🍿')
+                                .setStyle(ButtonStyle.Success),
+                            new ButtonBuilder()
+                                .setCustomId(`watch_no_${userId}_${anime.id}`)
+                                .setLabel('Not now')
+                                .setStyle(ButtonStyle.Secondary)
+                        );
+
+                        const movieEmbed = new EmbedBuilder()
+                            .setTitle(`🎬 Watch ${title}?`)
+                            .setDescription(`You just added **${title}** to your favourites.\nWould you like to watch this movie?`)
+                            .setColor('#f1c40f')
+                            .setThumbnail(anime.coverImage.large);
+
+                        const prompt = await i.followUp({
+                            embeds: [movieEmbed],
+                            components: [movieRow],
+                            ephemeral: true
+                        });
+
+                        try {
+                            const confirm = await prompt.awaitMessageComponent({
+                                componentType: ComponentType.Button,
+                                time: 30_000,
+                                filter: btnInt => btnInt.user.id === userId
+                            });
+
+                            if (confirm.customId.startsWith('watch_yes_')) {
+                                await confirm.update({
+                                    embeds: [
+                                        new EmbedBuilder()
+                                            .setTitle(`🍿 Enjoy the movie!`)
+                                            .setDescription(`Have fun watching **${title}** 🎥`)
+                                            .setColor('#2ecc71')
+                                    ],
+                                    components: []
+                                });
+                            } else {
+                                await confirm.update({
+                                    embeds: [
+                                        new EmbedBuilder()
+                                            .setTitle(`👌 Maybe later`)
+                                            .setDescription(`You can always watch **${title}** whenever you like!`)
+                                            .setColor('#95a5a6')
+                                    ],
+                                    components: []
+                                });
+                            }
+                        } catch {
+                            await prompt.edit({
+                                embeds: [
+                                    new EmbedBuilder()
+                                        .setTitle(`⌛ Time’s up`)
+                                        .setDescription(`You didn’t choose an option in time.`)
+                                        .setColor('#e67e22')
+                                ],
+                                components: []
+                            });
+                        }
+                    } else {
+                        // Notify prompt for series
+                        const notifyRow = new ActionRowBuilder().addComponents(
+                            new ButtonBuilder()
+                                .setCustomId(`notify_yes_${userId}_${anime.id}`)
+                                .setLabel('Yes, notify me!')
+                                .setEmoji('🔔')
+                                .setStyle(ButtonStyle.Success),
+                            new ButtonBuilder()
+                                .setCustomId(`notify_no_${userId}_${anime.id}`)
+                                .setLabel('No, thanks')
+                                .setStyle(ButtonStyle.Secondary)
+                        );
+
+                        const notifyEmbed = new EmbedBuilder()
+                            .setTitle(`🔔 Notifications`)
+                            .setDescription(`Would you like to be notified when new episodes of **${title}** release?`)
+                            .setColor('#3498db')
+                            .setThumbnail(anime.coverImage.large);
+
+                        const prompt = await i.followUp({
+                            embeds: [notifyEmbed],
+                            components: [notifyRow],
+                            ephemeral: true
+                        });
+
+                        try {
+                            const confirm = await prompt.awaitMessageComponent({
+                                componentType: ComponentType.Button,
+                                time: 30_000,
+                                filter: btnInt => btnInt.user.id === userId
+                            });
+
+                            if (confirm.customId.startsWith('notify_yes_')) {
+                                enableNotify(userId, anime.id);
+                                notifyEnabled = true;
+                                row = buildRow(favourited, notifyEnabled);
+
+                                const nextSeason = await findNextOngoingSeason(anime.id);
+                                if (nextSeason) {
+                                    await i.followUp({
+                                        embeds: [
+                                            new EmbedBuilder()
+                                                .setTitle(`📺 Next Ongoing Season Found!`)
+                                                .setDescription(
+                                                    `You will be notified for **${nextSeason.title.english || nextSeason.title.romaji}** instead, since the anime you favourited has already ended.`
+                                                )
+                                                .setColor('Green')
+                                        ],
+                                        ephemeral: true
+                                    });
+                                    enableNotify(userId, nextSeason.id);
+                                } else {
+                                    await i.followUp({
+                                        embeds: [
+                                            new EmbedBuilder()
+                                                .setTitle(`⏳ No Ongoing Season Found`)
+                                                .setDescription(
+                                                    `The anime you favourited has already ended, and no sequel with ongoing episodes was found.\n\nPlease wait until a new season is released.`
+                                                )
+                                                .setColor('Yellow')
+                                        ],
+                                        ephemeral: true
+                                    });
+                                }
+
+                                await confirm.update({
+                                    embeds: [
+                                        new EmbedBuilder()
+                                            .setTitle(`✅ Notifications Enabled`)
+                                            .setDescription(`You will now be notified about new episodes of **${title}**.`)
+                                            .setColor('#2ecc71')
+                                    ],
+                                    components: []
+                                });
+                                if (msg.editable) {
+                                    await msg.edit({ embeds: [embed], components: [row] });
+                                }
+                            } else {
+                                await confirm.update({
+                                    embeds: [
+                                        new EmbedBuilder()
+                                            .setTitle(`🚫 Notifications Disabled`)
+                                            .setDescription(`You won’t be notified about **${title}**.`)
+                                            .setColor('#95a5a6')
+                                    ],
+                                    components: []
+                                });
+                            }
+                        } catch {
+                            await prompt.edit({
+                                embeds: [
+                                    new EmbedBuilder()
+                                        .setTitle(`⌛ Time’s up`)
+                                        .setDescription(`You didn’t respond in time.`)
+                                        .setColor('#e67e22')
+                                ],
+                                components: []
+                            });
+                        }
+                    }
                 }
             } else if (i.customId.startsWith('notify_') && !i.customId.startsWith('notify_yes_') && !i.customId.startsWith('notify_no_')) {
                 if (!favourited) {
-                    await i.reply({ content: 'You need to favourite first!', ephemeral: true });
+                    await i.deferUpdate();
                 } else if (notifyEnabled) {
                     disableNotify(userId, anime.id);
                     notifyEnabled = false;
@@ -358,38 +563,26 @@ async function handleAnimeSearch(context, animeName, isSlash = true) {
                         .setFooter({ text: favs.length > 10 ? `Showing 10 of ${favs.length}` : `Total: ${favs.length}` });
                     await i.reply({ embeds: [favEmbed], ephemeral: true });
                 }
-            } else if (i.customId.startsWith('notify_yes_')) { // Fix: the Notification Allowed sending interaction failed, and when User Unfavourites, the notify should be set off
-                const parts = i.customId.split('_');
-                const animeId = parseInt(parts[3], 10) || anime.id;
-                enableNotify(userId, animeId);
-                notifyEnabled = true;
-                row = buildRow(favourited, notifyEnabled);
-                await i.update({ content: 'Notifications enabled for this anime!', components: [] });
-                if (msg.editable) {
-                    await msg.edit({ embeds: [embed], components: [row] });
-                }
-            } else if (i.customId.startsWith('notify_no_')) {
-                await i.update({ content: 'No notifications will be sent.', components: [] });
             }
         });
 
         collector.on('end', async () => {
-            // Optionally disable buttons after timeout
-            // for (const btn of row.components) btn.setDisabled(true);
-            // if (msg.editable) await msg.edit({ embeds: [embed], components: [row] });
+            // Optionally disable buttons after collector ends
+            try {
+                await msg.edit({ components: [] });
+            } catch {}
         });
 
     } catch (err) {
-        console.error(`[AniList] Error fetching "${animeName}":`, err);
+        const errorMsg = `❌ Could not find anime: **${animeName}**.`;
         if (isSlash) {
-            await context.editReply({ content: `❌ Could not find anime: **${animeName}**.` });
+            await context.editReply({ content: errorMsg });
         } else {
-            await context.reply({ content: `❌ Could not find anime: **${animeName}**.` });
+            await context.reply({ content: errorMsg });
         }
     }
 }
 
-// Notification job (call this periodically, e.g. with setInterval in your bot main file)
 async function notifyUsers(client, db) {
     db.all(`SELECT user_id, anime_id FROM notifications WHERE notify = 1`, async (err, rows) => {
         if (err) {
@@ -471,5 +664,5 @@ module.exports = {
     },
 
     notifyUsers,
-    handleAnimeSearch 
+    handleAnimeSearch
 };
