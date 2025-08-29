@@ -519,12 +519,25 @@ module.exports = {
         // Setup collector for controls
         if (q.nowMessage && !q._collectorBound) {
             q._collectorBound = true;
-            const msg = q.nowMessage;
+            let msg = q.nowMessage;
 
             const collector = msg.createMessageComponentCollector({
                 componentType: ComponentType.Button,
                 time: 7 * 24 * 60 * 60 * 1000,
             });
+
+            const safeEdit = async (payload) => {
+                try {
+                    await msg.edit(payload);
+                } catch {
+                    console.warn("Controls message lost, recreating...");
+                    const newMsg = await msg.channel.send(payload).catch(() => null);
+                    if (newMsg) {
+                        q.nowMessage = newMsg;
+                        msg = newMsg;
+                    }
+                }
+            };
 
             collector.on("collect", async (i) => {
                 const q2 = getOrCreateQueue(guildId);
@@ -543,37 +556,19 @@ module.exports = {
                 if (id === "pause") {
                     if (q2.player.state.status === AudioPlayerStatus.Playing) {
                         q2.player.pause();
-                        const embed = buildNowPlayingEmbed(
-                            q2.current,
-                            q2.volume * 100,
-                            q2.current?.requestedBy ?? i.user,
-                            q2.tracks.length,
-                            q2.loop
-                        );
-                        await msg.edit({
+                        const embed = buildNowPlayingEmbed(q2.current, q2.volume * 100, q2.current?.requestedBy ?? i.user, q2.tracks.length, q2.loop);
+                        await safeEdit({
                             embeds: [embed],
-                            components: [
-                                buildControls(guildId, true, q2.loop, q2.current?.url),
-                                buildVolumeRow(guildId, q2.current?.url),
-                            ],
-                        }).catch(() => { });
+                            components: [buildControls(guildId, true, q2.loop, q2.current?.url), buildVolumeRow(guildId, q2.current?.url)],
+                        });
                         await i.reply({ ephemeral: true, content: "⏸️ Paused." });
                     } else if (q2.player.state.status === AudioPlayerStatus.Paused) {
                         q2.player.unpause();
-                        const embed = buildNowPlayingEmbed(
-                            q2.current,
-                            q2.volume * 100,
-                            q2.current?.requestedBy ?? i.user,
-                            q2.tracks.length,
-                            q2.loop
-                        );
-                        await msg.edit({
+                        const embed = buildNowPlayingEmbed(q2.current, q2.volume * 100, q2.current?.requestedBy ?? i.user, q2.tracks.length, q2.loop);
+                        await safeEdit({
                             embeds: [embed],
-                            components: [
-                                buildControls(guildId, false, q2.loop, q2.current?.url),
-                                buildVolumeRow(guildId, q2.current?.url),
-                            ],
-                        }).catch(() => { });
+                            components: [buildControls(guildId, false, q2.loop, q2.current?.url), buildVolumeRow(guildId, q2.current?.url)],
+                        });
                         await i.reply({ ephemeral: true, content: "▶️ Resumed." });
                     } else {
                         await i.reply({ ephemeral: true, content: "⚠️ Not playing." });
@@ -582,45 +577,23 @@ module.exports = {
                 }
 
                 if (id === "stop") {
-                    const q = getOrCreateQueue(guildId);
-
-                    // Stop the audio player
-                    if (q.player) q.player.stop();
-
-                    // Clear queue + reset state
-                    q.tracks = [];
-                    q.current = null;
-                    q.loop = false; // 🔴 disable looping
-                    q.skipVotes.clear();
-                    q.skipVoting = false;
-
-                    // Clear timers
-                    if (q.progressInterval) {
-                        clearInterval(q.progressInterval);
-                        q.progressInterval = null;
+                    if (q2.player) q2.player.stop();
+                    q2.tracks = [];
+                    q2.current = null;
+                    q2.loop = false;
+                    q2.skipVotes.clear();
+                    q2.skipVoting = false;
+                    if (q2.progressInterval) clearInterval(q2.progressInterval);
+                    if (q2.inactivityTimer) clearTimeout(q2.inactivityTimer);
+                    if (q2.connection) {
+                        q2.connection.destroy();
+                        q2.connection = null;
                     }
-                    if (q.inactivityTimer) {
-                        clearTimeout(q.inactivityTimer);
-                        q.inactivityTimer = null;
+                    if (q2.nowMessage) {
+                        await q2.nowMessage.delete().catch(() => { });
+                        q2.nowMessage = null;
                     }
-
-                    // Destroy the voice connection (leave VC)
-                    if (q.connection) {
-                        q.connection.destroy();
-                        q.connection = null;
-                    }
-
-                    // Delete "Now Playing" message if exists
-                    if (q.nowMessage) {
-                        await q.nowMessage.delete().catch(() => { });
-                        q.nowMessage = null;
-                    }
-
-                    await i.reply({
-                        ephemeral: true,
-                        content: "🛑 Stopped playback, disabled loop, cleared the queue, and left the VC."
-                    });
-
+                    await i.reply({ ephemeral: true, content: "🛑 Stopped playback, disabled loop, cleared the queue, and left the VC." });
                     return;
                 }
 
@@ -635,11 +608,7 @@ module.exports = {
                             q2.skipVotes = new Set([i.user.id]);
                             q2.skipVotingMsg = await i.reply({
                                 content: `⏭️ Skip requested! React below to vote. Need at least 2 votes to skip.`,
-                                components: [
-                                    new ActionRowBuilder().addComponents(
-                                        new ButtonBuilder().setCustomId("vote_skip").setLabel("Skip").setStyle(ButtonStyle.Primary)
-                                    ),
-                                ],
+                                components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId("vote_skip").setLabel("Skip").setStyle(ButtonStyle.Primary))],
                                 ephemeral: false,
                                 fetchReply: true,
                             });
@@ -658,10 +627,7 @@ module.exports = {
                             await i.reply({ ephemeral: true, content: "Skip vote already in progress." });
                         }
                     } else {
-                        if (
-                            q2.player.state.status === AudioPlayerStatus.Playing ||
-                            q2.player.state.status === AudioPlayerStatus.Paused
-                        ) {
+                        if (q2.player.state.status === AudioPlayerStatus.Playing || q2.player.state.status === AudioPlayerStatus.Paused) {
                             q2.player.stop(true);
                             await i.reply({ ephemeral: true, content: "⏭️ Skipped." });
                         } else {
@@ -673,9 +639,7 @@ module.exports = {
 
                 if (id === "list") {
                     const lines = [];
-                    if (q2.current) {
-                        lines.push(`**Now** — [${q2.current.title}](${q2.current.url}) \`${fmtDur(q2.current.lengthSeconds)}\``);
-                    }
+                    if (q2.current) lines.push(`**Now** — [${q2.current.title}](${q2.current.url}) \`${fmtDur(q2.current.lengthSeconds)}\``);
                     if (q2.tracks.length === 0) {
                         lines.push("_Queue is empty._");
                     } else {
@@ -684,29 +648,18 @@ module.exports = {
                         });
                         if (q2.tracks.length > 10) lines.push(`…and **${q2.tracks.length - 10}** more`);
                     }
-
                     const embed = buildInfoEmbed("🧾 Current Queue", lines.join("\n"));
-
                     await i.reply({ ephemeral: true, embeds: [embed] });
                     return;
                 }
 
                 if (id === "loop") {
                     q2.loop = !q2.loop;
-                    const embed = buildNowPlayingEmbed(
-                        q2.current ?? {},
-                        q2.volume * 100,
-                        q2.current?.requestedBy ?? i.user,
-                        q2.tracks.length,
-                        q2.loop
-                    );
-                    await msg.edit({
+                    const embed = buildNowPlayingEmbed(q2.current ?? {}, q2.volume * 100, q2.current?.requestedBy ?? i.user, q2.tracks.length, q2.loop);
+                    await safeEdit({
                         embeds: [embed],
-                        components: [
-                            buildControls(guildId, q2.player.state.status === AudioPlayerStatus.Paused, q2.loop, q2.current?.url),
-                            buildVolumeRow(guildId, q2.current?.url),
-                        ],
-                    }).catch(() => { });
+                        components: [buildControls(guildId, q2.player.state.status === AudioPlayerStatus.Paused, q2.loop, q2.current?.url), buildVolumeRow(guildId, q2.current?.url)],
+                    });
                     await i.deferUpdate();
                     return;
                 }
@@ -716,27 +669,16 @@ module.exports = {
                     q2.volume = Math.max(0.0, Math.min(2.0, Math.round((q2.volume + delta) * 10) / 10));
                     const res = q2.player._state?.resource;
                     if (res?.volume) res.volume.setVolume(q2.volume);
-                    const embed = buildNowPlayingEmbed(
-                        q2.current ?? {},
-                        q2.volume * 100,
-                        q2.current?.requestedBy ?? i.user,
-                        q2.tracks.length,
-                        q2.loop
-                    );
-                    await msg.edit({
+                    const embed = buildNowPlayingEmbed(q2.current ?? {}, q2.volume * 100, q2.current?.requestedBy ?? i.user, q2.tracks.length, q2.loop);
+                    await safeEdit({
                         embeds: [embed],
-                        components: [
-                            buildControls(guildId, q2.player.state.status === AudioPlayerStatus.Paused, q2.loop, q2.current?.url),
-                            buildVolumeRow(guildId, q2.current?.url),
-                        ],
-                    }).catch(() => { });
+                        components: [buildControls(guildId, q2.player.state.status === AudioPlayerStatus.Paused, q2.loop, q2.current?.url), buildVolumeRow(guildId, q2.current?.url)],
+                    });
                     await i.deferUpdate();
                     return;
                 }
 
-                // Handle skip voting button
                 if (i.customId === "vote_skip") {
-                    const q2 = getOrCreateQueue(guildId);
                     if (q2.skipVoting && !q2.skipVotes.has(i.user.id)) {
                         q2.skipVotes.add(i.user.id);
                         await i.reply({ ephemeral: true, content: "Your vote to skip has been counted." });
@@ -755,10 +697,44 @@ module.exports = {
             });
 
             collector.on("end", async () => {
-                if (q.nowMessage) {
-                    await q.nowMessage.edit({ components: [] }).catch(() => { });
+                const q2 = getOrCreateQueue(guildId);
+                if (q2.current) {
+                    const embed = buildNowPlayingEmbed(q2.current, q2.volume * 100, q2.current.requestedBy, q2.tracks.length, q2.loop);
+                    try {
+                        const newMsg = await msg.channel.send({
+                            embeds: [embed],
+                            components: [
+                                buildControls(guildId, q2.player.state.status === AudioPlayerStatus.Paused, q2.loop, q2.current.url),
+                                buildVolumeRow(guildId, q2.current.url),
+                            ],
+                        });
+                        q2.nowMessage = newMsg;
+                        msg = newMsg;
+                    } catch (err) {
+                        console.error("Failed to restore controls after collector ended:", err);
+                    }
                 }
             });
+
+            if (!q._heartbeat) {
+                q._heartbeat = setInterval(async () => {
+                    if (q.current && (!q.nowMessage || q.nowMessage.deleted)) {
+                        const embed = buildNowPlayingEmbed(q.current, q.volume * 100, q.current.requestedBy, q.tracks.length, q.loop);
+                        try {
+                            q.nowMessage = await msg.channel.send({
+                                embeds: [embed],
+                                components: [
+                                    buildControls(guildId, q.player.state.status === AudioPlayerStatus.Paused, q.loop, q.current.url),
+                                    buildVolumeRow(guildId, q.current.url),
+                                ],
+                            });
+                            msg = q.nowMessage;
+                        } catch (err) {
+                            console.error("Heartbeat failed to restore controls:", err);
+                        }
+                    }
+                }, 30_000);
+            }
         }
     },
 };
