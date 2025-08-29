@@ -39,6 +39,15 @@ function getOrCreateQueue(guildId) {
             skipVotingTimeout: null,
             skipVotingMsg: null,
             inactivityTimer: null,
+
+            enqueue(track) {
+                this.tracks.push(track);
+                return this.tracks.length;
+            },
+
+            dequeue() {
+                return this.tracks.shift();
+            }
         });
     }
     return queues.get(guildId);
@@ -77,7 +86,6 @@ function buildControls(guildId, isPaused, isLooped, trackUrl) {
     );
 }
 
-// Link button is now on the volume row
 function buildVolumeRow(guildId, trackUrl) {
     return new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -95,7 +103,7 @@ function buildVolumeRow(guildId, trackUrl) {
     );
 }
 
-function buildNowPlayingEmbed(track, volumePct, requester, queueLen, isLooped) {
+function buildNowPlayingEmbed(track, volumePct, requester, queueLen, isLooped, elapsed = 0) {
     return new EmbedBuilder()
         .setColor(isLooped ? 0xF472B6 : 0x00C2FF)
         .setTitle(track?.title ?? "Now Playing")
@@ -103,7 +111,10 @@ function buildNowPlayingEmbed(track, volumePct, requester, queueLen, isLooped) {
         .setThumbnail(track?.thumbnail ?? null)
         .addFields(
             { name: "Channel", value: track?.author ?? "Unknown", inline: true },
-            { name: "Duration", value: track ? fmtDur(track.lengthSeconds) : "—", inline: true },
+            { name: "Source", value: "YouTube", inline: true },
+            { name: "Search", value: track?.searchInfo ?? "Unknown", inline: true },
+            { name: "Views", value: track?.views?.toLocaleString() ?? "N/A", inline: true },
+            { name: "Duration", value: `${fmtDur(elapsed)} / ${fmtDur(track.lengthSeconds)}`, inline: true },
             { name: "Queue", value: `${queueLen} in line`, inline: true },
             { name: "Volume", value: `${Math.round(volumePct)}%`, inline: true },
             { name: "Loop", value: isLooped ? "🔁 Enabled" : "Not Enabled", inline: true },
@@ -150,7 +161,6 @@ async function ensureConnection(interaction, q) {
     }
 }
 
-// Only start inactivity timer if not playing
 function resetInactivityTimer(guildId) {
     const q = getOrCreateQueue(guildId);
     if (q.inactivityTimer) clearTimeout(q.inactivityTimer);
@@ -164,10 +174,16 @@ function resetInactivityTimer(guildId) {
 
 async function playNext(interaction, guildId, forceEmbed = false) {
     const q = getOrCreateQueue(guildId);
-    if (q.current || q.player.state.status === AudioPlayerStatus.Playing || q.tracks.length === 0) return;
 
-    q.current = q.tracks.shift();
-    const t = q.current;
+    // Don't start if something is already playing
+    if (q.current || q.player.state.status === AudioPlayerStatus.Playing) return;
+
+    // Pull next track from queue
+    const t = q.dequeue();
+    if (!t) return;
+
+    q.current = t;
+    q.startTime = Date.now(); // ⏱️ mark when this track started
 
     const info = await ytdl.getInfo(t.url);
     const stream = ytdl.downloadFromInfo(info, {
@@ -182,16 +198,53 @@ async function playNext(interaction, guildId, forceEmbed = false) {
 
     q.player.play(resource);
 
-    const embed = buildNowPlayingEmbed(t, q.volume * 100, t.requestedBy, q.tracks.length, q.loop);
+    // Build initial embed
+    const embed = buildNowPlayingEmbed(
+        t,
+        q.volume * 100,
+        t.requestedBy,
+        q.tracks.length,
+        q.loop,
+        0
+    );
     const rows = [buildControls(guildId, false, q.loop, t.url), buildVolumeRow(guildId, t.url)];
 
     if (q.nowMessage && !forceEmbed) {
-        await q.nowMessage.edit({ content: "", embeds: [embed], components: rows }).catch(() => { });
+        await q.nowMessage.edit({ content: "", embeds: [embed], components: rows }).catch(() => {});
     } else {
-        if (q.nowMessage) await q.nowMessage.delete().catch(() => { });
+        if (q.nowMessage) await q.nowMessage.delete().catch(() => {});
         q.nowMessage = await interaction.channel.send({ embeds: [embed], components: rows });
     }
-    // Don't reset inactivity timer here, handled by player events
+
+    // Clear any old interval
+    if (q.progressInterval) clearInterval(q.progressInterval);
+
+    // Start live duration updater (every 5s)
+    q.progressInterval = setInterval(async () => {
+        if (!q.current) {
+            clearInterval(q.progressInterval);
+            q.progressInterval = null;
+            return;
+        }
+
+        const elapsed = Math.floor((Date.now() - q.startTime) / 1000);
+        const liveEmbed = buildNowPlayingEmbed(
+            t,
+            q.volume * 100,
+            t.requestedBy,
+            q.tracks.length,
+            q.loop,
+            elapsed
+        );
+
+        await q.nowMessage.edit({ embeds: [liveEmbed], components: rows }).catch(() => {});
+    }, 7000);
+
+    // Cleanup when track finishes
+    q.player.once(AudioPlayerStatus.Idle, () => {
+        clearInterval(q.progressInterval);
+        q.progressInterval = null;
+    });
 }
 
 async function stopAndCleanup(guildId) {
@@ -210,25 +263,40 @@ async function stopAndCleanup(guildId) {
     }
 }
 
-async function resolveTrack(query, user) {
-    // Accept either URL or search query
+async function resolveTrack(query, user, forceAlt = false) {
     let url = query;
     let details;
+    let searchInfo = "Unknown";
+    let views = null;
     if (/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/.test(query)) {
         try {
             const info = await ytdl.getInfo(query);
             details = info.videoDetails;
             url = details.video_url;
+            searchInfo = "URL";
+            views = Number(details.viewCount) || null;
         } catch (e) {
             throw new Error("INVALID_URL");
         }
     } else {
-        // Try yt-search first
         let ytResult;
         try {
-            ytResult = await ytSearch(query);
+            ytResult = await ytSearch(forceAlt ? query + " music" : query + " song");
+            if (ytResult && ytResult.videos.length > 0) {
+                searchInfo = `${query} - Based: Music`;
+            }
         } catch { }
-        if (ytResult && ytResult.videos && ytResult.videos.length > 0) {
+
+        if ((!ytResult || ytResult.videos.length === 0) && !forceAlt) {
+            try {
+                ytResult = await ytSearch(query, { sortBy: "viewCount" });
+                if (ytResult && ytResult.videos.length > 0) {
+                    searchInfo = `${query} - Based: Popularity`;
+                }
+            } catch { }
+        }
+
+        if (ytResult && ytResult.videos.length > 0) {
             const vid = ytResult.videos[0];
             url = vid.url;
             details = {
@@ -238,23 +306,26 @@ async function resolveTrack(query, user) {
                 author: { name: vid.author.name || vid.author },
                 video_url: vid.url,
             };
+            views = vid.views || null;
         } else {
-            // Fallback to ytsr
             const filters = await ytsr.getFilters(query);
-            const filter = filters.get('Type').get('Video');
+            const filter = filters.get("Type").get("Video");
             const searchResults = await ytsr(filter.url, { limit: 1 });
             if (!searchResults.items.length) throw new Error("NO_RESULTS");
             const vid = searchResults.items[0];
             url = vid.url;
             details = {
                 title: vid.title,
-                lengthSeconds: vid.duration ? vid.duration.split(':').reduce((acc, t) => 60 * acc + +t, 0) : 0,
+                lengthSeconds: vid.duration ? vid.duration.split(":").reduce((acc, t) => 60 * acc + +t, 0) : 0,
                 thumbnails: [{ url: vid.thumbnails[0].url }],
                 author: { name: vid.author.name },
                 video_url: vid.url,
             };
+            views = vid.views || null;
+            searchInfo = `${query} - Based: Video`;
         }
     }
+
     return {
         url,
         title: details.title,
@@ -262,6 +333,8 @@ async function resolveTrack(query, user) {
         thumbnail: details.thumbnails?.[details.thumbnails.length - 1]?.url ?? null,
         author: details.author?.name ?? "Unknown",
         requestedBy: user,
+        views,
+        searchInfo,
     };
 }
 
@@ -332,7 +405,7 @@ module.exports = {
                 }
 
                 if (btnInt.customId === "confirm_yes") {
-                    q.enqueue(track);
+                    q.tracks.push(track);   // 👈 push directly here
 
                     await btnInt.update({
                         embeds: [buildInfoEmbed("✅ Confirmed", "Added to the queue and will play soon!")],
@@ -349,13 +422,11 @@ module.exports = {
             }
         } else {
             // For short songs just enqueue immediately
-            q.enqueue(track);
+            q.tracks.push(track);   // push directly here
             await interaction.editReply({
                 embeds: [buildInfoEmbed("🎶 Added to queue", `**${track.title}** has been added!`)]
             });
         }
-
-        q.tracks.push(track);
 
         const pos = q.current ? q.tracks.length : 1;
         const queuedEmbed = buildQueuedEmbed(track, pos, interaction.user);
