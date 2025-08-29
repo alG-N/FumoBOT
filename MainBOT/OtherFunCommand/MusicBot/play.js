@@ -186,9 +186,9 @@ async function playNext(interaction, guildId, forceEmbed = false) {
     const rows = [buildControls(guildId, false, q.loop, t.url), buildVolumeRow(guildId, t.url)];
 
     if (q.nowMessage && !forceEmbed) {
-        await q.nowMessage.edit({ content: "", embeds: [embed], components: rows }).catch(() => {});
+        await q.nowMessage.edit({ content: "", embeds: [embed], components: rows }).catch(() => { });
     } else {
-        if (q.nowMessage) await q.nowMessage.delete().catch(() => {});
+        if (q.nowMessage) await q.nowMessage.delete().catch(() => { });
         q.nowMessage = await interaction.channel.send({ embeds: [embed], components: rows });
     }
     // Don't reset inactivity timer here, handled by player events
@@ -196,8 +196,8 @@ async function playNext(interaction, guildId, forceEmbed = false) {
 
 async function stopAndCleanup(guildId) {
     const q = getOrCreateQueue(guildId);
-    try { q.player.stop(); } catch {}
-    try { q.connection?.destroy(); } catch {}
+    try { q.player.stop(); } catch { }
+    try { q.connection?.destroy(); } catch { }
     q.connection = null;
     q.current = null;
     q.tracks = [];
@@ -206,7 +206,7 @@ async function stopAndCleanup(guildId) {
     if (q.nowMessage) {
         const msg = q.nowMessage;
         q.nowMessage = null;
-        await msg.edit({ components: [] }).catch(() => {});
+        await msg.edit({ components: [] }).catch(() => { });
     }
 }
 
@@ -227,7 +227,7 @@ async function resolveTrack(query, user) {
         let ytResult;
         try {
             ytResult = await ytSearch(query);
-        } catch {}
+        } catch { }
         if (ytResult && ytResult.videos && ytResult.videos.length > 0) {
             const vid = ytResult.videos[0];
             url = vid.url;
@@ -307,7 +307,12 @@ module.exports = {
             );
 
             await interaction.editReply({
-                embeds: [buildInfoEmbed("⚠️ Long Video", "This video is longer than 7 minutes. Are you sure this is a song?")],
+                embeds: [{
+                    title: "⚠️ Long Video Detected",
+                    description: `**${track.title}**\n⏱️ ${(track.lengthSeconds / 60).toFixed(1)} mins\n\nIs this the song you wanted?`,
+                    url: track.url,
+                    thumbnail: { url: track.thumbnail },
+                }],
                 components: [confirmRow],
             });
 
@@ -316,7 +321,8 @@ module.exports = {
                 ["confirm_yes", "confirm_no"].includes(i.customId);
 
             try {
-                const btnInt = await interaction.channel.awaitMessageComponent({ filter, time: 15000 });
+                const btnInt = await interaction.channel.awaitMessageComponent({ filter, time: 20000 });
+
                 if (btnInt.customId === "confirm_no") {
                     await btnInt.update({
                         embeds: [buildInfoEmbed("❌ Cancelled", "Playback cancelled.")],
@@ -324,10 +330,16 @@ module.exports = {
                     });
                     return;
                 }
-                await btnInt.update({
-                    embeds: [buildInfoEmbed("✅ Confirmed", "Playing your requested video.")],
-                    components: [],
-                });
+
+                if (btnInt.customId === "confirm_yes") {
+                    q.enqueue(track);
+
+                    await btnInt.update({
+                        embeds: [buildInfoEmbed("✅ Confirmed", "Added to the queue and will play soon!")],
+                        components: [],
+                    });
+                }
+
             } catch {
                 await interaction.editReply({
                     embeds: [buildInfoEmbed("❌ Timeout", "No response. Playback cancelled.")],
@@ -335,6 +347,12 @@ module.exports = {
                 });
                 return;
             }
+        } else {
+            // For short songs just enqueue immediately
+            q.enqueue(track);
+            await interaction.editReply({
+                embeds: [buildInfoEmbed("🎶 Added to queue", `**${track.title}** has been added!`)]
+            });
         }
 
         q.tracks.push(track);
@@ -377,7 +395,7 @@ module.exports = {
                             buildControls(guildId, false, q.loop, q.current.url),
                             buildVolumeRow(guildId, q.current.url),
                         ];
-                        await q.nowMessage.edit({ embeds: [embed], components: rows }).catch(() => {});
+                        await q.nowMessage.edit({ embeds: [embed], components: rows }).catch(() => { });
                     }
                 }
                 q.current = null;
@@ -389,7 +407,7 @@ module.exports = {
                         const idleEmbed = new EmbedBuilder(q.nowMessage.embeds?.[0]?.toJSON() ?? {})
                             .setColor(0x94A3B8)
                             .setTitle("✅ Queue finished");
-                        await q.nowMessage.edit({ embeds: [idleEmbed], components: [] }).catch(() => {});
+                        await q.nowMessage.edit({ embeds: [idleEmbed], components: [] }).catch(() => { });
                     }
                     resetInactivityTimer(guildId);
                 }
@@ -414,7 +432,7 @@ module.exports = {
             q.player.on("error", async () => {
                 if (q.nowMessage) {
                     const errEmbed = buildInfoEmbed("⚠️ Playback error", "Skipping to the next track…");
-                    await q.nowMessage.reply({ embeds: [errEmbed] }).catch(() => {});
+                    await q.nowMessage.reply({ embeds: [errEmbed] }).catch(() => { });
                 }
                 q.player.stop();
             });
@@ -462,7 +480,7 @@ module.exports = {
                                 buildControls(guildId, true, q2.loop, q2.current?.url),
                                 buildVolumeRow(guildId, q2.current?.url),
                             ],
-                        }).catch(() => {});
+                        }).catch(() => { });
                         await i.reply({ ephemeral: true, content: "⏸️ Paused." });
                     } else if (q2.player.state.status === AudioPlayerStatus.Paused) {
                         q2.player.unpause();
@@ -479,7 +497,7 @@ module.exports = {
                                 buildControls(guildId, false, q2.loop, q2.current?.url),
                                 buildVolumeRow(guildId, q2.current?.url),
                             ],
-                        }).catch(() => {});
+                        }).catch(() => { });
                         await i.reply({ ephemeral: true, content: "▶️ Resumed." });
                     } else {
                         await i.reply({ ephemeral: true, content: "⚠️ Not playing." });
@@ -553,21 +571,10 @@ module.exports = {
                         });
                         if (q2.tracks.length > 10) lines.push(`…and **${q2.tracks.length - 10}** more`);
                     }
-                    const embed = buildNowPlayingEmbed(
-                        q2.current ?? {},
-                        q2.volume * 100,
-                        q2.current?.requestedBy ?? i.user,
-                        q2.tracks.length,
-                        q2.loop
-                    );
-                    await msg.edit({
-                        embeds: [embed],
-                        components: [
-                            buildControls(guildId, q2.player.state.status === AudioPlayerStatus.Paused, q2.loop, q2.current?.url),
-                            buildVolumeRow(guildId, q2.current?.url),
-                        ],
-                    }).catch(() => {});
-                    await i.reply({ ephemeral: true, content: q2.loop ? "🔁 Loop enabled." : "🔂 Loop disabled." });
+
+                    const embed = buildInfoEmbed("🧾 Current Queue", lines.join("\n"));
+
+                    await i.reply({ ephemeral: true, embeds: [embed] });
                     return;
                 }
 
@@ -586,7 +593,7 @@ module.exports = {
                             buildControls(guildId, q2.player.state.status === AudioPlayerStatus.Paused, q2.loop, q2.current?.url),
                             buildVolumeRow(guildId, q2.current?.url),
                         ],
-                    }).catch(() => {});
+                    }).catch(() => { });
                     await i.deferUpdate();
                     return;
                 }
@@ -609,7 +616,7 @@ module.exports = {
                             buildControls(guildId, q2.player.state.status === AudioPlayerStatus.Paused, q2.loop, q2.current?.url),
                             buildVolumeRow(guildId, q2.current?.url),
                         ],
-                    }).catch(() => {});
+                    }).catch(() => { });
                     await i.deferUpdate();
                     return;
                 }
@@ -636,13 +643,16 @@ module.exports = {
 
             collector.on("end", async () => {
                 if (q.nowMessage) {
-                    await q.nowMessage.edit({ components: [] }).catch(() => {});
+                    await q.nowMessage.edit({ components: [] }).catch(() => { });
                 }
             });
         }
     },
 };
 
+module.exports.queues = queues;
+module.exports.player = this.player;
+module.exports.getOrCreateQueue = getOrCreateQueue;
 // // Enhancement notes:
 // - Added ytsr for search by name
 // - Added inactivity timer to leave VC after 2 mins of no music

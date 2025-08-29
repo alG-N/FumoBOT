@@ -31,7 +31,7 @@ const db = new sqlite3.Database(dbPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CR
         console.log("ℹ️ Journal mode set to WAL.");
       }
     });
-    db.run("PRAGMA synchronous = FASTEST;");            // Fastest writes (less safe) // Normal is alright
+    db.run("PRAGMA synchronous = FAST;");            // Fastest writes (less safe) // Normal is alright
     db.run("PRAGMA foreign_keys = ON;");
     db.run("PRAGMA temp_store = MEMORY;");          // Use RAM for temp data
     db.run("PRAGMA cache_size = -250000;");         // ~250MB cache in RAM
