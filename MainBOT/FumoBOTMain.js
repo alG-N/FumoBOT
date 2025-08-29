@@ -1179,10 +1179,22 @@ client.on(Events.InteractionCreate, async interaction => {
         await command.execute(interaction);
     } catch (error) {
         console.error(error);
-        await interaction.reply({
-            content: "❌ There was an error executing this command!",
-            ephemeral: true
-        });
+
+        if (interaction.isRepliable()) {
+            if (interaction.deferred || interaction.replied) {
+                // Already acknowledged → just log the error, do not follow up
+                console.warn("Interaction has already been acknowledged, cannot reply or follow up.");
+            } else {
+                // Safe to reply
+                await interaction.reply({
+                    content: "❌ There was an error executing this command!",
+                    ephemeral: true
+                });
+            }
+        } else {
+            // Interaction is no longer valid, just log the error
+            console.warn("Interaction is no longer repliable.");
+        }
     }
 });
 
