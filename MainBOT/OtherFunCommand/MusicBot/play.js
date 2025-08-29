@@ -32,6 +32,8 @@ function getOrCreateQueue(guildId) {
             current: null,
             tracks: [],
             loop: false,
+            startTime: null,
+            elapsed: 0,
             _eventsBound: false,
             _collectorBound: false,
             skipVotes: new Set(),
@@ -175,15 +177,13 @@ function resetInactivityTimer(guildId) {
 async function playNext(interaction, guildId, forceEmbed = false) {
     const q = getOrCreateQueue(guildId);
 
-    // Don't start if something is already playing
     if (q.current || q.player.state.status === AudioPlayerStatus.Playing) return;
 
-    // Pull next track from queue
     const t = q.dequeue();
     if (!t) return;
 
     q.current = t;
-    q.startTime = Date.now(); // ⏱️ mark when this track started
+    q.startTime = Date.now();
 
     const info = await ytdl.getInfo(t.url);
     const stream = ytdl.downloadFromInfo(info, {
@@ -192,13 +192,10 @@ async function playNext(interaction, guildId, forceEmbed = false) {
         highWaterMark: 1 << 25,
     });
 
-    const resource = createAudioResource(stream, {
-        inputType: StreamType.Arbitrary,
-    });
-
+    const resource = createAudioResource(stream, { inputType: StreamType.Arbitrary });
     q.player.play(resource);
 
-    // Build initial embed
+    // Initial embed
     const embed = buildNowPlayingEmbed(
         t,
         q.volume * 100,
@@ -210,37 +207,45 @@ async function playNext(interaction, guildId, forceEmbed = false) {
     const rows = [buildControls(guildId, false, q.loop, t.url), buildVolumeRow(guildId, t.url)];
 
     if (q.nowMessage && !forceEmbed) {
-        await q.nowMessage.edit({ content: "", embeds: [embed], components: rows }).catch(() => {});
+        await q.nowMessage.edit({ content: "", embeds: [embed], components: rows }).catch(() => { });
     } else {
-        if (q.nowMessage) await q.nowMessage.delete().catch(() => {});
+        if (q.nowMessage) await q.nowMessage.delete().catch(() => { });
         q.nowMessage = await interaction.channel.send({ embeds: [embed], components: rows });
     }
 
-    // Clear any old interval
+    // Clear old updater
     if (q.progressInterval) clearInterval(q.progressInterval);
 
-    // Start live duration updater (every 5s)
+    // Interval only updates Duration field
     q.progressInterval = setInterval(async () => {
-        if (!q.current) {
+        if (!q.current || !q.nowMessage) {
             clearInterval(q.progressInterval);
             q.progressInterval = null;
             return;
         }
 
         const elapsed = Math.floor((Date.now() - q.startTime) / 1000);
-        const liveEmbed = buildNowPlayingEmbed(
-            t,
-            q.volume * 100,
-            t.requestedBy,
-            q.tracks.length,
-            q.loop,
-            elapsed
+        q.elapsed = elapsed;
+
+        const oldEmbed = q.nowMessage.embeds[0];
+        if (!oldEmbed) return;
+
+        const newEmbed = EmbedBuilder.from(oldEmbed);
+
+        const newFields = newEmbed.data.fields.map(f =>
+            f.name === "Duration"
+                ? { ...f, value: `${fmtDur(elapsed)} / ${fmtDur(q.current.lengthSeconds)}` }
+                : f
         );
 
-        await q.nowMessage.edit({ embeds: [liveEmbed], components: rows }).catch(() => {});
+        newEmbed.setFields(newFields);
+
+        await q.nowMessage
+            .edit({ embeds: [newEmbed], components: q.nowMessage.components })
+            .catch(() => { });
     }, 7000);
 
-    // Cleanup when track finishes
+    // Cleanup
     q.player.once(AudioPlayerStatus.Idle, () => {
         clearInterval(q.progressInterval);
         q.progressInterval = null;
@@ -577,8 +582,45 @@ module.exports = {
                 }
 
                 if (id === "stop") {
-                    await stopAndCleanup(guildId);
-                    await i.reply({ ephemeral: true, content: "🛑 Stopped playback and cleared the queue." });
+                    const q = getOrCreateQueue(guildId);
+
+                    // Stop the audio player
+                    if (q.player) q.player.stop();
+
+                    // Clear queue + reset state
+                    q.tracks = [];
+                    q.current = null;
+                    q.loop = false; // 🔴 disable looping
+                    q.skipVotes.clear();
+                    q.skipVoting = false;
+
+                    // Clear timers
+                    if (q.progressInterval) {
+                        clearInterval(q.progressInterval);
+                        q.progressInterval = null;
+                    }
+                    if (q.inactivityTimer) {
+                        clearTimeout(q.inactivityTimer);
+                        q.inactivityTimer = null;
+                    }
+
+                    // Destroy the voice connection (leave VC)
+                    if (q.connection) {
+                        q.connection.destroy();
+                        q.connection = null;
+                    }
+
+                    // Delete "Now Playing" message if exists
+                    if (q.nowMessage) {
+                        await q.nowMessage.delete().catch(() => { });
+                        q.nowMessage = null;
+                    }
+
+                    await i.reply({
+                        ephemeral: true,
+                        content: "🛑 Stopped playback, disabled loop, cleared the queue, and left the VC."
+                    });
+
                     return;
                 }
 
