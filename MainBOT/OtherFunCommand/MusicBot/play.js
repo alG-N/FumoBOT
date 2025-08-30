@@ -108,20 +108,25 @@ function buildVolumeRow(guildId, trackUrl) {
 function buildNowPlayingEmbed(track, volumePct, requester, queueLen, isLooped, elapsed = 0) {
     return new EmbedBuilder()
         .setColor(isLooped ? 0xF472B6 : 0x00C2FF)
-        .setTitle(track?.title ?? "Now Playing")
+        .setAuthor({ name: "🎶 Now Playing", iconURL: "https://cdn-icons-png.flaticon.com/512/727/727240.png" })
+        .setTitle(track?.title ?? "Unknown Track")
         .setURL(track?.url ?? null)
         .setThumbnail(track?.thumbnail ?? null)
         .addFields(
-            { name: "Channel", value: track?.author ?? "Unknown", inline: true },
-            { name: "Source", value: "YouTube", inline: true },
-            { name: "Search", value: track?.searchInfo ?? "Unknown", inline: true },
-            { name: "Views", value: track?.views?.toLocaleString() ?? "N/A", inline: true },
-            { name: "Duration", value: `${fmtDur(elapsed)} / ${fmtDur(track.lengthSeconds)}`, inline: true },
-            { name: "Queue", value: `${queueLen} in line`, inline: true },
-            { name: "Volume", value: `${Math.round(volumePct)}%`, inline: true },
-            { name: "Loop", value: isLooped ? "🔁 Enabled" : "Not Enabled", inline: true },
+            { name: "📺 Channel", value: track?.author ?? "Unknown", inline: true },
+            { name: "🌐 Source", value: "YouTube", inline: true },
+            { name: "🔎 Search", value: track?.searchInfo ?? "Unknown", inline: true },
+            { name: "👀 Views", value: track?.views?.toLocaleString() ?? "N/A", inline: true },
+            { name: "⏱️ Duration", value: `\`${fmtDur(elapsed)} / ${fmtDur(track.lengthSeconds)}\``, inline: true },
+            { name: "📜 Queue", value: `\`${queueLen}\` in line`, inline: true },
+            { name: "🔊 Volume", value: `\`${Math.round(volumePct)}%\``, inline: true },
+            { name: "🔁 Loop", value: isLooped ? "**Enabled**" : "Not Enabled", inline: true },
         )
-        .setFooter({ text: `Requested by ${requester.tag}`, iconURL: requester.displayAvatarURL() });
+        .setFooter({ 
+            text: `🎧 Requested by ${requester.tag}`, 
+            iconURL: requester.displayAvatarURL() 
+        })
+        .setTimestamp();
 }
 
 function buildQueuedEmbed(track, position, requester) {
@@ -243,7 +248,7 @@ async function playNext(interaction, guildId, forceEmbed = false) {
         await q.nowMessage
             .edit({ embeds: [newEmbed], components: q.nowMessage.components })
             .catch(() => { });
-    }, 7000);
+    }, 12000);
 
     // Cleanup
     q.player.once(AudioPlayerStatus.Idle, () => {
@@ -343,6 +348,20 @@ async function resolveTrack(query, user, forceAlt = false) {
     };
 }
 
+const LOG_CHANNEL_ID = "1411386693499486429";
+async function logToChannel(client, msg) {
+    try {
+        const channel = await client.channels.fetch(LOG_CHANNEL_ID);
+        if (channel) await channel.send(`\`\`\`js\n${msg}\n\`\`\``);
+    } catch (err) {
+        console.error("Failed to send log to channel:", err);
+    }
+}
+function log(msg, interaction) {
+    console.log(msg);
+    if (interaction && interaction.client) logToChannel(interaction.client, msg);
+}
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("play")
@@ -352,12 +371,15 @@ module.exports = {
         ),
 
     async execute(interaction) {
+        log(`[play] Command invoked by ${interaction.user.tag} (${interaction.user.id})`, interaction);
+
         const query = interaction.options.getString("query");
         const guildId = interaction.guild.id;
         const q = getOrCreateQueue(guildId);
 
         const vc = interaction.member.voice?.channel;
         if (!vc) {
+            log(`[play] No voice channel for ${interaction.user.tag}`, interaction);
             return interaction.reply({
                 embeds: [buildInfoEmbed("❌ No Voice Channel", "Join a voice channel first.")],
                 ephemeral: true,
@@ -368,10 +390,13 @@ module.exports = {
 
         let track;
         try {
+            log(`[play] Resolving track for query: ${query}`, interaction);
             track = await resolveTrack(query, interaction.user);
+            log(`[play] Track resolved: ${track.title} (${track.url})`, interaction);
         } catch (e) {
             let msg = "Could not fetch video info. Make sure it’s a valid YouTube URL or search query.";
             if (e.message === "NO_RESULTS") msg = "No results found for your search.";
+            log(`[play] Track resolve error: ${e.message}`, interaction);
             return interaction.editReply({
                 embeds: [buildInfoEmbed("❌ Invalid Query", msg)],
             });
@@ -379,6 +404,7 @@ module.exports = {
 
         // Ask for confirmation if video > 7 mins
         if (track.lengthSeconds > 420) {
+            log(`[play] Long video detected: ${track.title} (${track.lengthSeconds}s)`, interaction);
             const confirmRow = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId("confirm_yes").setLabel("Yes").setStyle(ButtonStyle.Success),
                 new ButtonBuilder().setCustomId("confirm_no").setLabel("No").setStyle(ButtonStyle.Danger)
@@ -401,11 +427,14 @@ module.exports = {
             try {
                 const btnInt = await interaction.channel.awaitMessageComponent({ filter, time: 20000 });
 
+                log(`[play] Confirmation button pressed: ${btnInt.customId}`, interaction);
+
                 if (btnInt.customId === "confirm_no") {
                     await btnInt.update({
                         embeds: [buildInfoEmbed("❌ Cancelled", "Playback cancelled.")],
                         components: [],
                     });
+                    log(`[play] Playback cancelled by user`, interaction);
                     return;
                 }
 
@@ -416,9 +445,11 @@ module.exports = {
                         embeds: [buildInfoEmbed("✅ Confirmed", "Added to the queue and will play soon!")],
                         components: [],
                     });
+                    log(`[play] Track confirmed and added to queue`, interaction);
                 }
 
-            } catch {
+            } catch (err) {
+                log(`[play] Confirmation timeout or error: ${err}`, interaction);
                 await interaction.editReply({
                     embeds: [buildInfoEmbed("❌ Timeout", "No response. Playback cancelled.")],
                     components: [],
@@ -428,6 +459,7 @@ module.exports = {
         } else {
             // For short songs just enqueue immediately
             q.tracks.push(track);   // push directly here
+            log(`[play] Track added to queue immediately`, interaction);
             await interaction.editReply({
                 embeds: [buildInfoEmbed("🎶 Added to queue", `**${track.title}** has been added!`)]
             });
@@ -438,8 +470,10 @@ module.exports = {
         await interaction.editReply({ embeds: [queuedEmbed], components: [] });
 
         try {
+            log(`[play] Ensuring connection`, interaction);
             await ensureConnection(interaction, q);
         } catch (err) {
+            log(`[play] Connection error: ${err.message}`, interaction);
             await interaction.followUp({
                 embeds: [
                     buildInfoEmbed(
@@ -457,6 +491,7 @@ module.exports = {
             q._eventsBound = true;
 
             q.player.on(AudioPlayerStatus.Idle, async () => {
+                log(`[player] Status: Idle`, interaction);
                 if (q.loop && q.current) {
                     q.tracks.unshift(q.current);
                     if (q.nowMessage) {
@@ -490,7 +525,7 @@ module.exports = {
             });
 
             q.player.on(AudioPlayerStatus.Playing, () => {
-                // Clear inactivity timer when music is playing
+                log(`[player] Status: Playing`, interaction);
                 if (q.inactivityTimer) {
                     clearTimeout(q.inactivityTimer);
                     q.inactivityTimer = null;
@@ -498,14 +533,15 @@ module.exports = {
             });
 
             q.player.on(AudioPlayerStatus.Paused, () => {
-                // Don't set inactivity timer while paused
+                log(`[player] Status: Paused`, interaction);
                 if (q.inactivityTimer) {
                     clearTimeout(q.inactivityTimer);
                     q.inactivityTimer = null;
                 }
             });
 
-            q.player.on("error", async () => {
+            q.player.on("error", async (err) => {
+                log(`[player] Error: ${err}`, interaction);
                 if (q.nowMessage) {
                     const errEmbed = buildInfoEmbed("⚠️ Playback error", "Skipping to the next track…");
                     await q.nowMessage.reply({ embeds: [errEmbed] }).catch(() => { });
@@ -524,26 +560,36 @@ module.exports = {
             const collector = msg.createMessageComponentCollector({
                 componentType: ComponentType.Button,
                 time: 7 * 24 * 60 * 60 * 1000,
+                dispose: true // Enable disposal for fallback
             });
 
             const safeEdit = async (payload) => {
                 try {
                     await msg.edit(payload);
-                } catch {
-                    console.warn("Controls message lost, recreating...");
-                    const newMsg = await msg.channel.send(payload).catch(() => null);
-                    if (newMsg) {
-                        q.nowMessage = newMsg;
-                        msg = newMsg;
+                } catch (err) {
+                    log(`[controls] safeEdit failed: ${err}`, interaction);
+                    // Fallback: try to send a new message if edit fails
+                    try {
+                        const newMsg = await msg.channel.send(payload).catch(() => null);
+                        if (newMsg) {
+                            q.nowMessage = newMsg;
+                            msg = newMsg;
+                            log(`[controls] Fallback: sent new controls message`, interaction);
+                        }
+                    } catch (err2) {
+                        log(`[controls] Fallback failed: ${err2}`, interaction);
                     }
                 }
             };
 
             collector.on("collect", async (i) => {
+                log(`[controls] Button pressed: ${i.customId} by ${i.user.tag}`, interaction);
+
                 const q2 = getOrCreateQueue(guildId);
                 const botChannelId = q2.connection?.joinConfig?.channelId;
                 const memberChannelId = i.member?.voice?.channelId;
                 if (!botChannelId || memberChannelId !== botChannelId) {
+                    log(`[controls] User not in same VC`, interaction);
                     await i.reply({
                         ephemeral: true,
                         content: "❌ You must be in the same voice channel as the bot to use these controls.",
@@ -556,6 +602,7 @@ module.exports = {
                 if (id === "pause") {
                     if (q2.player.state.status === AudioPlayerStatus.Playing) {
                         q2.player.pause();
+                        log(`[controls] Paused`, interaction);
                         const embed = buildNowPlayingEmbed(q2.current, q2.volume * 100, q2.current?.requestedBy ?? i.user, q2.tracks.length, q2.loop);
                         await safeEdit({
                             embeds: [embed],
@@ -564,6 +611,7 @@ module.exports = {
                         await i.reply({ ephemeral: true, content: "⏸️ Paused." });
                     } else if (q2.player.state.status === AudioPlayerStatus.Paused) {
                         q2.player.unpause();
+                        log(`[controls] Resumed`, interaction);
                         const embed = buildNowPlayingEmbed(q2.current, q2.volume * 100, q2.current?.requestedBy ?? i.user, q2.tracks.length, q2.loop);
                         await safeEdit({
                             embeds: [embed],
@@ -571,12 +619,14 @@ module.exports = {
                         });
                         await i.reply({ ephemeral: true, content: "▶️ Resumed." });
                     } else {
+                        log(`[controls] Not playing`, interaction);
                         await i.reply({ ephemeral: true, content: "⚠️ Not playing." });
                     }
                     return;
                 }
 
                 if (id === "stop") {
+                    log(`[controls] Stopped`, interaction);
                     if (q2.player) q2.player.stop();
                     q2.tracks = [];
                     q2.current = null;
@@ -598,6 +648,7 @@ module.exports = {
                 }
 
                 if (id === "skip") {
+                    log(`[controls] Skip requested`, interaction);
                     const members = q2.connection?.joinConfig?.channelId
                         ? i.guild.channels.cache.get(q2.connection.joinConfig.channelId)?.members
                         : null;
@@ -617,20 +668,25 @@ module.exports = {
                                 if (q2.skipVotes.size >= 2) {
                                     q2.player.stop(true);
                                     await q2.skipVotingMsg.edit({ content: "⏭️ Track skipped by vote.", components: [] });
+                                    log(`[controls] Track skipped by vote`, interaction);
                                 } else {
                                     await q2.skipVotingMsg.edit({ content: "⏭️ Not enough votes to skip.", components: [] });
+                                    log(`[controls] Not enough votes to skip`, interaction);
                                 }
                                 q2.skipVotes.clear();
                                 q2.skipVotingMsg = null;
                             }, 15000);
                         } else {
+                            log(`[controls] Skip vote already in progress`, interaction);
                             await i.reply({ ephemeral: true, content: "Skip vote already in progress." });
                         }
                     } else {
                         if (q2.player.state.status === AudioPlayerStatus.Playing || q2.player.state.status === AudioPlayerStatus.Paused) {
                             q2.player.stop(true);
+                            log(`[controls] Track skipped`, interaction);
                             await i.reply({ ephemeral: true, content: "⏭️ Skipped." });
                         } else {
+                            log(`[controls] Nothing to skip`, interaction);
                             await i.reply({ ephemeral: true, content: "⚠️ Nothing to skip." });
                         }
                     }
@@ -638,6 +694,7 @@ module.exports = {
                 }
 
                 if (id === "list") {
+                    log(`[controls] List requested`, interaction);
                     const lines = [];
                     if (q2.current) lines.push(`**Now** — [${q2.current.title}](${q2.current.url}) \`${fmtDur(q2.current.lengthSeconds)}\``);
                     if (q2.tracks.length === 0) {
@@ -655,6 +712,7 @@ module.exports = {
 
                 if (id === "loop") {
                     q2.loop = !q2.loop;
+                    log(`[controls] Loop toggled: ${q2.loop}`, interaction);
                     const embed = buildNowPlayingEmbed(q2.current ?? {}, q2.volume * 100, q2.current?.requestedBy ?? i.user, q2.tracks.length, q2.loop);
                     await safeEdit({
                         embeds: [embed],
@@ -667,6 +725,7 @@ module.exports = {
                 if (id === "volDown" || id === "volUp") {
                     const delta = id === "volDown" ? -0.1 : 0.1;
                     q2.volume = Math.max(0.0, Math.min(2.0, Math.round((q2.volume + delta) * 10) / 10));
+                    log(`[controls] Volume changed: ${q2.volume}`, interaction);
                     const res = q2.player._state?.resource;
                     if (res?.volume) res.volume.setVolume(q2.volume);
                     const embed = buildNowPlayingEmbed(q2.current ?? {}, q2.volume * 100, q2.current?.requestedBy ?? i.user, q2.tracks.length, q2.loop);
@@ -679,6 +738,7 @@ module.exports = {
                 }
 
                 if (i.customId === "vote_skip") {
+                    log(`[controls] Vote skip pressed`, interaction);
                     if (q2.skipVoting && !q2.skipVotes.has(i.user.id)) {
                         q2.skipVotes.add(i.user.id);
                         await i.reply({ ephemeral: true, content: "Your vote to skip has been counted." });
@@ -689,14 +749,17 @@ module.exports = {
                             q2.skipVoting = false;
                             q2.skipVotes.clear();
                             q2.skipVotingMsg = null;
+                            log(`[controls] Track skipped by vote (2+)`, interaction);
                         }
                     } else {
                         await i.reply({ ephemeral: true, content: "You already voted or voting ended." });
+                        log(`[controls] Vote skip ignored`, interaction);
                     }
                 }
             });
 
-            collector.on("end", async () => {
+            collector.on("end", async (collected, reason) => {
+                log(`[controls] Collector ended: ${reason}`, interaction);
                 const q2 = getOrCreateQueue(guildId);
                 if (q2.current) {
                     const embed = buildNowPlayingEmbed(q2.current, q2.volume * 100, q2.current.requestedBy, q2.tracks.length, q2.loop);
@@ -710,8 +773,9 @@ module.exports = {
                         });
                         q2.nowMessage = newMsg;
                         msg = newMsg;
+                        log(`[controls] Fallback: controls restored after collector end`, interaction);
                     } catch (err) {
-                        console.error("Failed to restore controls after collector ended:", err);
+                        log(`[controls] Failed to restore controls after collector ended: ${err}`, interaction);
                     }
                 }
             });
@@ -719,6 +783,7 @@ module.exports = {
             if (!q._heartbeat) {
                 q._heartbeat = setInterval(async () => {
                     if (q.current && (!q.nowMessage || q.nowMessage.deleted)) {
+                        log(`[controls] Heartbeat restoring controls`, interaction);
                         const embed = buildNowPlayingEmbed(q.current, q.volume * 100, q.current.requestedBy, q.tracks.length, q.loop);
                         try {
                             q.nowMessage = await msg.channel.send({
@@ -730,7 +795,7 @@ module.exports = {
                             });
                             msg = q.nowMessage;
                         } catch (err) {
-                            console.error("Heartbeat failed to restore controls:", err);
+                            log(`[controls] Heartbeat failed to restore controls: ${err}`, interaction);
                         }
                     }
                 }, 30_000);
