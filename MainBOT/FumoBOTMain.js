@@ -1127,7 +1127,7 @@ client.on(Events.MessageCreate, async message => {
     }
 });
 //-----------------Functionality of the OTHER-----------------\\
-const avatar = require('./OtherFunCommand/avatar');
+// const avatar = require('./OtherFunCommand/avatar');
 const otherCMD = require('./OtherFunCommand/tutorialHelp');
 const roleinfo = require('./OtherFunCommand/roleinfo');
 const anime = require('./OtherFunCommand/anime');
@@ -1136,9 +1136,6 @@ const deathbattleJJK = require('./OtherFunCommand/deathbattleJJK');
 const groupInform = require('./OtherFunCommand/groupInform');
 const ping = require('./OtherFunCommand/ping');
 const musicCommands = require('./OtherFunCommand/MusicBot/MainMusic');
-
-//Define .avatar command
-avatar(client);
 
 //Define .roleinfo command
 roleinfo(client);

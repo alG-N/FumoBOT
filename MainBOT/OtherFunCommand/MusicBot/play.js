@@ -108,7 +108,10 @@ function buildVolumeRow(guildId, trackUrl) {
 function buildNowPlayingEmbed(track, volumePct, requester, queueLen, isLooped) {
     return new EmbedBuilder()
         .setColor(isLooped ? 0xF472B6 : 0x00C2FF)
-        .setAuthor({ name: "🇳🇴 NOW PLAYING", iconURL: "https://cdn-icons-png.flaticon.com/512/727/727240.png" })
+        .setAuthor({
+            name: "🇳 🇴 🇼  🇵 🇱 🇦 🇾 🇮 🇳 🇬",
+            iconURL: "https://cdn-icons-png.flaticon.com/512/727/727240.png"
+        })
         .setTitle(track?.title ?? "Unknown Track")
         .setURL(track?.url ?? null)
         .setThumbnail(track?.thumbnail ?? null)
@@ -137,7 +140,7 @@ function enhancedLog(msg, interaction) {
     console.log(`[${ts}] [${guild}] [${user}] ${msg}`);
     if (interaction && interaction.client) logToChannel(interaction.client, `[${ts}] ${msg}`);
 }
-const log = enhancedLog; 
+const log = enhancedLog;
 
 async function sendSongFinishedEmbed(channel, track) {
     return channel.send({
@@ -695,7 +698,7 @@ module.exports = {
                 }
 
                 if (btnInt.customId === "confirm_yes") {
-                    q.tracks.push(track);  
+                    q.tracks.push(track);
 
                     await btnInt.update({
                         embeds: [buildInfoEmbed("✅ Confirmed", "Added to the queue and will play soon!")],
@@ -713,7 +716,7 @@ module.exports = {
                 return;
             }
         } else {
-            q.tracks.push(track);   
+            q.tracks.push(track);
             log(`[play] Track added to queue immediately`, interaction);
             await interaction.editReply({
                 embeds: [buildInfoEmbed("🎶 Added to queue", `**${track.title}** has been added!`)]

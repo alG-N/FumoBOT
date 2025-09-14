@@ -46,6 +46,13 @@ if ("data" in animeCommand && "execute" in animeCommand) {
     console.warn("⚠️ anime.js is missing 'data' or 'execute'.");
 }
 
+const avatarCommand = require("../FumoBOT/MainBOT/OtherFunCommand/avatar");
+if ("data" in avatarCommand && "execute" in avatarCommand) {
+    commands.push(avatarCommand.data.toJSON());
+} else {
+    console.warn("⚠️ avatar.js is missing 'data' or 'execute'.");
+}
+
 // Auto-load everything from MusicBot folder
 loadCommandsFrom(path.join(__dirname, "../FumoBOT/MainBOT/OtherFunCommand/MusicBot"));
 
