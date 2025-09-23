@@ -36,7 +36,6 @@ module.exports = {
                 .setRequired(false)
         ),
     async execute(interaction) {
-        // Maintenance and ban check
         const userId = interaction.user.id;
         const banData = isBanned(userId);
 
