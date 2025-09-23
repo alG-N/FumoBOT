@@ -1,3 +1,5 @@
 -- Plan to rework
 
 -- entire pet system
+
+-- take a shower
