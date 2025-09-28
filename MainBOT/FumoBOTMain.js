@@ -1127,8 +1127,8 @@ client.on(Events.MessageCreate, async message => {
     }
 });
 //-----------------Functionality of the OTHER-----------------\\
-const anime = require('./OtherFunCommand/anime');
-const afk = require('./OtherFunCommand/afk');
+const anime = require('./OtherFunCommand/API-Website/anime');
+const afk = require('./OtherFunCommand/BasicCommand/afk');
 const musicCommands = require('./OtherFunCommand/MusicFunction/MainMusic');
 
 //Define .afk command
