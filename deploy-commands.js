@@ -25,7 +25,7 @@ function loadCommandsFrom(folderPath) {
 // node deploy-commands.js
 // ---------------- Load Commands ---------------- \\
 // Manual single-file commands
-const sayCommand = require("../FumoBOT/MainBOT/BotTrollinCommand(Owner)/say.js");
+const sayCommand = require("./MainBOT/OtherFunCommand/InteractiveUserCommand/say.js");
 if ("data" in sayCommand && "execute" in sayCommand) {
     commands.push(sayCommand.data.toJSON());
 } else {
@@ -39,7 +39,7 @@ if ("data" in afkCommand && "execute" in afkCommand) {
     console.warn("⚠️ afk.js is missing 'data' or 'execute'.");
 }
 
-const animeCommand = require("./MainBOT/OtherFunCommand/API-Website/anime.js");
+const animeCommand = require("./MainBOT/OtherFunCommand/API-Website/Anime/anime.js");
 if ("data" in animeCommand && "execute" in animeCommand) {
     commands.push(animeCommand.data.toJSON());
 } else {
@@ -86,6 +86,13 @@ if ("data" in tutorialHelpCommand && "execute" in tutorialHelpCommand) {
     commands.push(tutorialHelpCommand.data.toJSON());
 } else {
     console.warn("⚠️ tutorialHelp.js is missing 'data' or 'execute'.");
+}
+
+const redditCommand = require("./MainBOT/OtherFunCommand/API-Website/Reddit/reddit.js");
+if ("data" in redditCommand && "execute" in redditCommand) {
+    commands.push(redditCommand.data.toJSON());
+} else {
+    console.warn("⚠️ reddit.js is missing 'data' or 'execute'.");
 }
 
 // Auto-load everything from MusicFunction folder
