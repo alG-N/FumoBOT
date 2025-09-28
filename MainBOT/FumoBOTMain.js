@@ -29,20 +29,15 @@ client.setMaxListeners(150);
 
 const path = require('path');
 client.commands = new Collection();
-const commandFolders = [
-    'BotTrollinCommand(Owner)',
-    'OtherFunCommand'
-];
+const commandFolders = fs.readdirSync(path.join(__dirname, 'OtherFunCommand'));
 for (const folder of commandFolders) {
-    const commandsPath = path.join(__dirname, folder);
-    const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
-
+    const commandFiles = fs.readdirSync(path.join(__dirname, 'OtherFunCommand', folder)).filter(file => file.endsWith('.js') && file !== 'MainMusic.js');
     for (const file of commandFiles) {
-        const command = require(path.join(commandsPath, file));
-        if ('data' in command && 'execute' in command) {
+        const command = require(path.join(__dirname, 'OtherFunCommand', folder, file));
+        if (command && command.data && command.data.name) {
             client.commands.set(command.data.name, command);
         } else {
-            console.log(`[WARNING] The command at ${file} in ${folder} is missing "data" or "execute".`);
+            console.warn(`Command in file ${file} is missing 'data' or 'data.name' property.`);
         }
     }
 }
@@ -1127,7 +1122,7 @@ client.on(Events.MessageCreate, async message => {
     }
 });
 //-----------------Functionality of the OTHER-----------------\\
-const anime = require('./OtherFunCommand/API-Website/anime');
+const anime = require('./OtherFunCommand/API-Website/Anime/anime');
 const afk = require('./OtherFunCommand/BasicCommand/afk');
 const musicCommands = require('./OtherFunCommand/MusicFunction/MainMusic');
 
@@ -1174,6 +1169,36 @@ client.on(Events.InteractionCreate, async interaction => {
     }
 });
 
+client.on('interactionCreate', async (interaction) => {
+    if (interaction.isChatInputCommand()) {
+        const command = client.commands.get(interaction.commandName);
+        if (!command) return;
+
+        try {
+            await command.execute(interaction);
+        } catch (error) {
+            console.error(error);
+            if (interaction.deferred || interaction.replied) {
+                await interaction.followUp({ content: 'There was an error executing this command.', ephemeral: true });
+            } else {
+                await interaction.reply({ content: 'There was an error executing this command.', ephemeral: true });
+            }
+        }
+    }
+
+    // 🔹 Handle autocomplete separately
+    else if (interaction.isAutocomplete()) {
+        const command = client.commands.get(interaction.commandName);
+        if (!command || !command.autocomplete) return;
+        try {
+            await command.autocomplete(interaction);
+        } catch (error) {
+            console.error("Autocomplete error:", error);
+            await interaction.respond([]); // send empty list so Discord doesn’t show error
+        }
+    }
+});
+
 //-----------------Functionality of the BOT-----------------\\
 function setStaticStatus() {
     try {
@@ -1201,7 +1226,6 @@ client.once('ready', () => {
 });
 
 // Define .report command
-// Ticket setup
 let ticketCounter = 0;
 const ticketFile = 'ticketCounter.txt';
 const tickets = new Map();
@@ -1338,7 +1362,6 @@ const errorChannelId = '1367886953286205530';
  * - Sends error details to a designated Discord channel.
  * - Handles process-level unhandled errors.
  */
-// Helper: Format error stack and message for Discord/console
 function formatError(error) {
     if (error instanceof Error) {
         const stackLines = error.stack?.split('\n') || [];
