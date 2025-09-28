@@ -1127,40 +1127,19 @@ client.on(Events.MessageCreate, async message => {
     }
 });
 //-----------------Functionality of the OTHER-----------------\\
-// const avatar = require('./OtherFunCommand/avatar');
-const otherCMD = require('./OtherFunCommand/tutorialHelp');
-const roleinfo = require('./OtherFunCommand/roleinfo');
 const anime = require('./OtherFunCommand/anime');
 const afk = require('./OtherFunCommand/afk');
-const deathbattleJJK = require('./OtherFunCommand/deathbattleJJK');
-const groupInform = require('./OtherFunCommand/groupInform');
-const ping = require('./OtherFunCommand/ping');
-const musicCommands = require('./OtherFunCommand/MusicBot/MainMusic');
-
-//Define .roleinfo command
-roleinfo(client);
+const musicCommands = require('./OtherFunCommand/MusicFunction/MainMusic');
 
 //Define .afk command
 client.on(Events.MessageCreate, message => {
     afk.onMessage(message, client);
 });
 
-//Define .groupInform command
-groupInform(client);
-
-//Define .ping command
-ping(client);
-
-//Define .deathbattle command
-deathbattleJJK(client);
-
 //Define .anime command
 client.on(Events.MessageCreate, message => {
     anime.onMessage(message, client);
 });
-
-//Define .otherCMD command
-otherCMD(client);
 
 //Define music command
 musicCommands(client);
