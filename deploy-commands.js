@@ -32,56 +32,56 @@ if ("data" in sayCommand && "execute" in sayCommand) {
     console.warn("⚠️ say.js is missing 'data' or 'execute'.");
 }
 
-const afkCommand = require("../FumoBOT/MainBOT/OtherFunCommand/afk");
+const afkCommand = require("./MainBOT/OtherFunCommand/BasicCommand/afk.js");
 if ("data" in afkCommand && "execute" in afkCommand) {
     commands.push(afkCommand.data.toJSON());
 } else {
     console.warn("⚠️ afk.js is missing 'data' or 'execute'.");
 }
 
-const animeCommand = require("../FumoBOT/MainBOT/OtherFunCommand/anime");
+const animeCommand = require("./MainBOT/OtherFunCommand/API-Website/anime.js");
 if ("data" in animeCommand && "execute" in animeCommand) {
     commands.push(animeCommand.data.toJSON());
 } else {
     console.warn("⚠️ anime.js is missing 'data' or 'execute'.");
 }
 
-const avatarCommand = require("../FumoBOT/MainBOT/OtherFunCommand/avatar");
+const avatarCommand = require("./MainBOT/OtherFunCommand/BasicCommand/avatar.js");
 if ("data" in avatarCommand && "execute" in avatarCommand) {
     commands.push(avatarCommand.data.toJSON());
 } else {
     console.warn("⚠️ avatar.js is missing 'data' or 'execute'.");
 }
 
-const deathbattleJJKCommand = require("../FumoBOT/MainBOT/OtherFunCommand/deathbattleJJK");
+const deathbattleJJKCommand = require("./MainBOT/OtherFunCommand/InteractiveUserCommand/deathbattleJJK.js");
 if ("data" in deathbattleJJKCommand && "execute" in deathbattleJJKCommand) {
     commands.push(deathbattleJJKCommand.data.toJSON());
 } else {
     console.warn("⚠️ deathbattleJJK.js is missing 'data' or 'execute'.");
 }
 
-const groupInformCommand = require("../FumoBOT/MainBOT/OtherFunCommand/groupInform");
+const groupInformCommand = require("./MainBOT/OtherFunCommand/BasicCommand/groupInform.js");
 if ("data" in groupInformCommand && "execute" in groupInformCommand) {
     commands.push(groupInformCommand.data.toJSON());
 } else {
     console.warn("⚠️ groupInform.js is missing 'data' or 'execute'.");
 }
 
-const pingCommand = require("../FumoBOT/MainBOT/OtherFunCommand/ping");
+const pingCommand = require("./MainBOT/OtherFunCommand/BasicCommand/ping.js");
 if ("data" in pingCommand && "execute" in pingCommand) {
     commands.push(pingCommand.data.toJSON());
 } else {
     console.warn("⚠️ ping.js is missing 'data' or 'execute'.");
 }
 
-const roleinfoCommand = require("../FumoBOT/MainBOT/OtherFunCommand/roleinfo");
+const roleinfoCommand = require("./MainBOT/OtherFunCommand/BasicCommand/roleinfo.js");
 if ("data" in roleinfoCommand && "execute" in roleinfoCommand) {
     commands.push(roleinfoCommand.data.toJSON());
 } else {
     console.warn("⚠️ roleinfo.js is missing 'data' or 'execute'.");
 }
 
-const tutorialHelpCommand = require("../FumoBOT/MainBOT/OtherFunCommand/tutorialHelp");
+const tutorialHelpCommand = require("./MainBOT/OtherFunCommand/BasicCommand/tutorialHelp.js");
 if ("data" in tutorialHelpCommand && "execute" in tutorialHelpCommand) {
     commands.push(tutorialHelpCommand.data.toJSON());
 } else {
