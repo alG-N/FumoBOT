@@ -1,34 +1,19 @@
-const {
-    Client,
-    GatewayIntentBits,
-    Partials,
-    EmbedBuilder,
-    ActionRowBuilder,
-    ButtonBuilder,
-    ButtonStyle,
-} = require('discord.js');
-const client = new Client({
-    intents: [
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.MessageContent
-    ],
-    partials: [Partials.Message, Partials.Channel, Partials.Reaction]
-});
-client.setMaxListeners(150);
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { maintenance, developerID } = require("../Command/Maintenace/MaintenaceConfig.js");
 const { isBanned } = require('../Command/Banned/BanUtils.js');
-module.exports = (client) => {
-    client.on('messageCreate', async (message) => {
-        if (message.author.bot || !message.content.startsWith('.otherCMD')) return;
+
+module.exports = {
+    data: new SlashCommandBuilder()
+        .setName('othercmd')
+        .setDescription('Shows a list of other fun commands.'),
+    async execute(interaction) {
         // Check for maintenance mode or ban
-        const banData = isBanned(message.author.id);
-        if ((maintenance === "yes" && message.author.id !== developerID) || banData) {
+        const banData = isBanned(interaction.user.id);
+        if ((maintenance === "yes" && interaction.user.id !== developerID) || banData) {
             let description = '';
             let footerText = '';
 
-            if (maintenance === "yes" && message.author.id !== developerID) {
+            if (maintenance === "yes" && interaction.user.id !== developerID) {
                 description = "The bot is currently in maintenance mode. Please try again later.\nFumoBOT's Developer: alterGolden";
                 footerText = "Thank you for your patience";
             } else if (banData) {
@@ -63,10 +48,11 @@ module.exports = (client) => {
                 .setFooter({ text: footerText })
                 .setTimestamp();
 
-            console.log(`[${new Date().toISOString()}] Blocked user (${message.author.id}) due to ${maintenance === "yes" ? "maintenance" : "ban"}.`);
+            console.log(`[${new Date().toISOString()}] Blocked user (${interaction.user.id}) due to ${maintenance === "yes" ? "maintenance" : "ban"}.`);
 
-            return message.reply({ embeds: [embed] });
+            return interaction.reply({ embeds: [embed], ephemeral: true });
         }
+
         const helpEmbed = new EmbedBuilder()
             .setTitle('🛠️ FumoBOT(OtherCMD) - List of Commands')
             .setColor('#00ccff')
@@ -81,7 +67,8 @@ module.exports = (client) => {
                 { name: '/deathbattle [@username] [set-hp] [jjk / ??? anime]', value: 'Deathbattle with a friend in anime..' },
             )
             .setTimestamp()
-            .setFooter({ text: `Requested by ${message.author.tag}`, iconURL: message.author.displayAvatarURL() });
-        await message.channel.send({ embeds: [helpEmbed] });
-    });
-}
+            .setFooter({ text: `Requested by ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL() });
+
+        await interaction.reply({ embeds: [helpEmbed], ephemeral: false });
+    }
+};

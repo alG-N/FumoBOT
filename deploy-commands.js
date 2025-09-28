@@ -53,8 +53,43 @@ if ("data" in avatarCommand && "execute" in avatarCommand) {
     console.warn("⚠️ avatar.js is missing 'data' or 'execute'.");
 }
 
-// Auto-load everything from MusicBot folder
-loadCommandsFrom(path.join(__dirname, "../FumoBOT/MainBOT/OtherFunCommand/MusicBot"));
+const deathbattleJJKCommand = require("../FumoBOT/MainBOT/OtherFunCommand/deathbattleJJK");
+if ("data" in deathbattleJJKCommand && "execute" in deathbattleJJKCommand) {
+    commands.push(deathbattleJJKCommand.data.toJSON());
+} else {
+    console.warn("⚠️ deathbattleJJK.js is missing 'data' or 'execute'.");
+}
+
+const groupInformCommand = require("../FumoBOT/MainBOT/OtherFunCommand/groupInform");
+if ("data" in groupInformCommand && "execute" in groupInformCommand) {
+    commands.push(groupInformCommand.data.toJSON());
+} else {
+    console.warn("⚠️ groupInform.js is missing 'data' or 'execute'.");
+}
+
+const pingCommand = require("../FumoBOT/MainBOT/OtherFunCommand/ping");
+if ("data" in pingCommand && "execute" in pingCommand) {
+    commands.push(pingCommand.data.toJSON());
+} else {
+    console.warn("⚠️ ping.js is missing 'data' or 'execute'.");
+}
+
+const roleinfoCommand = require("../FumoBOT/MainBOT/OtherFunCommand/roleinfo");
+if ("data" in roleinfoCommand && "execute" in roleinfoCommand) {
+    commands.push(roleinfoCommand.data.toJSON());
+} else {
+    console.warn("⚠️ roleinfo.js is missing 'data' or 'execute'.");
+}
+
+const tutorialHelpCommand = require("../FumoBOT/MainBOT/OtherFunCommand/tutorialHelp");
+if ("data" in tutorialHelpCommand && "execute" in tutorialHelpCommand) {
+    commands.push(tutorialHelpCommand.data.toJSON());
+} else {
+    console.warn("⚠️ tutorialHelp.js is missing 'data' or 'execute'.");
+}
+
+// Auto-load everything from MusicFunction folder
+loadCommandsFrom(path.join(__dirname, "../FumoBOT/MainBOT/OtherFunCommand/MusicFunction"));
 
 // ---------------- Deploy Commands ---------------- \\
 const rest = new REST({ version: "10" }).setToken(token);
