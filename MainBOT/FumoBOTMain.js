@@ -1125,6 +1125,22 @@ client.on(Events.MessageCreate, async message => {
 const anime = require('./OtherFunCommand/API-Website/Anime/anime');
 const afk = require('./OtherFunCommand/BasicCommand/afk');
 const musicCommands = require('./OtherFunCommand/MusicFunction/MainMusic');
+const reddit = require('./OtherFunCommand/API-Website/Reddit/reddit');
+
+//Define .reddit command
+client.on(Events.InteractionCreate, async interaction => {
+    if (!interaction.isChatInputCommand()) return;
+    if (interaction.commandName === reddit.data.name) {
+        try {
+            await reddit.execute(interaction);
+        } catch (err) {
+            console.error("Error running /reddit:", err);
+            if (!interaction.replied) {
+                await interaction.reply({ content: "❌ Error running this command.", ephemeral: true });
+            }
+        }
+    }
+});
 
 //Define .afk command
 client.on(Events.MessageCreate, message => {
@@ -1165,36 +1181,6 @@ client.on(Events.InteractionCreate, async interaction => {
         } else {
             // Interaction is no longer valid, just log the error
             console.warn("Interaction is no longer repliable.");
-        }
-    }
-});
-
-client.on('interactionCreate', async (interaction) => {
-    if (interaction.isChatInputCommand()) {
-        const command = client.commands.get(interaction.commandName);
-        if (!command) return;
-
-        try {
-            await command.execute(interaction);
-        } catch (error) {
-            console.error(error);
-            if (interaction.deferred || interaction.replied) {
-                await interaction.followUp({ content: 'There was an error executing this command.', ephemeral: true });
-            } else {
-                await interaction.reply({ content: 'There was an error executing this command.', ephemeral: true });
-            }
-        }
-    }
-
-    // 🔹 Handle autocomplete separately
-    else if (interaction.isAutocomplete()) {
-        const command = client.commands.get(interaction.commandName);
-        if (!command || !command.autocomplete) return;
-        try {
-            await command.autocomplete(interaction);
-        } catch (error) {
-            console.error("Autocomplete error:", error);
-            await interaction.respond([]); // send empty list so Discord doesn’t show error
         }
     }
 });

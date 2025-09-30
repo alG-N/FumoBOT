@@ -115,3 +115,19 @@ const rest = new REST({ version: "10" }).setToken(token);
         console.error("❌ Error deploying commands:", error);
     }
 })();
+
+// Delete all commands in a guild (uncomment to use)
+// (async () => {
+//     try {
+//         console.log('Clearing guild application (/) commands...');
+
+//         await rest.put(
+//             Routes.applicationGuildCommands(clientId, guildId),
+//             { body: [] }, // <-- empty array clears all
+//         );
+
+//         console.log(`Successfully cleared all commands in guild ${guildId}.`);
+//     } catch (error) {
+//         console.error(error);
+//     }
+// })();
