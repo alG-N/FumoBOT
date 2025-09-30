@@ -15,9 +15,11 @@ const {
     entersState,
     AudioPlayerStatus,
 } = require("@discordjs/voice");
-const ytdl = require("@distube/ytdl-core");
-const ytsr = require("ytsr"); // Fallback search
-const ytSearch = require("yt-search"); // Main search
+const youtubedl = require("youtube-dl-exec");
+const fs = require("fs");
+const path = require("path");
+const { pipeline } = require("stream");
+const { promisify } = require("util");
 
 const queues = new Map();
 const INACTIVITY_TIMEOUT = 2 * 60 * 1000;
@@ -63,7 +65,7 @@ function fmtDur(sec) {
     return h > 0 ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}` : `${m}:${String(s).padStart(2, "0")}`;
 }
 
-function buildControls(guildId, isPaused, isLooped) {
+function buildControls(guildId, isPaused, isLooped, trackUrl) {
     return new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId(`pause:${guildId}`)
@@ -117,7 +119,7 @@ function buildNowPlayingEmbed(track, volumePct, requester, queueLen, isLooped) {
         .setThumbnail(track?.thumbnail ?? null)
         .addFields(
             { name: "📺 Channel", value: track?.author ?? "Unknown", inline: true },
-            { name: "🌐 Source", value: "YouTube", inline: true },
+            { name: "🌐 Source", value: track?.source ?? "YouTube", inline: true },
             { name: "🔎 Search", value: track?.searchInfo ?? "Unknown", inline: true },
             { name: "👀 Views", value: track?.views?.toLocaleString() ?? "N/A", inline: true },
             { name: "⏱️ Duration", value: `\`${fmtDur(track.lengthSeconds)}\``, inline: true },
@@ -220,7 +222,6 @@ async function ensureConnection(interaction, q) {
             throw new Error("CONNECTION_READY_TIMEOUT");
         });
         q.connection.subscribe(q.player);
-        // [ENHANCED] Monitor VC users
         monitorVCUsers(interaction.guild.id, interaction.channel, q);
     }
 }
@@ -257,67 +258,88 @@ async function stopAndCleanup(guildId, channel = null, inactivity = false) {
     }
 }
 
-async function resolveTrack(query, user, forceAlt = false) {
+const LOG_CHANNEL_ID = "1411386693499486429";
+async function logToChannel(client, msg) {
+    try {
+        const channel = await client.channels.fetch(LOG_CHANNEL_ID);
+        if (channel) await channel.send(`\`\`\`js\n${msg}\n\`\`\``);
+    } catch (err) {
+        console.error("Failed to send log to channel:", err);
+    }
+}
+
+const streamPipeline = promisify(pipeline);
+async function resolveTrack(query, user) {
     let url = query;
-    let details;
+    let details = {};
     let searchInfo = "Unknown";
     let views = null;
-    if (/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/.test(query)) {
-        try {
-            const info = await ytdl.getInfo(query);
-            details = info.videoDetails;
-            url = details.video_url;
-            searchInfo = "URL";
-            views = Number(details.viewCount) || null;
-        } catch (e) {
-            throw new Error("INVALID_URL");
-        }
-    } else {
-        let ytResult;
-        try {
-            ytResult = await ytSearch(forceAlt ? query + " music" : query + " song");
-            if (ytResult && ytResult.videos.length > 0) {
-                searchInfo = `${query} - Based: Music`;
-            }
-        } catch { }
+    let source = "YouTube";
 
-        if ((!ytResult || ytResult.videos.length === 0) && !forceAlt) {
-            try {
-                ytResult = ytSearch(query, { sortBy: "viewCount" });
-                if (ytResult && ytResult.videos.length > 0) {
-                    searchInfo = `${query} - Based: Popularity`;
-                }
-            } catch { }
-        }
-
-        if (ytResult && ytResult.videos.length > 0) {
-            const vid = ytResult.videos[0];
-            url = vid.url;
+    try {
+        if (/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/.test(query)) {
+            console.log("[resolveTrack] Trying youtube-dl-exec: URL");
+            const info = await youtubedl(query, {
+                dumpSingleJson: true,
+                noCheckCertificates: true,
+                noWarnings: true,
+                preferFreeFormats: true,
+                addHeader: [
+                    'referer:youtube.com',
+                    'user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+                ]
+            });
+            url = info.webpage_url;
             details = {
-                title: vid.title,
-                lengthSeconds: vid.seconds,
-                thumbnails: [{ url: vid.thumbnail }],
-                author: { name: vid.author.name || vid.author },
-                video_url: vid.url,
+                title: info.title,
+                lengthSeconds: Number(info.duration),
+                thumbnails: [{ url: info.thumbnail }],
+                author: { name: info.uploader || info.channel || "Unknown" },
+                video_url: info.webpage_url,
             };
-            views = vid.views || null;
+            views = Number(info.view_count) || null;
+            searchInfo = "youtube-dl-exec: URL";
+            source = "YouTube (youtube-dl-exec)";
+            console.log(`[resolveTrack] youtube-dl-exec: URL success: ${details.title}`);
         } else {
-            const filters = await ytsr.getFilters(query);
-            const filter = filters.get("Type").get("Video");
-            const searchResults = await ytsr(filter.url, { limit: 1 });
-            if (!searchResults.items.length) throw new Error("NO_RESULTS");
-            const vid = searchResults.items[0];
-            url = vid.url;
-            details = {
-                title: vid.title,
-                lengthSeconds: vid.duration ? vid.duration.split(":").reduce((acc, t) => 60 * acc + +t, 0) : 0,
-                thumbnails: [{ url: vid.thumbnails[0].url }],
-                author: { name: vid.author.name },
-                video_url: vid.url,
-            };
-            views = vid.views || null;
-            searchInfo = `${query} - Based: Video`;
+            console.log("[resolveTrack] Trying youtube-dl-exec: search");
+            const searchInfoResult = await youtubedl(`ytsearch1:${query}`, {
+                dumpSingleJson: true,
+                noCheckCertificates: true,
+                noWarnings: true,
+                preferFreeFormats: true,
+                addHeader: [
+                    'referer:youtube.com',
+                    'user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+                ]
+            });
+            if (searchInfoResult.entries && searchInfoResult.entries.length > 0) {
+                const v = searchInfoResult.entries[0];
+                url = v.webpage_url;
+                details = {
+                    title: v.title,
+                    lengthSeconds: Number(v.duration),
+                    thumbnails: [{ url: v.thumbnail }],
+                    author: { name: v.uploader || v.channel || "Unknown" },
+                    video_url: v.webpage_url,
+                };
+                views = Number(v.view_count) || null;
+                searchInfo = `youtube-dl-exec: ${query}`;
+                source = "YouTube (youtube-dl-exec)";
+                console.log(`[resolveTrack] youtube-dl-exec: search success: ${details.title}`);
+            } else {
+                console.log("[resolveTrack] youtube-dl-exec: search found no entries");
+            }
         }
+    } catch (e) {
+        console.log(`[resolveTrack] youtube-dl-exec failed: ${e.message}`);
+        throw new Error("NO_RESULTS");
+    }
+
+    // Only use youtube-dl-exec, do not fallback to other libraries
+    if (!details.title) {
+        console.log("[resolveTrack] youtube-dl-exec did not return a valid track, throwing NO_RESULTS");
+        throw new Error("NO_RESULTS");
     }
 
     return {
@@ -329,41 +351,153 @@ async function resolveTrack(query, user, forceAlt = false) {
         requestedBy: user,
         views,
         searchInfo,
+        source,
     };
 }
 
-const LOG_CHANNEL_ID = "1411386693499486429";
-async function logToChannel(client, msg) {
-    try {
-        const channel = await client.channels.fetch(LOG_CHANNEL_ID);
-        if (channel) await channel.send(`\`\`\`js\n${msg}\n\`\`\``);
-    } catch (err) {
-        console.error("Failed to send log to channel:", err);
+async function downloadToTempFile(url) {
+    const tmpDir = path.resolve("D:/DiscordBOTCore/MainBOTCore/FumoBOT/MainBOT/OtherFunCommand/MusicFunction/MusicDB");
+    if (!fs.existsSync(tmpDir)) {
+        fs.mkdirSync(tmpDir, { recursive: true });
     }
+    const fileName = `fumo_music_${Date.now()}_${Math.floor(Math.random() * 10000)}.webm`;
+    const filePath = path.join(tmpDir, fileName);
+
+    return new Promise((resolve, reject) => {
+        const ytdlProc = youtubedl.exec(url, {
+            output: "-",
+            format: "bestaudio[ext=webm]/bestaudio/best",
+            quiet: true,
+            limitRate: "1M",
+        }, { stdio: ["ignore", "pipe", "ignore"] });
+
+        const writeStream = fs.createWriteStream(filePath);
+
+        ytdlProc.stdout.pipe(writeStream);
+
+        ytdlProc.stdout.on("error", (err) => {
+            writeStream.destroy();
+            fs.unlink(filePath, () => { });
+            reject(err);
+        });
+
+        writeStream.on("finish", () => {
+            resolve(filePath);
+        });
+
+        writeStream.on("error", (err) => {
+            fs.unlink(filePath, () => { });
+            reject(err);
+        });
+
+        ytdlProc.on("error", (err) => {
+            writeStream.destroy();
+            fs.unlink(filePath, () => { });
+            reject(err);
+        });
+
+        ytdlProc.on("close", (code) => {
+            if (code !== 0) {
+                writeStream.destroy();
+                fs.unlink(filePath, () => { });
+                reject(new Error(`youtube-dl-exec exited with code ${code}`));
+            }
+        });
+    });
 }
 
 async function playNext(interaction, guildId) {
     const q = getOrCreateQueue(guildId);
 
-    if (q.current || q.player.state.status === AudioPlayerStatus.Playing) return;
+    if (q.current || q.player.state.status === AudioPlayerStatus.Playing) {
+        return;
+    }
 
     const t = q.dequeue();
-    if (!t) return;
+    if (!t) {
+        return;
+    }
 
     q.current = t;
     q.startTime = Date.now();
 
-    const info = await ytdl.getInfo(t.url);
-    const stream = ytdl.downloadFromInfo(info, {
-        filter: "audioonly",
-        quality: "highestaudio",
-        highWaterMark: 1 << 25,
+    let resource;
+    let used = "";
+    let tempFilePath = null;
+
+    try {
+        if (/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/.test(t.url)) {
+            console.log(`[playNext] Trying direct stream for: ${t.title}`);
+
+            // --- Direct stream attempt ---
+            const ytdlpProc = youtubedl.exec(t.url, {
+                output: '-',
+                format: 'bestaudio[ext=webm]/bestaudio/best',
+                quiet: true,
+                limitRate: '1M',
+            }, { stdio: ['ignore', 'pipe', 'pipe'] });
+
+            resource = createAudioResource(ytdlpProc.stdout, {
+                inputType: StreamType.Arbitrary,
+                inlineVolume: true,
+            });
+
+            used = "direct-stream";
+            console.log("[playNext] Using resource from:", used);
+
+            ytdlpProc.on("error", (err) => {
+                console.log(`[playNext] Direct stream error: ${err.message}`);
+            });
+
+            ytdlpProc.on("close", (code) => {
+                if (code !== 0) {
+                    console.log(`[playNext] Direct stream exited with code ${code}`);
+                }
+            });
+        }
+    } catch (e) {
+        console.log(`[playNext] Direct stream failed: ${e.message}`);
+    }
+
+    if (!resource) {
+        try {
+            console.log(`[playNext] Falling back to temp file for: ${t.title}`);
+            tempFilePath = await downloadToTempFile(t.url);
+            resource = createAudioResource(tempFilePath, {
+                inputType: StreamType.Arbitrary,
+                inlineVolume: true,
+            });
+            used = "tempfile";
+            console.log(`[playNext] Temp file ready: ${tempFilePath}`);
+        } catch (e) {
+            console.log(`[playNext] Temp file download failed: ${e.message}`);
+            await interaction.channel.send({
+                embeds: [buildInfoEmbed("❌ Error", "Could not play this track (both stream and download failed).")]
+            });
+            q.current = null;
+            if (tempFilePath) fs.unlink(tempFilePath, () => { });
+            return;
+        }
+    }
+
+    if (!resource) {
+        console.log("[playNext] No resource, aborting playback.");
+        await interaction.channel.send({
+            embeds: [buildInfoEmbed("❌ Error", "Could not play this track (no resource).")]
+        });
+        q.current = null;
+        if (tempFilePath) fs.unlink(tempFilePath, () => { });
+        return;
+    }
+
+    resource.playStream.on("close", () => {
+        if (tempFilePath) {
+            fs.unlink(tempFilePath, () => { });
+        }
     });
 
-    const resource = createAudioResource(stream, { inputType: StreamType.Arbitrary });
     q.player.play(resource);
 
-    // [ENHANCED] Instead of delete, disable previous buttons
     if (q.nowMessage) {
         const disabledRows = q.nowMessage.components?.map(row => {
             return ActionRowBuilder.from(row).setComponents(
@@ -373,6 +507,7 @@ async function playNext(interaction, guildId) {
         await q.nowMessage.edit({ components: disabledRows }).catch(() => { });
         q.nowMessage = null;
     }
+
     const embed = buildNowPlayingEmbed(
         t,
         q.volume * 100,
@@ -380,7 +515,7 @@ async function playNext(interaction, guildId) {
         q.tracks.length,
         q.loop
     );
-    const rows = [buildControls(guildId, false, q.loop), buildVolumeRow(guildId, t.url)];
+    const rows = [buildControls(guildId, false, q.loop, t.url), buildVolumeRow(guildId, t.url)];
     q.nowMessage = await interaction.channel.send({ embeds: [embed], components: rows });
 
     monitorVCUsers(guildId, interaction.channel, q);
@@ -388,6 +523,8 @@ async function playNext(interaction, guildId) {
     if (q.nowMessage) {
         setupCollector(q, guildId, interaction);
     }
+
+    console.log(`[playNext] Now playing using: ${used}`);
 }
 
 function setupCollector(q, guildId, interaction) {
@@ -829,13 +966,4 @@ module.exports = {
 module.exports.queues = queues;
 module.exports.player = this.player;
 module.exports.getOrCreateQueue = getOrCreateQueue;
-// // Enhancement notes:
-// - Added ytsr for search by name
-// - Added inactivity timer to leave VC after 2 mins of no music
-// - Added Link button to main controls
-// - Main embed is resent every time a song is looped
-// - Confirmation for videos longer than 7 mins
-// - Reset inactivity timer on every user interaction
-// - Cleaned up message deletion to avoid duplicate embeds
-// - Improved error handling for search and playback
-// - All enhancements are marked with comments
+
