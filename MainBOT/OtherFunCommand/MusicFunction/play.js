@@ -336,7 +336,6 @@ async function resolveTrack(query, user) {
         throw new Error("NO_RESULTS");
     }
 
-    // Only use youtube-dl-exec, do not fallback to other libraries
     if (!details.title) {
         console.log("[resolveTrack] youtube-dl-exec did not return a valid track, throwing NO_RESULTS");
         throw new Error("NO_RESULTS");
