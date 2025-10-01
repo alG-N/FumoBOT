@@ -18,6 +18,8 @@
     "uuid": "^11.1.0",
     "youtube-dl-exec": "^3.0.25",
     "youtubei.js": "^15.1.1",
+    "yt-dlp-exec": "^1.0.2",
+    "yt-dlp-wrap": "^2.3.12",
     "yt-search": "^2.13.1",
     "ytdl-core": "^4.11.5",
     "ytsr": "^3.8.4"
