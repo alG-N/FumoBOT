@@ -438,8 +438,6 @@ async function playNext(interaction, guildId) {
     try {
         if (/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/.test(t.url)) {
             console.log(`[playNext] Trying direct stream for: ${t.title}`);
-
-            // --- Direct stream attempt ---
             const ytdlpProc = youtubedl.exec(t.url, {
                 output: '-',
                 format: 'bestaudio[ext=webm]/bestaudio/best',
@@ -447,7 +445,6 @@ async function playNext(interaction, guildId) {
                 limitRate: '1M',
             }, { stdio: ['ignore', 'pipe', 'pipe'] });
 
-            // Store the process reference
             q.currentYtdlpProcess = ytdlpProc;
 
             resource = createAudioResource(ytdlpProc.stdout, {
@@ -458,9 +455,7 @@ async function playNext(interaction, guildId) {
             used = "direct-stream";
             console.log("[playNext] Using resource from:", used);
 
-            // Catch the promise rejection
             ytdlpProc.catch((err) => {
-                // Silently ignore SIGKILL errors (expected when we kill it)
                 if (err.signal === 'SIGKILL' || err.killed) {
                     return;
                 }
@@ -468,7 +463,6 @@ async function playNext(interaction, guildId) {
             });
 
             ytdlpProc.on("error", (err) => {
-                // Only log if it's not from being killed
                 if (err.signal !== 'SIGKILL' && !err.killed) {
                     console.log(`[playNext] Direct stream error: ${err.message}`);
                 }
@@ -476,7 +470,6 @@ async function playNext(interaction, guildId) {
 
             ytdlpProc.on("close", (code, signal) => {
                 q.currentYtdlpProcess = null;
-                // Don't log SIGKILL exits (expected)
                 if (signal !== 'SIGKILL' && code !== 0 && code !== null) {
                     console.log(`[playNext] Direct stream exited with code ${code}`);
                 }
