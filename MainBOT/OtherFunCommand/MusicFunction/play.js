@@ -43,6 +43,7 @@ function getOrCreateQueue(guildId) {
             skipVotingTimeout: null,
             skipVotingMsg: null,
             inactivityTimer: null,
+            currentYtdlpProcess: null,
 
             enqueue(track) {
                 this.tracks.push(track);
@@ -408,6 +409,16 @@ async function downloadToTempFile(url) {
 async function playNext(interaction, guildId) {
     const q = getOrCreateQueue(guildId);
 
+    // Kill any existing yt-dlp process before starting new one
+    if (q.currentYtdlpProcess) {
+        try {
+            q.currentYtdlpProcess.kill('SIGKILL');
+        } catch (e) {
+            // Ignore kill errors
+        }
+        q.currentYtdlpProcess = null;
+    }
+
     if (q.current || q.player.state.status === AudioPlayerStatus.Playing) {
         return;
     }
@@ -436,6 +447,9 @@ async function playNext(interaction, guildId) {
                 limitRate: '1M',
             }, { stdio: ['ignore', 'pipe', 'pipe'] });
 
+            // Store the process reference
+            q.currentYtdlpProcess = ytdlpProc;
+
             resource = createAudioResource(ytdlpProc.stdout, {
                 inputType: StreamType.Arbitrary,
                 inlineVolume: true,
@@ -444,12 +458,26 @@ async function playNext(interaction, guildId) {
             used = "direct-stream";
             console.log("[playNext] Using resource from:", used);
 
-            ytdlpProc.on("error", (err) => {
-                console.log(`[playNext] Direct stream error: ${err.message}`);
+            // Catch the promise rejection
+            ytdlpProc.catch((err) => {
+                // Silently ignore SIGKILL errors (expected when we kill it)
+                if (err.signal === 'SIGKILL' || err.killed) {
+                    return;
+                }
+                console.log(`[playNext] yt-dlp error: ${err.message}`);
             });
 
-            ytdlpProc.on("close", (code) => {
-                if (code !== 0) {
+            ytdlpProc.on("error", (err) => {
+                // Only log if it's not from being killed
+                if (err.signal !== 'SIGKILL' && !err.killed) {
+                    console.log(`[playNext] Direct stream error: ${err.message}`);
+                }
+            });
+
+            ytdlpProc.on("close", (code, signal) => {
+                q.currentYtdlpProcess = null;
+                // Don't log SIGKILL exits (expected)
+                if (signal !== 'SIGKILL' && code !== 0 && code !== null) {
                     console.log(`[playNext] Direct stream exited with code ${code}`);
                 }
             });
@@ -626,10 +654,18 @@ function setupCollector(q, guildId, interaction) {
 
         if (id === "skip") {
             log(`[controls] Skip requested`, interaction);
+
+            // Kill any running yt-dlp process immediately
+            if (q2.currentYtdlpProcess) {
+                q2.currentYtdlpProcess.kill('SIGKILL');
+                q2.currentYtdlpProcess = null;
+            }
+
             const members = q2.connection?.joinConfig?.channelId
                 ? i.guild.channels.cache.get(q2.connection.joinConfig.channelId)?.members
                 : null;
             const listeners = members ? Array.from(members.values()).filter(m => !m.user.bot) : [];
+
             if (listeners.length >= 3) {
                 if (!q2.skipVoting) {
                     q2.skipVoting = true;
@@ -643,6 +679,11 @@ function setupCollector(q, guildId, interaction) {
                     q2.skipVotingTimeout = setTimeout(async () => {
                         q2.skipVoting = false;
                         if (q2.skipVotes.size >= 2) {
+                            // Kill process before stopping player
+                            if (q2.currentYtdlpProcess) {
+                                q2.currentYtdlpProcess.kill('SIGKILL');
+                                q2.currentYtdlpProcess = null;
+                            }
                             q2.player.stop(true);
                             await q2.skipVotingMsg.edit({ content: "⏭️ Track skipped by vote.", components: [] });
                             log(`[controls] Track skipped by vote`, interaction);
