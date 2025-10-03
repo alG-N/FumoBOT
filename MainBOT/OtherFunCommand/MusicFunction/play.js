@@ -604,7 +604,7 @@ async function playNext(interaction, guildId) {
                 output: '-',
                 format: 'bestaudio[ext=webm]/bestaudio/best',
                 quiet: true,
-                limitRate: '1M',
+                limitRate: '10M',
             }, { stdio: ['ignore', 'pipe', 'pipe'] });
 
             q.currentYtdlpProcess = ytdlpProc;
