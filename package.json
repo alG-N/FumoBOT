@@ -12,7 +12,6 @@
     "ffmpeg-static": "^5.2.0",
     "graphql-request": "^7.1.2",
     "node-cron": "^3.0.3",
-    "play-dl": "^1.9.7",
     "sqlite3": "^5.1.7",
     "tmp": "^0.2.5",
     "uuid": "^11.1.0",

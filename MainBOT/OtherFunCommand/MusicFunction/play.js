@@ -18,11 +18,6 @@ const {
 const youtubedl = require("youtube-dl-exec");
 const ytSearch = require("yt-search"); // Primary - fastest
 const ytsr = require("ytsr"); // Secondary fallback
-const fs = require("fs");
-const path = require("path");
-const { pipeline } = require("stream");
-const { promisify } = require("util");
-
 const queues = new Map();
 const INACTIVITY_TIMEOUT = 2 * 60 * 1000;
 
@@ -65,10 +60,12 @@ function fmtDur(sec) {
     const h = Math.floor(sec / 3600);
     const m = Math.floor((sec % 3600) / 60);
     const s = Math.floor(sec % 60);
-    return h > 0 ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}` : `${m}:${String(s).padStart(2, "0")}`;
+    return h > 0
+        ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
+        : `${m}:${String(s).padStart(2, "0")}`;
 }
 
-function buildControls(guildId, isPaused, isLooped, trackUrl) {
+function buildControls(guildId, isPaused, isLooped) {
     return new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId(`pause:${guildId}`)
@@ -110,7 +107,31 @@ function buildVolumeRow(guildId, trackUrl) {
     );
 }
 
-function buildNowPlayingEmbed(track, volumePct, requester, queueLen, isLooped) {
+function buildNowPlayingEmbed(track, volumePct, requester, queue, isLooped) {
+    let nextSongField = null;
+
+    // ✅ Safe optional chaining
+    if (queue?.tracks?.length > 0) {
+        const nextTrack = queue.tracks[0];
+        nextSongField = {
+            name: "⏭️ Next Up",
+            value: `[${nextTrack.title}](${nextTrack.url})`,
+            inline: true
+        };
+    }
+
+    const fields = [
+        { name: "📺 Channel", value: track?.author ?? "Unknown", inline: true },
+        { name: "🌐 Source", value: track?.source ?? "YouTube", inline: true },
+        { name: "🔎 Search", value: track?.searchInfo ?? "Unknown", inline: true },
+        { name: "👀 Views", value: track?.views?.toLocaleString() ?? "N/A", inline: true },
+        { name: "⏱️ Duration", value: `\`${fmtDur(track?.lengthSeconds)}\``, inline: true },
+        { name: "📜 Queue", value: `\`${queue?.tracks?.length ?? 0}\` in line`, inline: true },
+        { name: "🔊 Volume", value: `\`${Math.round(volumePct)}%\``, inline: true },
+        { name: "🔁 Loop", value: isLooped ? "**Enabled**" : "Not Enabled", inline: true },
+        { name: "⏭️ Next Up", value: nextSongField ? nextSongField.value : "No Next Up", inline: true }
+    ];
+
     return new EmbedBuilder()
         .setColor(isLooped ? 0xF472B6 : 0x00C2FF)
         .setAuthor({
@@ -120,16 +141,7 @@ function buildNowPlayingEmbed(track, volumePct, requester, queueLen, isLooped) {
         .setTitle(track?.title ?? "Unknown Track")
         .setURL(track?.url ?? null)
         .setThumbnail(track?.thumbnail ?? null)
-        .addFields(
-            { name: "📺 Channel", value: track?.author ?? "Unknown", inline: true },
-            { name: "🌐 Source", value: track?.source ?? "YouTube", inline: true },
-            { name: "🔎 Search", value: track?.searchInfo ?? "Unknown", inline: true },
-            { name: "👀 Views", value: track?.views?.toLocaleString() ?? "N/A", inline: true },
-            { name: "⏱️ Duration", value: `\`${fmtDur(track.lengthSeconds)}\``, inline: true },
-            { name: "📜 Queue", value: `\`${queueLen}\` in line`, inline: true },
-            { name: "🔊 Volume", value: `\`${Math.round(volumePct)}%\``, inline: true },
-            { name: "🔁 Loop", value: isLooped ? "**Enabled**" : "Not Enabled", inline: true },
-        )
+        .addFields(fields)
         .setFooter({
             text: `🎧 Requested by ${requester.tag}`,
             iconURL: requester.displayAvatarURL()
@@ -269,58 +281,6 @@ async function logToChannel(client, msg) {
     } catch (err) {
         console.error("Failed to send log to channel:", err);
     }
-}
-
-const streamPipeline = promisify(pipeline);
-async function downloadToTempFile(url) {
-    const tmpDir = path.resolve("D:/DiscordBOTCore/MainBOTCore/FumoBOT/MainBOT/OtherFunCommand/MusicFunction/MusicDB");
-    if (!fs.existsSync(tmpDir)) {
-        fs.mkdirSync(tmpDir, { recursive: true });
-    }
-    const fileName = `fumo_music_${Date.now()}_${Math.floor(Math.random() * 10000)}.webm`;
-    const filePath = path.join(tmpDir, fileName);
-
-    return new Promise((resolve, reject) => {
-        const ytdlProc = youtubedl.exec(url, {
-            output: "-",
-            format: "bestaudio[ext=webm]/bestaudio/best",
-            quiet: true,
-            limitRate: "1M",
-        }, { stdio: ["ignore", "pipe", "ignore"] });
-
-        const writeStream = fs.createWriteStream(filePath);
-
-        ytdlProc.stdout.pipe(writeStream);
-
-        ytdlProc.stdout.on("error", (err) => {
-            writeStream.destroy();
-            fs.unlink(filePath, () => { });
-            reject(err);
-        });
-
-        writeStream.on("finish", () => {
-            resolve(filePath);
-        });
-
-        writeStream.on("error", (err) => {
-            fs.unlink(filePath, () => { });
-            reject(err);
-        });
-
-        ytdlProc.on("error", (err) => {
-            writeStream.destroy();
-            fs.unlink(filePath, () => { });
-            reject(err);
-        });
-
-        ytdlProc.on("close", (code) => {
-            if (code !== 0) {
-                writeStream.destroy();
-                fs.unlink(filePath, () => { });
-                reject(new Error(`youtube-dl-exec exited with code ${code}`));
-            }
-        });
-    });
 }
 
 async function resolveTrack(query, user, forceAlt = false) {
@@ -636,7 +596,6 @@ async function playNext(interaction, guildId) {
 
     let resource;
     let used = "";
-    let tempFilePath = null;
 
     try {
         if (/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/.test(t.url)) {
@@ -683,41 +642,13 @@ async function playNext(interaction, guildId) {
     }
 
     if (!resource) {
-        try {
-            console.log(`[playNext] Falling back to temp file for: ${t.title}`);
-            tempFilePath = await downloadToTempFile(t.url);
-            resource = createAudioResource(tempFilePath, {
-                inputType: StreamType.Arbitrary,
-                inlineVolume: true,
-            });
-            used = "tempfile";
-            console.log(`[playNext] Temp file ready: ${tempFilePath}`);
-        } catch (e) {
-            console.log(`[playNext] Temp file download failed: ${e.message}`);
-            await interaction.channel.send({
-                embeds: [buildInfoEmbed("❌ Error", "Could not play this track (both stream and download failed).")]
-            });
-            q.current = null;
-            if (tempFilePath) fs.unlink(tempFilePath, () => { });
-            return;
-        }
-    }
-
-    if (!resource) {
         console.log("[playNext] No resource, aborting playback.");
         await interaction.channel.send({
-            embeds: [buildInfoEmbed("❌ Error", "Could not play this track (no resource).")]
+            embeds: [buildInfoEmbed("❌ Error", "Could not play this track.")]
         });
         q.current = null;
-        if (tempFilePath) fs.unlink(tempFilePath, () => { });
         return;
     }
-
-    resource.playStream.on("close", () => {
-        if (tempFilePath) {
-            fs.unlink(tempFilePath, () => { });
-        }
-    });
 
     q.player.play(resource);
 
@@ -735,10 +666,15 @@ async function playNext(interaction, guildId) {
         t,
         q.volume * 100,
         t.requestedBy,
-        q.tracks.length,
+        q,
         q.loop
     );
-    const rows = [buildControls(guildId, false, q.loop, t.url), buildVolumeRow(guildId, t.url)];
+
+    const rows = [
+        buildControls(guildId, false, q.loop),
+        buildVolumeRow(guildId, t.url)
+    ];
+
     q.nowMessage = await interaction.channel.send({ embeds: [embed], components: rows });
 
     monitorVCUsers(guildId, interaction.channel, q);
