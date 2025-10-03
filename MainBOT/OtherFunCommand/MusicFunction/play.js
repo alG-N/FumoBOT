@@ -16,6 +16,8 @@ const {
     AudioPlayerStatus,
 } = require("@discordjs/voice");
 const youtubedl = require("youtube-dl-exec");
+const ytSearch = require("yt-search"); // Primary - fastest
+const ytsr = require("ytsr"); // Secondary fallback
 const fs = require("fs");
 const path = require("path");
 const { pipeline } = require("stream");
@@ -270,91 +272,6 @@ async function logToChannel(client, msg) {
 }
 
 const streamPipeline = promisify(pipeline);
-async function resolveTrack(query, user) {
-    let url = query;
-    let details = {};
-    let searchInfo = "Unknown";
-    let views = null;
-    let source = "YouTube";
-
-    try {
-        if (/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/.test(query)) {
-            console.log("[resolveTrack] Trying youtube-dl-exec: URL");
-            const info = await youtubedl(query, {
-                dumpSingleJson: true,
-                noCheckCertificates: true,
-                noWarnings: true,
-                preferFreeFormats: true,
-                addHeader: [
-                    'referer:youtube.com',
-                    'user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
-                ]
-            });
-            url = info.webpage_url;
-            details = {
-                title: info.title,
-                lengthSeconds: Number(info.duration),
-                thumbnails: [{ url: info.thumbnail }],
-                author: { name: info.uploader || info.channel || "Unknown" },
-                video_url: info.webpage_url,
-            };
-            views = Number(info.view_count) || null;
-            searchInfo = "youtube-dl-exec: URL";
-            source = "YouTube (youtube-dl-exec)";
-            console.log(`[resolveTrack] youtube-dl-exec: URL success: ${details.title}`);
-        } else {
-            console.log("[resolveTrack] Trying youtube-dl-exec: search");
-            const searchInfoResult = await youtubedl(`ytsearch1:${query}`, {
-                dumpSingleJson: true,
-                noCheckCertificates: true,
-                noWarnings: true,
-                preferFreeFormats: true,
-                addHeader: [
-                    'referer:youtube.com',
-                    'user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
-                ]
-            });
-            if (searchInfoResult.entries && searchInfoResult.entries.length > 0) {
-                const v = searchInfoResult.entries[0];
-                url = v.webpage_url;
-                details = {
-                    title: v.title,
-                    lengthSeconds: Number(v.duration),
-                    thumbnails: [{ url: v.thumbnail }],
-                    author: { name: v.uploader || v.channel || "Unknown" },
-                    video_url: v.webpage_url,
-                };
-                views = Number(v.view_count) || null;
-                searchInfo = `youtube-dl-exec: ${query}`;
-                source = "YouTube (youtube-dl-exec)";
-                console.log(`[resolveTrack] youtube-dl-exec: search success: ${details.title}`);
-            } else {
-                console.log("[resolveTrack] youtube-dl-exec: search found no entries");
-            }
-        }
-    } catch (e) {
-        console.log(`[resolveTrack] youtube-dl-exec failed: ${e.message}`);
-        throw new Error("NO_RESULTS");
-    }
-
-    if (!details.title) {
-        console.log("[resolveTrack] youtube-dl-exec did not return a valid track, throwing NO_RESULTS");
-        throw new Error("NO_RESULTS");
-    }
-
-    return {
-        url,
-        title: details.title,
-        lengthSeconds: Number(details.lengthSeconds),
-        thumbnail: details.thumbnails?.[details.thumbnails.length - 1]?.url ?? null,
-        author: details.author?.name ?? "Unknown",
-        requestedBy: user,
-        views,
-        searchInfo,
-        source,
-    };
-}
-
 async function downloadToTempFile(url) {
     const tmpDir = path.resolve("D:/DiscordBOTCore/MainBOTCore/FumoBOT/MainBOT/OtherFunCommand/MusicFunction/MusicDB");
     if (!fs.existsSync(tmpDir)) {
@@ -406,10 +323,296 @@ async function downloadToTempFile(url) {
     });
 }
 
+async function resolveTrack(query, user, forceAlt = false) {
+    let url = query;
+    let details;
+    let searchInfo = "Unknown";
+    let views = null;
+    let source = "YouTube";
+
+    // Handle URL input
+    if (/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/.test(query)) {
+        try {
+            console.log("[resolveTrack] URL detected, using yt-search");
+            const videoId = extractVideoId(query);
+            const info = await ytSearch({ videoId });
+            
+            url = info.url;
+            details = {
+                title: info.title,
+                lengthSeconds: info.seconds,
+                thumbnails: [{ url: info.thumbnail }],
+                author: { name: info.author.name },
+                video_url: info.url,
+            };
+            views = info.views || null;
+            searchInfo = "URL";
+            source = "YouTube (yt-search)";
+            console.log(`[resolveTrack] URL success: ${details.title}`);
+        } catch (e) {
+            console.log(`[resolveTrack] yt-search URL failed: ${e.message}`);
+            throw new Error("INVALID_URL");
+        }
+    } else {
+        // Search mode with ranking
+        let ytResult;
+        let searchQuery = forceAlt ? query + " music" : query + " song";
+        
+        // Try yt-search with "song" suffix first
+        try {
+            console.log(`[resolveTrack] Searching: ${searchQuery}`);
+            ytResult = await ytSearch(searchQuery);
+            
+            if (ytResult && ytResult.videos.length > 0) {
+                const rankedVideos = rankSearchResults(ytResult.videos.slice(0, 15), query);
+                const vid = rankedVideos[0];
+                
+                console.log(`[resolveTrack] Top 3 ranked results:`);
+                rankedVideos.slice(0, 3).forEach((v, i) => {
+                    console.log(`  ${i + 1}. [Score: ${v._searchScore.toFixed(0)}] ${v.title}`);
+                    console.log(`      Views: ${v.views} | Duration: ${v.seconds}s | Author: ${v.author.name}`);
+                });
+                
+                url = vid.url;
+                details = {
+                    title: vid.title,
+                    lengthSeconds: vid.seconds,
+                    thumbnails: [{ url: vid.thumbnail }],
+                    author: { name: vid.author.name || vid.author },
+                    video_url: vid.url,
+                };
+                views = vid.views || null;
+                searchInfo = `${query} - Based: Music (Ranked)`;
+                source = "YouTube (yt-search)";
+                console.log(`[resolveTrack] Selected: ${details.title}`);
+            }
+        } catch (e) {
+            console.log(`[resolveTrack] yt-search "${searchQuery}" failed: ${e.message}`);
+        }
+        
+        // Fallback: try without suffix, sorted by view count
+        if ((!ytResult || ytResult.videos.length === 0) && !forceAlt) {
+            try {
+                console.log(`[resolveTrack] Fallback search: ${query} (by popularity)`);
+                ytResult = await ytSearch(query);
+                
+                if (ytResult && ytResult.videos.length > 0) {
+                    const rankedVideos = rankSearchResults(ytResult.videos.slice(0, 15), query);
+                    const vid = rankedVideos[0];
+                    
+                    console.log(`[resolveTrack] Top 3 ranked results (popularity):`);
+                    rankedVideos.slice(0, 3).forEach((v, i) => {
+                        console.log(`  ${i + 1}. [Score: ${v._searchScore.toFixed(0)}] ${v.title}`);
+                        console.log(`      Views: ${v.views} | Duration: ${v.seconds}s | Author: ${v.author.name}`);
+                    });
+                    
+                    url = vid.url;
+                    details = {
+                        title: vid.title,
+                        lengthSeconds: vid.seconds,
+                        thumbnails: [{ url: vid.thumbnail }],
+                        author: { name: vid.author.name || vid.author },
+                        video_url: vid.url,
+                    };
+                    views = vid.views || null;
+                    searchInfo = `${query} - Based: Popularity (Ranked)`;
+                    source = "YouTube (yt-search)";
+                    console.log(`[resolveTrack] Selected: ${details.title}`);
+                }
+            } catch (e2) {
+                console.log(`[resolveTrack] Popularity search failed: ${e2.message}`);
+            }
+        }
+        
+        // Last resort: ytsr
+        if (!ytResult || ytResult.videos.length === 0) {
+            try {
+                console.log(`[resolveTrack] Last resort: ytsr for ${query}`);
+                const filters = await ytsr.getFilters(query);
+                const filter = filters.get("Type").get("Video");
+                const searchResults = await ytsr(filter.url, { limit: 15 });
+                
+                if (!searchResults.items.length) throw new Error("NO_RESULTS");
+                
+                const videos = searchResults.items.filter(item => item.type === 'video');
+                const rankedVideos = rankSearchResults(videos, query);
+                const vid = rankedVideos[0];
+                
+                console.log(`[resolveTrack] Top 3 ranked ytsr results:`);
+                rankedVideos.slice(0, 3).forEach((v, i) => {
+                    console.log(`  ${i + 1}. [Score: ${v._searchScore.toFixed(0)}] ${v.title}`);
+                    console.log(`      Views: ${v.views} | Duration: ${v.duration} | Author: ${v.author?.name}`);
+                });
+                
+                url = vid.url;
+                details = {
+                    title: vid.title,
+                    lengthSeconds: vid.duration ? parseDuration(vid.duration) : 0,
+                    thumbnails: [{ url: vid.bestThumbnail?.url || vid.thumbnails?.[0]?.url }],
+                    author: { name: vid.author?.name || "Unknown" },
+                    video_url: vid.url,
+                };
+                views = vid.views || null;
+                searchInfo = `${query} - Based: Video (Ranked)`;
+                source = "YouTube (ytsr)";
+                console.log(`[resolveTrack] Selected: ${details.title}`);
+            } catch (e3) {
+                console.log(`[resolveTrack] ytsr failed: ${e3.message}`);
+                throw new Error("NO_RESULTS");
+            }
+        }
+    }
+    
+    return {
+        url,
+        title: details.title,
+        lengthSeconds: Number(details.lengthSeconds),
+        thumbnail: details.thumbnails?.[details.thumbnails.length - 1]?.url ?? null,
+        author: details.author?.name ?? "Unknown",
+        requestedBy: user,
+        views,
+        searchInfo,
+        source,
+    };
+}
+
+function rankSearchResults(results, query) {
+    const queryLower = query.toLowerCase().trim();
+    const queryWords = queryLower.split(/\s+/).filter(w => w.length > 1);
+    
+    return results.map(result => {
+        let score = 0;
+        const title = (result.title || "").toLowerCase();
+        const author = (result.author?.name || result.uploader || result.channel || "").toLowerCase();
+        const views = Number(result.view_count || result.views || 0);
+        const duration = Number(result.duration || result.seconds || result.lengthSeconds || 0);
+        
+        // Parse duration if it's a string (from ytsr)
+        const durationSeconds = typeof duration === 'string' ? parseDuration(duration) : duration;
+        
+        // 1. Word matching (most important for relevance)
+        const wordsInTitle = queryWords.filter(word => title.includes(word)).length;
+        const wordMatchRatio = queryWords.length > 0 ? wordsInTitle / queryWords.length : 0;
+        score += wordMatchRatio * 2000; // High priority for matching words
+        
+        // 2. Query contained as phrase (nice bonus but not overwhelming)
+        if (title.includes(queryLower)) {
+            score += 500;
+        }
+        
+        // 3. Title starts with query (slightly better)
+        if (title.startsWith(queryLower)) {
+            score += 800;
+        }
+        
+        // 4. View count (MAJOR factor - popular = likely what they want)
+        if (views > 0) {
+            // Use square root to balance - still rewards popularity but not exponentially
+            score += Math.sqrt(views) * 0.5;
+            
+            // Extra bonus for extremely popular videos (>10M views)
+            if (views > 10000000) {
+                score += 1000;
+            }
+            // Bonus for very popular (>1M views)
+            else if (views > 1000000) {
+                score += 500;
+            }
+        }
+        
+        // 5. Official/verified channels (important but not decisive)
+        const officialKeywords = ['official', 'vevo', 'records', 'music', 'topic'];
+        const isOfficial = officialKeywords.some(keyword => author.includes(keyword));
+        if (isOfficial) {
+            score += 600;
+        }
+        
+        // 6. Official tags in title
+        if (title.includes('official audio') || title.includes('official video') || 
+            title.includes('official music video') || title.includes('official mv')) {
+            score += 400;
+        }
+        
+        // 7. Ideal song duration (2-8 minutes)
+        if (durationSeconds >= 120 && durationSeconds <= 480) {
+            score += 200;
+        } else if (durationSeconds >= 60 && durationSeconds <= 600) {
+            score += 100; // Still okay if slightly outside range
+        }
+        
+        // 8. HEAVY penalties for unwanted content (this is crucial)
+        const spamKeywords = [
+            // Compilations - these are the worst offenders
+            'top 10', 'top 15', 'top 20', 'top 30', 'top 50', 'best of', 'compilation', 
+            'playlist', 'mix', 'megamix', 'mashup', 'collection',
+            // Reactions
+            'reaction', 'reacts', 'reacting', 'review', 'reviewer',
+            // Covers/alternate versions
+            'cover', 'covered by', 'acoustic', 'piano', 'violin', 'guitar', 'instrumental',
+            // Modified versions
+            'nightcore', 'slowed', 'reverb', 'speed up', 'sped up', '8d audio', '8d', 
+            'bass boost', 'bass boosted', 'earrape', 'distorted',
+            // Remixes (unless user specifically searched for remix)
+            ...(!queryLower.includes('remix') ? ['remix', 'trap remix', 'edm mix', 'dubstep'] : []),
+            // Other spam
+            'lyrics', 'lyric video', 'with lyrics', 'tutorial', 'lesson', 'how to', 'guide',
+            'live', 'concert', 'performance', 'tour', 'behind the scenes'
+        ];
+        
+        let spamCount = 0;
+        spamKeywords.forEach(keyword => {
+            if (title.includes(keyword)) spamCount++;
+        });
+        score -= spamCount * 1500; // VERY heavy penalty
+        
+        // 9. Extra penalty for compilation patterns
+        if (/\d+/.test(title) && (title.includes('top') || title.includes('best') || 
+            title.includes('greatest') || title.includes('most'))) {
+            score -= 2000; // Massive penalty for "Top X" patterns
+        }
+        
+        // 10. Penalize very long videos (compilations/DJ sets)
+        if (durationSeconds > 600) {
+            score -= 1000;
+        } else if (durationSeconds > 480) {
+            score -= 300; // Smaller penalty for slightly long
+        }
+        
+        // 11. Penalize very short videos (clips/memes)
+        if (durationSeconds > 0 && durationSeconds < 60) {
+            score -= 500;
+        } else if (durationSeconds < 90) {
+            score -= 100; // Smaller penalty for short but reasonable
+        }
+        
+        // 12. Bonus for typical music video characteristics
+        if (!isOfficial && views > 100000 && durationSeconds >= 180 && durationSeconds <= 360) {
+            score += 200; // Likely a real music video
+        }
+        
+        return { ...result, _searchScore: score };
+    }).sort((a, b) => b._searchScore - a._searchScore);
+}
+
+function extractVideoId(url) {
+    const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+    const match = url.match(regex);
+    return match ? match[1] : null;
+}
+
+function parseDuration(durationStr) {
+    if (typeof durationStr === 'number') return durationStr;
+    if (!durationStr) return 0;
+    
+    const parts = durationStr.toString().split(':').map(Number);
+    if (parts.length === 2) return parts[0] * 60 + parts[1]; // MM:SS
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]; // HH:MM:SS
+    return 0;
+}
+
 async function playNext(interaction, guildId) {
     const q = getOrCreateQueue(guildId);
 
-    // Kill any existing yt-dlp process before starting new one
     if (q.currentYtdlpProcess) {
         try {
             q.currentYtdlpProcess.kill('SIGKILL');
