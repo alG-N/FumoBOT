@@ -1,10 +1,12 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const axios = require('axios');
 const { Buffer } = require('buffer');
+require('dotenv').config({ path: __dirname + '/.env' });
 
-// Add your Reddit API credentials here
-const clientId = 'yzZCVDLnuHeoCJRl-7p_wQ';
-const secret = 'plNFJELWBg2LsxD-CvZdOhYpPwzqgA';
+// Reddit API credentials
+const clientId = process.env.CLIENT_ID;
+const secret = process.env.SECRET_KEY;
+
 const userPostsMap = new Map();
 const userGalleryState = new Map(); // Track gallery pagination state
 
@@ -32,27 +34,27 @@ async function autocomplete(interaction) {
     console.log('📝 Reddit autocomplete called');
     const focused = interaction.options.getFocused();
     console.log('Focused value:', focused);
-    
+
     if (!focused) {
         console.log('No focused value, returning empty');
         return interaction.respond([]);
     }
-    
+
     try {
         console.log('Searching subreddits for:', focused);
         const res = await axios.get(
             `https://www.reddit.com/subreddits/search.json?q=${encodeURIComponent(focused)}&limit=10`,
             { headers: { 'User-Agent': 'DiscordBot/1.0 by YourRedditUsername' }, timeout: 5000 }
         );
-        
+
         console.log('Reddit API response status:', res.status);
         console.log('Results found:', res.data?.data?.children?.length || 0);
-        
+
         const subs = res.data.data.children.map(c => ({
             name: `${c.data.display_name_prefixed} — ${c.data.title}`.slice(0, 100),
             value: c.data.display_name
         }));
-        
+
         console.log('Sending autocomplete options:', subs.length);
         await interaction.respond(subs);
     } catch (err) {
@@ -104,16 +106,16 @@ async function fetchRedditData(subreddit, sortBy = 'top') {
         if (rateLimitRemaining < 5) {
             return null;
         }
-        
+
         // Build the endpoint based on sort type
         let endpoint = `https://oauth.reddit.com/r/${subreddit}/${sortBy}`;
         let params = { limit: 5 };
-        
+
         // Add time parameter for 'top' sort
         if (sortBy === 'top') {
             params.t = 'day';
         }
-        
+
         const response = await axios.get(endpoint, {
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -130,13 +132,13 @@ async function fetchRedditData(subreddit, sortBy = 'top') {
             const downvotes = postData.downs ?? 0;
             const comments = postData.num_comments ?? 0;
             const awards = postData.total_awards_received ?? 0;
-            
+
             let fullSizeImage = null;
             if (postData.preview && postData.preview.images && postData.preview.images[0]) {
                 const source = postData.preview.images[0].source;
                 fullSizeImage = source.url.replace(/&amp;/g, '&');
             }
-            
+
             let galleryImages = [];
             if (postData.gallery_data && postData.media_metadata) {
                 galleryImages = postData.gallery_data.items.map(item => {
@@ -148,24 +150,24 @@ async function fetchRedditData(subreddit, sortBy = 'top') {
                     return null;
                 }).filter(url => url !== null);
             }
-            
+
             let videoUrl = null;
             let isVideo = false;
             if (postData.is_video && postData.media && postData.media.reddit_video) {
                 videoUrl = postData.media.reddit_video.fallback_url;
                 isVideo = true;
             }
-            
+
             // Get selftext (text content)
             let selftext = postData.selftext || '';
             let selftextHtml = postData.selftext_html || '';
-            
+
             // Detect content type
             let contentType = 'text';
             if (isVideo) contentType = 'video';
             else if (galleryImages.length > 0) contentType = 'gallery';
             else if (fullSizeImage) contentType = 'image';
-            
+
             return {
                 title: postData.title || '[No Title]',
                 url: postData.url || '[No URL]',
@@ -204,14 +206,14 @@ async function handleSubredditNotFound(interaction, subreddit) {
             .setColor('#FF4500')
             .setFooter({ text: 'Use /reddit [subreddit] to try again' })
             .setTimestamp();
-        
+
         const fields = similarSubreddits.map((sub, index) => ({
             name: `${index + 1}. r/${sub}`,
             value: `[Visit](https://reddit.com/r/${sub})`,
             inline: true
         }));
         embed.addFields(fields);
-        
+
         await interaction.editReply({ embeds: [embed] });
     } else {
         await interaction.editReply(`❌ **Couldn't find r/${subreddit}**\nPlease check the spelling and try again.`);
@@ -220,7 +222,7 @@ async function handleSubredditNotFound(interaction, subreddit) {
 
 async function sendTopPostsEmbed(interaction, subreddit, posts, sortBy = 'top') {
     const postCount = posts.length;
-    
+
     const sortEmojis = {
         'hot': '🔥',
         'best': '⭐',
@@ -228,7 +230,7 @@ async function sendTopPostsEmbed(interaction, subreddit, posts, sortBy = 'top') 
         'new': '🆕',
         'rising': '📈'
     };
-    
+
     const sortNames = {
         'hot': 'Hot',
         'best': 'Best',
@@ -236,10 +238,10 @@ async function sendTopPostsEmbed(interaction, subreddit, posts, sortBy = 'top') 
         'new': 'New',
         'rising': 'Rising'
     };
-    
+
     const emoji = sortEmojis[sortBy] || '🔥';
     const sortName = sortNames[sortBy] || 'Top';
-    
+
     const embed = new EmbedBuilder()
         .setTitle(`${emoji} ${sortName} ${postCount} Posts from r/${subreddit}`)
         .setDescription('Select a post below to view full details, media, and content!')
@@ -254,16 +256,16 @@ async function sendTopPostsEmbed(interaction, subreddit, posts, sortBy = 'top') 
             'image': '📷',
             'text': '📝'
         }[post.contentType] || '📝';
-        
+
         const nsfwTag = post.nsfw ? '🔞 ' : '';
-        
+
         return {
             name: `${index + 1}. ${nsfwTag}${contentIcon} ${post.title.slice(0, 80)}${post.title.length > 80 ? '...' : ''}`,
             value: `👍 ${formatNumber(post.upvotes)} | 💬 ${formatNumber(post.comments)} | 🏆 ${post.awards}\n[View on Reddit](${post.permalink})`,
             inline: false
         };
     });
-    
+
     embed.addFields(fields);
 
     const actionRows = createPostButtons(postCount, interaction.user.id);
@@ -279,7 +281,7 @@ function formatNumber(num) {
 function createPostButtons(postCount, userId) {
     const rows = [];
     const row1 = new ActionRowBuilder();
-    
+
     for (let i = 0; i < Math.min(postCount, 5); i++) {
         row1.addComponents(
             new ButtonBuilder()
@@ -290,13 +292,13 @@ function createPostButtons(postCount, userId) {
         );
     }
     rows.push(row1);
-    
+
     return rows;
 }
 
 function createGalleryButtons(currentPage, totalPages, postIndex, userId) {
     const row = new ActionRowBuilder();
-    
+
     row.addComponents(
         new ButtonBuilder()
             .setCustomId(`gallery_prev_${postIndex}_${userId}`)
@@ -321,7 +323,7 @@ function createGalleryButtons(currentPage, totalPages, postIndex, userId) {
             .setStyle(ButtonStyle.Danger)
             .setEmoji('🔙')
     );
-    
+
     return row;
 }
 
@@ -340,7 +342,7 @@ async function showPostDetails(interaction, post, postIndex, userId, isUpdate = 
         console.log(`Content Type: ${post.contentType}`);
         console.log(`Has interaction: ${!!interaction}`);
         console.log(`Interaction type: ${interaction.constructor.name}`);
-        
+
         const embed = new EmbedBuilder()
             .setTitle(post.title)
             .setURL(post.permalink)
@@ -356,9 +358,18 @@ async function showPostDetails(interaction, post, postIndex, userId, isUpdate = 
             inline: true
         };
 
+        // Create back button for all post types
+        const backButton = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId(`back_to_list_${userId}`)
+                .setLabel('Back to Posts')
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji('🔙')
+        );
+
         // Handle different content types
         if (post.contentType === 'video' && post.video) {
-            console.log('📹 Processing video post');
+            console.log('🎹 Processing video post');
             embed.addFields([
                 statsField,
                 {
@@ -367,7 +378,7 @@ async function showPostDetails(interaction, post, postIndex, userId, isUpdate = 
                     inline: true
                 }
             ]);
-            
+
             // Add text content if available
             if (post.selftext && post.selftext.trim()) {
                 const truncated = truncateText(post.selftext, 1000);
@@ -377,16 +388,16 @@ async function showPostDetails(interaction, post, postIndex, userId, isUpdate = 
                     inline: false
                 });
             }
-            
+
             // Try to show video thumbnail if available
             if (post.image) {
                 embed.setImage(post.image);
             }
-            
+
             console.log('✅ Sending video embed...');
-            await interaction.editReply({ embeds: [embed], components: [] });
+            await interaction.editReply({ embeds: [embed], components: [backButton] });
             console.log('✅ Video embed sent successfully');
-            
+
         } else if (post.contentType === 'gallery' && post.gallery.length > 0) {
             console.log('🖼️ Processing gallery post');
             // Initialize gallery state
@@ -396,10 +407,10 @@ async function showPostDetails(interaction, post, postIndex, userId, isUpdate = 
                 console.log(`Initialized gallery state for ${stateKey}`);
             }
             const currentPage = userGalleryState.get(stateKey);
-            
+
             console.log(`Gallery current page: ${currentPage}/${post.gallery.length}`);
             console.log(`Image URL: ${post.gallery[currentPage]}`);
-            
+
             embed.setImage(post.gallery[currentPage]);
             embed.addFields([
                 statsField,
@@ -409,7 +420,7 @@ async function showPostDetails(interaction, post, postIndex, userId, isUpdate = 
                     inline: true
                 }
             ]);
-            
+
             // Add text content if available
             if (post.selftext && post.selftext.trim()) {
                 const truncated = truncateText(post.selftext, 800);
@@ -419,18 +430,18 @@ async function showPostDetails(interaction, post, postIndex, userId, isUpdate = 
                     inline: false
                 });
             }
-            
+
             const galleryRow = createGalleryButtons(currentPage, post.gallery.length, postIndex, userId);
-            
+
             console.log('✅ Sending gallery embed...');
-            await interaction.editReply({ embeds: [embed], components: [galleryRow] });
+            await interaction.editReply({ embeds: [embed], components: [galleryRow, backButton] });
             console.log('✅ Gallery embed sent successfully');
-            
+
         } else if (post.contentType === 'image' && post.image) {
             console.log('📷 Processing image post');
             embed.setImage(post.image);
             embed.addFields([statsField]);
-            
+
             // Add text content if available
             if (post.selftext && post.selftext.trim()) {
                 const truncated = truncateText(post.selftext, 1500);
@@ -440,20 +451,20 @@ async function showPostDetails(interaction, post, postIndex, userId, isUpdate = 
                     inline: false
                 });
             }
-            
+
             console.log('✅ Sending image embed...');
-            await interaction.editReply({ embeds: [embed], components: [] });
+            await interaction.editReply({ embeds: [embed], components: [backButton] });
             console.log('✅ Image embed sent successfully');
-            
+
         } else {
             console.log('📝 Processing text post');
             // Text post
             embed.addFields([statsField]);
-            
+
             if (post.selftext && post.selftext.trim()) {
                 const truncated = truncateText(post.selftext, 3000);
                 embed.setDescription(truncated);
-                
+
                 if (post.selftext.length > 3000) {
                     embed.addFields({
                         name: '⚠️ Content Truncated',
@@ -468,12 +479,12 @@ async function showPostDetails(interaction, post, postIndex, userId, isUpdate = 
                     inline: true
                 });
             }
-            
+
             console.log('✅ Sending text embed...');
-            await interaction.editReply({ embeds: [embed], components: [] });
+            await interaction.editReply({ embeds: [embed], components: [backButton] });
             console.log('✅ Text embed sent successfully');
         }
-        
+
         console.log('=== END SHOW POST DETAILS DEBUG ===\n');
     } catch (error) {
         console.error('❌ ERROR in showPostDetails:');
@@ -510,9 +521,9 @@ module.exports = {
     async execute(interaction) {
         const subreddit = interaction.options.getString('subreddit').replace(/\s/g, '').trim();
         const sortBy = interaction.options.getString('sort') || 'top';
-        
+
         await interaction.deferReply();
-        
+
         const sortNames = {
             'hot': 'Hot',
             'best': 'Best',
@@ -520,7 +531,7 @@ module.exports = {
             'new': 'New',
             'rising': 'Rising'
         };
-        
+
         const loadingEmbed = new EmbedBuilder()
             .setTitle(`🔄 Fetching Posts...`)
             .setDescription(`Retrieving **${sortNames[sortBy]}** posts from **r/${subreddit}**\n\nThis may take a moment...`)
@@ -528,31 +539,31 @@ module.exports = {
             .setThumbnail('https://www.redditstatic.com/desktop2x/img/favicon/android-icon-192x192.png')
             .setFooter({ text: 'Powered by alterGolden' })
             .setTimestamp();
-        
+
         await interaction.editReply({ embeds: [loadingEmbed] });
-        
+
         const waitTime = Math.random() * 1000 + 2000;
         await new Promise(resolve => setTimeout(resolve, waitTime));
-        
+
         const posts = await fetchRedditData(subreddit, sortBy);
-        
+
         if (posts === 'not_found') {
             await handleSubredditNotFound(interaction, subreddit);
             return;
         }
-        
+
         if (!posts || posts.length === 0) {
             await interaction.editReply(`⚠️ **No posts found in r/${subreddit}**\nThe subreddit might be private or have no recent posts.`);
             return;
         }
-        
+
         userPostsMap.set(interaction.user.id, posts);
         await sendTopPostsEmbed(interaction, subreddit, posts, sortBy);
     },
-    
+
     async handleButton(interaction) {
         console.log('🔘 Button interaction received:', interaction.customId);
-        
+
         if (!interaction.isButton()) return;
 
         // Handle post detail buttons
@@ -612,7 +623,7 @@ module.exports = {
             console.log(`User posts exist: ${!!userPosts}`);
             console.log(`User posts length: ${userPosts ? userPosts.length : 0}`);
             console.log(`Post at index exists: ${userPosts && userPosts[postIndex] ? 'YES' : 'NO'}`);
-            
+
             if (!userPosts || !userPosts[postIndex]) {
                 console.log('❌ No posts found - responding with error');
                 await interaction.reply({ content: '⚠️ Post data expired. Please run the command again.', ephemeral: true });
@@ -623,10 +634,10 @@ module.exports = {
                 console.log('✅ Deferring update...');
                 await interaction.deferUpdate();
                 console.log('✅ Update deferred successfully');
-                
+
                 const stateKey = `${interaction.user.id}_${postIndex}`;
                 console.log(`State key: ${stateKey}`);
-                
+
                 if (action === 'close') {
                     console.log('🔙 Closing gallery and returning to post details');
                     userGalleryState.delete(stateKey);
@@ -637,11 +648,11 @@ module.exports = {
 
                 let currentPage = userGalleryState.get(stateKey) || 0;
                 const galleryLength = userPosts[postIndex].gallery.length;
-                
+
                 console.log(`Current page: ${currentPage}`);
                 console.log(`Gallery length: ${galleryLength}`);
                 console.log(`Gallery array:`, userPosts[postIndex].gallery);
-                
+
                 if (action === 'prev') {
                     currentPage = Math.max(0, currentPage - 1);
                     console.log(`⬅️ Moving to previous: ${currentPage}`);
@@ -649,12 +660,12 @@ module.exports = {
                     currentPage = Math.min(galleryLength - 1, currentPage + 1);
                     console.log(`➡️ Moving to next: ${currentPage}`);
                 }
-                
+
                 console.log(`New page: ${currentPage}`);
-                
+
                 userGalleryState.set(stateKey, currentPage);
                 console.log('✅ State updated, calling showPostDetails...');
-                
+
                 await showPostDetails(interaction, userPosts[postIndex], postIndex, interaction.user.id, true);
                 console.log('✅ Gallery navigation completed successfully');
             } catch (error) {
@@ -663,7 +674,7 @@ module.exports = {
                 console.error('Error message:', error.message);
                 console.error('Error stack:', error.stack);
                 console.error('Full error object:', JSON.stringify(error, null, 2));
-                
+
                 try {
                     await interaction.followUp({ content: '❌ Failed to navigate gallery. Please try again.', ephemeral: true });
                 } catch (e) {
@@ -671,8 +682,49 @@ module.exports = {
                 }
             }
             console.log('=== END GALLERY BUTTON DEBUG ===\n');
+            return;
+        }
+
+        // Handle back to list button
+        const backMatch = interaction.customId.match(/^back_to_list_(\d+)$/);
+        if (backMatch) {
+            const buttonUserId = backMatch[1];
+
+            if (interaction.user.id !== buttonUserId) {
+                await interaction.reply({ content: '❌ This button is not for you!', ephemeral: true });
+                return;
+            }
+
+            try {
+                await interaction.deferUpdate();
+
+                // Clear gallery state for all posts of this user
+                const userPosts = userPostsMap.get(interaction.user.id);
+                if (userPosts) {
+                    for (let i = 0; i < userPosts.length; i++) {
+                        const stateKey = `${interaction.user.id}_${i}`;
+                        userGalleryState.delete(stateKey);
+                    }
+                }
+
+                // Rebuild the posts list embed
+                if (userPosts && userPosts.length > 0) {
+                    const subreddit = userPosts[0].permalink.split('/')[4];
+                    await sendTopPostsEmbed(interaction, subreddit, userPosts);
+                } else {
+                    await interaction.editReply({ content: '⚠️ Post data expired. Please run the command again.' });
+                }
+            } catch (error) {
+                console.error('Error returning to post list:', error);
+                try {
+                    await interaction.followUp({ content: '❌ Failed to return to posts list. Please try again.', ephemeral: true });
+                } catch (e) {
+                    console.error('Failed to send error message:', e);
+                }
+            }
+            return;
         }
     },
-    
+
     autocomplete
 };

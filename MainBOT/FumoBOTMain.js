@@ -210,7 +210,7 @@ client.on('interactionCreate', async interaction => {
     if (interaction.isButton()) {
         console.log('🔘 Button interaction received:', interaction.customId);
 
-        if (interaction.customId.startsWith('show_post_') || interaction.customId.startsWith('gallery_')) {
+        if (interaction.customId.startsWith('show_post_') || interaction.customId.startsWith('gallery_') || interaction.customId.startsWith('back_to_list_')) {
             const redditCommand = client.commands.get('reddit');
             if (redditCommand && redditCommand.handleButton) {
                 try {
