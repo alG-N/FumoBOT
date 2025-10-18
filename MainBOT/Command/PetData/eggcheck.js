@@ -8,7 +8,7 @@ const {
     ButtonStyle,
     ComponentType
 } = require('discord.js');
-const db = require('../../database/db');
+const db = require('../database/db');
 const client = new Client({
     intents: [
         GatewayIntentBits.GuildMessages,
@@ -22,8 +22,8 @@ client.setMaxListeners(150);
 function formatNumber(number) {
     return number.toLocaleString();
 }
-const { maintenance, developerID } = require("../../Maintenace/MaintenaceConfig");
-const { isBanned } = require('../../Banned/BanUtils');
+const { maintenance, developerID } = require("../Maintenace/MaintenaceConfig");
+const { isBanned } = require('../Banned/BanUtils');
 const { v4: uuidv4 } = require('uuid');
 module.exports = async (client) => {
     client.on("messageCreate", async message => {

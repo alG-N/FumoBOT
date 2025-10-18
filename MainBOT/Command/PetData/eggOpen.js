@@ -8,7 +8,7 @@ const {
     ButtonStyle,
     ComponentType
 } = require('discord.js');
-const db = require('../../database/db');
+const db = require('../database/db');
 const client = new Client({
     intents: [
         GatewayIntentBits.GuildMessages,
@@ -22,8 +22,8 @@ client.setMaxListeners(150);
 function formatNumber(number) {
     return number.toLocaleString();
 }
-const { maintenance, developerID } = require("../../Maintenace/MaintenaceConfig");
-const { isBanned } = require('../../Banned/BanUtils');
+const { maintenance, developerID } = require("../Maintenace/MaintenaceConfig");
+const { isBanned } = require('../Banned/BanUtils');
  // Egg data with hatch times and rarity
 const eggData = {
     "CommonEgg": { time: 10 * 10 * 1000, emoji: "🥚", rarity: "Common" },
