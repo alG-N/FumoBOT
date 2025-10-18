@@ -728,7 +728,6 @@ function updateCoins() {
     });
 }
 
-
 //-----------------Functionality of the MAIN-----------------\\
 //Define .crategacha command
 gacha(client, fumos);
@@ -1121,24 +1120,86 @@ client.on(Events.MessageCreate, async message => {
         }
     }
 });
+
 //-----------------Functionality of the OTHER-----------------\\
 const anime = require('./OtherFunCommand/API-Website/Anime/anime');
 const afk = require('./OtherFunCommand/BasicCommand/afk');
 const musicCommands = require('./OtherFunCommand/MusicFunction/MainMusic');
 const reddit = require('./OtherFunCommand/API-Website/Reddit/reddit');
 
-//Define .reddit command
-client.on(Events.InteractionCreate, async interaction => {
-    if (!interaction.isChatInputCommand()) return;
-    if (interaction.commandName === reddit.data.name) {
+if (reddit && reddit.data && reddit.data.name) {
+    client.commands.set(reddit.data.name, reddit);
+    console.log('✅ Manually loaded reddit command');
+}
+
+// SINGLE unified interaction handler
+client.on('interactionCreate', async interaction => {
+    // Handle BUTTONS first
+    if (interaction.isButton()) {
+        console.log('🔘 Button interaction received:', interaction.customId);
+
+        // Check if it's a reddit button (starts with show_post_)
+        if (interaction.customId.startsWith('show_post_') || interaction.customId.startsWith('gallery_')) {
+            const redditCommand = client.commands.get('reddit');
+            if (redditCommand && redditCommand.handleButton) {
+                try {
+                    await redditCommand.handleButton(interaction);
+                } catch (error) {
+                    console.error('Button handler error:', error);
+                    try {
+                        if (!interaction.replied && !interaction.deferred) {
+                            await interaction.reply({ content: 'There was an error processing this button!', ephemeral: true });
+                        }
+                    } catch (e) {
+                        console.error('Failed to send error message:', e);
+                    }
+                }
+            } else {
+                console.error('Reddit command or handleButton not found');
+            }
+            return; // STOP processing here
+        }
+        // Add other button handlers here if needed
+        return;
+    }
+
+    // Handle SLASH COMMANDS
+    if (interaction.isChatInputCommand()) {
+        const command = client.commands.get(interaction.commandName);
+        if (!command) return;
+
         try {
-            await reddit.execute(interaction);
-        } catch (err) {
-            console.error("Error running /reddit:", err);
-            if (!interaction.replied) {
-                await interaction.reply({ content: "❌ Error running this command.", ephemeral: true });
+            await command.execute(interaction);
+        } catch (error) {
+            console.error('Command execution error:', error);
+            try {
+                if (interaction.replied || interaction.deferred) {
+                    await interaction.followUp({ content: 'There was an error executing this command!', ephemeral: true });
+                } else {
+                    await interaction.reply({ content: 'There was an error executing this command!', ephemeral: true });
+                }
+            } catch (e) {
+                console.error('Failed to send error message:', e);
             }
         }
+        return; // STOP processing here
+    }
+
+    // Handle AUTOCOMPLETE
+    if (interaction.isAutocomplete()) {
+        console.log('🔍 Autocomplete triggered for:', interaction.commandName);
+        const command = client.commands.get(interaction.commandName);
+        console.log('Command found:', !!command);
+        console.log('Has autocomplete function:', !!(command && command.autocomplete));
+
+        if (!command || !command.autocomplete) return;
+
+        try {
+            await command.autocomplete(interaction);
+        } catch (error) {
+            console.error('Autocomplete error:', error);
+        }
+        return; // STOP processing here
     }
 });
 
@@ -1154,36 +1215,6 @@ client.on(Events.MessageCreate, message => {
 
 //Define music command
 musicCommands(client);
-
-client.on(Events.InteractionCreate, async interaction => {
-    if (!interaction.isChatInputCommand()) return;
-
-    const command = client.commands.get(interaction.commandName);
-
-    if (!command) return;
-
-    try {
-        await command.execute(interaction);
-    } catch (error) {
-        console.error(error);
-
-        if (interaction.isRepliable()) {
-            if (interaction.deferred || interaction.replied) {
-                // Already acknowledged → just log the error, do not follow up
-                console.warn("Interaction has already been acknowledged, cannot reply or follow up.");
-            } else {
-                // Safe to reply
-                await interaction.reply({
-                    content: "❌ There was an error executing this command!",
-                    ephemeral: true
-                });
-            }
-        } else {
-            // Interaction is no longer valid, just log the error
-            console.warn("Interaction is no longer repliable.");
-        }
-    }
-});
 
 //-----------------Functionality of the BOT-----------------\\
 function setStaticStatus() {
@@ -1204,25 +1235,19 @@ function setStaticStatus() {
         console.error('Failed to set bot presence:', error);
     }
 }
-// When the bot is ready
 client.once('ready', () => {
     console.log(`✅ Logged in as ${client.user.tag}`);
     setStaticStatus();
     // backupAndSendDB(); // -- turn off if u are testing new feature
 });
-
-// Define .report command
 let ticketCounter = 0;
 const ticketFile = 'ticketCounter.txt';
 const tickets = new Map();
-
-// Load or initialize ticket counter
 if (fs.existsSync(ticketFile)) {
     ticketCounter = parseInt(fs.readFileSync(ticketFile, 'utf8'), 10);
 } else {
     fs.writeFileSync(ticketFile, '0', 'utf8');
 }
-
 client.on(Events.MessageCreate, async message => {
     if (message.author.bot) return;
     if (!message.content.startsWith('.report')) return;
@@ -1339,15 +1364,7 @@ client.on(Events.MessageCreate, async message => {
         message.channel.send('⚠️ Something went wrong while starting the report process.');
     }
 });
-
-// Global Anti-Crash Handlers / PM2 fix n help
 const errorChannelId = '1367886953286205530';
-/**
- * Error formatting and reporting utilities for global error handling.
- * - Formats errors for Discord and console.
- * - Sends error details to a designated Discord channel.
- * - Handles process-level unhandled errors.
- */
 function formatError(error) {
     if (error instanceof Error) {
         const stackLines = error.stack?.split('\n') || [];
@@ -1368,7 +1385,6 @@ function formatError(error) {
         return String(error);
     }
 }
-// Helper: Format uptime in a readable way
 function formatUptime(ms) {
     const seconds = Math.floor(ms / 1000) % 60;
     const minutes = Math.floor(ms / (1000 * 60)) % 60;
@@ -1376,12 +1392,10 @@ function formatUptime(ms) {
     const days = Math.floor(ms / (1000 * 60 * 60 * 24));
     return `${days}d ${hours}h ${minutes}m ${seconds}s`;
 }
-// Helper: Log errors to console with timestamp and prefix
 function logToConsole(prefix, error) {
     const formatted = formatError(error);
     console.error(`🟥 [${new Date().toISOString()}] ${prefix}:\n${formatted}`);
 }
-// Helper: Send error details as an embed to a Discord channel
 async function sendErrorEmbed(prefix, error) {
     try {
         // Wait for client to be ready
@@ -1414,13 +1428,10 @@ async function sendErrorEmbed(prefix, error) {
         console.error('🟥 Failed to send error embed to Discord:', formatError(sendErr));
     }
 }
-// Feature: Track and count errors for monitoring
 let errorCount = 0;
 function incrementErrorCount() {
     errorCount++;
-    // Optionally: Add logic to alert if too many errors in a short time
 }
-// Global error handlers
 process.on('unhandledRejection', async (reason, promise) => {
     incrementErrorCount();
     logToConsole('Unhandled Promise Rejection', reason);
@@ -1431,7 +1442,6 @@ process.on('uncaughtException', async (error) => {
     logToConsole('Uncaught Exception', error);
     await sendErrorEmbed('Uncaught Exception', error);
 });
-// Feature: Command to show error stats (admin only)
 client.on('messageCreate', async (message) => {
     if (message.content.trim() === '.errorstats' && ['1128296349566251068', '1362450043939979378'].includes(message.author.id)) {
         const embed = new EmbedBuilder()
@@ -1442,17 +1452,11 @@ client.on('messageCreate', async (message) => {
         await message.reply({ embeds: [embed] });
     }
 });
-// setTimeout(() => {
-//     Promise.reject(new Error('Simulated unhandled rejection'));
-// }, 15000); // crashes 15 sec after start
-
-//Reset everything.
 client.on('messageCreate', async (message) => {
     if (message.content.trim() !== '.reset') return;
 
     const userId = message.author.id;
 
-    // Allowed user IDs only
     const allowedUsers = ['1128296349566251068', '1362450043939979378'];
 
     if (!allowedUsers.includes(userId)) {
@@ -1536,13 +1540,11 @@ client.on('messageCreate', async (message) => {
         message.reply({ embeds: [timeoutEmbed] });
     }
 });
-//Reset balance.
 client.on('messageCreate', async (message) => {
     if (!message.content.startsWith('.resetbalance')) return;
 
     const userId = message.author.id;
 
-    // Whitelist of allowed users
     const allowedUsers = ['1128296349566251068', '1362450043939979378'];
 
     if (!allowedUsers.includes(userId)) {
@@ -1574,7 +1576,6 @@ client.on('messageCreate', async (message) => {
             errors: ['time'],
         });
 
-        // Reset coin and gem values
         db.run(`UPDATE userCoins SET coins = 0, gems = 0 WHERE userId = ?`, [userId], function (err) {
             if (err) {
                 console.error('Coin reset error:', err.message);
@@ -1604,7 +1605,6 @@ client.on('messageCreate', async (message) => {
         message.reply({ embeds: [timeoutEmbed] });
     }
 });
-//Add balance.
 client.on('messageCreate', async (message) => {
     if (message.content.trim().toLowerCase() !== '.addbalance') return;
 
@@ -1673,13 +1673,7 @@ client.on('messageCreate', async (message) => {
     }
 });
 
-
 //-----------------Functionality of the Admin Command-----------------\\
-/**
- * Add (give) an item to a user's inventory by userId and itemName.
- * Usage: .additem <userId> <itemName> <quantity>
- * Only allowed for bot admins.
- */
 client.on('messageCreate', async (message) => {
     if (!message.content.startsWith('.additem')) return;
     const allowedUsers = ['1128296349566251068'];
@@ -1710,7 +1704,6 @@ client.on('messageCreate', async (message) => {
     let quantity = 1;
     let itemName = rest.join(' ');
 
-    // If last arg is a number, treat as quantity
     if (!isNaN(rest[rest.length - 1])) {
         quantity = parseInt(rest.pop(), 10);
         itemName = rest.join(' ');
@@ -1727,7 +1720,6 @@ client.on('messageCreate', async (message) => {
         });
     }
 
-    // Check if item already exists for user
     db.get(
         `SELECT * FROM userInventory WHERE userId = ? AND itemName = ?`,
         [userId, itemName],
@@ -1743,7 +1735,6 @@ client.on('messageCreate', async (message) => {
                 });
             }
             if (row) {
-                // Update quantity
                 db.run(
                     `UPDATE userInventory SET quantity = quantity + ? WHERE userId = ? AND itemName = ?`,
                     [quantity, userId, itemName],
@@ -1769,7 +1760,6 @@ client.on('messageCreate', async (message) => {
                     }
                 );
             } else {
-                // Insert new item
                 db.run(
                     `INSERT INTO userInventory (userId, itemName, quantity) VALUES (?, ?, ?)`,
                     [userId, itemName, quantity],
