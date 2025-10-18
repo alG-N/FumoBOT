@@ -9,6 +9,8 @@ const secret = process.env.SECRET_KEY;
 
 const userPostsMap = new Map();
 const userGalleryState = new Map(); // Track gallery pagination state
+const userPageState = new Map(); // Track which page user is viewing
+const userSortState = new Map(); // Track sort type for each user
 
 async function getAccessToken() {
     const auth = Buffer.from(`${clientId}:${secret}`).toString('base64');
@@ -89,7 +91,7 @@ async function searchSimilarSubreddits(subreddit) {
     }
 }
 
-async function fetchRedditData(subreddit, sortBy = 'top') {
+async function fetchRedditData(subreddit, sortBy = 'top', limit = 5) {
     const token = await getAccessToken();
     if (!token) return null;
     try {
@@ -109,7 +111,7 @@ async function fetchRedditData(subreddit, sortBy = 'top') {
 
         // Build the endpoint based on sort type
         let endpoint = `https://oauth.reddit.com/r/${subreddit}/${sortBy}`;
-        let params = { limit: 5 };
+        let params = { limit: limit };
 
         // Add time parameter for 'top' sort
         if (sortBy === 'top') {
@@ -220,8 +222,15 @@ async function handleSubredditNotFound(interaction, subreddit) {
     }
 }
 
-async function sendTopPostsEmbed(interaction, subreddit, posts, sortBy = 'top') {
-    const postCount = posts.length;
+async function sendTopPostsEmbed(interaction, subreddit, posts, sortBy = 'top', currentPage = 0) {
+    const POSTS_PER_PAGE = 5;
+    const totalPosts = posts.length;
+    const totalPages = Math.ceil(totalPosts / POSTS_PER_PAGE);
+    
+    // Get posts for current page
+    const startIdx = currentPage * POSTS_PER_PAGE;
+    const endIdx = Math.min(startIdx + POSTS_PER_PAGE, totalPosts);
+    const pagePosts = posts.slice(startIdx, endIdx);
 
     const sortEmojis = {
         'hot': '🔥',
@@ -243,13 +252,14 @@ async function sendTopPostsEmbed(interaction, subreddit, posts, sortBy = 'top') 
     const sortName = sortNames[sortBy] || 'Top';
 
     const embed = new EmbedBuilder()
-        .setTitle(`${emoji} ${sortName} ${postCount} Posts from r/${subreddit}`)
-        .setDescription('Select a post below to view full details, media, and content!')
+        .setTitle(`${emoji} ${sortName} Posts from r/${subreddit}`)
+        .setDescription(`Showing posts ${startIdx + 1}-${endIdx} of ${totalPosts}\nSelect a post below to view full details!`)
         .setColor('#FF4500')
-        .setFooter({ text: 'Powered by alterGolden • Reddit API' })
+        .setFooter({ text: `Powered by alterGolden • Reddit API • Page ${currentPage + 1}/${totalPages}` })
         .setTimestamp();
 
-    const fields = posts.map((post, index) => {
+    const fields = pagePosts.map((post, idx) => {
+        const globalIndex = startIdx + idx;
         const contentIcon = {
             'video': '🎥',
             'gallery': '🖼️',
@@ -260,7 +270,7 @@ async function sendTopPostsEmbed(interaction, subreddit, posts, sortBy = 'top') 
         const nsfwTag = post.nsfw ? '🔞 ' : '';
 
         return {
-            name: `${index + 1}. ${nsfwTag}${contentIcon} ${post.title.slice(0, 80)}${post.title.length > 80 ? '...' : ''}`,
+            name: `${globalIndex + 1}. ${nsfwTag}${contentIcon} ${post.title.slice(0, 80)}${post.title.length > 80 ? '...' : ''}`,
             value: `👍 ${formatNumber(post.upvotes)} | 💬 ${formatNumber(post.comments)} | 🏆 ${post.awards}\n[View on Reddit](${post.permalink})`,
             inline: false
         };
@@ -268,7 +278,19 @@ async function sendTopPostsEmbed(interaction, subreddit, posts, sortBy = 'top') 
 
     embed.addFields(fields);
 
-    const actionRows = createPostButtons(postCount, interaction.user.id);
+    // Create action rows
+    const actionRows = [];
+    
+    // Post selection buttons
+    const postButtonRows = createPostButtons(pagePosts.length, startIdx, interaction.user.id);
+    actionRows.push(...postButtonRows);
+    
+    // Add pagination buttons if more than 5 posts
+    if (totalPosts > POSTS_PER_PAGE) {
+        const paginationRow = createPaginationButtons(currentPage, totalPages, interaction.user.id);
+        actionRows.push(paginationRow);
+    }
+
     await interaction.editReply({ embeds: [embed], components: actionRows });
 }
 
@@ -278,15 +300,16 @@ function formatNumber(num) {
     return num.toString();
 }
 
-function createPostButtons(postCount, userId) {
+function createPostButtons(postCount, startIdx, userId) {
     const rows = [];
     const row1 = new ActionRowBuilder();
 
     for (let i = 0; i < Math.min(postCount, 5); i++) {
+        const globalIndex = startIdx + i;
         row1.addComponents(
             new ButtonBuilder()
-                .setCustomId(`show_post_${i}_${userId}`)
-                .setLabel(`Post ${i + 1}`)
+                .setCustomId(`show_post_${globalIndex}_${userId}`)
+                .setLabel(`Post ${globalIndex + 1}`)
                 .setStyle(ButtonStyle.Primary)
                 .setEmoji('📖')
         );
@@ -294,6 +317,30 @@ function createPostButtons(postCount, userId) {
     rows.push(row1);
 
     return rows;
+}
+
+function createPaginationButtons(currentPage, totalPages, userId) {
+    const row = new ActionRowBuilder();
+    
+    row.addComponents(
+        new ButtonBuilder()
+            .setCustomId(`page_prev_${userId}`)
+            .setLabel('◀️ Previous')
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(currentPage === 0),
+        new ButtonBuilder()
+            .setCustomId(`page_info_${userId}`)
+            .setLabel(`Page ${currentPage + 1}/${totalPages}`)
+            .setStyle(ButtonStyle.Success)
+            .setDisabled(true),
+        new ButtonBuilder()
+            .setCustomId(`page_next_${userId}`)
+            .setLabel('Next ▶️')
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(currentPage === totalPages - 1)
+    );
+    
+    return row;
 }
 
 function createGalleryButtons(currentPage, totalPages, postIndex, userId) {
@@ -517,10 +564,21 @@ module.exports = {
                     { name: '🆕 New', value: 'new' },
                     { name: '📈 Rising', value: 'rising' }
                 )
+        )
+        .addStringOption(option =>
+            option.setName('count')
+                .setDescription('Number of posts to fetch (default: 5)')
+                .setRequired(false)
+                .addChoices(
+                    { name: '5 posts', value: '5' },
+                    { name: '10 posts', value: '10' },
+                    { name: '15 posts', value: '15' }
+                )
         ),
     async execute(interaction) {
         const subreddit = interaction.options.getString('subreddit').replace(/\s/g, '').trim();
         const sortBy = interaction.options.getString('sort') || 'top';
+        const count = parseInt(interaction.options.getString('count') || '5');
 
         await interaction.deferReply();
 
@@ -534,7 +592,7 @@ module.exports = {
 
         const loadingEmbed = new EmbedBuilder()
             .setTitle(`🔄 Fetching Posts...`)
-            .setDescription(`Retrieving **${sortNames[sortBy]}** posts from **r/${subreddit}**\n\nThis may take a moment...`)
+            .setDescription(`Retrieving **${count} ${sortNames[sortBy]}** posts from **r/${subreddit}**\n\nThis may take a moment...`)
             .setColor('#FF4500')
             .setThumbnail('https://www.redditstatic.com/desktop2x/img/favicon/android-icon-192x192.png')
             .setFooter({ text: 'Powered by alterGolden' })
@@ -545,7 +603,7 @@ module.exports = {
         const waitTime = Math.random() * 1000 + 2000;
         await new Promise(resolve => setTimeout(resolve, waitTime));
 
-        const posts = await fetchRedditData(subreddit, sortBy);
+        const posts = await fetchRedditData(subreddit, sortBy, count);
 
         if (posts === 'not_found') {
             await handleSubredditNotFound(interaction, subreddit);
@@ -558,13 +616,64 @@ module.exports = {
         }
 
         userPostsMap.set(interaction.user.id, posts);
-        await sendTopPostsEmbed(interaction, subreddit, posts, sortBy);
+        userPageState.set(interaction.user.id, 0); // Initialize to page 0
+        userSortState.set(interaction.user.id, sortBy); // Store sort type
+        await sendTopPostsEmbed(interaction, subreddit, posts, sortBy, 0);
     },
 
     async handleButton(interaction) {
         console.log('🔘 Button interaction received:', interaction.customId);
 
         if (!interaction.isButton()) return;
+
+        // Handle pagination buttons
+        const pageMatch = interaction.customId.match(/^page_(prev|next)_(\d+)$/);
+        if (pageMatch) {
+            const action = pageMatch[1];
+            const buttonUserId = pageMatch[2];
+
+            if (interaction.user.id !== buttonUserId) {
+                await interaction.reply({ content: '❌ This button is not for you!', ephemeral: true });
+                return;
+            }
+
+            const userPosts = userPostsMap.get(interaction.user.id);
+            if (!userPosts || userPosts.length === 0) {
+                await interaction.reply({ content: '⚠️ Post data expired. Please run the command again.', ephemeral: true });
+                return;
+            }
+
+            try {
+                await interaction.deferUpdate();
+
+                let currentPage = userPageState.get(interaction.user.id) || 0;
+                const totalPages = Math.ceil(userPosts.length / 5);
+
+                if (action === 'prev') {
+                    currentPage = Math.max(0, currentPage - 1);
+                } else if (action === 'next') {
+                    currentPage = Math.min(totalPages - 1, currentPage + 1);
+                }
+
+                userPageState.set(interaction.user.id, currentPage);
+
+                // Extract subreddit from first post
+                const subreddit = userPosts[0].permalink.split('/')[4];
+                
+                // Get sortBy from stored state
+                const sortBy = userSortState.get(interaction.user.id) || 'top';
+                
+                await sendTopPostsEmbed(interaction, subreddit, userPosts, sortBy, currentPage);
+            } catch (error) {
+                console.error('Error navigating pages:', error);
+                try {
+                    await interaction.followUp({ content: '❌ Failed to navigate pages. Please try again.', ephemeral: true });
+                } catch (e) {
+                    console.error('Failed to send error message:', e);
+                }
+            }
+            return;
+        }
 
         // Handle post detail buttons
         const postMatch = interaction.customId.match(/^show_post_(\d+)_(\d+)$/);
@@ -707,10 +816,14 @@ module.exports = {
                     }
                 }
 
+                // Get current page state
+                const currentPage = userPageState.get(interaction.user.id) || 0;
+
                 // Rebuild the posts list embed
                 if (userPosts && userPosts.length > 0) {
                     const subreddit = userPosts[0].permalink.split('/')[4];
-                    await sendTopPostsEmbed(interaction, subreddit, userPosts);
+                    const sortBy = userSortState.get(interaction.user.id) || 'top';
+                    await sendTopPostsEmbed(interaction, subreddit, userPosts, sortBy, currentPage);
                 } else {
                     await interaction.editReply({ content: '⚠️ Post data expired. Please run the command again.' });
                 }
