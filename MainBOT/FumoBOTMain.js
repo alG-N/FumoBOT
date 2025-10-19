@@ -125,6 +125,7 @@ const anime = require('./OtherFunCommand/API-Website/Anime/anime');
 const afk = require('./OtherFunCommand/BasicCommand/afk');
 const musicCommands = require('./OtherFunCommand/MusicFunction/MainMusic');
 const reddit = require('./OtherFunCommand/API-Website/Reddit/reddit');
+const video = require('./OtherFunCommand/Video/video');
 
 if (reddit && reddit.data && reddit.data.name) {
     client.commands.set(reddit.data.name, reddit);
