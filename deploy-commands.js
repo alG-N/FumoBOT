@@ -95,6 +95,13 @@ if ("data" in redditCommand && "execute" in redditCommand) {
     console.warn("⚠️ reddit.js is missing 'data' or 'execute'.");
 }
 
+const videoCommand = require("./MainBOT/OtherFunCommand/Video/video.js");
+if ("data" in videoCommand && "execute" in videoCommand) {
+    commands.push(videoCommand.data.toJSON());
+} else {
+    console.warn("⚠️ video.js is missing 'data' or 'execute'.");
+}
+
 // Auto-load everything from MusicFunction folder
 loadCommandsFrom(path.join(__dirname, "../FumoBOT/MainBOT/OtherFunCommand/MusicFunction"));
 
