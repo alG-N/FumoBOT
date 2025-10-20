@@ -314,3 +314,5 @@ function setStaticStatus() {
 // BOT LOGIN
 // ========================================
 client.login(process.env.BOT_TOKEN);
+
+// git pull origin main
