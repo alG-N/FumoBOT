@@ -1,1 +1,12 @@
-[]
+[
+  {
+    "userId": "1362450043939979378",
+    "reason": "Alternative Account Suspicion",
+    "expiresAt": null
+  },
+  {
+    "userId": "1391714592874434612",
+    "reason": "Alternative Account Suspicion",
+    "expiresAt": null
+  }
+]
