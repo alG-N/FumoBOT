@@ -123,7 +123,6 @@ const rest = new REST({ version: "10" }).setToken(token);
     }
 })();
 
-// Delete all commands in a guild (uncomment to use)
 // (async () => {
 //     try {
 //         console.log('Clearing guild application (/) commands...');
