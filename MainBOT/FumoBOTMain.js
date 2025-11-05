@@ -7,14 +7,14 @@ const {
 } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
-require('dotenv').config();
+require('dotenv').config();  // done 
 
 // ========================================
 // DATABASE MODULES
 // ========================================
 const { initializeDatabase } = require('../MainBOT/Command/database/schema');
-const { startIncomeSystem } = require('../MainBOT/Command/database/income');
-const { scheduleBackups } = require('../MainBOT/Command/database/backup');
+const { startIncomeSystem } = require('../MainBOT/Command/database/income'); 
+const { scheduleBackups } = require('../MainBOT/Command/database/backup'); 
 
 // ========================================
 // UTILITY MODULES
@@ -314,5 +314,3 @@ function setStaticStatus() {
 // BOT LOGIN
 // ========================================
 client.login(process.env.BOT_TOKEN);
-
-// git pull origin main
