@@ -25,84 +25,84 @@ function loadCommandsFrom(folderPath) {
 // node deploy-commands.js
 // ---------------- Load Commands ---------------- \\
 // Manual single-file commands
-const sayCommand = require("./MainBOT/OtherFunCommand/InteractiveUserCommand/say.js");
+const sayCommand = require("./MainBOT/SubCommand/InteractiveUserCommand/say.js");
 if ("data" in sayCommand && "execute" in sayCommand) {
     commands.push(sayCommand.data.toJSON());
 } else {
     console.warn("⚠️ say.js is missing 'data' or 'execute'.");
 }
 
-const afkCommand = require("./MainBOT/OtherFunCommand/BasicCommand/afk.js");
+const afkCommand = require("./MainBOT/SubCommand/BasicCommand/afk.js");
 if ("data" in afkCommand && "execute" in afkCommand) {
     commands.push(afkCommand.data.toJSON());
 } else {
     console.warn("⚠️ afk.js is missing 'data' or 'execute'.");
 }
 
-const animeCommand = require("./MainBOT/OtherFunCommand/API-Website/Anime/anime.js");
+const animeCommand = require("./MainBOT/SubCommand/API-Website/Anime/anime.js");
 if ("data" in animeCommand && "execute" in animeCommand) {
     commands.push(animeCommand.data.toJSON());
 } else {
     console.warn("⚠️ anime.js is missing 'data' or 'execute'.");
 }
 
-const avatarCommand = require("./MainBOT/OtherFunCommand/BasicCommand/avatar.js");
+const avatarCommand = require("./MainBOT/SubCommand/BasicCommand/avatar.js");
 if ("data" in avatarCommand && "execute" in avatarCommand) {
     commands.push(avatarCommand.data.toJSON());
 } else {
     console.warn("⚠️ avatar.js is missing 'data' or 'execute'.");
 }
 
-const deathbattleJJKCommand = require("./MainBOT/OtherFunCommand/InteractiveUserCommand/deathbattleJJK.js");
+const deathbattleJJKCommand = require("./MainBOT/SubCommand/InteractiveUserCommand/deathbattleJJK.js");
 if ("data" in deathbattleJJKCommand && "execute" in deathbattleJJKCommand) {
     commands.push(deathbattleJJKCommand.data.toJSON());
 } else {
     console.warn("⚠️ deathbattleJJK.js is missing 'data' or 'execute'.");
 }
 
-const groupInformCommand = require("./MainBOT/OtherFunCommand/BasicCommand/groupInform.js");
+const groupInformCommand = require("./MainBOT/SubCommand/BasicCommand/groupInform.js");
 if ("data" in groupInformCommand && "execute" in groupInformCommand) {
     commands.push(groupInformCommand.data.toJSON());
 } else {
     console.warn("⚠️ groupInform.js is missing 'data' or 'execute'.");
 }
 
-const pingCommand = require("./MainBOT/OtherFunCommand/BasicCommand/ping.js");
+const pingCommand = require("./MainBOT/SubCommand/BasicCommand/ping.js");
 if ("data" in pingCommand && "execute" in pingCommand) {
     commands.push(pingCommand.data.toJSON());
 } else {
     console.warn("⚠️ ping.js is missing 'data' or 'execute'.");
 }
 
-const roleinfoCommand = require("./MainBOT/OtherFunCommand/BasicCommand/roleinfo.js");
+const roleinfoCommand = require("./MainBOT/SubCommand/BasicCommand/roleinfo.js");
 if ("data" in roleinfoCommand && "execute" in roleinfoCommand) {
     commands.push(roleinfoCommand.data.toJSON());
 } else {
     console.warn("⚠️ roleinfo.js is missing 'data' or 'execute'.");
 }
 
-const tutorialHelpCommand = require("./MainBOT/OtherFunCommand/BasicCommand/tutorialHelp.js");
+const tutorialHelpCommand = require("./MainBOT/SubCommand/BasicCommand/tutorialHelp.js");
 if ("data" in tutorialHelpCommand && "execute" in tutorialHelpCommand) {
     commands.push(tutorialHelpCommand.data.toJSON());
 } else {
     console.warn("⚠️ tutorialHelp.js is missing 'data' or 'execute'.");
 }
 
-const redditCommand = require("./MainBOT/OtherFunCommand/API-Website/Reddit/reddit.js");
+const redditCommand = require("./MainBOT/SubCommand/API-Website/Reddit/reddit.js");
 if ("data" in redditCommand && "execute" in redditCommand) {
     commands.push(redditCommand.data.toJSON());
 } else {
     console.warn("⚠️ reddit.js is missing 'data' or 'execute'.");
 }
 
-const videoCommand = require("./MainBOT/OtherFunCommand/Video/video.js");
+const videoCommand = require("./MainBOT/SubCommand/VideoFunction/video.js");
 if ("data" in videoCommand && "execute" in videoCommand) {
     commands.push(videoCommand.data.toJSON());
 } else {
     console.warn("⚠️ video.js is missing 'data' or 'execute'.");
 }
 
-const inviteCommand = require("./MainBOT/OtherFunCommand/BasicCommand/invite.js");
+const inviteCommand = require("./MainBOT/SubCommand/BasicCommand/invite.js");
 if ("data" in inviteCommand && "execute" in inviteCommand) {
     commands.push(inviteCommand.data.toJSON());
 } else {

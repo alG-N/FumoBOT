@@ -12,31 +12,31 @@ require('dotenv').config();  // done
 // ========================================
 // DATABASE MODULES
 // ========================================
-const { initializeDatabase } = require('../MainBOT/Command/database/schema');
-const { startIncomeSystem } = require('../MainBOT/Command/database/income'); 
-const { scheduleBackups } = require('../MainBOT/Command/database/backup'); 
+const { initializeDatabase } = require('./MainCommand/Database/schema');
+const { startIncomeSystem } = require('./MainCommand/Database/PassiveIncome/income'); 
+const { scheduleBackups } = require('./MainCommand/Database/backup'); 
 
 // ========================================
 // UTILITY MODULES
 // ========================================
-const { initializeErrorHandlers } = require('../MainBOT/Command/utils/errorHandler');
+const { initializeErrorHandlers } = require('./MainCommand/utils/errorHandler');
 
 // ========================================
 // ADMIN MODULES
 // ========================================
-const { registerAdminCommands } = require('../MainBOT/Command/Admin/adminCommands');
-const { registerBanSystem } = require('../MainBOT/Command/Admin/banSystem');
-const { registerTicketSystem } = require('../MainBOT/Command/Admin/ticketSystem');
+const { registerAdminCommands } = require('./MainCommand/Admin/adminCommands');
+const { registerBanSystem } = require('./MainCommand/Admin/banSystem');
+const { registerTicketSystem } = require('./MainCommand/Admin/ticketSystem');
 
 // ========================================
 // USER DATA MODULES
 // ========================================
-const { registerCodeRedemption } = require('../MainBOT/Command/UserData/codeRedemption');
+const { registerCodeRedemption } = require('./MainCommand/UserData/codeRedemption');
 
 // ========================================
 // MAINTENANCE CONFIG
 // ========================================
-const { maintenance, developerID } = require("./Command/Maintenace/MaintenaceConfig");
+const { maintenance, developerID } = require("./MainCommand/Maintenace/MaintenaceConfig");
 console.log(`Maintenance mode is currently: ${maintenance}`);
 
 // ========================================
@@ -59,13 +59,13 @@ client.commands = new Collection();
 // ========================================
 // LOAD SLASH COMMANDS
 // ========================================
-const commandFolders = fs.readdirSync(path.join(__dirname, 'OtherFunCommand'));
+const commandFolders = fs.readdirSync(path.join(__dirname, 'SubCommand'));
 for (const folder of commandFolders) {
-    const commandFiles = fs.readdirSync(path.join(__dirname, 'OtherFunCommand', folder))
+    const commandFiles = fs.readdirSync(path.join(__dirname, 'SubCommand', folder))
         .filter(file => file.endsWith('.js') && file !== 'MainMusic.js');
     
     for (const file of commandFiles) {
-        const command = require(path.join(__dirname, 'OtherFunCommand', folder, file));
+        const command = require(path.join(__dirname, 'SubCommand', folder, file));
         if (command && command.data && command.data.name) {
             client.commands.set(command.data.name, command);
         } else {
@@ -77,55 +77,54 @@ for (const folder of commandFolders) {
 // ========================================
 // LOAD GAME COMMAND MODULES
 // ========================================
-const gacha = require('./Command/Gacha/crategacha');
-const fumos = require('./ThyFumoStorage');
-const help = require('./Command/Tutorial/help');
-const inventory = require('./Command/UserData/Storage');
-const balance = require('./Command/UserData/Balance');
-const item = require('./Command/UserData/Item');
-const Efumos = require('./EventFumoStorage');
-const Egacha = require('./Command/Gacha/eventgacha');
-const library = require('./Command/FumoData/library');
-const libraryFumos = require('./Command/FumoData/libraryFumo');
-const inform = require('./Command/FumoData/inform');
-const leaderboard = require('./Command/UserData/leaderboard');
-const gamble = require('./Command/Gacha/gamble');
-const slot = require('./Command/Gacha/slot');
-const flip = require('./Command/Gacha/flip');
-const mysteryCrate = require('./Command/Gacha/mysterycrate');
-const sell = require('./Command/UserData/sell');
-const pray = require('./Command/PrayCMD/pray');
-const Pfumos = require('./Command/PrayCMD/fumoStorage');
-const market = require('./Command/Market/market');
-const marketFumos = require('./Command/Market/Storage/marketStorage');
-const exchange = require('./Command/Market/exchange');
-const shop = require('./Command/Market/shop');
-const useItem = require('./Command/UserData/use');
-const itemInfo = require('./Command/UserData/itemInfo');
-const boost = require('./Command/UserData/boost');
-const credit = require('./Command/UserData/aboutBot');
-const Pcraft = require('./Command/Craft/potionCraft');
-const Icraft = require('./Command/Craft/itemCraft');
-const craft = require('./Command/Craft/craft');
-const quest = require('./Command/UserData/quest');
-const daily = require('./Command/UserData/daily');
-const starter = require('./Command/UserData/starter');
-const eggshop = require('./Command/Market/eggshop');
-const eggInventory = require('./Command/PetData/eggInventory');
-const eggOpen = require('./Command/PetData/eggOpen');
-const eggcheck = require('./Command/PetData/eggcheck');
-const equipPet = require('./Command/PetData/equipPet');
-const useFragment = require('./Command/FarmingPhase/useFragment');
-const farm = require('./Command/FarmingPhase/addFarm');
+const gacha = require('./MainCommand/Gacha/crategacha');
+const fumos = require('./MainCommand/Storage/ThyFumoStorage');
+const help = require('./MainCommand/Tutorial/help');
+const inventory = require('./MainCommand/UserData/Storage');
+const balance = require('./MainCommand/UserData/Balance');
+const item = require('./MainCommand/UserData/Item');
+const Efumos = require('./MainCommand/Storage/EventFumoStorage');
+const Egacha = require('./MainCommand/Gacha/eventgacha');
+const library = require('./MainCommand/FumoData/library');
+const libraryFumos = require('./MainCommand/FumoData/libraryFumo');
+const inform = require('./MainCommand/FumoData/inform');
+const leaderboard = require('./MainCommand/UserData/leaderboard');
+const gamble = require('./MainCommand/Gacha/gamble');
+const slot = require('./MainCommand/Gacha/slot');
+const flip = require('./MainCommand/Gacha/flip');
+const mysteryCrate = require('./MainCommand/Gacha/mysterycrate');
+const sell = require('./MainCommand/UserData/sell');
+const pray = require('./MainCommand/PrayCMD/pray');
+const Pfumos = require('./MainCommand/PrayCMD/fumoStorage');
+const market = require('./MainCommand/Market/market');
+const marketFumos = require('./MainCommand/Market/Storage/marketStorage');
+const exchange = require('./MainCommand/Market/exchange');
+const shop = require('./MainCommand/Market/shop');
+const useItem = require('./MainCommand/UserData/use');
+const itemInfo = require('./MainCommand/UserData/itemInfo');
+const boost = require('./MainCommand/UserData/boost');
+const credit = require('./MainCommand/UserData/aboutBot');
+const Pcraft = require('./MainCommand/Craft/potionCraft');
+const Icraft = require('./MainCommand/Craft/itemCraft');
+const craft = require('./MainCommand/Craft/craft');
+const quest = require('./MainCommand/UserData/quest');
+const daily = require('./MainCommand/UserData/daily');
+const starter = require('./MainCommand/UserData/starter');
+const eggshop = require('./MainCommand/Market/eggshop');
+const eggInventory = require('./MainCommand/PetData/eggInventory');
+const eggOpen = require('./MainCommand/PetData/eggOpen');
+const eggcheck = require('./MainCommand/PetData/eggcheck');
+const equipPet = require('./MainCommand/PetData/equipPet');
+const useFragment = require('./MainCommand/Farming/useFragment');
+const farm = require('./MainCommand/Farming/addFarm');
 
 // ========================================
 // OTHER FUN COMMANDS
 // ========================================
-const anime = require('./OtherFunCommand/API-Website/Anime/anime');
-const afk = require('./OtherFunCommand/BasicCommand/afk');
-const musicCommands = require('./OtherFunCommand/MusicFunction/MainMusic');
-const reddit = require('./OtherFunCommand/API-Website/Reddit/reddit');
-const video = require('./OtherFunCommand/Video/video');
+const anime = require('./SubCommand/API-Website/Anime/anime');
+const afk = require('./SubCommand/BasicCommand/afk');
+const musicCommands = require('./SubCommand/MusicFunction/MainMusic');
+const reddit = require('./SubCommand/API-Website/Reddit/reddit');
 
 if (reddit && reddit.data && reddit.data.name) {
     client.commands.set(reddit.data.name, reddit);
