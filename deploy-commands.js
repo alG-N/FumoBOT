@@ -102,6 +102,13 @@ if ("data" in videoCommand && "execute" in videoCommand) {
     console.warn("⚠️ video.js is missing 'data' or 'execute'.");
 }
 
+const inviteCommand = require("./MainBOT/OtherFunCommand/BasicCommand/invite.js");
+if ("data" in inviteCommand && "execute" in inviteCommand) {
+    commands.push(inviteCommand.data.toJSON());
+} else {
+    console.warn("⚠️ invite.js is missing 'data' or 'execute'.");
+}
+
 // Auto-load everything from MusicFunction folder
 loadCommandsFrom(path.join(__dirname, "../FumoBOT/MainBOT/OtherFunCommand/MusicFunction"));
 
