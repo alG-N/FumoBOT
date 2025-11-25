@@ -1,29 +1,157 @@
-# FumoBOT
+# FumoBOT – Complete Overview & Tutorial
 
-FumoBOT is a versatile and feature-rich Discord bot designed to enhance your server experience. Built with a focus on fun, engagement, and customization, FumoBOT offers a wide range of commands and systems to keep your community active and entertained.
-
-## Features
-
-- **Fun Commands:** Enjoy a variety of entertaining commands, including memes, games, and interactive activities that bring laughter and excitement to your server.
-- **Economy System:** Engage users with a robust economy system featuring virtual currency, jobs, shops, and leaderboards. Members can earn, spend, and compete for the top spot.
-- **Custom Features:** Tailor the bot to your server’s needs with customizable settings, unique modules, and special integrations. Whether you want moderation tools, utility commands, or something entirely new, FumoBOT is flexible enough to handle it.
-- **Hybrid Design:** FumoBOT combines multiple functionalities into a single package, making it a one-stop solution for both fun and utility. The bot is continuously updated with new features and improvements based on user feedback.
-
-## Getting Started
-
-1. **Invite FumoBOT to Your Server:** Use the official invite link to add FumoBOT to your Discord server.
-2. **Configure Settings:** Access the bot’s configuration panel to set up roles, permissions, and custom preferences.
-3. **Explore Commands:** Type `.help` to see a full list of available commands and modules.
-4. **Join the Community:** Connect with other users, share suggestions, and get support through the Discord server.
-
-## Contributing
-
-FumoBOT is an open-source project. Contributions are welcome! If you have ideas for new features, bug fixes, or improvements, feel free to submit a pull request or open an issue.
-
-## License
-
-This project is licensed under the MIT License. See the [LICENSE](./LICENSE) file for details.
+FumoBOT is a versatile, feature-rich Discord bot designed to enhance your server experience with fun, economy systems, customization, utilities, and more. This document merges the bot’s feature overview and tutorial commands into one complete reference.
 
 ---
 
-FumoBOT is a personal project aimed at learning, experimenting, and bringing cool stuff to Discord servers. Expect frequent updates, new features, and a touch of creativity in every release!
+## 🌟 Features
+
+### 🎉 Fun Commands
+Enjoy memes, games, and interactive entertainment commands that keep your server active and lively.
+
+### 💰 Economy System
+A full virtual economy featuring:
+- Coins & gems  
+- Jobs  
+- Shops  
+- Leaderboards  
+- Quests  
+- Collectible fumos, pets, crates, eggs, and more  
+
+### ⚙️ Custom Features
+Flexible modules, customizable server settings, moderation utilities, and special integrations.
+
+### 🌀 Hybrid Design
+All-in-one: fun, economy, utility, customization. Updated frequently based on community feedback.
+
+---
+
+## 🚀 Getting Started
+
+1. **Invite FumoBOT** to your server using the official link.  
+2. **Configure settings** using the bot setup commands or configuration panel.  
+3. Type **`.help`** to explore commands.  
+4. Join the community Discord for support and updates.
+
+---
+
+# 📚 Command Categories
+
+Below is the full list of FumoBOT commands, organized into categories.
+
+---
+
+## 1️⃣ Tutorial Commands
+
+| Command | Alias | Description |
+|--------|--------|-------------|
+| `.starter` | — | Claim starter coins and gems. |
+| `.daily` | `.d` | Claim daily rewards. |
+| `.library` | `.li` | Show discovered fumos. |
+| `.inform (FumoName+Rarity)` | `.in` | View information about a fumo. |
+| `.sell` | `.s` | Sell fumos. |
+| `.code` | — | Redeem special codes. |
+| `.quest` | `.qu` | Show current quest. |
+| `.claim` | `.cl` | Claim quest rewards. |
+
+---
+
+## 2️⃣ Information Commands
+
+| Command | Alias | Description |
+|--------|--------|-------------|
+| `.storage` | `.st` | View your fumo collection. |
+| `.balance (@user/id)` | `.b` | Check coin/gem balance. |
+| `.items` | `.i` | View inventory items. |
+| `.itemInfo` | `.it` | Detailed item info. |
+| `.use` | `.u` | Use an item. |
+| `.boost` | `.bst` | Show active boosts. |
+| `.craft` | `.c` | View crafting recipes. |
+
+---
+
+## 3️⃣ Gamble Commands
+
+| Command | Alias |
+|--------|--------|
+| `.crategacha` | `.cg` |
+| `.eventgacha (status)` | `.eg` |
+| `.pray` | `.p` |
+| `.slot` | `.sl` |
+| `.gamble` | `.g` |
+| `.flip (leaderboard)` | `.f` |
+| `.mysteryCrate` | `.mc` |
+
+---
+
+## 4️⃣ Shop Commands
+
+| Command | Alias |
+|--------|--------|
+| `.shop` | `.sh` |
+| `.market` | `.m` |
+| `.exchange coins/gems` | `.e` |
+| `.eggshop` | `.es` |
+
+---
+
+## 5️⃣ Capitalism Commands (Farming System)
+
+| Command | Alias | Description |
+|--------|--------|-------------|
+| `.addfarm` | `.af` | Add fumo to farm. |
+| `.farmcheck` | `.fc` | Check farm timer/status. |
+| `.endfarm` | `.ef` | End farming and collect results. |
+| `.addbest` | `.ab` | Auto-add best fumos to farm. |
+| `.farminfo` | `.fi` | Show farm details. |
+| `.usefragment` | `.uf` | Increase farm slots. |
+| `.egginventory` | `.ei` | View eggs/pets. |
+| `.eggcheck` | `.ec` | View egg hatching progress. |
+| `.useegg` | `.ue` | Cook and hatch eggs. |
+| `.equippet` | `.ep` | Equip a pet. |
+
+---
+
+## 6️⃣ Miscellaneous Commands
+
+| Command | Alias | Description |
+|--------|--------|-------------|
+| `.leaderboard` | `.le` | Show top players. |
+| `.report` | — | Report bugs or issues. |
+| `.credit` | `.cr` | View bot credits. |
+| `.otherCMD` | — | Show other bot commands. |
+
+---
+
+# 🔧 Extra Utility & Sub Commands
+
+| Command | Description |
+|--------|-------------|
+| `.anime [nameAnime]` | Fetch anime details. |
+| `.play` | Play music. |
+| `.invite` | Bot invitation link. |
+| `.reddit` | Fetch Reddit posts. |
+| `.groupInform` | Show server information. |
+| `.avatar help` | View user avatar/info. |
+| `.ping` | Show bot latency. |
+| `.roleinfo [@role]` | Show role details. |
+| `.afk` | Set AFK status. |
+| `.deathbattle [@username] [hp] [jjk/anime]` | Start a themed battle. |
+
+---
+
+# 🤝 Contributing
+
+FumoBOT is open-source!  
+You can contribute fixes, new features, etc., via pull requests or discussions.
+
+---
+
+# 📄 License
+
+Released under the **MIT License**.  
+See `LICENSE` for full details.
+
+---
+
+_FumoBOT is a personal learning project — expect frequent updates, creativity, and new surprises!_
