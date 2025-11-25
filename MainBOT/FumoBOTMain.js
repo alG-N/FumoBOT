@@ -286,3 +286,4 @@ function setStaticStatus() {
 
 // BOT LOGIN
 client.login(process.env.BOT_TOKEN);
+// created by alterGolden || golden_exist
