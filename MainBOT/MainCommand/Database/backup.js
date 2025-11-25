@@ -5,7 +5,7 @@ const cron = require('node-cron');
 const { EmbedBuilder } = require('discord.js');
 
 // Configuration
-const DB_PATH = './MainBOT/Command/database/fumos.db';
+const DB_PATH = './fumos.db';
 const BACKUP_DIR = './backup';
 const CHANNEL_ID = '1367500981809447054';
 
