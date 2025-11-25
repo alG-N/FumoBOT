@@ -52,8 +52,8 @@ function createTables() {
         yukariMark INTEGER DEFAULT 0,
         reimuPityCount INTEGER DEFAULT 0,
         timeclockLastUsed INTEGER DEFAULT 0
-    )`, err => { 
-        if (err) console.error('Error creating userCoins table:', err.message); 
+    )`, err => {
+        if (err) console.error('Error creating userCoins table:', err.message);
     });
 
     // Redeemed Codes Table
@@ -75,8 +75,8 @@ function createTables() {
         quantity INTEGER DEFAULT 1,
         rarity TEXT,
         UNIQUE(userId, fumoName)
-    )`, err => { 
-        if (err) console.error('Error creating farmingFumos table:', err.message); 
+    )`, err => {
+        if (err) console.error('Error creating farmingFumos table:', err.message);
     });
 
     // User Usage Table
@@ -86,8 +86,8 @@ function createTables() {
         date TEXT, 
         count INTEGER, 
         PRIMARY KEY (userId, command)
-    )`, err => { 
-        if (err) console.error('Error creating userUsage table:', err.message); 
+    )`, err => {
+        if (err) console.error('Error creating userUsage table:', err.message);
     });
 
     // User Inventory Table
@@ -103,24 +103,24 @@ function createTables() {
         dateObtained TEXT,
         luckRarity TEXT,
         UNIQUE (userId, itemName)
-    )`, err => { 
-        if (err) console.error('Error creating userInventory table:', err.message); 
+    )`, err => {
+        if (err) console.error('Error creating userInventory table:', err.message);
     });
 
     // User Upgrades Table
     db.run(`CREATE TABLE IF NOT EXISTS userUpgrades (
         userId TEXT PRIMARY KEY, 
         fragmentUses INTEGER DEFAULT 0
-    )`, err => { 
-        if (err) console.error('Error creating userUpgrades table:', err.message); 
+    )`, err => {
+        if (err) console.error('Error creating userUpgrades table:', err.message);
     });
 
     // User Balance Table
     db.run(`CREATE TABLE IF NOT EXISTS userBalance (
         userId TEXT PRIMARY KEY, 
         balance INTEGER
-    )`, err => { 
-        if (err) console.error('Error creating userBalance table:', err.message); 
+    )`, err => {
+        if (err) console.error('Error creating userBalance table:', err.message);
     });
 
     // Daily Quests Table
@@ -130,8 +130,8 @@ function createTables() {
         reward INTEGER, 
         completed INTEGER DEFAULT 0,
         date TEXT
-    )`, err => { 
-        if (err) console.error('Error creating dailyQuests table:', err.message); 
+    )`, err => {
+        if (err) console.error('Error creating dailyQuests table:', err.message);
     });
 
     // User Exchange Limits Table
@@ -250,7 +250,8 @@ function createTables() {
         petId TEXT PRIMARY KEY,
         userId TEXT,
         type TEXT,      
-        name TEXT,        
+        name TEXT,
+        petName TEXT,        
         timestamp INTEGER, 
         level INTEGER,
         weight REAL, 
@@ -266,6 +267,18 @@ function createTables() {
             // console.error("❌ Failed to create table 'petInventory':", err.message);
         } else {
             console.log("✅ Table 'petInventory' is ready.");
+        }
+    });
+
+    db.run(`ALTER TABLE petInventory ADD COLUMN petName TEXT`, (err) => {
+        if (err) {
+            if (err.message.includes("duplicate column name")) {
+                console.log("ℹ️ Column 'petName' already exists.");
+            } else {
+                console.error("❌ Failed to add column 'petName':", err.message);
+            }
+        } else {
+            console.log("✅ Column 'petName' added to petInventory.");
         }
     });
 
@@ -325,9 +338,9 @@ function ensureColumnsExist() {
 
         const existingColumns = rows.map(row => row.name);
         const requiredColumns = [
-            'rollsSinceLastMythical', 
-            'rollsSinceLastQuestionMark', 
-            'level', 
+            'rollsSinceLastMythical',
+            'rollsSinceLastQuestionMark',
+            'level',
             'rebirth',
             'yukariMark',
             'reimuPityCount',
@@ -362,7 +375,7 @@ function ensureColumnsExist() {
 
     // Add extra column to activeBoosts if missing
     addColumnIfNotExists('activeBoosts', 'extra', "TEXT DEFAULT '{}'");
-    
+
     // Add ability column to petInventory if missing
     addColumnIfNotExists('petInventory', 'ability', 'TEXT');
 }

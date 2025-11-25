@@ -22,6 +22,11 @@ const { scheduleBackups } = require('./MainCommand/Database/backup');
 const { initializeErrorHandlers } = require('./MainCommand/utils/errorHandler');
 
 // ========================================
+// PET MODULES
+// ========================================
+const { initializePetSystems } = require('./MainCommand/PetManagement/Passive/petAging');
+
+// ========================================
 // ADMIN MODULES
 // ========================================
 const { registerAdminCommands } = require('./MainCommand/Admin/adminCommands');
@@ -111,10 +116,10 @@ const quest = require('./MainCommand/UserData/quest');
 const daily = require('./MainCommand/UserData/daily');
 const starter = require('./MainCommand/UserData/starter');
 const eggshop = require('./MainCommand/Market/eggshop');
-const eggInventory = require('./MainCommand/PetData/eggInventory');
-const eggOpen = require('./MainCommand/PetData/eggOpen');
-const eggcheck = require('./MainCommand/PetData/eggcheck');
-const equipPet = require('./MainCommand/PetData/equipPet');
+const eggInventory = require('./MainCommand/PetManagement/Functionality/eggInventory');
+const eggOpen = require('./MainCommand/PetManagement/Functionality/eggOpen');
+const eggcheck = require('./MainCommand/PetManagement/Functionality/eggcheck');
+const equipPet = require('./MainCommand/PetManagement/Functionality/equipPet');
 const useFragment = require('./MainCommand/Farming/useFragment');
 const farm = require('./MainCommand/Farming/FarmManagement');
 
@@ -151,6 +156,9 @@ client.once('ready', () => {
 
     // Set bot status
     setStaticStatus();
+
+    // Set pet exp gaining and aging systems
+    initializePetSystems();
 
     console.log('🚀 Bot is fully operational!');
 });
