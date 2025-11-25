@@ -270,18 +270,6 @@ function createTables() {
         }
     });
 
-    db.run(`ALTER TABLE petInventory ADD COLUMN petName TEXT`, (err) => {
-        if (err) {
-            if (err.message.includes("duplicate column name")) {
-                console.log("ℹ️ Column 'petName' already exists.");
-            } else {
-                console.error("❌ Failed to add column 'petName':", err.message);
-            }
-        } else {
-            console.log("✅ Column 'petName' added to petInventory.");
-        }
-    });
-
     // Hatching Eggs Table
     db.run(`CREATE TABLE IF NOT EXISTS hatchingEggs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
