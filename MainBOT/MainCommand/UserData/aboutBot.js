@@ -82,7 +82,7 @@ module.exports = (client) => {
                     name: "📦 Features", value:
                         "- Inspect items with `.itemInfo <item>`\n" +
                         "- Discover many new command with `.tutorial`\n" +
-                        "- Get an extra feature this bot offers — maybe it's lore, maybe it's a trap? Try /otherCMD !!!\n" +
+                        "- Get an extra feature this bot offers — maybe it's lore, maybe it's a trap? Try .otherCMD !!!\n" +
                         "- Read lore and strategize for upgrades\n" +
                         "- More features to come — PvE? Crafting? 👀"
                 },
