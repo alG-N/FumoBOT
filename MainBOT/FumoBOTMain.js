@@ -116,7 +116,7 @@ const eggOpen = require('./MainCommand/PetData/eggOpen');
 const eggcheck = require('./MainCommand/PetData/eggcheck');
 const equipPet = require('./MainCommand/PetData/equipPet');
 const useFragment = require('./MainCommand/Farming/useFragment');
-const farm = require('./MainCommand/Farming/addFarm');
+const farm = require('./MainCommand/Farming/FarmManagement');
 
 // ========================================
 // OTHER FUN COMMANDS

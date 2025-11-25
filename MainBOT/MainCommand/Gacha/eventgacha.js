@@ -12,6 +12,7 @@ const { maintenance, developerID } = require("../Maintenace/MaintenaceConfig");
 const { isBanned } = require('../Banned/BanUtils');
 const { getWeekIdentifier, incrementWeeklyShiny } = require('../Utils/weekly');
 
+// add more logs, a little bit more detailed
 const ROLL_LIMIT = 50000;
 const WINDOW_DURATION = 30 * 60 * 1000;
 const LOG_CHANNEL_ID = '1411386632589807719';
