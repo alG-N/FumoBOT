@@ -9,44 +9,30 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv').config();  // done 
 
-// ========================================
 // DATABASE MODULES
-// ========================================
 const { initializeDatabase } = require('./MainCommand/Database/schema');
 const { startIncomeSystem } = require('./MainCommand/Database/PassiveIncome/income'); 
 const { scheduleBackups } = require('./MainCommand/Database/backup'); 
 
-// ========================================
 // UTILITY MODULES
-// ========================================
 const { initializeErrorHandlers } = require('./MainCommand/utils/errorHandler');
 
-// ========================================
 // PET MODULES
-// ========================================
 const { initializePetSystems } = require('./MainCommand/PetManagement/Passive/petAging');
 
-// ========================================
 // ADMIN MODULES
-// ========================================
 const { registerAdminCommands } = require('./MainCommand/Admin/adminCommands');
 const { registerBanSystem } = require('./MainCommand/Admin/banSystem');
 const { registerTicketSystem } = require('./MainCommand/Admin/ticketSystem');
 
-// ========================================
 // USER DATA MODULES
-// ========================================
 const { registerCodeRedemption } = require('./MainCommand/UserData/codeRedemption');
 
-// ========================================
 // MAINTENANCE CONFIG
-// ========================================
 const { maintenance, developerID } = require("./MainCommand/Maintenace/MaintenaceConfig");
 console.log(`Maintenance mode is currently: ${maintenance}`);
 
-// ========================================
 // CLIENT INITIALIZATION
-// ========================================
 const client = new Client({
     intents: [
         GatewayIntentBits.GuildMessages,
@@ -61,9 +47,7 @@ const client = new Client({
 client.setMaxListeners(150);
 client.commands = new Collection();
 
-// ========================================
 // LOAD SLASH COMMANDS
-// ========================================
 const commandFolders = fs.readdirSync(path.join(__dirname, 'SubCommand'));
 for (const folder of commandFolders) {
     const commandFiles = fs.readdirSync(path.join(__dirname, 'SubCommand', folder))
@@ -79,9 +63,7 @@ for (const folder of commandFolders) {
     }
 }
 
-// ========================================
 // LOAD GAME COMMAND MODULES
-// ========================================
 const gacha = require('./MainCommand/Gacha/crategacha');
 const fumos = require('./MainCommand/Storage/ThyFumoStorage');
 const help = require('./MainCommand/Tutorial/help');
@@ -123,9 +105,7 @@ const equipPet = require('./MainCommand/PetManagement/Functionality/equipPet');
 const useFragment = require('./MainCommand/Farming/useFragment');
 const farm = require('./MainCommand/Farming/FarmManagement');
 
-// ========================================
 // OTHER FUN COMMANDS
-// ========================================
 const anime = require('./SubCommand/API-Website/Anime/anime');
 const afk = require('./SubCommand/BasicCommand/afk');
 const musicCommands = require('./SubCommand/MusicFunction/MainMusic');
@@ -136,9 +116,7 @@ if (reddit && reddit.data && reddit.data.name) {
     console.log('✅ Manually loaded reddit command');
 }
 
-// ========================================
 // BOT READY EVENT
-// ========================================
 client.once('ready', () => {
     console.log(`✅ Logged in as ${client.user.tag}`);
 
@@ -163,9 +141,7 @@ client.once('ready', () => {
     console.log('🚀 Bot is fully operational!');
 });
 
-// ========================================
 // REGISTER ALL GAME COMMANDS
-// ========================================
 gacha(client, fumos);
 Egacha(client, Efumos);
 starter(client);
@@ -202,17 +178,13 @@ eggOpen(client);
 eggcheck(client);
 equipPet(client);
 
-// ========================================
 // REGISTER ADMIN & USER SYSTEMS
-// ========================================
 registerAdminCommands(client);
 registerBanSystem(client, developerID);
 registerTicketSystem(client);
 registerCodeRedemption(client);
 
-// ========================================
 // INTERACTION HANDLER
-// ========================================
 client.on('interactionCreate', async interaction => {
     // Handle BUTTONS
     if (interaction.isButton()) {
@@ -279,9 +251,7 @@ client.on('interactionCreate', async interaction => {
     }
 });
 
-// ========================================
 // MESSAGE EVENT HANDLERS
-// ========================================
 client.on('messageCreate', message => {
     afk.onMessage(message, client);
 });
@@ -290,14 +260,11 @@ client.on('messageCreate', message => {
     anime.onMessage(message, client);
 });
 
-// ========================================
+
 // MUSIC COMMANDS
-// ========================================
 musicCommands(client);
 
-// ========================================
 // BOT STATUS
-// ========================================
 function setStaticStatus() {
     try {
         if (client.user) {
@@ -317,7 +284,5 @@ function setStaticStatus() {
     }
 }
 
-// ========================================
 // BOT LOGIN
-// ========================================
 client.login(process.env.BOT_TOKEN);

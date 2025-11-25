@@ -92,7 +92,7 @@ Fun + utility + economy combined in one bot. Regularly updated.
 
 ---
 
-# 5️⃣ Capitalism Commands 
+## 5️⃣ Capitalism Commands 
 
 | Command | Alias | Description |
 |--------|--------|-------------|
@@ -105,7 +105,7 @@ Fun + utility + economy combined in one bot. Regularly updated.
 
 ---
 
-# 6️⃣ Egg & Pet System
+## 6️⃣ Egg & Pet System
 
 | Command | Alias | Description |
 |--------|--------|-------------|
@@ -144,18 +144,105 @@ Fun + utility + economy combined in one bot. Regularly updated.
 
 ---
 
-# 🤝 Contributing
+# 🛠️ FumoBOT – Developer Guide & Contribution Rules
 
-FumoBOT is open-source—contributions are welcome!  
-Submit issues, suggestions, or pull requests.
-
----
-
-# 📄 License
-
-Licensed under the **MIT License**.  
-See the `LICENSE` file for more information.
+If you are using, modifying, or contributing to the FumoBOT codebase, please read this document carefully.  
+FumoBOT is a passion-driven project by **golden_exist**, and proper collaboration helps keep the project stable, creative, and fair.
 
 ---
 
-_FumoBOT is a learning and passion project—expect frequent updates, creativity, and surprises!_
+## 📌 Contribution Guidelines
+
+### ✅ Allowed
+- Suggesting ideas or improvements  
+- Reporting bugs  
+- Submitting pull requests  
+- Adding new features  
+- Improving performance and cleaning code  
+- Enhancing documentation  
+- Reusing small portions of code with credit  
+
+### ❌ Not Allowed
+- **Copying 100% of the project and republishing it as your own**  
+- **Selling or redistributing the bot/code for profit**  
+- **Removing credits or claiming ownership**  
+- **Using the bot/code for malicious or harmful purposes**  
+- **Violating or bypassing the MIT License**  
+
+If you fork the repository:
+- Keep original credits in the root.  
+- Document your changes clearly.  
+- Do not upload cloned versions with no modification.
+
+Respect the project:  
+✔️ Modify it  
+✔️ Improve it  
+❌ Do not steal it  
+
+---
+
+## 📝 Submitting Contributions
+
+### ⭐ Feature Suggestions
+When suggesting a feature:
+- Provide a clear description  
+- Explain why it benefits the bot  
+- Add examples or mockups if possible  
+
+### 🐛 Bug Reports
+Include:
+- The command or module affected  
+- Error messages or logs  
+- Steps to reproduce  
+- Expected vs. actual behavior  
+
+### 🔧 Pull Requests
+Before creating a PR:
+- Keep code readable and documented  
+- Use clear commit messages  
+- Avoid mixing unrelated changes  
+- Test everything before submitting  
+
+Example PR message:
+[Fix] Corrected farm boost calculation
+- Adjusted formula for boost scaling
+- Fixed undefined variable in farmCheck()
+- Updated logging for clarity
+
+
+---
+
+## 📂 Using the Code (Important)
+
+If you are using FumoBOT as a base for your own project:
+
+### ✔️ Allowed
+- Learning from the code  
+- Reusing small parts with proper credit  
+- Making your own bot inspired by FumoBOT  
+- Expanding or modifying systems  
+
+### ❌ Not Allowed
+- Copy-pasting the whole bot and rebranding it  
+- Reposting the bot with identical systems  
+- Removing “created by golden_exist” credits  
+- Monetizing the project without permission  
+
+If you reuse any part of the bot, please include a credit line such as:
+- Base system inspired by FumoBOT (created by golden_exist)
+
+
+---
+
+## 📩 Contact
+
+For **ideas, bug reports, collaboration, or contribution help**, contact:
+
+### **Discord:** `golden_exist`
+
+I respond fastest on Discord and can guide contributions directly.
+
+---
+
+Thank you for supporting and respecting the project!  
+Your contributions help FumoBOT grow in a healthy, creative direction.
