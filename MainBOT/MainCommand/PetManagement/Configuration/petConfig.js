@@ -122,11 +122,11 @@ const EGG_POOLS = {
         { name: "Cat", rarity: "Common", chance: 34 }
     ],
     RareEgg: [
-        { name: "Monkey", rarity: "Rare", chance: 45 },
-        { name: "Bear", rarity: "Rare", chance: 30 },
-        { name: "Pig", rarity: "Epic", chance: 15 },
-        { name: "Chicken", rarity: "Legendary", chance: 6 },
-        { name: "Owl", rarity: "Mythical", chance: 4 }
+        { name: "Monkey", rarity: "Rare", chance: 4 }, // 45
+        { name: "Bear", rarity: "Rare", chance: 0 }, // 30
+        { name: "Pig", rarity: "Epic", chance: 0 }, // 15
+        { name: "Chicken", rarity: "Legendary", chance: 0 }, // 6
+        { name: "Owl", rarity: "Mythical", chance: 96 } // 4
     ],
     DivineEgg: [
         { name: "SilverMonkey", rarity: "Legendary", chance: 50 },

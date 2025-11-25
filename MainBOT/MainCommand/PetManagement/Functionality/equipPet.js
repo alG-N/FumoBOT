@@ -1,3 +1,4 @@
+const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ComponentType } = require('discord.js');
 const db = require('../../Database/db');
 const { calculateBoost } = require('../Utilities/petUtils');
 const { dbAll, dbRun } = require('../Utilities/dbUtils');
@@ -23,7 +24,7 @@ module.exports = async (client) => {
             }
 
             try {
-                const pets = await dbAll(db, `SELECT * FROM petInventory WHERE userId = ?`, [userId]);
+                const pets = await dbAll(db, `SELECT * FROM petInventory WHERE userId = ? AND type = 'pet'`, [userId]);
 
                 if (!pets || pets.length === 0) {
                     return message.reply("❌ You don't own any pets.");
@@ -47,23 +48,30 @@ module.exports = async (client) => {
                         return message.reply("❌ No unequipped pets available to equip as best.");
                     }
                 } else {
-                    const matched = pets.filter(p => p.petName === petName);
+                    // Find all pets matching the name
+                    const matched = pets.filter(p => p.petName.toLowerCase() === petName.toLowerCase());
 
                     if (matched.length === 0) {
                         return message.reply("❌ You don't own a pet with that name.");
                     }
 
-                    const availablePet = matched.find(p => !equippedIds.includes(p.petId));
+                    // Filter out already equipped pets
+                    const availablePets = matched.filter(p => !equippedIds.includes(p.petId));
 
-                    if (!availablePet) {
-                        return message.reply(`❌ Your pet **${petName}** is already equipped.`);
+                    if (availablePets.length === 0) {
+                        return message.reply(`❌ All your pets named **${petName}** are already equipped.`);
+                    }
+
+                    // If multiple pets with same name, show selection menu
+                    if (availablePets.length > 1) {
+                        return await handleMultiplePetSelection(message, userId, availablePets, equippedIds);
                     }
 
                     if (equipped.length >= 5) {
                         return message.reply("❌ You can only equip up to 5 pets.");
                     }
 
-                    petsToEquip = [availablePet];
+                    petsToEquip = [availablePets[0]];
                 }
 
                 // Clear all equipped if equipping best
@@ -87,7 +95,7 @@ module.exports = async (client) => {
                 await clearPetBoosts(userId);
                 await applyPetBoosts(userId, petsToEquip);
 
-                const petNames = petsToEquip.map(p => `**${p.name}**`).join(', ');
+                const petNames = petsToEquip.map(p => `**${p.name} "${p.petName}"**`).join(', ');
                 message.reply(`✅ Equipped ${isEquipBest ? 'your best pets' : petNames} successfully!`);
 
             } catch (error) {
@@ -114,8 +122,7 @@ module.exports = async (client) => {
             } else {
                 const petName = message.content
                     .replace(/^\.uea\b|^\.unequipall\b|^\.ue\b|^\.unequip\b/i, '')
-                    .trim()
-                    .toLowerCase();
+                    .trim();
 
                 if (!petName) {
                     return message.reply("❌ Please provide a pet name to unequip.");
@@ -125,11 +132,16 @@ module.exports = async (client) => {
                     const pets = await dbAll(db, `
                         SELECT p.* FROM equippedPets e
                         JOIN petInventory p ON e.petId = p.petId
-                        WHERE e.userId = ? AND LOWER(p.name) = LOWER(?)
+                        WHERE e.userId = ? AND LOWER(p.petName) = LOWER(?)
                     `, [userId, petName]);
 
                     if (!pets || pets.length === 0) {
                         return message.reply("❌ No equipped pet found with that name.");
+                    }
+
+                    // If multiple pets with same name are equipped
+                    if (pets.length > 1) {
+                        return await handleMultiplePetUnequip(message, userId, pets);
                     }
 
                     const petToRemove = pets[0];
@@ -144,7 +156,7 @@ module.exports = async (client) => {
                     await clearPetBoosts(userId);
                     await applyPetBoosts(userId, updatedPets);
 
-                    message.reply(`✅ Unequipped **${petToRemove.name}**.`);
+                    message.reply(`✅ Unequipped **${petToRemove.name} "${petToRemove.petName}"**.`);
                 } catch (error) {
                     console.error("Error unequipping pet:", error);
                     message.reply("❌ Failed to unequip the pet.");
@@ -167,6 +179,132 @@ module.exports = async (client) => {
         }
     }, 10000);
 };
+
+// Handle multiple pets with same name - equip selection
+async function handleMultiplePetSelection(message, userId, availablePets, equippedIds) {
+    const options = availablePets.slice(0, 25).map((pet, index) => ({
+        label: `${pet.name} "${pet.petName}" #${index + 1}`,
+        description: `Lv.${pet.level || 1} | Age ${pet.age || 1} | Weight: ${pet.weight.toFixed(2)}kg | Quality: ${pet.quality.toFixed(2)}/5`,
+        value: pet.petId
+    }));
+
+    const selectMenu = new StringSelectMenuBuilder()
+        .setCustomId(`select_pet_equip_${userId}`)
+        .setPlaceholder('Choose which pet to equip')
+        .addOptions(options);
+
+    const row = new ActionRowBuilder().addComponents(selectMenu);
+
+    const embed = new EmbedBuilder()
+        .setTitle('🎯 Multiple Pets Found')
+        .setDescription(`You have **${availablePets.length}** pets named **${availablePets[0].petName}**.\nSelect which one to equip:`)
+        .setColor('#00BFFF');
+
+    const reply = await message.reply({ embeds: [embed], components: [row] });
+
+    const filter = i => i.customId === `select_pet_equip_${userId}` && i.user.id === userId;
+
+    try {
+        const interaction = await reply.awaitMessageComponent({ 
+            filter, 
+            componentType: ComponentType.StringSelect, 
+            time: 60_000 
+        });
+
+        const selectedPetId = interaction.values[0];
+        const selectedPet = availablePets.find(p => p.petId === selectedPetId);
+
+        if (!selectedPet) {
+            return interaction.update({ content: '❌ Pet not found.', embeds: [], components: [] });
+        }
+
+        if (equippedIds.length >= 5) {
+            return interaction.update({ content: '❌ You can only equip up to 5 pets.', embeds: [], components: [] });
+        }
+
+        await dbRun(db, `INSERT INTO equippedPets (userId, petId) VALUES (?, ?)`, [userId, selectedPet.petId]);
+
+        const ability = calculateBoost(selectedPet);
+        if (ability) {
+            await dbRun(db,
+                `UPDATE petInventory SET ability = ? WHERE petId = ?`,
+                [JSON.stringify(ability), selectedPet.petId]
+            );
+        }
+
+        await clearPetBoosts(userId);
+        await applyPetBoosts(userId, [selectedPet]);
+
+        await interaction.update({
+            content: `✅ Equipped **${selectedPet.name} "${selectedPet.petName}"** successfully!`,
+            embeds: [],
+            components: []
+        });
+
+    } catch (error) {
+        await reply.edit({ content: '⏱️ Selection timed out.', embeds: [], components: [] }).catch(() => {});
+    }
+}
+
+// Handle multiple pets with same name - unequip selection
+async function handleMultiplePetUnequip(message, userId, equippedPets) {
+    const options = equippedPets.slice(0, 25).map((pet, index) => ({
+        label: `${pet.name} "${pet.petName}" #${index + 1}`,
+        description: `Lv.${pet.level || 1} | Age ${pet.age || 1} | Weight: ${pet.weight.toFixed(2)}kg | Quality: ${pet.quality.toFixed(2)}/5`,
+        value: pet.petId
+    }));
+
+    const selectMenu = new StringSelectMenuBuilder()
+        .setCustomId(`select_pet_unequip_${userId}`)
+        .setPlaceholder('Choose which pet to unequip')
+        .addOptions(options);
+
+    const row = new ActionRowBuilder().addComponents(selectMenu);
+
+    const embed = new EmbedBuilder()
+        .setTitle('🎯 Multiple Equipped Pets Found')
+        .setDescription(`You have **${equippedPets.length}** equipped pets named **${equippedPets[0].petName}**.\nSelect which one to unequip:`)
+        .setColor('#FF9900');
+
+    const reply = await message.reply({ embeds: [embed], components: [row] });
+
+    const filter = i => i.customId === `select_pet_unequip_${userId}` && i.user.id === userId;
+
+    try {
+        const interaction = await reply.awaitMessageComponent({ 
+            filter, 
+            componentType: ComponentType.StringSelect, 
+            time: 60_000 
+        });
+
+        const selectedPetId = interaction.values[0];
+        const selectedPet = equippedPets.find(p => p.petId === selectedPetId);
+
+        if (!selectedPet) {
+            return interaction.update({ content: '❌ Pet not found.', embeds: [], components: [] });
+        }
+
+        await dbRun(db, `DELETE FROM equippedPets WHERE userId = ? AND petId = ?`, [userId, selectedPet.petId]);
+
+        const updatedPets = await dbAll(db, `
+            SELECT p.* FROM equippedPets e
+            JOIN petInventory p ON e.petId = p.petId
+            WHERE e.userId = ?
+        `, [userId]);
+
+        await clearPetBoosts(userId);
+        await applyPetBoosts(userId, updatedPets);
+
+        await interaction.update({
+            content: `✅ Unequipped **${selectedPet.name} "${selectedPet.petName}"**.`,
+            embeds: [],
+            components: []
+        });
+
+    } catch (error) {
+        await reply.edit({ content: '⏱️ Selection timed out.', embeds: [], components: [] }).catch(() => {});
+    }
+}
 
 // Apply boosts based on equipped pets' abilities
 async function applyPetBoosts(userId, equippedPets = null) {
