@@ -2,6 +2,8 @@
 
 FumoBOT is a versatile, feature-rich Discord bot designed to enhance your server experience with fun, economy systems, customization, utilities, and more. This document merges both the feature overview and tutorial commands into one unified reference.
 
+It's one of my first project when I'm still learning on FPT Polytechnic School(although ngl, the school's mid, aside from Java and uh CRUD stuff, and some cool tool we got to know, so I'll still give a credit for that). And yes, this project is **NOT** a graduation project. This is my own project, developed by me, thanks to my homies in Discord telling me to try to make one, although, uh, the bot at the start is not like this, but because of my passion and not wanting to make an easy bot, I decided to go **WILD**.
+
 ---
 
 ## 🌟 Features
@@ -209,7 +211,6 @@ Example PR message:
 - Fixed undefined variable in farmCheck()
 - Updated logging for clarity
 
-
 ---
 
 ## 📂 Using the Code (Important)
@@ -246,11 +247,13 @@ To develop or run FumoBOT, you need:
 - **Node.js v18+**
 - **npm** or **yarn**
 - **Git** for version control
-- A code editor (VS Code recommended)
+- **Visual Studio Code**
+- **Microsoft SQL Server** (In near future)
 
 ### **🗄️ 2. Database**
 FumoBOT uses:
-- **MongoDB** (MongoDB Atlas or local server)
+- **SQLite3** (Right now)
+- **Microsoft SQL Server** (In near future)
 
 You must set up a database and add the connection string to your config.
 
@@ -259,7 +262,6 @@ You will need:
 - Discord **Bot Token**
 - Discord **Client ID**
 - Discord **Guild ID** (optional for quick command testing)
-- MongoDB connection link
 
 Never share these tokens publicly.
 
@@ -281,11 +283,108 @@ Never share these tokens publicly.
 
 4. You can start the bot by running the main file, which is "FumoBOTMain.js", by start debugging on run. 
 OR
-    ```npm install pm2
+    ```
+    npm install pm2
     ```
 And run
-    ```pm2 start MainBOT\FumoBOTMain.js --name=fumobot
     ```
+    pm2 start MainBOT\FumoBOTMain.js --name=fumobot
+    ```
+
+---
+# 🧪 Testing Guidelines
+
+Before submitting any changes, always test these areas:
+
+## 1️⃣ Slash Commands
+- Ensure commands respond correctly  
+- Test both success and fail scenarios  
+- Verify that aliases work (if included)
+
+## 2️⃣ Database Operations
+Test:
+- Read / write operations  
+- Inventory updates  
+- Currency changes  
+- Farm & quest systems  
+
+## 3️⃣ Economy Balancing
+For any change:
+- Test multiple roll attempts  
+- Ensure no infinite loops  
+- Verify no ways to duplicate money or items  
+
+## 4️⃣ Error Handling
+- Commands should never crash the bot  
+- All errors should return safe, readable messages  
+
+## 5️⃣ User Flow Testing
+Simulate:
+- New users  
+- Rolling fumo, auto roll logic
+- Daily rewards  
+- Using items logic  
+- Claiming quests  
+- Farming cycles  
+- Pet logic
+
+---
+
+# 🚀 Deployment Guide
+
+You can deploy FumoBOT on any platform such as:
+
+## ✔️ Railway
+- Free tier available  
+- Easy one-click deployment  
+- Automatically restarts on crash  
+
+## ✔️ Render.com
+- Free tier, but sleep time on free plans  
+- Better for stable hosting  
+
+## ✔️ VPS / Linux Server
+For advanced users:
+- Ubuntu server  
+- PM2 process manager  
+- Reverse proxy (optional)  
+
+## ✔️ Local Machine
+Perfect for development, but not recommended for production.
+
+## ✔️ A server of your own
+Literally perfect to run bot, host website.
+
+---
+
+# 🧼 Deployment Checklist
+
+Before pushing updates:
+- Make sure `.env` is **not** committed  
+- Remove any debug logs  
+- Confirm no sensitive data is exposed  
+- Commands must be registered correctly  
+- Test the bot in a private Discord server  
+- Ensure no breaking changes to users  
+
+---
+
+# 🧪 Recommended Tools for Developers
+- Nodemon – live reload  
+- ESLint – clean code  
+- Prettier – formatting  
+- SQLite  – view database  
+- Github Copliot - AI Agent that will help you in coding
+
+---
+
+# 🧷 Notes for New Developers
+- Always work in your own branch  
+- Keep commits small and meaningful  
+- Update documentation if you add new features  
+- Ask before rewriting major systems  
+- Respect code style and structure  
+- Don’t introduce new dependencies unless needed  
 
 ---
 
