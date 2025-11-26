@@ -268,22 +268,24 @@ Never share these tokens publicly.
 ## ⚙️ Project Setup
 
 1. Clone the project:
-   ```bash
-   git clone https://github.com/your/fumobot
-   cd fumobot
+   ```
+   git clone https://github.com/alG-N/FumoBOT.git
    ```
 
 2. Install dependencies:
-    ``` npm install
+    ```
+    npm install
     ```
 
 3. You'll need to create some of the .env file for reddit, the Discord Bot token, and your Test Server's channel ID
 
 4. You can start the bot by running the main file, which is "FumoBOTMain.js", by start debugging on run. 
 OR
-```npm install pm2
-```
-And run ```pm2 start MainBOT\FumoBOTMain.js --name=fumobot```
+    ```npm install pm2
+    ```
+And run
+    ```pm2 start MainBOT\FumoBOTMain.js --name=fumobot
+    ```
 
 ---
 
