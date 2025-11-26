@@ -9,7 +9,7 @@ It's one of my first project when I'm still learning on FPT Polytechnic School(a
 ## 🌟 Features
 
 ### 🎉 Fun Commands
-Memes, games, and interactive features to keep your server active.
+The most "Unbalanced" Economy Bot(well, its not that **Unbalanced** I swear), alongside with some new side feature that uh, basically inspired by some other Discord Bot, totally cool!!!
 
 ### 💰 Economy System
 A deep virtual economy featuring:
@@ -23,16 +23,16 @@ A deep virtual economy featuring:
 Custom settings, modular design, moderation options, and flexible utilities.
 
 ### 🌀 Hybrid Design
-Fun + utility + economy combined in one bot. Regularly updated.
+Fun + utility + economy combined in one bot, I'll usually update it when I got freetime, instead of working for 6 hours in a company and 2.5 hours from school
 
 ---
 
 ## 🚀 Getting Started
 
-1. Invite FumoBOT using the official link.  
+1. Invite FumoBOT using the official [link](https://discord.com/oauth2/authorize?client_id=1254962096924397569&permissions=182273&integration_type=0&scope=bot).
 2. Configure the bot through settings or commands.  
 3. Type `.help` for all commands.  
-4. Join the community server for updates & support.
+4. Join the [community server](https://discord.gg/xhmbQCHs) for updates & support.
 
 ---
 
@@ -213,7 +213,7 @@ Example PR message:
 
 ---
 
-## 📂 Using the Code (Important)
+## 📂 Using the Code (!!! Important !!!)
 
 If you are using FumoBOT as a base for your own project:
 
@@ -229,7 +229,7 @@ If you are using FumoBOT as a base for your own project:
 - Removing “created by golden_exist” credits  
 - Monetizing the project without permission  
 
-If you reuse any part of the bot, it's alright, we're all learning somehow.
+**If you reuse any part of the bot, it's alright, we're all learning somehow.**
 
 ---
 
@@ -262,6 +262,7 @@ You will need:
 - Discord **Bot Token**
 - Discord **Client ID**
 - Discord **Guild ID** (optional for quick command testing)
+- Reddit **Client** and **secret**(if you want to test reddit of course)
 
 Never share these tokens publicly.
 
@@ -286,7 +287,7 @@ OR
     ```
     npm install pm2
     ```
-And run
+    And run
     ```
     pm2 start MainBOT\FumoBOTMain.js --name=fumobot
     ```
@@ -327,6 +328,7 @@ Simulate:
 - Claiming quests  
 - Farming cycles  
 - Pet logic
+- And much more...
 
 ---
 
