@@ -160,7 +160,7 @@ FumoBOT is a passion-driven project by **golden_exist**, and proper collaboratio
 - Adding new features  
 - Improving performance and cleaning code  
 - Enhancing documentation  
-- Reusing small portions of code with credit  
+- Reusing small portions of code
 
 ### ❌ Not Allowed
 - **Copying 100% of the project and republishing it as your own**  
@@ -228,9 +228,62 @@ If you are using FumoBOT as a base for your own project:
 - Removing “created by golden_exist” credits  
 - Monetizing the project without permission  
 
-If you reuse any part of the bot, please include a credit line such as:
-- Base system inspired by FumoBOT (created by golden_exist)
+If you reuse any part of the bot, it's alright, we're all learning somehow.
 
+---
+
+# 🧪 Developer Setup, Testing, and Deployment Guide
+
+If you are a developer planning to use or contribute to FumoBOT’s codebase, here is a full guide on what you need, how to run the bot locally, how to test changes, and how to deploy it safely.
+
+---
+
+## 🧰 Requirements
+
+To develop or run FumoBOT, you need:
+
+### **📦 1. Software**
+- **Node.js v18+**
+- **npm** or **yarn**
+- **Git** for version control
+- A code editor (VS Code recommended)
+
+### **🗄️ 2. Database**
+FumoBOT uses:
+- **MongoDB** (MongoDB Atlas or local server)
+
+You must set up a database and add the connection string to your config.
+
+### **🔑 3. Developer Tokens**
+You will need:
+- Discord **Bot Token**
+- Discord **Client ID**
+- Discord **Guild ID** (optional for quick command testing)
+- MongoDB connection link
+
+Never share these tokens publicly.
+
+---
+
+## ⚙️ Project Setup
+
+1. Clone the project:
+   ```bash
+   git clone https://github.com/your/fumobot
+   cd fumobot
+   ```
+
+2. Install dependencies:
+    ``` npm install
+    ```
+
+3. You'll need to create some of the .env file for reddit, the Discord Bot token, and your Test Server's channel ID
+
+4. You can start the bot by running the main file, which is "FumoBOTMain.js", by start debugging on run. 
+OR
+```npm install pm2
+```
+And run ```pm2 start MainBOT\FumoBOTMain.js --name=fumobot```
 
 ---
 
