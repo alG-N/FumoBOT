@@ -296,7 +296,7 @@ async function resolveTrack(query, user, forceAlt = false) {
             console.log("[resolveTrack] URL detected, using yt-search");
             const videoId = extractVideoId(query);
             const info = await ytSearch({ videoId });
-            
+
             url = info.url;
             details = {
                 title: info.title,
@@ -317,22 +317,22 @@ async function resolveTrack(query, user, forceAlt = false) {
         // Search mode with ranking
         let ytResult;
         let searchQuery = forceAlt ? query + " music" : query + " song";
-        
+
         // Try yt-search with "song" suffix first
         try {
             console.log(`[resolveTrack] Searching: ${searchQuery}`);
             ytResult = await ytSearch(searchQuery);
-            
+
             if (ytResult && ytResult.videos.length > 0) {
                 const rankedVideos = rankSearchResults(ytResult.videos.slice(0, 15), query);
                 const vid = rankedVideos[0];
-                
+
                 console.log(`[resolveTrack] Top 3 ranked results:`);
                 rankedVideos.slice(0, 3).forEach((v, i) => {
                     console.log(`  ${i + 1}. [Score: ${v._searchScore.toFixed(0)}] ${v.title}`);
                     console.log(`      Views: ${v.views} | Duration: ${v.seconds}s | Author: ${v.author.name}`);
                 });
-                
+
                 url = vid.url;
                 details = {
                     title: vid.title,
@@ -349,23 +349,23 @@ async function resolveTrack(query, user, forceAlt = false) {
         } catch (e) {
             console.log(`[resolveTrack] yt-search "${searchQuery}" failed: ${e.message}`);
         }
-        
+
         // Fallback: try without suffix, sorted by view count
         if ((!ytResult || ytResult.videos.length === 0) && !forceAlt) {
             try {
                 console.log(`[resolveTrack] Fallback search: ${query} (by popularity)`);
                 ytResult = await ytSearch(query);
-                
+
                 if (ytResult && ytResult.videos.length > 0) {
                     const rankedVideos = rankSearchResults(ytResult.videos.slice(0, 15), query);
                     const vid = rankedVideos[0];
-                    
+
                     console.log(`[resolveTrack] Top 3 ranked results (popularity):`);
                     rankedVideos.slice(0, 3).forEach((v, i) => {
                         console.log(`  ${i + 1}. [Score: ${v._searchScore.toFixed(0)}] ${v.title}`);
                         console.log(`      Views: ${v.views} | Duration: ${v.seconds}s | Author: ${v.author.name}`);
                     });
-                    
+
                     url = vid.url;
                     details = {
                         title: vid.title,
@@ -383,7 +383,7 @@ async function resolveTrack(query, user, forceAlt = false) {
                 console.log(`[resolveTrack] Popularity search failed: ${e2.message}`);
             }
         }
-        
+
         // Last resort: ytsr
         if (!ytResult || ytResult.videos.length === 0) {
             try {
@@ -391,19 +391,19 @@ async function resolveTrack(query, user, forceAlt = false) {
                 const filters = await ytsr.getFilters(query);
                 const filter = filters.get("Type").get("Video");
                 const searchResults = await ytsr(filter.url, { limit: 15 });
-                
+
                 if (!searchResults.items.length) throw new Error("NO_RESULTS");
-                
+
                 const videos = searchResults.items.filter(item => item.type === 'video');
                 const rankedVideos = rankSearchResults(videos, query);
                 const vid = rankedVideos[0];
-                
+
                 console.log(`[resolveTrack] Top 3 ranked ytsr results:`);
                 rankedVideos.slice(0, 3).forEach((v, i) => {
                     console.log(`  ${i + 1}. [Score: ${v._searchScore.toFixed(0)}] ${v.title}`);
                     console.log(`      Views: ${v.views} | Duration: ${v.duration} | Author: ${v.author?.name}`);
                 });
-                
+
                 url = vid.url;
                 details = {
                     title: vid.title,
@@ -422,7 +422,7 @@ async function resolveTrack(query, user, forceAlt = false) {
             }
         }
     }
-    
+
     return {
         url,
         title: details.title,
@@ -439,37 +439,37 @@ async function resolveTrack(query, user, forceAlt = false) {
 function rankSearchResults(results, query) {
     const queryLower = query.toLowerCase().trim();
     const queryWords = queryLower.split(/\s+/).filter(w => w.length > 1);
-    
+
     return results.map(result => {
         let score = 0;
         const title = (result.title || "").toLowerCase();
         const author = (result.author?.name || result.uploader || result.channel || "").toLowerCase();
         const views = Number(result.view_count || result.views || 0);
         const duration = Number(result.duration || result.seconds || result.lengthSeconds || 0);
-        
+
         // Parse duration if it's a string (from ytsr)
         const durationSeconds = typeof duration === 'string' ? parseDuration(duration) : duration;
-        
+
         // 1. Word matching (most important for relevance)
         const wordsInTitle = queryWords.filter(word => title.includes(word)).length;
         const wordMatchRatio = queryWords.length > 0 ? wordsInTitle / queryWords.length : 0;
         score += wordMatchRatio * 2000; // High priority for matching words
-        
+
         // 2. Query contained as phrase (nice bonus but not overwhelming)
         if (title.includes(queryLower)) {
             score += 500;
         }
-        
+
         // 3. Title starts with query (slightly better)
         if (title.startsWith(queryLower)) {
             score += 800;
         }
-        
+
         // 4. View count (MAJOR factor - popular = likely what they want)
         if (views > 0) {
             // Use square root to balance - still rewards popularity but not exponentially
             score += Math.sqrt(views) * 0.5;
-            
+
             // Extra bonus for extremely popular videos (>10M views)
             if (views > 10000000) {
                 score += 1000;
@@ -479,38 +479,38 @@ function rankSearchResults(results, query) {
                 score += 500;
             }
         }
-        
+
         // 5. Official/verified channels (important but not decisive)
         const officialKeywords = ['official', 'vevo', 'records', 'music', 'topic'];
         const isOfficial = officialKeywords.some(keyword => author.includes(keyword));
         if (isOfficial) {
             score += 600;
         }
-        
+
         // 6. Official tags in title
-        if (title.includes('official audio') || title.includes('official video') || 
+        if (title.includes('official audio') || title.includes('official video') ||
             title.includes('official music video') || title.includes('official mv')) {
             score += 400;
         }
-        
+
         // 7. Ideal song duration (2-8 minutes)
         if (durationSeconds >= 120 && durationSeconds <= 480) {
             score += 200;
         } else if (durationSeconds >= 60 && durationSeconds <= 600) {
             score += 100; // Still okay if slightly outside range
         }
-        
+
         // 8. HEAVY penalties for unwanted content (this is crucial)
         const spamKeywords = [
             // Compilations - these are the worst offenders
-            'top 10', 'top 15', 'top 20', 'top 30', 'top 50', 'best of', 'compilation', 
+            'top 10', 'top 15', 'top 20', 'top 30', 'top 50', 'best of', 'compilation',
             'playlist', 'mix', 'megamix', 'mashup', 'collection',
             // Reactions
             'reaction', 'reacts', 'reacting', 'review', 'reviewer',
             // Covers/alternate versions
             'cover', 'covered by', 'acoustic', 'piano', 'violin', 'guitar', 'instrumental',
             // Modified versions
-            'nightcore', 'slowed', 'reverb', 'speed up', 'sped up', '8d audio', '8d', 
+            'nightcore', 'slowed', 'reverb', 'speed up', 'sped up', '8d audio', '8d',
             'bass boost', 'bass boosted', 'earrape', 'distorted',
             // Remixes (unless user specifically searched for remix)
             ...(!queryLower.includes('remix') ? ['remix', 'trap remix', 'edm mix', 'dubstep'] : []),
@@ -518,38 +518,38 @@ function rankSearchResults(results, query) {
             'lyrics', 'lyric video', 'with lyrics', 'tutorial', 'lesson', 'how to', 'guide',
             'live', 'concert', 'performance', 'tour', 'behind the scenes'
         ];
-        
+
         let spamCount = 0;
         spamKeywords.forEach(keyword => {
             if (title.includes(keyword)) spamCount++;
         });
         score -= spamCount * 1500; // VERY heavy penalty
-        
+
         // 9. Extra penalty for compilation patterns
-        if (/\d+/.test(title) && (title.includes('top') || title.includes('best') || 
+        if (/\d+/.test(title) && (title.includes('top') || title.includes('best') ||
             title.includes('greatest') || title.includes('most'))) {
             score -= 2000; // Massive penalty for "Top X" patterns
         }
-        
+
         // 10. Penalize very long videos (compilations/DJ sets)
         if (durationSeconds > 600) {
             score -= 1000;
         } else if (durationSeconds > 480) {
             score -= 300; // Smaller penalty for slightly long
         }
-        
+
         // 11. Penalize very short videos (clips/memes)
         if (durationSeconds > 0 && durationSeconds < 60) {
             score -= 500;
         } else if (durationSeconds < 90) {
             score -= 100; // Smaller penalty for short but reasonable
         }
-        
+
         // 12. Bonus for typical music video characteristics
         if (!isOfficial && views > 100000 && durationSeconds >= 180 && durationSeconds <= 360) {
             score += 200; // Likely a real music video
         }
-        
+
         return { ...result, _searchScore: score };
     }).sort((a, b) => b._searchScore - a._searchScore);
 }
@@ -563,7 +563,7 @@ function extractVideoId(url) {
 function parseDuration(durationStr) {
     if (typeof durationStr === 'number') return durationStr;
     if (!durationStr) return 0;
-    
+
     const parts = durationStr.toString().split(':').map(Number);
     if (parts.length === 2) return parts[0] * 60 + parts[1]; // MM:SS
     if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]; // HH:MM:SS
@@ -1057,6 +1057,18 @@ module.exports = {
             q._eventsBound = true;
             q.player.on(AudioPlayerStatus.Idle, async () => {
                 log(`[player] Status: Idle`, interaction);
+
+                // CRITICAL: Kill any lingering yt-dlp process before proceeding
+                if (q.currentYtdlpProcess) {
+                    try {
+                        q.currentYtdlpProcess.kill('SIGKILL');
+                        console.log('[player] Killed lingering yt-dlp process on Idle');
+                    } catch (e) {
+                        console.log('[player] Failed to kill process on Idle:', e.message);
+                    }
+                    q.currentYtdlpProcess = null;
+                }
+
                 if (q.loop && q.current) {
                     q.tracks.unshift(q.current);
                     if (q.nowMessage) {
@@ -1085,6 +1097,8 @@ module.exports = {
                 } else if (q.current) {
                     await sendSongFinishedEmbed(interaction.channel, q.current);
                 }
+
+                // Clear current track reference AFTER we've used it for loop logic
                 q.current = null;
 
                 if (q.tracks.length > 0) {

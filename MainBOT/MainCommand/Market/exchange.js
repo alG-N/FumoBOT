@@ -22,13 +22,11 @@ const client = new Client({
 });
 client.setMaxListeners(150);
 
-// Constants
 const MAX_EXCHANGES_PER_DAY = 5;
 const EXCHANGE_RATE_ID = 1;
 const EXCHANGE_BUTTON_PREFIX = 'exchange_';
 const MIN_EXCHANGE = 10;
 
-// Utility functions
 const formatNumber = (number) => number.toLocaleString();
 
 const parseAmount = (str, userBalance) => {
@@ -52,7 +50,6 @@ const getTaxRate = (amount) => {
     return 0.45;
 };
 
-// Create maintenance/ban embed
 const createBlockEmbed = (isMaintenance, banData) => {
     const isMaintenanceMode = isMaintenance && !banData;
     
@@ -85,7 +82,6 @@ const createBlockEmbed = (isMaintenance, banData) => {
         .setTimestamp();
 };
 
-// Create exchange buttons
 const createExchangeButtons = (disabled = false) => {
     return new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -101,7 +97,6 @@ const createExchangeButtons = (disabled = false) => {
     );
 };
 
-// Format exchange history
 const formatHistory = (rows) => {
     if (!rows.length) return 'No exchange history found yet.';
     
@@ -113,7 +108,6 @@ const formatHistory = (rows) => {
     }).join('\n');
 };
 
-// Calculate time until reset
 const getResetTimeText = () => {
     const now = new Date();
     const resetTime = new Date();
@@ -122,7 +116,6 @@ const getResetTimeText = () => {
     return Math.ceil((resetTime - now) / (1000 * 60 * 60));
 };
 
-// Show exchange guide with history
 const showExchangeGuide = async (message, userId, today) => {
     try {
         const [rows, limitRow] = await Promise.all([
@@ -174,7 +167,6 @@ module.exports = async (client) => {
         const command = message.content.trim().split(/\s+/)[0].toLowerCase();
         if (command !== '.exchange' && command !== '.e') return;
 
-        // Check maintenance/ban
         const banData = isBanned(message.author.id);
         if ((maintenance === "yes" && message.author.id !== developerID) || banData) {
             console.log(`[${new Date().toISOString()}] Blocked user (${message.author.id})`);
@@ -183,18 +175,15 @@ module.exports = async (client) => {
 
         const args = message.content.trim().split(/\s+/);
 
-        // Show guide if no args
         if (args.length === 1) {
             return showExchangeGuide(message, message.author.id, today);
         }
 
-        // Validate type
         const type = args[1]?.trim().toLowerCase();
         if (!['coins', 'gems'].includes(type)) {
             return message.reply('❌ **Invalid type.** Use either `coins` or `gems`.');
         }
 
-        // Get user balance
         db.get('SELECT coins, gems FROM userCoins WHERE userId = ?', [message.author.id], (err, userRow) => {
             if (err) {
                 console.error('DB error:', err);
@@ -205,7 +194,6 @@ module.exports = async (client) => {
             const userBalance = type === 'coins' ? userRow.coins : userRow.gems;
             const amount = parseAmount(args[2], userBalance);
 
-            // Validate amount
             if (!isFinite(amount) || amount <= 0) {
                 return message.reply('❌ **Invalid amount.** Please enter a positive number or `all`.');
             }
@@ -216,7 +204,6 @@ module.exports = async (client) => {
                 return message.reply(`❌ Minimum exchange amount is **${MIN_EXCHANGE}**.`);
             }
 
-            // Check daily limit
             db.get('SELECT count FROM userExchangeLimits WHERE userId = ? AND date = ?', 
                 [message.author.id, today], (err, row) => {
                 if (err) return message.reply('⚠️ Could not verify daily exchange limit.');
@@ -229,7 +216,6 @@ module.exports = async (client) => {
         });
     });
 
-    // Process exchange and show confirmation
     const processExchange = (message, type, amount, today) => {
         db.get('SELECT coinToGem FROM exchangeRate WHERE id = ?', [EXCHANGE_RATE_ID], (err, rateRow) => {
             if (err || !rateRow) return message.reply('⚠️ Could not fetch exchange rate.');
@@ -267,7 +253,6 @@ module.exports = async (client) => {
     client.on('interactionCreate', async interaction => {
         if (!interaction.isButton() || !interaction.customId.startsWith(EXCHANGE_BUTTON_PREFIX)) return;
 
-        // Parse exchange data from message
         const match = interaction.message.content.match(
             /^<@(\d+)>[|]([a-z]+)[|](\d+)[|](\d+)[|](\d+)[|]([\d.]+)[|](exchange_)/i
         );
@@ -285,13 +270,11 @@ module.exports = async (client) => {
             });
         }
 
-        // Handle cancel
         if (interaction.customId === `${EXCHANGE_BUTTON_PREFIX}cancel`) {
             await interaction.reply('❌ **Exchange cancelled.**');
             return interaction.message.edit({ components: [createExchangeButtons(true)] });
         }
 
-        // Handle confirm
         if (interaction.customId === `${EXCHANGE_BUTTON_PREFIX}confirm`) {
             const amount = parseInt(amountStr, 10);
             const taxedAmount = parseInt(taxedAmountStr, 10);
@@ -299,7 +282,7 @@ module.exports = async (client) => {
             const taxRate = parseFloat(taxRateStr);
             const today = new Date().toISOString().split('T')[0];
 
-            // Verify limits and balance again
+
             db.get('SELECT count FROM userExchangeLimits WHERE userId = ? AND date = ?',
                 [userId, today], (err, row) => {
                 if (err) {

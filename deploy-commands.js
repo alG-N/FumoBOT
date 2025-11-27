@@ -109,8 +109,15 @@ if ("data" in inviteCommand && "execute" in inviteCommand) {
     console.warn("⚠️ invite.js is missing 'data' or 'execute'.");
 }
 
+const pixivCommand = require("./MainBOT/SubCommand/API-Website/Pixiv/pixiv.js");
+if ("data" in pixivCommand && "execute" in pixivCommand) {
+    commands.push(pixivCommand.data.toJSON());
+} else {
+    console.warn("⚠️ pixiv.js is missing 'data' or 'execute'.");
+}
+
 // Auto-load everything from MusicFunction folder
-loadCommandsFrom(path.join(__dirname, "../FumoBOT/MainBOT/OtherFunCommand/MusicFunction"));
+loadCommandsFrom(path.join(__dirname, "../FumoBOT/MainBOT/SubCommand/MusicFunction"));
 
 // ---------------- Deploy Commands ---------------- \\
 const rest = new REST({ version: "10" }).setToken(token);

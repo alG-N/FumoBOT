@@ -2,7 +2,7 @@ const { EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 
-const BAN_FILE_PATH = path.join(__dirname, '../Command/Banned/Banned.json');
+const BAN_FILE_PATH = path.join(__dirname, '../Banned/Banned.json');
 
 // Ensure the ban file exists
 if (!fs.existsSync(BAN_FILE_PATH)) {
