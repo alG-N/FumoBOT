@@ -1,4 +1,4 @@
-const db = require('./db');
+const db = require('../Database/db');
 
 /**
  * Creates all database tables if they don't exist

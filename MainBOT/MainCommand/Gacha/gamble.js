@@ -1,461 +1,405 @@
-const {
-    Client,
-    GatewayIntentBits,
-    Partials,
-    EmbedBuilder,
-    ActionRowBuilder,
-    ButtonBuilder,
-    ButtonStyle
-} = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const db = require('../Database/db');
-const client = new Client({
-    intents: [
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.MessageContent
-    ],
-    partials: [Partials.Message, Partials.Channel, Partials.Reaction]
-});
-client.setMaxListeners(150);
 const { maintenance, developerID } = require("../Maintenace/MaintenaceConfig");
 const { isBanned } = require('../Banned/BanUtils');
-const { incrementDailyGamble } = require('../Utils/weekly'); // adjust path
+const { incrementDailyGamble } = require('../Utils/weekly');
+
 module.exports = (client) => {
-    client.on('messageCreate', async message => {
-        if (!message.guild || message.author.bot) return;
-        if (message.content.startsWith('.gamble') || message.content.startsWith('.g')) {
-            // Check for maintenance mode or ban
-            const banData = isBanned(message.author.id);
-            if ((maintenance === "yes" && message.author.id !== developerID) || banData) {
-                let description = '';
-                let footerText = '';
+    // Initialize active gambles tracker
+    if (!client.activeGambles) client.activeGambles = new Set();
 
-                if (maintenance === "yes" && message.author.id !== developerID) {
-                    description = "The bot is currently in maintenance mode. Please try again later.\nFumoBOT's Developer: alterGolden";
-                    footerText = "Thank you for your patience";
-                } else if (banData) {
-                    description = `You are banned from using this bot.\n\n**Reason:** ${banData.reason || 'No reason provided'}`;
-
-                    if (banData.expiresAt) {
-                        const remaining = banData.expiresAt - Date.now();
-                        const seconds = Math.floor((remaining / 1000) % 60);
-                        const minutes = Math.floor((remaining / (1000 * 60)) % 60);
-                        const hours = Math.floor((remaining / (1000 * 60 * 60)) % 24);
-                        const days = Math.floor(remaining / (1000 * 60 * 60 * 24));
-
-                        const timeString = [
-                            days ? `${days}d` : '',
-                            hours ? `${hours}h` : '',
-                            minutes ? `${minutes}m` : '',
-                            seconds ? `${seconds}s` : ''
-                        ].filter(Boolean).join(' ');
-
-                        description += `\n**Time Remaining:** ${timeString}`;
-                    } else {
-                        description += `\n**Ban Type:** Permanent`;
-                    }
-
-                    footerText = "Ban enforced by developer";
-                }
-
-                const embed = new EmbedBuilder()
-                    .setColor('#FF0000')
-                    .setTitle(maintenance === "yes" ? '🚧 Maintenance Mode' : '⛔ You Are Banned')
-                    .setDescription(description)
-                    .setFooter({ text: footerText })
-                    .setTimestamp();
-
-                console.log(`[${new Date().toISOString()}] Blocked user (${message.author.id}) due to ${maintenance === "yes" ? "maintenance" : "ban"}.`);
-
-                return message.reply({ embeds: [embed] });
-            }
-            handleGambleCommand(message);
-        }
+    // Promisified database operations
+    const dbGet = (query, params) => new Promise((resolve, reject) => {
+        db.get(query, params, (err, row) => err ? reject(err) : resolve(row));
     });
 
-    // Helper: Validate currency
-    function isValidCurrency(currency) {
-        return ['coins', 'gems'].includes(currency?.toLowerCase());
-    }
+    const dbAll = (query, params) => new Promise((resolve, reject) => {
+        db.all(query, params, (err, rows) => err ? reject(err) : resolve(rows));
+    });
 
-    // Main command handler
-    async function handleGambleCommand(message) {
+    const dbRun = (query, params) => new Promise((resolve, reject) => {
+        db.run(query, params, (err) => err ? reject(err) : resolve());
+    });
+
+    const checkRestrictions = (userId) => {
+        const banData = isBanned(userId);
+        if (maintenance === "yes" && userId !== developerID) {
+            return {
+                blocked: true,
+                embed: new EmbedBuilder()
+                    .setColor('#FF0000')
+                    .setTitle('🚧 Maintenance Mode')
+                    .setDescription("The bot is currently in maintenance mode. Please try again later.\nFumoBOT's Developer: alterGolden")
+                    .setFooter({ text: "Thank you for your patience" })
+                    .setTimestamp()
+            };
+        }
+
+        if (banData) {
+            let desc = `You are banned from using this bot.\n\n**Reason:** ${banData.reason || 'No reason provided'}`;
+
+            if (banData.expiresAt) {
+                const ms = banData.expiresAt - Date.now();
+                const d = Math.floor(ms / 864e5);
+                const h = Math.floor((ms % 864e5) / 36e5);
+                const m = Math.floor((ms % 36e5) / 6e4);
+                const s = Math.floor((ms % 6e4) / 1000);
+                const time = [d && `${d}d`, h && `${h}h`, m && `${m}m`, s && `${s}s`]
+                    .filter(Boolean).join(' ');
+                desc += `\n**Time Remaining:** ${time}`;
+            } else {
+                desc += `\n**Ban Type:** Permanent`;
+            }
+
+            return {
+                blocked: true,
+                embed: new EmbedBuilder()
+                    .setColor('#FF0000')
+                    .setTitle('⛔ You Are Banned')
+                    .setDescription(desc)
+                    .setFooter({ text: "Ban enforced by developer" })
+                    .setTimestamp()
+            };
+        }
+        return { blocked: false };
+    };
+
+    const CARDS = ['ReimuFumo', 'SanaeFumo', 'MarisaFumo', 'FlandreFumo', 'SakuyaFumo',
+        'AliceFumo', 'YoumuFumo', 'CirnoFumo', 'RemiliaFumo', 'YukariFumo'];
+
+    const COUNTERS = {
+        1: [2, 3, 5, 7], 2: [3, 4, 6, 8], 3: [4, 5, 7, 9], 4: [5, 6, 8, 10], 5: [6, 7, 9, 1],
+        6: [7, 8, 10, 2], 7: [8, 9, 1, 3], 8: [9, 10, 2, 4], 9: [10, 1, 3, 5], 10: [1, 2, 4, 6]
+    };
+
+    const updateBalances = async (winnerId, loserId, currency, amount) => {
+        await Promise.all([
+            dbRun(`UPDATE userCoins SET ${currency} = ${currency} + ? WHERE userId = ?`, [amount, winnerId]),
+            dbRun(`UPDATE userCoins SET ${currency} = ${currency} - ? WHERE userId = ?`, [amount, loserId])
+        ]);
+        incrementDailyGamble(winnerId).catch(() => { });
+        incrementDailyGamble(loserId).catch(() => { });
+    };
+
+    const updateBalancesHalfLoss = async (user1Id, user2Id, currency, halfAmount) => {
+        await Promise.all([
+            dbRun(`UPDATE userCoins SET ${currency} = ${currency} - ? WHERE userId = ?`, [halfAmount, user1Id]),
+            dbRun(`UPDATE userCoins SET ${currency} = ${currency} - ? WHERE userId = ?`, [halfAmount, user2Id])
+        ]);
+        incrementDailyGamble(user1Id).catch(() => { });
+        incrementDailyGamble(user2Id).catch(() => { });
+    };
+
+    client.on('messageCreate', async (message) => {
+        if (!message.guild || message.author.bot) return;
+        if (!message.content.startsWith('.gamble') && !message.content.startsWith('.g')) return;
+
+        const restriction = checkRestrictions(message.author.id);
+        if (restriction.blocked) return message.reply({ embeds: [restriction.embed] });
+
         const args = message.content.trim().split(/\s+/);
         const mentionedUser = message.mentions.users.first();
         const currency = args[2]?.toLowerCase();
         const amount = parseInt(args[3], 10);
 
-        // Usage embed
         const usageEmbed = new EmbedBuilder()
             .setColor('#FFA500')
-            .setTitle('🎲 How to Use the .gamble Command')
-            .setDescription('Challenge another user to a friendly gamble!')
+            .setTitle('🎲 How to Use .gamble')
+            .setDescription('Challenge another user to a gamble!')
             .addFields(
-                { name: '📌 Command Format', value: '`.gamble @user coins/gems amount`' },
-                {
-                    name: '🔧 Parameters', value: [
-                        '**@user:** Tag the user you want to challenge.',
-                        '**coins/gems:** Choose your currency for the gamble.',
-                        '**amount:** Specify the amount to wager.',
-                    ].join('\n')
-                },
-                { name: '❗ Example', value: '`.gamble @alterGolden coins 50`' }
+                { name: '📌 Format', value: '`.gamble @user coins/gems amount`' },
+                { name: '📋 Parameters', value: '**@user:** Tag the user\n**coins/gems:** Currency\n**amount:** Wager amount' },
+                { name: '✅ Example', value: '`.gamble @alterGolden coins 50`' }
             )
-            .setFooter({ text: 'Make sure to use valid parameters!' });
+            .setFooter({ text: 'Use valid parameters!' });
 
-        if (!mentionedUser || !isValidCurrency(currency) || isNaN(amount) || amount <= 0) {
+        if (!mentionedUser || !['coins', 'gems'].includes(currency) || isNaN(amount) || amount <= 0) {
             return message.reply({ embeds: [usageEmbed] });
         }
         if (mentionedUser.id === message.author.id) {
             return message.reply({
                 embeds: [new EmbedBuilder()
                     .setColor('#FF0000')
-                    .setTitle('❌ You cannot gamble against yourself!')
-                    .setDescription('Please select a different user for your challenge.')]
+                    .setTitle('❌ Cannot gamble yourself!')
+                    .setDescription('Select a different user.')]
             });
         }
         if (mentionedUser.bot) {
             return message.reply({
                 embeds: [new EmbedBuilder()
                     .setColor('#FF0000')
-                    .setTitle('🤖 You cannot gamble against a bot!')
-                    .setDescription('Bots are not eligible for gambling.')]
+                    .setTitle('🤖 Cannot gamble bots!')
+                    .setDescription('Bots are not eligible.')]
             });
         }
-        // Prevent multiple concurrent gambles between same users
-        if (!client.activeGambles) client.activeGambles = new Set();
+
         const sessionKey = [message.author.id, mentionedUser.id].sort().join('-');
         if (client.activeGambles.has(sessionKey)) {
-            return message.reply('⚠️ There is already an active gamble between you two. Please wait for it to finish.');
+            return message.reply('⚠️ There is already an active gamble between you two.');
         }
+
         client.activeGambles.add(sessionKey);
         try {
-            await sendGambleInvitation(message, mentionedUser, currency, amount, sessionKey);
+            await sendInvitation(message, mentionedUser, currency, amount, sessionKey);
         } finally {
             client.activeGambles.delete(sessionKey);
         }
-    }
+    });
 
-    // Invitation with accept/decline
-    async function sendGambleInvitation(message, mentionedUser, currency, amount, sessionKey) {
-        const confirmationMessage = new EmbedBuilder()
-            .setTitle('🎲 Gamble Invitation 🎲')
-            .setDescription(`📣 ${message.author.username} has challenged ${mentionedUser.username} to a thrilling gamble. Do you dare to accept?`)
+    async function sendInvitation(message, mentionedUser, currency, amount, sessionKey) {
+        const embed = new EmbedBuilder()
+            .setTitle('🎲 Gamble Invitation')
+            .setDescription(`📣 ${message.author.username} challenges ${mentionedUser.username} to a gamble!`)
             .setColor('#0099ff')
             .addFields(
                 { name: 'Currency', value: currency, inline: true },
                 { name: 'Amount', value: amount.toString(), inline: true }
             );
 
-        const yesButton = new ButtonBuilder()
-            .setCustomId(`accept_gamble_${mentionedUser.id}_${Date.now()}`)
-            .setLabel('🟢 Yes')
-            .setStyle(ButtonStyle.Success);
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId(`accept_${Date.now()}`)
+                .setLabel('🟢 Yes')
+                .setStyle(ButtonStyle.Success),
+            new ButtonBuilder()
+                .setCustomId(`decline_${Date.now()}`)
+                .setLabel('🔴 No')
+                .setStyle(ButtonStyle.Danger)
+        );
 
-        const noButton = new ButtonBuilder()
-            .setCustomId(`decline_gamble_${mentionedUser.id}_${Date.now()}`)
-            .setLabel('🔴 No')
-            .setStyle(ButtonStyle.Danger);
+        const msg = await message.channel.send({ embeds: [embed], components: [row] });
 
-        const row = new ActionRowBuilder().addComponents(yesButton, noButton);
-
-        const sentMsg = await message.channel.send({ embeds: [confirmationMessage], components: [row] });
-
-        const filter = interaction =>
-            interaction.user.id === mentionedUser.id &&
-            (interaction.customId.startsWith('accept_gamble_') || interaction.customId.startsWith('decline_gamble_'));
-        const collector = sentMsg.createMessageComponentCollector({ filter, time: 20000 });
+        const filter = i => i.user.id === mentionedUser.id;
+        const collector = msg.createMessageComponentCollector({ filter, time: 20000 });
 
         let accepted = false;
-        collector.on('collect', async interaction => {
-            if (interaction.customId.startsWith('accept_gamble_')) {
+        collector.on('collect', async (interaction) => {
+            if (interaction.customId.startsWith('accept_')) {
                 accepted = true;
-                await interaction.update({ content: '🎉 You accepted the gamble. Let the games begin!', embeds: [], components: [] });
+                await interaction.update({ content: '🎉 Gamble accepted! Starting...', embeds: [], components: [] });
                 collector.stop();
-                showGambleGuide(message, mentionedUser, currency, amount, sessionKey);
-            } else if (interaction.customId.startsWith('decline_gamble_')) {
-                await interaction.update({ content: '🔴 You declined the gamble. Maybe next time!', embeds: [], components: [] });
+                showGuide(message, mentionedUser, currency, amount, sessionKey);
+            } else {
+                await interaction.update({ content: '🔴 Gamble declined.', embeds: [], components: [] });
                 collector.stop();
             }
         });
+
         collector.on('end', async () => {
             if (!accepted) {
-                await sentMsg.edit({ content: '⏰ Gamble invitation expired.', embeds: [], components: [] }).catch(() => { });
+                await msg.edit({ content: '⏰ Invitation expired.', embeds: [], components: [] }).catch(() => { });
             }
         });
     }
 
-    // Show guide before gamble
-    function showGambleGuide(message, mentionedUser, currency, amount, sessionKey) {
-        const guideMessage = new EmbedBuilder()
-            .setTitle('📜 Gamble Guide 📜')
-            .setDescription("Here's a quick guide to help you with your choices. Each Fumo counters specific other Fumos.")
-            .addFields(
-                { name: 'ReimuFumo', value: 'Counters: SanaeFumo, MarisaFumo, SakuyaFumo, YoumuFumo', inline: true },
-                { name: 'SanaeFumo', value: 'Counters: MarisaFumo, FlandreFumo, AliceFumo, CirnoFumo', inline: true },
-                { name: 'MarisaFumo', value: 'Counters: FlandreFumo, SakuyaFumo, AliceFumo, RemiliaFumo', inline: true },
-                { name: 'FlandreFumo', value: 'Counters: SakuyaFumo, AliceFumo, YoumuFumo, YukariFumo', inline: true },
-                { name: 'SakuyaFumo', value: 'Counters: AliceFumo, YoumuFumo, CirnoFumo, ReimuFumo', inline: true },
-                { name: 'AliceFumo', value: 'Counters: YoumuFumo, CirnoFumo, RemiliaFumo, SanaeFumo', inline: true },
-                { name: 'YoumuFumo', value: 'Counters: CirnoFumo, RemiliaFumo, YukariFumo, MarisaFumo', inline: true },
-                { name: 'CirnoFumo', value: 'Counters: RemiliaFumo, YukariFumo, ReimuFumo, FlandreFumo', inline: true },
-                { name: 'RemiliaFumo', value: 'Counters: YukariFumo, ReimuFumo, SanaeFumo, SakuyaFumo', inline: true },
-                { name: 'YukariFumo', value: 'Counters: ReimuFumo, SanaeFumo, MarisaFumo, AliceFumo', inline: true }
-            )
-            .setColor('#0099ff')
-            .setFooter({ text: 'Gamble starting in 10 seconds...' });
+    async function showGuide(message, mentionedUser, currency, amount, sessionKey) {
+        const guideFields = CARDS.map((card, i) => ({
+            name: card,
+            value: `Counters: ${COUNTERS[i + 1].map(c => CARDS[c - 1]).join(', ')}`,
+            inline: true
+        }));
 
-        message.channel.send({ embeds: [guideMessage] }).then(sentMessage => {
-            let countdown = 10;
-            const interval = setInterval(() => {
-                if (countdown <= 0) {
+        const embed = new EmbedBuilder()
+            .setTitle('📜 Gamble Guide')
+            .setDescription('Each Fumo counters specific other Fumos.')
+            .addFields(guideFields)
+            .setColor('#0099ff')
+            .setFooter({ text: 'Starting in 10 seconds...' });
+
+        const msg = await message.channel.send({ embeds: [embed] });
+        let countdown = 10;
+
+        const interval = setInterval(async () => {
+            if (countdown <= 0) {
+                clearInterval(interval);
+                await msg.delete().catch(() => { });
+                startGamble(message, mentionedUser, currency, amount, sessionKey);
+            } else {
+                countdown--;
+                embed.setFooter({ text: `Starting in ${countdown} seconds...` });
+                await msg.edit({ embeds: [embed] }).catch(() => clearInterval(interval));
+            }
+        }, 1000);
+    }
+
+    async function startGamble(message, mentionedUser, currency, amount, sessionKey) {
+        try {
+            const rows = await dbAll(
+                'SELECT userId, coins, gems FROM userCoins WHERE userId IN (?, ?)',
+                [message.author.id, mentionedUser.id]
+            );
+
+            const user1 = rows.find(r => r.userId === message.author.id);
+            const user2 = rows.find(r => r.userId === mentionedUser.id);
+
+            if (!user1 || !user2) {
+                return message.reply('❌ One or both users lack an account. Register first.');
+            }
+            if (user1[currency] < amount || user2[currency] < amount) {
+                return message.reply(`❌ Both players need at least ${amount} ${currency}.`);
+            }
+
+            const buttons = CARDS.map((name, i) =>
+                new ButtonBuilder()
+                    .setCustomId(`card_${i + 1}_${sessionKey}`)
+                    .setLabel(name)
+                    .setStyle(ButtonStyle.Primary)
+            );
+
+            const buttonRows = [];
+            for (let i = 0; i < buttons.length; i += 5) {
+                buttonRows.push(new ActionRowBuilder().addComponents(buttons.slice(i, i + 5)));
+            }
+
+            const msg = await message.channel.send({
+                content: 'Choose your card (15 seconds):',
+                components: buttonRows
+            });
+
+            const userChoices = new Map();
+            let countdown = 15;
+            let deleted = false;
+
+            const interval = setInterval(async () => {
+                if (countdown <= 0 || userChoices.size === 2) {
                     clearInterval(interval);
-                    sentMessage.delete().catch(() => { });
-                    startGamble(message, mentionedUser, currency, amount, sessionKey);
+                    if (!deleted) {
+                        await msg.delete().catch(() => { });
+                        deleted = true;
+                    }
+                    determineWinner(message, userChoices, mentionedUser, currency, amount);
                 } else {
                     countdown--;
-                    sentMessage.edit({ embeds: [guideMessage.setFooter({ text: `Gamble starting in ${countdown} seconds...` })] }).catch(() => { });
+                    if (!deleted) {
+                        await msg.edit({ content: `Choose your card (${countdown}s left)`, components: buttonRows })
+                            .catch(() => { deleted = true; clearInterval(interval); });
+                    }
                 }
             }, 1000);
-        });
-    }
 
-    // Start the actual gamble
-    function startGamble(message, mentionedUser, currency, amount, sessionKey) {
-        const userChoices = new Map();
-        // Check balances
-        db.all(
-            'SELECT userId, coins, gems FROM userCoins WHERE userId IN (?, ?)',
-            [message.author.id, mentionedUser.id],
-            (err, rows) => {
-                if (err) {
-                    message.reply('❌ Database error. Please try again later.');
-                    return;
-                }
-                const userBalance = rows.find(row => row.userId === message.author.id);
-                const mentionedUserBalance = rows.find(row => row.userId === mentionedUser.id);
+            const filter = i =>
+                (i.user.id === message.author.id || i.user.id === mentionedUser.id) &&
+                i.customId.endsWith(sessionKey);
 
-                if (!userBalance || !mentionedUserBalance) {
-                    message.reply('❌ One or both users do not have an account. Please register first.');
-                    return;
-                }
-                if (userBalance[currency] < amount || mentionedUserBalance[currency] < amount) {
-                    message.reply(`Both players need to have at least ${amount} ${currency} to enter the gamble. Check your balance and try again!`);
-                    return;
+            const collector = msg.createMessageComponentCollector({ filter, time: 15000 });
+
+            collector.on('collect', async (interaction) => {
+                if (userChoices.has(interaction.user.id)) {
+                    return interaction.reply({ content: 'You already selected!', ephemeral: true });
                 }
 
-                const counters = {
-                    1: [2, 3, 5, 7],
-                    2: [3, 4, 6, 8],
-                    3: [4, 5, 7, 9],
-                    4: [5, 6, 8, 10],
-                    5: [6, 7, 9, 1],
-                    6: [7, 8, 10, 2],
-                    7: [8, 9, 1, 3],
-                    8: [9, 10, 2, 4],
-                    9: [10, 1, 3, 5],
-                    10: [1, 2, 4, 6]
-                };
-                const cardNames = [
-                    'ReimuFumo', 'SanaeFumo', 'MarisaFumo', 'FlandreFumo', 'SakuyaFumo',
-                    'AliceFumo', 'YoumuFumo', 'CirnoFumo', 'RemiliaFumo', 'YukariFumo'
-                ];
-                const cardButtons = cardNames.map((name, index) =>
-                    new ButtonBuilder()
-                        .setCustomId(`gamble_card_${index + 1}_${sessionKey}`)
-                        .setLabel(name)
-                        .setStyle(ButtonStyle.Primary)
-                );
-                const cardRows = [];
-                for (let i = 0; i < cardButtons.length; i += 5) {
-                    cardRows.push(new ActionRowBuilder().addComponents(cardButtons.slice(i, i + 5)));
-                }
+                const choice = parseInt(interaction.customId.split('_')[1], 10);
+                userChoices.set(interaction.user.id, choice);
 
-                let messageDeleted = false;
-                message.channel.send({ content: 'Choose your card, each card has its unique counter:', components: cardRows }).then(sentMessage => {
-                    let countdown = 15;
-                    const interval = setInterval(() => {
-                        if (countdown <= 0) {
-                            clearInterval(interval);
-                            if (!messageDeleted) {
-                                sentMessage.delete().catch(() => { });
-                                messageDeleted = true;
-                            }
-                            determineWinner(message, userChoices.get(message.author.id), userChoices.get(mentionedUser.id), counters, mentionedUser, currency, amount, cardNames);
-                        } else {
-                            countdown--;
-                            if (!messageDeleted) {
-                                sentMessage.edit({
-                                    content: `Choose your card... (${countdown} seconds left)`,
-                                    components: cardRows
-                                }).catch(err => {
-                                    if (err.code === 10008) {
-                                        messageDeleted = true;
-                                        clearInterval(interval);
-                                    }
-                                });
-                            }
-                        }
-                    }, 1000);
-
-                    const filter = interaction =>
-                        (interaction.user.id === message.author.id || interaction.user.id === mentionedUser.id) &&
-                        interaction.customId.endsWith(sessionKey);
-                    const collector = sentMessage.createMessageComponentCollector({ filter, time: 15000 });
-
-                    collector.on('collect', async interaction => {
-                        if (userChoices.has(interaction.user.id)) {
-                            await interaction.reply({ content: 'You have already selected a card.', ephemeral: true });
-                            return;
-                        }
-                        const userChoice = parseInt(interaction.customId.split('_')[2], 10);
-                        userChoices.set(interaction.user.id, userChoice);
-                        await interaction.reply({ content: `You have selected: ${cardNames[userChoice - 1]}`, ephemeral: true });
-                        // If both have chosen, end early
-                        if (userChoices.size === 2) {
-                            clearInterval(interval);
-                            if (!messageDeleted) {
-                                sentMessage.delete().catch(() => { });
-                                messageDeleted = true;
-                            }
-                            collector.stop();
-                            determineWinner(message, userChoices.get(message.author.id), userChoices.get(mentionedUser.id), counters, mentionedUser, currency, amount, cardNames);
-                        }
-                    });
-
-                    collector.on('end', () => {
-                        if (!userChoices.has(message.author.id) || !userChoices.has(mentionedUser.id)) {
-                            // Already handled by determineWinner
-                        }
-                    });
+                await interaction.reply({
+                    content: `Selected: ${CARDS[choice - 1]}`,
+                    ephemeral: true
                 });
-            }
-        );
+
+                if (userChoices.size === 2) {
+                    clearInterval(interval);
+                    collector.stop();
+                    if (!deleted) {
+                        await msg.delete().catch(() => { });
+                        deleted = true;
+                    }
+                    determineWinner(message, userChoices, mentionedUser, currency, amount);
+                }
+            });
+
+        } catch (err) {
+            console.error('Gamble error:', err);
+            message.reply('❌ Database error.');
+        }
     }
 
-    // Determine winner and update balances -- FIXME
-    // This function will determine the winner based on the choices made by both users
-    // It will also update the balances of the users based on the outcome of the gamble
-    function determineWinner(message, user1Choice, user2Choice, counters, mentionedUser, currency, amount, cardNames) {
-        let winner, loser, winnerCard, loserCard;
-        let resultEmbed;
+    async function determineWinner(message, userChoices, mentionedUser, currency, amount) {
+        const c1 = userChoices.get(message.author.id);
+        const c2 = userChoices.get(mentionedUser.id);
 
-        if (!user1Choice && !user2Choice) {
-            resultEmbed = new EmbedBuilder()
-                .setTitle('❌ Invalid Gamble ❌')
-                .setDescription('Neither player selected a card. The gamble cannot proceed.')
+        let embed;
+
+        if (!c1 && !c2) {
+            embed = new EmbedBuilder()
+                .setTitle('❌ Invalid Gamble')
+                .setDescription('Neither player selected. No changes.')
                 .setColor('#808080');
-            message.channel.send({ embeds: [resultEmbed] }).then(sentMessage => {
-                setTimeout(() => sentMessage.delete().catch(() => { }), 15000);
-            });
-            return;
         }
-        if (!user1Choice || !user2Choice) {
-            if (user1Choice && !user2Choice) {
-                winner = message.author;
-                loser = mentionedUser;
-                winnerCard = user1Choice;
-                updateBalances(winner.id, loser.id, currency, amount);
-                resultEmbed = new EmbedBuilder()
-                    .setTitle('Gamble Result')
-                    .setDescription(`${mentionedUser.username} did not select a card.\n${message.author.username} wins by default.`)
-                    .addFields(
-                        { name: 'Winner', value: `${winner.username}`, inline: true },
-                        { name: 'Selected Card', value: `${cardNames[winnerCard - 1]}`, inline: true },
-                        { name: 'Amount Won', value: `${amount} ${currency}`, inline: true }
-                    )
-                    .setColor('#4caf50');
-            } else {
-                winner = mentionedUser;
-                loser = message.author;
-                winnerCard = user2Choice;
-                updateBalances(winner.id, loser.id, currency, amount);
-                resultEmbed = new EmbedBuilder()
-                    .setTitle('Gamble Result')
-                    .setDescription(`${message.author.username} did not select a card.\n${mentionedUser.username} wins by default.`)
-                    .addFields(
-                        { name: 'Winner', value: `${winner.username}`, inline: true },
-                        { name: 'Selected Card', value: `${cardNames[winnerCard - 1]}`, inline: true },
-                        { name: 'Amount Won', value: `${amount} ${currency}`, inline: true }
-                    )
-                    .setColor('#4caf50');
-            }
-            message.channel.send({ embeds: [resultEmbed] }).then(sentMessage => {
-                setTimeout(() => sentMessage.delete().catch(() => { }), 15000);
-            });
-            return;
-        }
-        if (user1Choice === user2Choice) {
-            // Both players lose 50% of their bet
-            const halfAmount = Math.floor(amount / 2);
-            updateBalancesHalfLoss(message.author.id, mentionedUser.id, currency, halfAmount);
-            resultEmbed = new EmbedBuilder()
-                .setTitle('🎲 Gamble Result: Unexpected Movement of Choice 🎲')
-                .setDescription('Both players chose the same card, resulting in an unexpected movement of choice. Each player loses 50% of their bet.')
+        else if (!c1 || !c2) {
+            const winner = c1 ? message.author : mentionedUser;
+            const loser = c1 ? mentionedUser : message.author;
+            const card = c1 || c2;
+
+            await updateBalances(winner.id, loser.id, currency, amount);
+
+            embed = new EmbedBuilder()
+                .setTitle('🎲 Gamble Result')
+                .setDescription(`${loser.username} didn't select.\n${winner.username} wins by default!`)
                 .addFields(
-                    { name: `${message.author.username}'s Card`, value: cardNames[user1Choice - 1], inline: true },
-                    { name: `${mentionedUser.username}'s Card`, value: cardNames[user2Choice - 1], inline: true },
-                    { name: 'Amount Lost', value: `${halfAmount} ${currency}`, inline: true }
+                    { name: 'Winner', value: winner.username, inline: true },
+                    { name: 'Card', value: CARDS[card - 1], inline: true },
+                    { name: 'Won', value: `${amount} ${currency}`, inline: true }
+                )
+                .setColor('#4caf50');
+        }
+        else if (c1 === c2) {
+            const half = Math.floor(amount / 2);
+            await updateBalancesHalfLoss(message.author.id, mentionedUser.id, currency, half);
+
+            embed = new EmbedBuilder()
+                .setTitle('🎲 Unexpected Movement!')
+                .setDescription('Same card chosen! Both lose 50% of bet.')
+                .addFields(
+                    { name: `${message.author.username}'s Card`, value: CARDS[c1 - 1], inline: true },
+                    { name: `${mentionedUser.username}'s Card`, value: CARDS[c2 - 1], inline: true },
+                    { name: 'Lost', value: `${half} ${currency}`, inline: true }
                 )
                 .setColor('#ff0000');
-        } else {
-            if (counters[user1Choice].includes(user2Choice)) {
+        }
+        else {
+            let winner, loser, wCard, lCard;
+
+            if (COUNTERS[c1].includes(c2)) {
                 winner = message.author;
                 loser = mentionedUser;
-                winnerCard = user1Choice;
-                loserCard = user2Choice;
-                updateBalances(winner.id, loser.id, currency, amount);
-            } else if (counters[user2Choice].includes(user1Choice)) {
+                wCard = c1;
+                lCard = c2;
+            } else if (COUNTERS[c2].includes(c1)) {
                 winner = mentionedUser;
                 loser = message.author;
-                winnerCard = user2Choice;
-                loserCard = user1Choice;
-                updateBalances(winner.id, loser.id, currency, amount);
+                wCard = c2;
+                lCard = c1;
             } else {
-                // Draw: no one wins
-                resultEmbed = new EmbedBuilder()
-                    .setTitle('🎲 Gamble Result: Draw 🎲')
-                    .setDescription('No winner could be determined. No currency exchanged.')
+                embed = new EmbedBuilder()
+                    .setTitle('🎲 Draw!')
+                    .setDescription('No winner. No currency exchanged.')
                     .addFields(
-                        { name: `${message.author.username}'s Card`, value: cardNames[user1Choice - 1], inline: true },
-                        { name: `${mentionedUser.username}'s Card`, value: cardNames[user2Choice - 1], inline: true }
+                        { name: `${message.author.username}'s Card`, value: CARDS[c1 - 1], inline: true },
+                        { name: `${mentionedUser.username}'s Card`, value: CARDS[c2 - 1], inline: true }
                     )
                     .setColor('#aaaaaa');
-                message.channel.send({ embeds: [resultEmbed] }).then(sentMessage => {
-                    setTimeout(() => sentMessage.delete().catch(() => { }), 15000);
-                });
+
+                const msg = await message.channel.send({ embeds: [embed] });
+                setTimeout(() => msg.delete().catch(() => { }), 15000);
                 return;
             }
-            // Send the result message for winner and loser
-            resultEmbed = new EmbedBuilder()
-                .setTitle('🎲 Gamble Result 🎲')
-                .setDescription('The gamble has ended! Here are the results:')
+
+            await updateBalances(winner.id, loser.id, currency, amount);
+
+            embed = new EmbedBuilder()
+                .setTitle('🎲 Gamble Result')
+                .setDescription('The gamble has ended!')
                 .addFields(
-                    { name: 'Winner', value: `${winner.username}`, inline: true },
-                    { name: 'Loser', value: `${loser.username}`, inline: true },
-                    { name: "Winner's Card", value: `${cardNames[winnerCard - 1]}`, inline: true },
-                    { name: "Loser's Card", value: `${cardNames[loserCard - 1]}`, inline: true },
+                    { name: 'Winner', value: winner.username, inline: true },
+                    { name: 'Loser', value: loser.username, inline: true },
+                    { name: "Winner's Card", value: CARDS[wCard - 1], inline: true },
+                    { name: "Loser's Card", value: CARDS[lCard - 1], inline: true },
                     { name: 'Amount', value: `${amount} ${currency}`, inline: true }
                 )
                 .setColor('#0099ff');
         }
-        message.channel.send({ embeds: [resultEmbed] }).then(sentMessage => {
-            setTimeout(() => sentMessage.delete().catch(() => { }), 15000);
-        });
-    }
 
-    // Update balances
-    function updateBalances(winnerId, loserId, currency, amount) {
-        db.run(`UPDATE userCoins SET ${currency} = ${currency} + ? WHERE userId = ?`, [amount, winnerId], err => { });
-        db.run(`UPDATE userCoins SET ${currency} = ${currency} - ? WHERE userId = ?`, [amount, loserId], err => { });
-        incrementDailyGamble(winnerId);
-        incrementDailyGamble(loserId);
+        const msg = await message.channel.send({ embeds: [embed] });
+        setTimeout(() => msg.delete().catch(() => { }), 15000);
     }
-    function updateBalancesHalfLoss(user1Id, user2Id, currency, halfAmount) {
-        db.run(`UPDATE userCoins SET ${currency} = ${currency} - ? WHERE userId = ?`, [halfAmount, user1Id], err => { });
-        db.run(`UPDATE userCoins SET ${currency} = ${currency} - ? WHERE userId = ?`, [halfAmount, user2Id], err => { });
-        incrementDailyGamble(user1Id);
-        incrementDailyGamble(user2Id);
-    }
-}
+};

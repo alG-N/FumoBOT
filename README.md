@@ -75,7 +75,7 @@ Fun + utility + economy combined in one bot, I'll usually update it when I got f
 |--------|--------|-------------|
 | `.crategacha` | `.cg` | Roll from the crate gacha to obtain fumos and items. |
 | `.eventgacha (status)` | `.eg` | Roll from limited-time event gacha pools. |
-| `.pray` | `.p` | A luck-based daily roll with small rewards. |
+| `.pray` | `.p` | A luck-based pray for a random character to come |
 | `.slot` | `.sl` | A slot-machine style gamble for coins. |
 | `.gamble` | `.g` | Bet coins for a chance to multiply them. |
 | `.flip (leaderboard)` | `.f` | 50/50 coin flip. |

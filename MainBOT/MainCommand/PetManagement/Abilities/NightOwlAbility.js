@@ -2,7 +2,7 @@ const db = require('../../Database/db');
 const { dbAll, dbRun } = require('../Utilities/dbUtils');
 const { getXpRequired, calculateBoost } = require('../Utilities/petUtils');
 
-// NightOwl Passive Exp System (Enhanced version of Owl)
+// NightOwl Passive Exp System
 // Grants MORE exp/sec to ALL user's pets (passive bonus)
 // Also grants exp to the NightOwl itself every 12 minutes (active gain, faster than Owl)
 

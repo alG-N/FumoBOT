@@ -110,10 +110,16 @@ const anime = require('./SubCommand/API-Website/Anime/anime');
 const afk = require('./SubCommand/BasicCommand/afk');
 const musicCommands = require('./SubCommand/MusicFunction/MainMusic');
 const reddit = require('./SubCommand/API-Website/Reddit/reddit');
+const pixiv = require('./SubCommand/API-Website/Pixiv/pixiv');
 
 if (reddit && reddit.data && reddit.data.name) {
     client.commands.set(reddit.data.name, reddit);
     console.log('✅ Manually loaded reddit command');
+}
+
+if (pixiv && pixiv.data && pixiv.data.name) {
+    client.commands.set(pixiv.data.name, pixiv);
+    console.log('✅ Manually loaded pixiv command');
 }
 
 // BOT READY EVENT
@@ -190,13 +196,18 @@ client.on('interactionCreate', async interaction => {
     if (interaction.isButton()) {
         console.log('🔘 Button interaction received:', interaction.customId);
 
-        if (interaction.customId.startsWith('show_post_') || interaction.customId.startsWith('gallery_') || interaction.customId.startsWith('back_to_list_') || interaction.customId.startsWith('page_next_') || interaction.customId.startsWith('page_prev_')) {
+        // Reddit button handler
+        if (interaction.customId.startsWith('show_post_') || 
+            interaction.customId.startsWith('gallery_') || 
+            interaction.customId.startsWith('back_to_list_') || 
+            interaction.customId.startsWith('page_next_') || 
+            interaction.customId.startsWith('page_prev_')) {
             const redditCommand = client.commands.get('reddit');
             if (redditCommand && redditCommand.handleButton) {
                 try {
                     await redditCommand.handleButton(interaction);
                 } catch (error) {
-                    console.error('Button handler error:', error);
+                    console.error('Reddit button handler error:', error);
                     try {
                         if (!interaction.replied && !interaction.deferred) {
                             await interaction.reply({ content: 'There was an error processing this button!', ephemeral: true });
@@ -210,6 +221,29 @@ client.on('interactionCreate', async interaction => {
             }
             return;
         }
+
+        // Pixiv button handler
+        if (interaction.customId.startsWith('pixiv_')) {
+            const pixivCommand = client.commands.get('pixiv');
+            if (pixivCommand && pixivCommand.handleButton) {
+                try {
+                    await pixivCommand.handleButton(interaction);
+                } catch (error) {
+                    console.error('Pixiv button handler error:', error);
+                    try {
+                        if (!interaction.replied && !interaction.deferred) {
+                            await interaction.reply({ content: 'There was an error processing this button!', ephemeral: true });
+                        }
+                    } catch (e) {
+                        console.error('Failed to send error message:', e);
+                    }
+                }
+            } else {
+                console.error('Pixiv command or handleButton not found');
+            }
+            return;
+        }
+
         return;
     }
 
@@ -237,7 +271,7 @@ client.on('interactionCreate', async interaction => {
 
     // Handle AUTOCOMPLETE
     if (interaction.isAutocomplete()) {
-        console.log('🔍 Autocomplete triggered for:', interaction.commandName);
+        // console.log('🔍 Autocomplete triggered for:', interaction.commandName);
         const command = client.commands.get(interaction.commandName);
 
         if (!command || !command.autocomplete) return;

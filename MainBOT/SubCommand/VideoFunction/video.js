@@ -4,10 +4,6 @@ const path = require('path');
 const { spawn } = require('child_process');
 const https = require('https');
 
-// ========================================
-// ffmpeg Binary Management
-// ========================================
-
 let ffmpegPath = 'ffmpeg';
 let ffprobePath = 'ffprobe';
 let ffmpegAvailable = false;
@@ -16,13 +12,11 @@ const ffmpegDir = path.join(__dirname, 'ffmpeg-bin');
 const localFfmpegPath = path.join(ffmpegDir, process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg');
 const localFfprobePath = path.join(ffmpegDir, process.platform === 'win32' ? 'ffprobe.exe' : 'ffprobe');
 
-// Try to use ffmpeg-static if installed
 try {
     ffmpegPath = require('ffmpeg-static');
     ffmpegAvailable = true;
     console.log('✅ ffmpeg-static found');
 } catch (e) {
-    // Check if we have locally downloaded ffmpeg
     if (fs.existsSync(localFfmpegPath)) {
         ffmpegPath = localFfmpegPath;
         ffmpegAvailable = true;
@@ -41,7 +35,6 @@ try {
     }
 }
 
-// Download ffmpeg if not available
 async function downloadFfmpeg() {
     if (ffmpegAvailable) return true;
     
@@ -58,7 +51,6 @@ async function downloadFfmpeg() {
     }
 
     try {
-        // Check if adm-zip is available
         let AdmZip;
         try {
             AdmZip = require('adm-zip');
@@ -67,13 +59,11 @@ async function downloadFfmpeg() {
             return false;
         }
 
-        // Download ffmpeg essentials build for Windows
         const ffmpegUrl = 'https://github.com/GyanD/codexffmpeg/releases/download/7.1/ffmpeg-7.1-essentials_build.zip';
         const zipPath = path.join(ffmpegDir, 'ffmpeg.zip');
         
         let downloadedBytes = 0;
         
-        // Download zip
         await new Promise((resolve, reject) => {
             const file = fs.createWriteStream(zipPath);
             
@@ -120,14 +110,12 @@ async function downloadFfmpeg() {
 
         console.log('📦 Extracting ffmpeg binaries...');
         
-        // Extract using adm-zip
         const zip = new AdmZip(zipPath);
         const zipEntries = zip.getEntries();
         
         let foundFfmpeg = false;
         let foundFfprobe = false;
         
-        // Find and extract ffmpeg.exe and ffprobe.exe
         zipEntries.forEach(entry => {
             if (entry.entryName.includes('bin/ffmpeg.exe')) {
                 zip.extractEntryTo(entry, ffmpegDir, false, true);
@@ -143,7 +131,6 @@ async function downloadFfmpeg() {
             }
         });
 
-        // Cleanup
         fs.unlinkSync(zipPath);
         
         if (foundFfmpeg && foundFfprobe) {
@@ -164,7 +151,6 @@ async function downloadFfmpeg() {
     }
 }
 
-// Try to download ffmpeg if not found
 if (!ffmpegAvailable) {
     console.log('⚠️ ffmpeg not detected, attempting auto-download...');
     downloadFfmpeg().then(success => {
@@ -181,14 +167,9 @@ if (!ffmpegAvailable) {
     console.log('🎉 Video compression ready!');
 }
 
-// ========================================
-// yt-dlp Binary Management
-// ========================================
-
 const ytDlpDir = path.join(__dirname, 'yt-dlp-bin');
 const ytDlpBinary = path.join(ytDlpDir, process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp');
 
-// Download yt-dlp if it doesn't exist
 async function ensureYtDlp() {
     if (fs.existsSync(ytDlpBinary)) {
         const stats = fs.statSync(ytDlpBinary);
@@ -288,22 +269,41 @@ async function ensureYtDlp() {
     });
 }
 
-// Initialize on load
-ensureYtDlp().catch(err => console.error('❌ Failed to download yt-dlp:', err));
+async function updateYtDlp() {
+    if (!fs.existsSync(ytDlpBinary)) return false;
+    
+    console.log('🔄 Checking for yt-dlp updates...');
+    
+    try {
+        const updateProcess = spawn(ytDlpBinary, ['-U'], { 
+            windowsHide: true,
+            stdio: 'pipe'
+        });
+        
+        await new Promise((resolve) => {
+            updateProcess.on('close', resolve);
+        });
+        
+        console.log('✅ yt-dlp is up to date');
+        return true;
+    } catch (error) {
+        console.error('⚠️ Could not update yt-dlp:', error.message);
+        return false;
+    }
+}
 
-// ========================================
-// Video Compression with ffmpeg
-// ========================================
+ensureYtDlp()
+    .then(() => updateYtDlp())
+    .catch(err => console.error('❌ Failed to setup yt-dlp:', err));
 
 async function compressVideo(inputPath, maxSizeMB = 8) {
     if (!ffmpegAvailable) {
-        return inputPath; // Skip compression if ffmpeg not available
+        return inputPath;
     }
 
     const stats = fs.statSync(inputPath);
     const currentSizeMB = stats.size / (1024 * 1024);
 
-    // If already under target size, no need to compress
     if (currentSizeMB <= maxSizeMB) {
         return inputPath;
     }
@@ -313,13 +313,15 @@ async function compressVideo(inputPath, maxSizeMB = 8) {
     try {
         console.log(`🔄 Compressing video from ${currentSizeMB.toFixed(2)}MB to ~${maxSizeMB}MB...`);
 
-        // Calculate target bitrate (80% of max to leave room for audio)
         const durationProcess = spawn(ffprobePath, [
             '-v', 'error',
             '-show_entries', 'format=duration',
             '-of', 'default=noprint_wrappers=1:nokey=1',
             inputPath
-        ]);
+        ], { 
+            windowsHide: true,
+            stdio: 'pipe'
+        });
 
         let duration = 0;
         durationProcess.stdout.on('data', (data) => {
@@ -331,10 +333,9 @@ async function compressVideo(inputPath, maxSizeMB = 8) {
         });
 
         if (!duration || duration <= 0) {
-            duration = 30; // Fallback
+            duration = 30;
         }
 
-        // Target bitrate in kbps
         const targetBitrate = Math.floor((maxSizeMB * 8192) / duration * 0.8);
 
         await new Promise((resolve, reject) => {
@@ -347,14 +348,16 @@ async function compressVideo(inputPath, maxSizeMB = 8) {
                 '-c:a', 'aac',
                 '-b:a', '96k',
                 '-movflags', '+faststart',
-                '-preset', 'fast',
+                '-preset', 'ultrafast',
                 '-y',
                 outputPath
-            ]);
+            ], { 
+                windowsHide: true,
+                stdio: 'pipe'
+            });
 
             ffmpegProcess.on('close', (code) => {
                 if (code === 0 && fs.existsSync(outputPath)) {
-                    // Delete original, use compressed
                     fs.unlinkSync(inputPath);
                     console.log('✅ Video compressed successfully');
                     resolve();
@@ -376,9 +379,17 @@ async function compressVideo(inputPath, maxSizeMB = 8) {
     }
 }
 
-// ========================================
-// yt-dlp Download Function
-// ========================================
+function detectPlatform(url) {
+    if (url.includes('tiktok.com')) return '🎵 TikTok';
+    if (url.includes('twitter.com') || url.includes('x.com')) return '𝕏 Twitter/X';
+    if (url.includes('instagram.com')) return '📷 Instagram';
+    if (url.includes('youtube.com') || url.includes('youtu.be')) return '▶️ YouTube';
+    if (url.includes('reddit.com')) return '🤖 Reddit';
+    if (url.includes('facebook.com') || url.includes('fb.watch')) return '📘 Facebook';
+    if (url.includes('twitch.tv')) return '🎮 Twitch';
+    if (url.includes('vimeo.com')) return '🎬 Vimeo';
+    return '🌐 Web';
+}
 
 async function downloadVideoWithYTDLP(url) {
     const timestamp = Date.now();
@@ -392,21 +403,30 @@ async function downloadVideoWithYTDLP(url) {
         }
 
         await new Promise((resolve, reject) => {
-            // Enhanced format selection with fallbacks
-            // Prioritize WebM for smaller file sizes, fallback to MP4
             const args = [
                 url,
-                '-f', 'best[ext=webm][filesize<25M]/best[ext=mp4][filesize<25M]/best[filesize<25M]/best',
+                '-f', 'b[filesize<15M]/bv*[height<=720]+ba/bv*+ba/b',
+                '--merge-output-format', 'mp4',
                 '--max-filesize', '25M',
                 '--no-playlist',
                 '-o', outputTemplate,
                 '--no-warnings',
                 '--quiet',
                 '--progress',
-                '--newline'
+                '--newline',
+                // Speed optimizations
+                '--concurrent-fragments', '4', // Download 4 fragments at once
+                '--buffer-size', '16K',
+                '--http-chunk-size', '10M',
+                // Platform-specific fixes
+                '--extractor-args', 'youtube:player_client=android,web',
+                '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
             ];
 
-            const process = spawn(ytDlpBinary, args);
+            const process = spawn(ytDlpBinary, args, {
+                windowsHide: true,
+                stdio: 'pipe'
+            });
             
             let stderr = '';
 
@@ -427,7 +447,7 @@ async function downloadVideoWithYTDLP(url) {
             });
         });
 
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         const tempDir = path.join(__dirname, 'temp');
         const files = fs.readdirSync(tempDir).filter(f => f.startsWith(`video_${timestamp}`));
@@ -455,12 +475,10 @@ async function downloadVideoWithYTDLP(url) {
             return { error: 'Downloaded file is empty.' };
         }
 
-        // Compress video if over 8MB for better inline playback
         const finalPath = await compressVideo(actualPath, 8);
         const finalStats = fs.statSync(finalPath);
         const finalSizeMB = finalStats.size / (1024 * 1024);
 
-        // Determine format
         const extension = path.extname(finalPath).toLowerCase();
         const format = extension === '.webm' ? 'WebM' : extension === '.mp4' ? 'MP4' : extension.toUpperCase();
 
@@ -481,26 +499,6 @@ async function downloadVideoWithYTDLP(url) {
         return { error: 'Failed to download video. The link might be invalid, private, or the video source is not supported.' };
     }
 }
-
-// ========================================
-// Platform Detector
-// ========================================
-
-function detectPlatform(url) {
-    if (url.includes('tiktok.com')) return '🎵 TikTok';
-    if (url.includes('twitter.com') || url.includes('x.com')) return '🐦 Twitter/X';
-    if (url.includes('instagram.com')) return '📷 Instagram';
-    if (url.includes('youtube.com') || url.includes('youtu.be')) return '▶️ YouTube';
-    if (url.includes('reddit.com')) return '🤖 Reddit';
-    if (url.includes('facebook.com') || url.includes('fb.watch')) return '📘 Facebook';
-    if (url.includes('twitch.tv')) return '🎮 Twitch';
-    if (url.includes('vimeo.com')) return '🎬 Vimeo';
-    return '🌐 Web';
-}
-
-// ========================================
-// Cleanup Function
-// ========================================
 
 function cleanupTempFiles() {
     const tempDir = path.join(__dirname, 'temp');
@@ -525,10 +523,6 @@ function cleanupTempFiles() {
 }
 
 setInterval(cleanupTempFiles, 5 * 60 * 1000);
-
-// ========================================
-// Discord Slash Command
-// ========================================
 
 module.exports = {
     data: new SlashCommandBuilder()
