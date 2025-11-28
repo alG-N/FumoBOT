@@ -4,8 +4,9 @@ const AdmZip = require('adm-zip');
 const cron = require('node-cron');
 const { EmbedBuilder } = require('discord.js');
 
-// Configuration
-const DB_PATH = './fumos.db';
+// Configuration - FIX: Use absolute path to Database directory
+const DB_DIR = path.join(__dirname, 'Database');
+const DB_PATH = path.join(DB_DIR, 'fumos.db');
 const BACKUP_DIR = './backup';
 const CHANNEL_ID = '1367500981809447054';
 
@@ -30,6 +31,7 @@ function formatSize(bytes) {
 async function backupAndSendDB(client) {
     try {
         console.log('🚀 Starting backup process...');
+        console.log(`📂 Looking for database in: ${DB_DIR}`);
 
         // Ensure backup directory exists
         if (!fs.existsSync(BACKUP_DIR)) {
@@ -43,17 +45,22 @@ async function backupAndSendDB(client) {
         const filesToBackup = ['fumos.db', 'fumos.db-wal', 'fumos.db-shm'];
         const copiedFiles = [];
 
-        // Copy database files
+        // Copy database files from the correct directory
         for (const file of filesToBackup) {
-            const sourcePath = path.join(path.dirname(DB_PATH), file);
+            const sourcePath = path.join(DB_DIR, file); // FIX: Use DB_DIR instead
             const destPath = path.join(tempDir, file);
             if (fs.existsSync(sourcePath)) {
                 fs.copyFileSync(sourcePath, destPath);
                 copiedFiles.push(file);
-                console.log(`📄 Copied ${file}`);
+                console.log(`📄 Copied ${file} from ${sourcePath}`);
             } else {
-                console.log(`⚠️ Skipped missing file: ${file}`);
+                console.log(`⚠️ Skipped missing file: ${file} (looked in ${sourcePath})`);
             }
+        }
+
+        // Check if any files were actually copied
+        if (copiedFiles.length === 0) {
+            throw new Error(`No database files found in ${DB_DIR}`);
         }
 
         // Create zip file
@@ -72,7 +79,7 @@ async function backupAndSendDB(client) {
 
         // Build file stats
         const fileStats = copiedFiles.map(file => {
-            const originalPath = path.join(path.dirname(DB_PATH), file);
+            const originalPath = path.join(DB_DIR, file);
             const originalSize = fs.existsSync(originalPath) ? fs.statSync(originalPath).size : 0;
             return `📄 \`${file}\` → 🗃️ ${formatSize(originalSize)}`;
         });
@@ -132,6 +139,26 @@ async function backupAndSendDB(client) {
         console.log(`✅ Backup finished. Total kept: ${zipFiles.length}, Deleted: ${oldZips.length}`);
     } catch (error) {
         console.error('❌ Error during backup:', error);
+        
+        // Try to notify Discord about the error
+        try {
+            const channel = await client.channels.fetch(CHANNEL_ID).catch(() => null);
+            if (channel && channel.isTextBased()) {
+                const errorEmbed = new EmbedBuilder()
+                    .setTitle('❌ Backup Failed')
+                    .setColor(0xE74C3C)
+                    .setDescription(`\`\`\`${error.message}\`\`\``)
+                    .addFields({
+                        name: 'Expected Database Location',
+                        value: `\`${DB_DIR}\``
+                    })
+                    .setTimestamp();
+                
+                await channel.send({ embeds: [errorEmbed] });
+            }
+        } catch (notifyError) {
+            console.error('❌ Failed to send error notification:', notifyError);
+        }
     }
 }
 
