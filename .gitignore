@@ -44,4 +44,6 @@ temp/
 *.backup
 backup/
 
+
+# Binary files
 yt-dlp-bin/
