@@ -27,7 +27,7 @@ const { format } = require('date-fns');
 module.exports = (client) => {
     client.on('messageCreate', async message => {
         try {
-            if (!message.content.startsWith('.inform') && !message.content.startsWith('.in')) return;
+            if (!/^\.(inform|in)(\s|$)/.test(message.content)) return;
 
             // Check for maintenance mode or ban
             const banData = isBanned(message.author.id);

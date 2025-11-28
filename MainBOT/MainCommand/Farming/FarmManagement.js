@@ -732,7 +732,7 @@ module.exports = async (client) => {
             const embed = new EmbedBuilder()
                 .setTitle('🌾 Fumo Farming Status')
                 .setColor(Colors.Blurple)
-                .setImage('https://farmingsimulator22mods.it/wp-content/uploads/2022/01/fumo-di-scarico-nero-v1-0-1.jpg')
+                .setImage('https://tse4.mm.bing.net/th/id/OIP.uPn1KR9q8AKKhhJVCr1C4QHaDz?rs=1&pid=ImgDetMain&o=7&rm=3')
                 .setDescription(`🛠️ Your Fumos are working hard. Let's check how much loot they're bringing!`)
                 .addFields({
                     name: '📋 Notes:',

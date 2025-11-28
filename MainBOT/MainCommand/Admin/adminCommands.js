@@ -320,7 +320,7 @@ async function handleAddItem(message) {
                                         .setColor('Red')
                                         .setTitle('⚠ Error')
                                         .setDescription('Failed to add the item to the user\'s inventory.')
-                            ]
+                                ]
                             });
                         }
                         message.reply({
@@ -468,6 +468,149 @@ async function handleRemoveItem(message) {
 }
 
 /**
+ * Admin command: .changeid <oldId> <newId>
+ * Changes a user's ID across all database tables
+ */
+async function handleChangeId(message) {
+    const userId = message.author.id;
+
+    if (!ALLOWED_ADMINS.includes(userId)) {
+        return message.reply({
+            embeds: [
+                new EmbedBuilder()
+                    .setColor('Red')
+                    .setTitle('❌ Access Denied')
+                    .setDescription('You do not have permission to use this command.')
+            ]
+        });
+    }
+
+    const args = message.content.trim().split(' ').slice(1);
+
+    if (args.length !== 2) {
+        return message.reply({
+            embeds: [
+                new EmbedBuilder()
+                    .setColor('Orange')
+                    .setTitle('Usage')
+                    .setDescription('`.changeid <oldUserId> <newUserId>`')
+            ]
+        });
+    }
+
+    const oldId = args[0];
+    const newId = args[1];
+
+    if (oldId === newId) {
+        return message.reply({
+            embeds: [
+                new EmbedBuilder()
+                    .setColor('Orange')
+                    .setTitle('⚠ Invalid Input')
+                    .setDescription('Old ID and new ID cannot be the same.')
+            ]
+        });
+    }
+
+    // tables to update
+    const tables = [
+        'userCoins', 'redeemedCodes', 'farmingFumos', 'userUsage',
+        'userInventory', 'userUpgrades', 'userBalance', 'dailyQuests',
+        'userExchangeLimits', 'exchangeHistory', 'activeBoosts', 'sakuyaUsage',
+        'dailyQuestProgress', 'weeklyQuestProgress', 'achievementProgress',
+        'userCraftHistory', 'potionCraftHistory', 'petInventory',
+        'hatchingEggs', 'equippedPets', 'userSales'
+    ];
+
+    let totalChanged = 0;
+
+    for (const table of tables) {
+        await new Promise(resolve => {
+            db.run(
+                `UPDATE ${table} SET userId = ? WHERE userId = ?`,
+                [newId, oldId],
+                function (err) {
+                    if (err) {
+                        console.error(`❌ Error updating ${table}:`, err.message);
+                    } else {
+                        totalChanged += this.changes;
+                    }
+                    resolve();
+                }
+            );
+        });
+    }
+
+    return message.reply({
+        embeds: [
+            new EmbedBuilder()
+                .setColor('Green')
+                .setTitle('✅ User ID Updated')
+                .setDescription(
+                    `**Old ID:** \`${oldId}\`\n**New ID:** \`${newId}\`\n\n` +
+                    `Updated **${totalChanged} rows** across all tables.`
+                )
+        ]
+    });
+}
+
+/** 
+ * Admin command: .changepetname <userId>
+ * Changes all unnamed pets for a user to use their userId as petName
+ */
+async function handleChangePetName(message) {
+    const allowedUsers = ['1128296349566251068', '1362450043939979378'];
+    if (!allowedUsers.includes(message.author.id)) {
+        return message.reply("❌ You do not have permission to use this command.");
+    }
+
+    const args = message.content.trim().split(' ').slice(1);
+    if (args.length !== 1) {
+        return message.reply("Usage: `.changepetname <petNameToReplace>`");
+    }
+
+    const targetPetName = args[0];
+
+    const PET_NAMES = [
+        'Jack', 'Bob', 'Timmy', 'Max', 'Charlie', 'Buddy', 'Rocky', 'Duke',
+        'Bailey', 'Cooper', 'Tucker', 'Bear', 'Oliver', 'Toby', 'Leo', 'Milo',
+        'Zeus', 'Bentley', 'Lucky', 'Oscar', 'Sam', 'Shadow', 'Jake', 'Buster',
+        'Cody', 'Winston', 'Thor', 'Murphy', 'Jasper', 'Henry', 'Finn', 'Gus',
+        'Luna', 'Bella', 'Daisy', 'Lucy', 'Molly', 'Sadie', 'Sophie', 'Chloe',
+        'Lily', 'Zoe', 'Penny', 'Nala', 'Stella', 'Ruby', 'Rosie', 'Maggie',
+        'Coco', 'Lola', 'Pepper', 'Piper', 'Princess', 'Angel', 'Willow', 'Roxy',
+        'Cookie', 'Mia', 'Emma', 'Honey', 'Gracie', 'Ellie', 'Maya', 'Athena'
+    ];
+
+    // Fetch pets with the given petName
+    db.all(
+        `SELECT petId FROM petInventory WHERE petName = ?`,
+        [targetPetName],
+        (err, pets) => {
+            if (err) return message.reply("⚠ Database error while reading pets: " + err.message);
+            if (!pets || pets.length === 0) {
+                return message.reply(`❌ No pets found with the name **${targetPetName}**.`);
+            }
+
+            pets.forEach(pet => {
+                const newName = PET_NAMES[Math.floor(Math.random() * PET_NAMES.length)];
+                db.run(
+                    `UPDATE petInventory SET petName = ? WHERE petId = ?`,
+                    [newName, pet.petId],
+                    (err2) => {
+                        if (err2) console.error("⚠ Failed to update petName:", err2.message);
+                    }
+                );
+            });
+
+            return message.reply(
+                `✅ Renamed **${pets.length}** pet(s) with the name **${targetPetName}** to random names.`
+            );
+        }
+    );
+}
+
+/**
  * Register all admin commands
  */
 function registerAdminCommands(client) {
@@ -486,6 +629,10 @@ function registerAdminCommands(client) {
             await handleAddItem(message);
         } else if (content.startsWith('.removeitem')) {
             await handleRemoveItem(message);
+        } else if (content.startsWith('.changeid')) {
+            await handleChangeId(message);
+        } else if (content.startsWith('.changepetname')) {
+            await handleChangePetName(message);
         }
     });
 }

@@ -111,6 +111,7 @@ const afk = require('./SubCommand/BasicCommand/afk');
 const musicCommands = require('./SubCommand/MusicFunction/MainMusic');
 const reddit = require('./SubCommand/API-Website/Reddit/reddit');
 const pixiv = require('./SubCommand/API-Website/Pixiv/pixiv');
+const steam = require('./SubCommand/API-Website/Steam/steam');
 
 if (reddit && reddit.data && reddit.data.name) {
     client.commands.set(reddit.data.name, reddit);
@@ -120,6 +121,11 @@ if (reddit && reddit.data && reddit.data.name) {
 if (pixiv && pixiv.data && pixiv.data.name) {
     client.commands.set(pixiv.data.name, pixiv);
     console.log('✅ Manually loaded pixiv command');
+}
+
+if (steam && steam.data && steam.data.name) {
+    client.commands.set(steam.data.name, steam);
+    console.log('✅ Manually loaded steam command');
 }
 
 // BOT READY EVENT
