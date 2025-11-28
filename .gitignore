@@ -12,6 +12,8 @@ config.json
 *.sqlite
 *.sqlite3
 Database/*.db
+*.db-shm
+*.db-wal
 
 # Logs
 logs/
@@ -41,3 +43,5 @@ temp/
 *.bak
 *.backup
 backup/
+
+yt-dlp-bin/
