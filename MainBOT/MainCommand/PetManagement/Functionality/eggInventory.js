@@ -273,7 +273,8 @@ function generateInventoryButtons(current, userId, disabled = false, page = 0, t
 
 // Helper function to create visual progress bars
 function createProgressBar(percent, length = 10) {
-    const filled = Math.round((percent / 100) * length);
+    const clampedPercent = Math.max(0, Math.min(100, percent));
+    const filled = Math.round((clampedPercent / 100) * length);
     const empty = length - filled;
     return '█'.repeat(filled) + '░'.repeat(empty);
 }

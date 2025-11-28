@@ -116,6 +116,13 @@ if ("data" in pixivCommand && "execute" in pixivCommand) {
     console.warn("⚠️ pixiv.js is missing 'data' or 'execute'.");
 }
 
+const steamCommand = require("./MainBOT/SubCommand/API-Website/Steam/steam.js");
+if ("data" in steamCommand && "execute" in steamCommand) {
+    commands.push(steamCommand.data.toJSON());
+} else {
+    console.warn("⚠️ steam.js is missing 'data' or 'execute'.");
+}
+
 // Auto-load everything from MusicFunction folder
 loadCommandsFrom(path.join(__dirname, "../FumoBOT/MainBOT/SubCommand/MusicFunction"));
 
