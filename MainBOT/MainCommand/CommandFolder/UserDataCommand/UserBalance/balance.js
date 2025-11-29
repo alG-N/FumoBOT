@@ -7,7 +7,7 @@ const {
     ButtonBuilder,
     ButtonStyle
 } = require('discord.js');
-const db = require('../Core/Database/db');
+const db = require('../../../Core/Database/db');
 const client = new Client({
     intents: [
         GatewayIntentBits.GuildMessages,
@@ -18,10 +18,9 @@ const client = new Client({
     partials: [Partials.Message, Partials.Channel, Partials.Reaction]
 });
 client.setMaxListeners(150);
-const { maintenance, developerID } = require("../Configuration/MaintenanceConfig");
-const { isBanned } = require('../Administrator/BannedList/BanUtils');
+const { maintenance, developerID } = require("../../../Configuration/MaintenanceConfig");
+const { isBanned } = require('../../../Administrator/BannedList/BanUtils');
 module.exports = (client) => {
-    // Utility: Format large numbers with suffixes
     function formatNumber(num) {
         if (typeof num !== 'number' || isNaN(num)) return '0';
         if (num >= 1e15) return (num / 1e15).toFixed(2) + 'Qa';

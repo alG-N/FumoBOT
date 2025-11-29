@@ -1,5 +1,5 @@
 const { EmbedBuilder } = require('discord.js');
-const db = require('../Database/db');
+const db = require('../Core/Database/db');
 
 const ALLOWED_ADMINS = ['1128296349566251068', '1362450043939979378'];
 

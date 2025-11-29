@@ -28,7 +28,7 @@ const client = new Client({
 });
 client.setMaxListeners(150);
 const { maintenance, developerID } = require("../../Configuration/MaintenanceConfig");
-const { isBanned } = require('../../../Administrator/BannedList/BanUtils');
+const { isBanned } = require('../../Administrator/BannedList/BanUtils');
 module.exports = async (client) => {
     client.on('messageCreate', async message => {
         if (message.author.bot || (!message.content.startsWith('.usefragment') && !message.content.startsWith('.uf'))) return;

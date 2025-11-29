@@ -7,7 +7,7 @@ const {
     ButtonBuilder,
     ButtonStyle
 } = require('discord.js');
-const db = require('../Core/Database/db');
+const db = require('../../Core/Database/db');
 const client = new Client({
     intents: [
         GatewayIntentBits.GuildMessages,
@@ -19,8 +19,8 @@ const client = new Client({
 });
 client.setMaxListeners(150);
 const tutorialCommands = require('./helpCMD');
-const { maintenance, developerID } = require("../Configuration/MaintenanceConfig");
-const { isBanned } = require('../Administrator/BannedList/BanUtils');
+const { maintenance, developerID } = require("../../Configuration/MaintenanceConfig");
+const { isBanned } = require('../../Administrator/BannedList/BanUtils');
 module.exports = (client) => {
     client.on('messageCreate', async message => {
         if (message.content.startsWith('.help') || message.content.startsWith('.h')) {

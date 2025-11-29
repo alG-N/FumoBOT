@@ -15,7 +15,7 @@ db.allAsync = promisify(db.all).bind(db);
 // Need more logging here, especially for farming start/stop and errors
 const farmingIntervals = new Map();
 const { maintenance, developerID } = require("../../Configuration/MaintenanceConfig");
-const { isBanned } = require('../../../Administrator/BannedList/BanUtils');
+const { isBanned } = require('../../Administrator/BannedList/BanUtils');
 
 const LOG_CHANNEL_ID = '1411386632589807719';
 

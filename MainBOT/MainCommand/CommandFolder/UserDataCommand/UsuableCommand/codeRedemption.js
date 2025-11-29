@@ -1,5 +1,5 @@
 const { EmbedBuilder, Events } = require('discord.js');
-const db = require('../Core/Database/db');
+const db = require('../../../Core/Database/db');
 
 // Valid redemption codes
 const validCodes = {

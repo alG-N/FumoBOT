@@ -2,8 +2,8 @@ const {
     SlashCommandBuilder,
     EmbedBuilder
 } = require('discord.js');
-const { maintenance, developerID } = require("../../MainCommand/Maintenace/MaintenaceConfig.js");
-const { isBanned } = require('../../MainCommand/Banned/BanUtils.js');
+const { maintenance, developerID } = require("../../MainCommand/Configuration/MaintenanceConfig.js");
+const { isBanned } = require('../../MainCommand/Administrator/BannedList/BanUtils.js');
 
 function formatNumber(num) {
     if (num < 1e3) return num.toString();

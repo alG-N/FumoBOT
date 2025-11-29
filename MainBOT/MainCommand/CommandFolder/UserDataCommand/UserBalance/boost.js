@@ -7,7 +7,7 @@ const {
     ButtonBuilder,
     ButtonStyle
 } = require('discord.js');
-const db = require('../Core/Database/db');
+const db = require('../../../Core/Database/db');
 const client = new Client({
     intents: [
         GatewayIntentBits.GuildMessages,
@@ -18,18 +18,8 @@ const client = new Client({
     partials: [Partials.Message, Partials.Channel, Partials.Reaction]
 });
 client.setMaxListeners(150);
-const { maintenance, developerID } = require("../Configuration/MaintenanceConfig");
-const { isBanned } = require('../Administrator/BannedList/BanUtils');
-/**
- * Handles the .boost/.bst command to display a user's active boosts.
- * Improvements:
- * 1. Fixed: Only one EmbedBuilder import at top, not inside handler.
- * 2. Optimized: Use prepared statements, avoid repeated require, and structure logic for clarity.
- * 3. Improved: Naming, comments, and formatting for readability.
- * 4. Feature: Added `.boost details <type>` to show detailed info for a specific boost type.
- * 5. Error handling: Added DB error reply, and checks for unknown boost types.
- */
-
+const { maintenance, developerID } = require("../../../Configuration/MaintenanceConfig");
+const { isBanned } = require('../../../Administrator/BannedList/BanUtils');
 module.exports = (client) => {
     client.on("messageCreate", async (message) => {
         if (message.author.bot) return;

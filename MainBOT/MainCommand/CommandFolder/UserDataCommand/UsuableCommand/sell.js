@@ -7,7 +7,7 @@ const {
     ButtonBuilder,
     ButtonStyle
 } = require('discord.js');
-const db = require('../Core/Database/db');
+const db = require('../../../Core/Database/db');
 const client = new Client({
     intents: [
         GatewayIntentBits.GuildMessages,
@@ -18,8 +18,8 @@ const client = new Client({
     partials: [Partials.Message, Partials.Channel, Partials.Reaction]
 });
 client.setMaxListeners(150);
-const { maintenance, developerID } = require("../Configuration/MaintenanceConfig");
-const { isBanned } = require('../Administrator/BannedList/BanUtils');
+const { maintenance, developerID } = require("../../../Configuration/MaintenanceConfig");
+const { isBanned } = require('../../../Administrator/BannedList/BanUtils');
 // Utility: Async wrapper for db.run and db.get
 const dbRun = (sql, params = []) =>
     new Promise((resolve, reject) => db.run(sql, params, function (err) {
