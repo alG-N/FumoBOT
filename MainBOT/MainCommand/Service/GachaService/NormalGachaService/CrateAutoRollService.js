@@ -1,8 +1,8 @@
-const { get, run, all } = require('../../Core/database');
+const { get, run, all } = require('../../../Core/database');
 const { performBatch100Roll } = require('./CrateGachaRollService');
 const { calculateCooldown } = require('./BoostService');
-const { SELL_REWARDS, SHINY_CONFIG, SPECIAL_RARITIES, compareFumos } = require('../../Configuration/rarity');
-const { debugLog } = require('../../Core/logger');
+const { SELL_REWARDS, SHINY_CONFIG, SPECIAL_RARITIES, compareFumos } = require('../../../Configuration/rarity');
+const { debugLog } = require('../../../Core/logger');
 
 const autoRollMap = new Map();
 

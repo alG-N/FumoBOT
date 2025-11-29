@@ -7,16 +7,16 @@ const { checkRestrictions } = require('../../Middleware/restrictions');
 const { checkAndSetCooldown } = require('../../Middleware/rateLimiter');
 
 // Services
-const { getUserBoosts } = require('../../Service/GachaService/BoostService');
-const { performSingleRoll, performMultiRoll } = require('../../Service/GachaService/CrateGachaRollService');
-const { startAutoRoll, stopAutoRoll, isAutoRollActive } = require('../../Service/GachaService/CrateAutoRollService');
+const { getUserBoosts } = require('../../Service/GachaService/NormalGachaService/BoostService');
+const { performSingleRoll, performMultiRoll } = require('../../Service/GachaService/NormalGachaService/CrateGachaRollService');
+const { startAutoRoll, stopAutoRoll, isAutoRollActive } = require('../../Service/GachaService/NormalGachaService/CrateAutoRollService');
 const {
     createShopEmbed,
     createShopButtons,
     displaySingleRollAnimation,
     displayMultiRollResults,
     createAutoRollSummary
-} = require('../../Service/GachaService/CrateGachaUIService');
+} = require('../../Service/GachaService/NormalGachaService/CrateGachaUIService');
 
 const { SPECIAL_RARITIES } = require('../../Configuration/rarity');
 const FumoPool = require('../../Data/FumoPool');
@@ -296,19 +296,19 @@ module.exports = (client) => {
             // Route to handlers
             switch (action) {
                 case 'buy1fumo':
-                    await handleSingleRoll(interaction, fumos, client);
+                    await handleSingleRoll(interaction, client);
                     break;
 
                 case 'buy10fumos':
-                    await handleMultiRoll(interaction, fumos, 10, client);
+                    await handleMultiRoll(interaction, 10, client);
                     break;
 
                 case 'buy100fumos':
-                    await handleMultiRoll(interaction, fumos, 100, client);
+                    await handleMultiRoll(interaction, 100, client);
                     break;
 
                 case 'autoRoll50':
-                    await handleAutoRollStart(interaction, fumos, client);
+                    await handleAutoRollStart(interaction, client);
                     break;
 
                 case 'stopAuto50':

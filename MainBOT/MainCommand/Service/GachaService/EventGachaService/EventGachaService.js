@@ -1,9 +1,9 @@
-const { get, run } = require('../../Core/database');
-const { EVENT_BASE_CHANCES, PITY_THRESHOLDS } = require('../../Configuration/rarity');
-const { selectAndAddFumo } = require('./InventoryService');
-const { incrementWeeklyShiny } = require('../../Ultility/weekly');
-const { debugLog } = require('../../Core/logger');
-const FumoPool = require('../../Data/FumoPool');
+const { get, run } = require('../../../Core/database');
+const { EVENT_BASE_CHANCES, PITY_THRESHOLDS } = require('../../../Configuration/rarity');
+const { selectAndAddFumo } = require('../NormalGachaService/InventoryService');
+const { incrementWeeklyShiny } = require('../../../Ultility/weekly');
+const { debugLog } = require('../../../Core/logger');
+const FumoPool = require('../../../Data/FumoPool');
 
 async function getEventUserBoosts(userId) {
     debugLog('EVENT_BOOST', `Fetching event boosts for user ${userId}`);
@@ -125,11 +125,12 @@ async function updateEventUserAfterRoll(userId, updates) {
     );
 }
 
-async function selectEventRarity(userId, boosts, userData, totalRolls) {
-    if (userData.rollsSinceLastQuestionMark >= PITY_THRESHOLDS.EVENT_QUESTION) {
+async function selectEventRarity(userId, boosts, rollsSinceLastMythical, rollsSinceLastQuestionMark, totalRolls, luck, rollsLeft) {
+    // Check pity thresholds with the CURRENT pity counter values
+    if (rollsSinceLastQuestionMark >= PITY_THRESHOLDS.EVENT_QUESTION) {
         return '???';
     }
-    if (userData.rollsSinceLastMythical >= PITY_THRESHOLDS.EVENT_MYTHICAL) {
+    if (rollsSinceLastMythical >= PITY_THRESHOLDS.EVENT_MYTHICAL) {
         return 'MYTHICAL';
     }
 
@@ -154,8 +155,8 @@ async function selectEventRarity(userId, boosts, userData, totalRolls) {
 
     const totalLuck = calculateEventLuckMultiplier(
         boosts,
-        userData.luck,
-        userData.rollsLeft,
+        luck,
+        rollsLeft,
         false
     );
     const chances = calculateEventChances(totalLuck);
@@ -192,18 +193,34 @@ async function performEventSummon(userId, numSummons) {
     let currentMythical = userData.rollsSinceLastMythical || 0;
     let currentQuestion = userData.rollsSinceLastQuestionMark || 0;
     let currentTotalRolls = userData.totalRolls || 0;
+    let currentRollsLeft = userData.rollsLeft || 0;
 
     for (let i = 0; i < numSummons; i++) {
         currentTotalRolls++;
 
-        const rarity = await selectEventRarity(userId, boosts, userData, currentTotalRolls);
+        const rarity = await selectEventRarity(
+            userId, 
+            boosts, 
+            currentMythical, 
+            currentQuestion,
+            currentTotalRolls, 
+            userData.luck,
+            currentRollsLeft
+        );
 
-        if (rarity === 'MYTHICAL' || rarity === '???') {
-            currentMythical = 0;
+        if (rarity === '???') {
+            currentMythical++;
             currentQuestion = 0;
+        } else if (rarity === 'MYTHICAL') {
+            currentMythical = 0;
+            currentQuestion++;
         } else {
             currentMythical++;
             currentQuestion++;
+        }
+
+        if (currentRollsLeft > 0) {
+            currentRollsLeft--;
         }
 
         const fumo = await selectAndAddFumo(userId, rarity, eventFumos, userData.luck);

@@ -18,7 +18,7 @@ const {
     calculateEventChances,
     performEventSummon,
     getEventUserRollData
-} = require('../../Service/GachaService/EventGachaService');
+} = require('../../Service/GachaService/EventGachaService/EventGachaService');
 const {
     createEventShopEmbed,
     createEventStatusEmbed,
@@ -26,12 +26,12 @@ const {
     createEventResultEmbed,
     createContinueButton,
     createEventAutoRollSummary
-} = require('../../Service/GachaService/EventGachaUIService');
+} = require('../../Service/GachaService/EventGachaService/EventGachaUIService');
 const {
     startEventAutoRoll,
     stopEventAutoRoll,
     isEventAutoRollActive
-} = require('../../Service/GachaService/EventAutoRollService');
+} = require('../../Service/GachaService/EventGachaService/EventAutoRollService');
 
 const LOG_CHANNEL_ID = '1411386632589807719';
 

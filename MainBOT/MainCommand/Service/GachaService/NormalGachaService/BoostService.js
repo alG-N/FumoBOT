@@ -1,5 +1,5 @@
-const { get, run } = require('../../Core/database');
-const { debugLog } = require('../../Core/logger');
+const { get, run } = require('../../../Core/database');
+const { debugLog } = require('../../../Core/logger');
 
 async function getUserBoosts(userId) {
     debugLog('BOOST', `Fetching boosts for user ${userId}`);
