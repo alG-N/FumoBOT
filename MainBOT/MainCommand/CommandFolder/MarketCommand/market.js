@@ -10,7 +10,7 @@ const {
 const db = require('../../Core/Database/dbSetting');
 const { maintenance, developerID } = require("../../Configuration/Maintenance/maintenanceConfig");
 const { isBanned } = require('../../Administrator/BannedList/BanUtils');
-const { allFumoList } = require('../../Storage/MarketFumoStorage');
+const { allFumoList } = require('../../Data/BackupOld/MarketFumoStorage');
 const { incrementWeeklyShiny } = require('../../Ultility/weekly');
 
 const client = new Client({
