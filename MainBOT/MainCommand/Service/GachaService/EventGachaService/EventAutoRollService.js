@@ -1,4 +1,4 @@
-const { get } = require('../../Core/database');
+const { get } = require('../../../Core/database');
 const { performEventSummon, getEventUserRollData } = require('./EventGachaService');
 const { 
     EVENT_AUTO_ROLL_INTERVAL, 
@@ -6,9 +6,9 @@ const {
     EVENT_AUTO_ROLL_BATCH_SIZE,
     EVENT_ROLL_LIMIT,
     isWindowExpired
-} = require('../../Configuration/eventConfig');
-const { SPECIAL_RARITIES, compareFumos } = require('../../Configuration/rarity');
-const { debugLog } = require('../../Core/logger');
+} = require('../../../Configuration/eventConfig');
+const { SPECIAL_RARITIES, compareFumos } = require('../../../Configuration/rarity');
+const { debugLog } = require('../../../Core/logger');
 
 const eventAutoRollMap = new Map();
 

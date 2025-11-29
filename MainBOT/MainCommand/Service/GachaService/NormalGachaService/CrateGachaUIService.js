@@ -1,6 +1,6 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Colors } = require('discord.js');
-const { SPECIAL_RARITIES, RARITY_PRIORITY } = require('../../Configuration/rarity');
-const { formatNumber } = require('../../Ultility/formatting');
+const { SPECIAL_RARITIES, RARITY_PRIORITY } = require('../../../Configuration/rarity');
+const { formatNumber } = require('../../../Ultility/formatting');
 
 function createShopEmbed(userData, boosts, hasFantasyBook, isAutoRollActive) {
     const { coins, boostCharge, boostActive, boostRollsRemaining, rollsLeft, totalRolls } = userData;

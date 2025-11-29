@@ -1,5 +1,5 @@
-const { run } = require('../../Core/database');
-const { GACHA_THRESHOLDS, PITY_THRESHOLDS } = require('../../Configuration/rarity');
+const { run } = require('../../../Core/database');
+const { GACHA_THRESHOLDS, PITY_THRESHOLDS } = require('../../../Configuration/rarity');
 const { calculateTotalLuckMultiplier } = require('./BoostService');
 
 async function calculateRarity(userId, boosts, row, hasFantasyBook) {

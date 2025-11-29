@@ -1,7 +1,7 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Colors } = require('discord.js');
-const { formatNumber } = require('../../Ultility/formatting');
-const { PITY_THRESHOLDS } = require('../../Configuration/rarity');
-const { EVENT_ROLL_LIMIT } = require('../../Configuration/eventConfig');
+const { formatNumber } = require('../../../Ultility/formatting');
+const { PITY_THRESHOLDS } = require('../../../Configuration/rarity');
+const { EVENT_ROLL_LIMIT } = require('../../../Configuration/eventConfig');
 
 function createEventShopEmbed(userData, boosts, chances, eventTimeRemaining) {
     const { gems, rollsInCurrentWindow, rollsSinceLastMythical, rollsSinceLastQuestionMark } = userData;

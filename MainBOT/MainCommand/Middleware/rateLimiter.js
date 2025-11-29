@@ -1,4 +1,4 @@
-const { calculateCooldown } = require('../Service/GachaService/BoostService');
+const { calculateCooldown } = require('../Service/GachaService/NormalGachaService/BoostService');
 
 const cooldownMap = new Map();
 
