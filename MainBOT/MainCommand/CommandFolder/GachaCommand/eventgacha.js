@@ -203,7 +203,8 @@ module.exports = (client) => {
             }
 
             try {
-                const result = await startEventAutoRoll(userId, Efumos);
+                // FIXED: Removed Efumos parameter - service handles getting fumos internally
+                const result = await startEventAutoRoll(userId);
 
                 if (!result.success) {
                     const errorMessages = {
@@ -313,7 +314,7 @@ module.exports = (client) => {
             else if (action === 'eventbuy100fumos' || action === 'continue100') numSummons = 100;
             else numSummons = 1;
 
-            const result = await performEventSummon(userId, numSummons, Efumos);
+            const result = await performEventSummon(userId, numSummons);
 
             if (!result.success) {
                 const errorMessages = {

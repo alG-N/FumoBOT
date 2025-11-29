@@ -22,6 +22,7 @@ const client = new Client({
     partials: [Partials.Message, Partials.Channel, Partials.Reaction]
 });
 client.setMaxListeners(150);
+const FumoPool = require('../../Data/FumoPool');
 
 // ===== HELPER FUNCTIONS =====
 function formatNumber(num) {
@@ -112,7 +113,7 @@ function getRarity(fumoName) {
     return rarities.find(r => fumoName.includes(`(${r})`)) || 'Common';
 }
 
-module.exports = async (client, fumos) => {
+module.exports = async (client) => {
     const activePrayers = new Set();
     const usageTracker = new Map();
     const cooldown = new Map();
@@ -330,7 +331,8 @@ module.exports = async (client, fumos) => {
                             await handleYukari(message.author.id, message.channel);
                             break;
                         case 'Reimu':
-                            await handleReimu(message.author.id, message.channel, fumos, interaction.user.id);
+                            const prayFumos = FumoPool.getForPray();
+                            await handleReimu(message.author.id, message.channel, prayFumos, interaction.user.id);
                             break;
                         case 'Marisa':
                             await handleMarisa(message.author.id, message.channel);

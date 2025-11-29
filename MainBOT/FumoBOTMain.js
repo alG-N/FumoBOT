@@ -1,4 +1,4 @@
-const { Collection } = require('discord.js');
+const { Collection, Client } = require('discord.js');
 const { createClient, setPresence, ActivityType } = require('./MainCommand/Configuration/discord');
 const fs = require('fs');
 const path = require('path');
@@ -49,14 +49,12 @@ for (const folder of commandFolders) {
 
 // LOAD GAME COMMAND MODULES
 const gacha = require('./MainCommand/CommandFolder/GachaCommand/crategacha');
-const fumos = require('./MainCommand/Data/BackupOld/NormalCrateFumoStorage');
 const help = require('./MainCommand/CommandFolder/TutorialCommand/help');
 const inventory = require('./MainCommand/CommandFolder/UserDataCommand/UserBalance/Storage');
 const balance = require('./MainCommand/CommandFolder/UserDataCommand/UserBalance/Balance');
 const item = require('./MainCommand/CommandFolder/UserDataCommand/UserBalance/Item');
 const Egacha = require('./MainCommand/CommandFolder/GachaCommand/eventgacha');
 const library = require('./MainCommand/CommandFolder/FumoDataCommand/library');
-const libraryFumos = require('./MainCommand/Data/BackupOld/LibraryFumoStorage');
 const inform = require('./MainCommand/CommandFolder/FumoDataCommand/inform');
 const leaderboard = require('./MainCommand/CommandFolder/UserDataCommand/UsuableCommand/leaderboard');
 const gamble = require('./MainCommand/CommandFolder/GachaCommand/gamble');
@@ -65,9 +63,7 @@ const flip = require('./MainCommand/CommandFolder/GachaCommand/flip');
 const mysteryCrate = require('./MainCommand/CommandFolder/GachaCommand/mysterycrate');
 const sell = require('./MainCommand/CommandFolder/UserDataCommand/UsuableCommand/sell');
 const pray = require('./MainCommand/CommandFolder/PrayCommand/pray');
-const Pfumos = require('./MainCommand/Data/BackupOld/PrayFumoStorage');
 const market = require('./MainCommand/CommandFolder/MarketCommand/market');
-const marketFumos = require('./MainCommand/Data/BackupOld/MarketFumoStorage');
 const exchange = require('./MainCommand/CommandFolder/MarketCommand/exchange');
 const shop = require('./MainCommand/CommandFolder/MarketCommand/shop');
 const useItem = require('./MainCommand/CommandFolder/UserDataCommand/UsuableCommand/use');
@@ -138,7 +134,7 @@ client.once('ready', () => {
 });
 
 // REGISTER ALL GAME COMMANDS
-gacha(client, fumos);
+gacha(client);
 Egacha(client);
 starter(client);
 daily(client);
@@ -146,7 +142,7 @@ help(client);
 inventory(client);
 balance(client);
 item(client);
-library(client, libraryFumos);
+library(client);
 inform(client);
 leaderboard(client);
 gamble(client);
@@ -154,8 +150,8 @@ slot(client);
 flip(client);
 mysteryCrate(client);
 sell(client);
-pray(client, Pfumos);
-market(client, marketFumos);
+pray(client);
+market(client);
 exchange(client);
 shop(client);
 useItem(client);

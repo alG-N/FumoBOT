@@ -10,28 +10,31 @@ const { checkAndSetCooldown } = require('../../Middleware/rateLimiter');
 const { getUserBoosts } = require('../../Service/GachaService/BoostService');
 const { performSingleRoll, performMultiRoll } = require('../../Service/GachaService/CrateGachaRollService');
 const { startAutoRoll, stopAutoRoll, isAutoRollActive } = require('../../Service/GachaService/CrateAutoRollService');
-const { 
-    createShopEmbed, 
-    createShopButtons, 
+const {
+    createShopEmbed,
+    createShopButtons,
     displaySingleRollAnimation,
     displayMultiRollResults,
-    createAutoRollSummary 
+    createAutoRollSummary
 } = require('../../Service/GachaService/CrateGachaUIService');
 
 const { SPECIAL_RARITIES } = require('../../Configuration/rarity');
+const FumoPool = require('../../Data/FumoPool');
 
-async function handleSingleRoll(interaction, fumos, client) {
+async function handleSingleRoll(interaction, client) {
     try {
-        const result = await performSingleRoll(interaction.user.id, fumos);
+        const crateFumos = FumoPool.getForCrate();
+
+        const result = await performSingleRoll(interaction.user.id, crateFumos);
 
         if (!result.success) {
             const errorMessages = {
                 'INSUFFICIENT_COINS': 'You do not have enough coins to buy a fumo.',
                 'NO_FUMO_FOUND': 'No Fumo found for this rarity. Please contact the developer.'
             };
-            return await interaction.reply({ 
-                content: errorMessages[result.error] || 'An error occurred.', 
-                ephemeral: true 
+            return await interaction.reply({
+                content: errorMessages[result.error] || 'An error occurred.',
+                ephemeral: true
             });
         }
 
@@ -50,17 +53,19 @@ async function handleSingleRoll(interaction, fumos, client) {
     } catch (err) {
         await logError(client, 'Single Roll', err, interaction.user.id);
         try {
-            await interaction.reply({ 
-                content: 'An error occurred while processing your fumo roll.', 
-                ephemeral: true 
+            await interaction.reply({
+                content: 'An error occurred while processing your fumo roll.',
+                ephemeral: true
             });
         } catch { }
     }
 }
 
-async function handleMultiRoll(interaction, fumos, rollCount, client) {
+async function handleMultiRoll(interaction, rollCount, client) {
     try {
-        const result = await performMultiRoll(interaction.user.id, fumos, rollCount);
+        const crateFumos = FumoPool.getForCrate();
+
+        const result = await performMultiRoll(interaction.user.id, crateFumos, rollCount);
 
         if (!result.success) {
             return await interaction.reply({
@@ -72,27 +77,27 @@ async function handleMultiRoll(interaction, fumos, rollCount, client) {
         await displayMultiRollResults(interaction, result.fumosBought, result.bestFumo, rollCount);
 
         await logToDiscord(
-            client, 
+            client,
             `✅ User ${interaction.user.tag} rolled ${rollCount}x. Best: ${result.bestFumo?.name} (${result.bestFumo?.rarity})`
         );
 
     } catch (err) {
         await logError(client, `${rollCount}x Roll`, err, interaction.user.id);
         try {
-            await interaction.reply({ 
-                content: `An error occurred while processing your ${rollCount} fumo rolls.`, 
-                ephemeral: true 
+            await interaction.reply({
+                content: `An error occurred while processing your ${rollCount} fumo rolls.`,
+                ephemeral: true
             });
         } catch { }
     }
 }
 
-async function handleAutoRollStart(interaction, fumos, client) {
+async function handleAutoRollStart(interaction, client) {
     const userId = interaction.user.id;
-    
+
     try {
         const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Colors } = require('discord.js');
-        
+
         const choiceRow = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId(`autoRollProceed_${userId}`)
@@ -127,8 +132,9 @@ async function handleAutoRollStart(interaction, fumos, client) {
         collector.on('collect', async i => {
             await i.deferUpdate();
             const autoSell = i.customId.startsWith('autoRollAutoSell_');
-            
-            const result = await startAutoRoll(userId, fumos, autoSell);
+
+            const crateFumos = FumoPool.getForCrate();
+            const result = await startAutoRoll(userId, crateFumos, autoSell);
 
             if (!result.success) {
                 return await i.followUp({
@@ -180,7 +186,7 @@ async function handleAutoRollStart(interaction, fumos, client) {
 async function handleAutoRollStop(interaction, client) {
     // SECURITY FIX: Use interaction.user.id directly
     const userId = interaction.user.id;
-    
+
     const result = stopAutoRoll(userId);
 
     if (!result.success) {
@@ -205,12 +211,12 @@ async function handleAutoRollStop(interaction, client) {
     });
 
     await logToDiscord(
-        client, 
+        client,
         `🛑 User ${interaction.user.tag} stopped auto-roll. Total: ${result.summary.rollCount * 100} rolls`
     );
 }
 
-module.exports = (client, fumos) => {
+module.exports = (client) => {
     client.on('messageCreate', async message => {
         if (!message.content.startsWith('.crategacha') && !message.content.startsWith('.cg')) return;
 
@@ -257,11 +263,9 @@ module.exports = (client, fumos) => {
         if (!interaction.isButton()) return;
 
         try {
-            // SECURITY FIX: NEVER trust customId userId - always use interaction.user.id
             const userId = interaction.user.id;
             const action = interaction.customId.split('_')[0];
 
-            // Validate button ownership by checking if customId contains user's ID
             const expectedCustomId = `${action}_${userId}`;
             if (!interaction.customId.startsWith(expectedCustomId)) {
                 return interaction.reply({
