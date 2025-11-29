@@ -7,8 +7,8 @@ const {
     ComponentType
 } = require('discord.js');
 
-const { maintenance, developerID } = require("../../../MainCommand/Maintenace/MaintenaceConfig.js");
-const { isBanned } = require("../../../MainCommand/Banned/BanUtils.js");
+const { maintenance, developerID } = require("../../../MainCommand/Configuration/MaintenanceConfig.js");
+const { isBanned } = require("../../../MainCommand/Administrator/BannedList/BanUtils.js");
 
 // Optional: Add your Steam Web API key here (get it from https://steamcommunity.com/dev/apikey)
 const STEAM_API_KEY = process.env.STEAM_API_KEY || '';
