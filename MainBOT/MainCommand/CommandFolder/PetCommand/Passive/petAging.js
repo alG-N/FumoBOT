@@ -1,4 +1,4 @@
-const db = require('../../Core/Database/db');
+const db = require('../../../Core/Database/db');
 const { calculateBoost, getXpRequired, updateHunger } = require('../Utilities/petUtils');
 const { dbAll, dbRun } = require('../Utilities/dbUtils');
 

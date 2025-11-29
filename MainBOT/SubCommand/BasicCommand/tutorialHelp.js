@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { maintenance, developerID } = require("../../MainCommand/Maintenace/MaintenaceConfig.js");
-const { isBanned } = require('../../MainCommand/Banned/BanUtils.js');
+const { maintenance, developerID } = require("../../MainCommand/Configuration/MaintenanceConfig.js");
+const { isBanned } = require('../../MainCommand/Administrator/BannedList/BanUtils.js');
 
 module.exports = {
     data: new SlashCommandBuilder()

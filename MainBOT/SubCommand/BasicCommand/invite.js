@@ -3,12 +3,8 @@ const {
     EmbedBuilder
 } = require('discord.js');
 
-// ❗ FIX: Folder name was misspelled "Maintenace"
-// Make sure your folder & file are spelled like this:
-const { maintenance, developerID } = require("../../MainCommand/Maintenace/MaintenaceConfig.js");
-
-// ⚠️ If isBanned uses a DB or async call, we MUST await it later.
-const { isBanned } = require("../../MainCommand/Banned/BanUtils.js");
+const { maintenance, developerID } = require("../../MainCommand/Configuration/MaintenanceConfig.js");
+const { isBanned } = require('../../MainCommand/Administrator/BannedList/BanUtils.js');
 
 module.exports = {
     data: new SlashCommandBuilder()

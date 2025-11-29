@@ -8,7 +8,6 @@ const {
     SlashCommandBuilder,
     ButtonStyle
 } = require('discord.js');
-const db = require('../Core/Database/db');
 const client = new Client({
     intents: [
         GatewayIntentBits.GuildMessages,
@@ -19,8 +18,8 @@ const client = new Client({
     partials: [Partials.Message, Partials.Channel, Partials.Reaction]
 });
 client.setMaxListeners(150);
-const { maintenance, developerID } = require("../Configuration/MaintenanceConfig");
-const { isBanned } = require('../Administrator/BannedList/BanUtils');
+const { maintenance, developerID } = require("../../Configuration/MaintenanceConfig");
+const { isBanned } = require('../../Administrator/BannedList/BanUtils');
 module.exports = (client) => {
     client.on("messageCreate", async (message) => {
         if (message.author.bot || (message.content !== '.credit' && !message.content.startsWith('.credit ') && message.content !== '.cr' && !message.content.startsWith('.cr '))) return;
