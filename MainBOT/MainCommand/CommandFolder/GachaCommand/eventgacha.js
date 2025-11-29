@@ -4,9 +4,9 @@ const { logToDiscord } = require('../../Core/logger');
 const { checkRestrictions } = require('../../Middleware/restrictions');
 const { checkAndSetCooldown } = require('../../Middleware/rateLimiter');
 const { getValidatedUserId } = require('../../Middleware/buttonOwnership');
-const { 
-    isEventActive, 
-    getRemainingTime, 
+const {
+    isEventActive,
+    getRemainingTime,
     isWindowExpired,
     getRollResetTime,
     EVENT_ROLL_LIMIT,
@@ -68,9 +68,9 @@ module.exports = (client) => {
             const boosts = await getEventUserBoosts(userId);
             const isBoostActive = boosts.ancient > 1 || boosts.mysterious > 1 || boosts.pet > 1;
             const totalLuckMultiplier = calculateEventLuckMultiplier(
-                boosts, 
-                userData.luck, 
-                rollsLeft, 
+                boosts,
+                userData.luck,
+                rollsLeft,
                 isBoostActive
             );
             const chances = calculateEventChances(totalLuckMultiplier);
@@ -97,7 +97,7 @@ module.exports = (client) => {
         const restriction = checkRestrictions(message.author.id);
         if (restriction.blocked) {
             await logEvent(
-                `Blocked user ${message.author.id} (${message.author.tag}) - ${restriction.embed.data.title}`, 
+                `Blocked user ${message.author.id} (${message.author.tag}) - ${restriction.embed.data.title}`,
                 'warning'
             );
             return message.reply({ embeds: [restriction.embed] });
@@ -135,9 +135,9 @@ module.exports = (client) => {
             const boosts = await getEventUserBoosts(message.author.id);
             const isBoostActive = boosts.ancient > 1 || boosts.mysterious > 1 || boosts.pet > 1;
             const totalLuckMultiplier = calculateEventLuckMultiplier(
-                boosts, 
-                userData.luck, 
-                rollsLeft, 
+                boosts,
+                userData.luck,
+                rollsLeft,
                 isBoostActive
             );
             const chances = calculateEventChances(totalLuckMultiplier);
@@ -151,7 +151,7 @@ module.exports = (client) => {
 
             const isAutoRollActive = isEventAutoRollActive(message.author.id);
             const rowButtons = createEventShopButtons(
-                message.author.id, 
+                message.author.id,
                 rollLimitReached,
                 isAutoRollActive
             );
@@ -170,14 +170,13 @@ module.exports = (client) => {
         const action = interaction.customId.split('_')[0];
 
         const validButtons = [
-            'eventbuy1fumo', 'eventbuy10fumos', 'eventbuy100fumos', 
+            'eventbuy1fumo', 'eventbuy10fumos', 'eventbuy100fumos',
             'continue1', 'continue10', 'continue100',
             'startEventAuto', 'stopEventAuto'
         ];
 
         if (!validButtons.includes(action)) return;
 
-        // Verify button ownership
         const expectedCustomId = `${action}_${userId}`;
         if (!interaction.customId.startsWith(expectedCustomId)) {
             return interaction.reply({
@@ -187,9 +186,9 @@ module.exports = (client) => {
         }
 
         if (!isEventActive()) {
-            return interaction.reply({ 
-                content: 'The banner has closed. Please wait for further updates.', 
-                ephemeral: true 
+            return interaction.reply({
+                content: 'The banner has closed. Please wait for further updates.',
+                ephemeral: true
             });
         }
 
@@ -203,29 +202,94 @@ module.exports = (client) => {
             }
 
             try {
-                // FIXED: Removed Efumos parameter - service handles getting fumos internally
-                const result = await startEventAutoRoll(userId);
+                const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Colors } = require('discord.js');
 
-                if (!result.success) {
-                    const errorMessages = {
-                        'ALREADY_RUNNING': 'Auto roll is already running!',
-                        'NO_FANTASY_BOOK': 'You need FantasyBook(M) to use auto-roll.'
-                    };
-                    return interaction.reply({
-                        content: errorMessages[result.error] || 'Failed to start auto-roll.',
-                        ephemeral: true
-                    });
-                }
+                const choiceRow = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`eventAutoRollProceed_${userId}`)
+                        .setLabel('Normal Auto Roll')
+                        .setStyle(ButtonStyle.Primary),
+                    new ButtonBuilder()
+                        .setCustomId(`eventAutoRollAutoSell_${userId}`)
+                        .setLabel('Enable AutoSell')
+                        .setStyle(ButtonStyle.Success)
+                );
 
-                return interaction.reply({
-                    embeds: [{
-                        title: '🤖 Event Auto Roll Started!',
-                        description: `Rolling **100 fumos every ${result.interval / 1000} seconds** until limit reached (10,000 rolls).\n\nUse the 🛑 Stop button to cancel.`,
-                        color: 0x00FF00,
-                        footer: { text: 'Auto-roll will stop automatically at 10k limit' }
-                    }],
+                const choiceEmbed = new EmbedBuilder()
+                    .setTitle('🤖 Choose Your Event Auto Roll Mode')
+                    .setDescription(
+                        'How would you like to proceed?\n\n' +
+                        '**Normal Auto Roll:**\n' +
+                        '→ Rolls 100 fumos every 30 seconds\n' +
+                        '→ Keeps all fumos\n\n' +
+                        '**Enable AutoSell:**\n' +
+                        '→ Rolls 100 fumos every 30 seconds\n' +
+                        '→ **Automatically sells all EPIC and LEGENDARY fumos for coins**\n' +
+                        '→ Keeps MYTHICAL, ???, and TRANSCENDENT\n\n' +
+                        '⚠️ Both modes will stop automatically at 10,000 roll limit'
+                    )
+                    .setColor(Colors.Blue);
+
+                await interaction.reply({
+                    embeds: [choiceEmbed],
+                    components: [choiceRow],
                     ephemeral: true
                 });
+
+                const filter = i => i.user.id === userId &&
+                    (i.customId === `eventAutoRollProceed_${userId}` || i.customId === `eventAutoRollAutoSell_${userId}`);
+
+                const collector = interaction.channel.createMessageComponentCollector({
+                    filter,
+                    time: 15000,
+                    max: 1
+                });
+
+                collector.on('collect', async i => {
+                    await i.deferUpdate();
+                    const autoSell = i.customId.startsWith('eventAutoRollAutoSell_');
+
+                    const result = await startEventAutoRoll(userId, autoSell);
+
+                    if (!result.success) {
+                        const errorMessages = {
+                            'ALREADY_RUNNING': 'Auto roll is already running!',
+                            'NO_FANTASY_BOOK': 'You need FantasyBook(M) to use auto-roll.'
+                        };
+                        return await i.followUp({
+                            content: errorMessages[result.error] || 'Failed to start auto-roll.',
+                            ephemeral: true
+                        });
+                    }
+
+                    return await i.followUp({
+                        embeds: [{
+                            title: autoSell ? '🤖 Event Auto Roll + AutoSell Started!' : '🤖 Event Auto Roll Started!',
+                            description: autoSell
+                                ? `Rolling **100 fumos every ${result.interval / 1000} seconds**\n` +
+                                `💰 Auto-selling all **EPIC** and **LEGENDARY** fumos for coins\n` +
+                                `📦 Keeping: MYTHICAL, ???, TRANSCENDENT\n\n` +
+                                `Use the 🛑 Stop button to cancel.`
+                                : `Rolling **100 fumos every ${result.interval / 1000} seconds** until limit reached (10,000 rolls).\n\n` +
+                                `Use the 🛑 Stop button to cancel.`,
+                            color: autoSell ? 0x00AA00 : 0x00FF00,
+                            footer: { text: autoSell ? 'Auto-sell: EPIC & LEGENDARY only' : 'Auto-roll will stop at 10k limit' }
+                        }],
+                        ephemeral: true
+                    });
+                });
+
+                collector.on('end', collected => {
+                    if (collected.size === 0) {
+                        interaction.editReply({
+                            content: '⏱️ Auto Roll setup timed out.',
+                            components: [],
+                            embeds: []
+                        }).catch(() => { });
+                    }
+                });
+
+                return;
             } catch (err) {
                 await logEvent(`Auto-roll start error for ${userId}: ${err.message}`, 'error');
                 return interaction.reply({
@@ -262,6 +326,7 @@ module.exports = (client) => {
             }
         }
 
+        // Regular roll button handling (only reached if not auto-roll buttons)
         const cooldownCheck = await checkAndSetCooldown(userId, 'eventgacha');
         if (cooldownCheck.onCooldown) {
             return interaction.reply({
@@ -280,9 +345,9 @@ module.exports = (client) => {
         try {
             const userData = await getEventUserRollData(userId);
             if (!userData) {
-                return interaction.reply({ 
-                    content: 'User data not found. Please try again later.', 
-                    ephemeral: true 
+                return interaction.reply({
+                    content: 'User data not found. Please try again later.',
+                    ephemeral: true
                 });
             }
 
@@ -300,9 +365,9 @@ module.exports = (client) => {
             }
 
             if (rollsInCurrentWindow >= EVENT_ROLL_LIMIT) {
-                return interaction.reply({ 
-                    content: `You have reached your roll limit. Please wait ${getRollResetTime(lastRollTime)} before rolling again.`, 
-                    ephemeral: true 
+                return interaction.reply({
+                    content: `You have reached your roll limit. Please wait ${getRollResetTime(lastRollTime)} before rolling again.`,
+                    ephemeral: true
                 });
             }
 
@@ -321,8 +386,8 @@ module.exports = (client) => {
                     'INSUFFICIENT_GEMS': `Oops! It seems like you need more gems to unlock ${numSummons} fumos.`,
                     'NO_FANTASY_BOOK': 'You are not allowed to use this command until you enable **FantasyBook(M)**.'
                 };
-                return interaction.editReply({ 
-                    content: errorMessages[result.error] || 'An error occurred during summoning.' 
+                return interaction.editReply({
+                    content: errorMessages[result.error] || 'An error occurred during summoning.'
                 });
             }
 
@@ -342,16 +407,26 @@ module.exports = (client) => {
             await interaction.editReply({ embeds: [embed], components: [continueButton] });
 
             await logEvent(
-                `${userId} summoned ${numSummons} fumos. Total rolls: ${userData.totalRolls + numSummons}`, 
+                `${userId} summoned ${numSummons} fumos. Total rolls: ${userData.totalRolls + numSummons}`,
                 'info'
             );
         } catch (err) {
             await logEvent(`Button interaction error for ${userId}: ${err.message}`, 'error');
-            if (!interaction.replied) {
-                await interaction.reply({ 
-                    content: 'An error occurred. Please try again.', 
-                    ephemeral: true 
-                });
+
+            // Better error handling
+            const errorContent = {
+                content: 'An error occurred. Please try again.',
+                ephemeral: true
+            };
+
+            try {
+                if (interaction.deferred) {
+                    await interaction.editReply(errorContent);
+                } else if (!interaction.replied) {
+                    await interaction.reply(errorContent);
+                }
+            } catch (replyErr) {
+                console.error('Failed to send error message:', replyErr);
             }
         }
     });

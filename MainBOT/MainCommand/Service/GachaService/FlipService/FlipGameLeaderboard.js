@@ -1,4 +1,4 @@
-const { all } = require('../../../Core/database');
+const { all, get } = require('../../../Core/database');
 const { formatNumber } = require('../../../Ultility/formatting');
 const { debugLog } = require('../../../Core/logger');
 
@@ -76,12 +76,27 @@ async function getTopPlayersByGames(limit = 10) {
 async function getUserRank(userId, category = 'coins') {
     debugLog('FLIP_LEADERBOARD', `Getting rank for user ${userId} in ${category}`);
     
+    // First check if user exists and has the required data
+    const userCheck = await get(
+        `SELECT userId, coins, gems, wins, losses FROM userCoins WHERE userId = ?`,
+        [userId]
+    );
+    
+    if (!userCheck) {
+        return null;
+    }
+    
     let query;
     let params;
     
     switch (category) {
         case 'coins':
         case 'gems':
+            // Check if user has any of this currency
+            if (userCheck[category] <= 0) {
+                return null;
+            }
+            
             query = `
                 SELECT COUNT(*) + 1 as rank
                 FROM userCoins
@@ -93,6 +108,11 @@ async function getUserRank(userId, category = 'coins') {
             break;
             
         case 'wins':
+            // Check if user has any wins
+            if (userCheck.wins <= 0) {
+                return null;
+            }
+            
             query = `
                 SELECT COUNT(*) + 1 as rank
                 FROM userCoins
@@ -104,6 +124,12 @@ async function getUserRank(userId, category = 'coins') {
             break;
             
         case 'winrate':
+            // Check if user has enough games
+            const totalGamesWinrate = userCheck.wins + userCheck.losses;
+            if (totalGamesWinrate < 50) {
+                return null;
+            }
+            
             query = `
                 SELECT COUNT(*) + 1 as rank
                 FROM userCoins
@@ -111,13 +137,19 @@ async function getUserRank(userId, category = 'coins') {
                 AND CAST(wins AS FLOAT) / (wins + losses) > (
                     SELECT CAST(wins AS FLOAT) / (wins + losses)
                     FROM userCoins 
-                    WHERE userId = ? AND (wins + losses) >= 50
+                    WHERE userId = ?
                 )
             `;
             params = [userId];
             break;
             
         case 'games':
+            // Check if user has any games
+            const totalGamesPlayed = userCheck.wins + userCheck.losses;
+            if (totalGamesPlayed <= 0) {
+                return null;
+            }
+            
             query = `
                 SELECT COUNT(*) + 1 as rank
                 FROM userCoins
