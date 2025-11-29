@@ -1,0 +1,763 @@
+{
+  "version": "1.0.0",
+  "generatedAt": "2025-11-29T10:25:30.937Z",
+  "totalFumos": 54,
+  "fumos": [
+    {
+      "id": "reimu_common",
+      "name": "Reimu",
+      "rarity": "Common",
+      "picture": "https://i.imgur.com/AGQm5nR.jpeg",
+      "marketPrice": 125,
+      "availability": {
+        "crate": true,
+        "event": false,
+        "pray": false,
+        "library": true,
+        "market": true
+      }
+    },
+    {
+      "id": "marisa_common",
+      "name": "Marisa",
+      "rarity": "Common",
+      "picture": "https://i.imgur.com/DQFXnHT.jpeg",
+      "marketPrice": 125,
+      "availability": {
+        "crate": true,
+        "event": false,
+        "pray": false,
+        "library": true,
+        "market": true
+      }
+    },
+    {
+      "id": "cirno_common",
+      "name": "Cirno",
+      "rarity": "Common",
+      "picture": "https://i.imgur.com/zM7kUaq.jpeg",
+      "marketPrice": 125,
+      "availability": {
+        "crate": true,
+        "event": false,
+        "pray": false,
+        "library": true,
+        "market": true
+      }
+    },
+    {
+      "id": "sanae_common",
+      "name": "Sanae",
+      "rarity": "Common",
+      "picture": "https://m.media-amazon.com/images/I/61+FZ2SklRL._AC_UF894,1000_QL80_.jpg",
+      "marketPrice": 125,
+      "availability": {
+        "crate": true,
+        "event": false,
+        "pray": false,
+        "library": true,
+        "market": true
+      }
+    },
+    {
+      "id": "sakuya_uncommon",
+      "name": "Sakuya",
+      "rarity": "UNCOMMON",
+      "picture": "https://i.imgur.com/F3gmWW5.png",
+      "marketPrice": 200,
+      "availability": {
+        "crate": true,
+        "event": false,
+        "pray": false,
+        "library": true,
+        "market": true
+      }
+    },
+    {
+      "id": "meiling_uncommon",
+      "name": "Meiling",
+      "rarity": "UNCOMMON",
+      "picture": "https://i.imgur.com/zwEcy1J.png",
+      "marketPrice": 200,
+      "availability": {
+        "crate": true,
+        "event": false,
+        "pray": false,
+        "library": true,
+        "market": true
+      }
+    },
+    {
+      "id": "patchouli_uncommon",
+      "name": "Patchouli",
+      "rarity": "UNCOMMON",
+      "picture": "https://fumo.website/img/492.jpg",
+      "marketPrice": 215,
+      "availability": {
+        "crate": true,
+        "event": false,
+        "pray": false,
+        "library": true,
+        "market": true
+      }
+    },
+    {
+      "id": "remilia_rare",
+      "name": "Remilia",
+      "rarity": "RARE",
+      "picture": "https://m.media-amazon.com/images/I/51J89dEWxSL._AC_SL1200_.jpg",
+      "marketPrice": 300,
+      "availability": {
+        "crate": true,
+        "event": false,
+        "pray": false,
+        "library": true,
+        "market": true
+      }
+    },
+    {
+      "id": "youmu_rare",
+      "name": "Youmu",
+      "rarity": "RARE",
+      "picture": "https://m.media-amazon.com/images/I/515nP-iA6RL.jpg",
+      "marketPrice": 350,
+      "availability": {
+        "crate": true,
+        "event": false,
+        "pray": false,
+        "library": true,
+        "market": true
+      }
+    },
+    {
+      "id": "ran_epic",
+      "name": "Ran",
+      "rarity": "EPIC",
+      "picture": "https://fumo.website/img/524.jpg",
+      "marketPrice": 765,
+      "availability": {
+        "crate": true,
+        "event": false,
+        "pray": true,
+        "library": true,
+        "market": true
+      }
+    },
+    {
+      "id": "satori_epic",
+      "name": "Satori",
+      "rarity": "EPIC",
+      "picture": "https://fumo.website/img/820.jpg",
+      "marketPrice": 765,
+      "availability": {
+        "crate": true,
+        "event": false,
+        "pray": true,
+        "library": true,
+        "market": true
+      }
+    },
+    {
+      "id": "kasen_epic",
+      "name": "Kasen",
+      "rarity": "EPIC",
+      "picture": "https://fumo.website/img/454.jpg",
+      "marketPrice": 900,
+      "availability": {
+        "crate": true,
+        "event": false,
+        "pray": true,
+        "library": true,
+        "market": true
+      }
+    },
+    {
+      "id": "tankreisen_otherworldly",
+      "name": "TankReisen",
+      "rarity": "OTHERWORLDLY",
+      "picture": "https://i.ytimg.com/vi/45czjxFVlh4/maxresdefault.jpg",
+      "marketPrice": 10000,
+      "availability": {
+        "crate": true,
+        "event": false,
+        "pray": false,
+        "library": true,
+        "market": true
+      }
+    },
+    {
+      "id": "bocchi_otherworldly",
+      "name": "Bocchi",
+      "rarity": "OTHERWORLDLY",
+      "picture": "https://i.kym-cdn.com/photos/images/original/002/627/704/46f",
+      "marketPrice": 9500,
+      "availability": {
+        "crate": true,
+        "event": false,
+        "pray": true,
+        "library": true,
+        "market": true
+      }
+    },
+    {
+      "id": "flandere_legendary",
+      "name": "Flandere",
+      "rarity": "LEGENDARY",
+      "picture": "https://i.imgur.com/q7f9gh2.png",
+      "marketPrice": 17500,
+      "availability": {
+        "crate": true,
+        "event": false,
+        "pray": true,
+        "library": true,
+        "market": true
+      }
+    },
+    {
+      "id": "yukari_legendary",
+      "name": "Yukari",
+      "rarity": "LEGENDARY",
+      "picture": "https://i.imgur.com/5X6wQ3g.jpeg",
+      "marketPrice": 12500,
+      "availability": {
+        "crate": true,
+        "event": false,
+        "pray": true,
+        "library": true,
+        "market": true
+      }
+    },
+    {
+      "id": "yuyuko_legendary",
+      "name": "Yuyuko",
+      "rarity": "LEGENDARY",
+      "picture": "https://m.media-amazon.com/images/I/515DN59NQXL._AC_UF894,1000_QL80_.jpg",
+      "marketPrice": 15500,
+      "availability": {
+        "crate": true,
+        "event": false,
+        "pray": true,
+        "library": true,
+        "market": true
+      }
+    },
+    {
+      "id": "junko_mythical",
+      "name": "Junko",
+      "rarity": "MYTHICAL",
+      "picture": "https://m.media-amazon.com/images/I/41gFcESKY3L.jpg",
+      "marketPrice": 1500000,
+      "availability": {
+        "crate": true,
+        "event": false,
+        "pray": true,
+        "library": true,
+        "market": true
+      }
+    },
+    {
+      "id": "tenshi_mythical",
+      "name": "Tenshi",
+      "rarity": "MYTHICAL",
+      "picture": "https://fumo.website/img/593.jpg",
+      "marketPrice": 975000,
+      "availability": {
+        "crate": true,
+        "event": false,
+        "pray": true,
+        "library": true,
+        "market": true
+      }
+    },
+    {
+      "id": "yuuka_mythical",
+      "name": "Yuuka",
+      "rarity": "MYTHICAL",
+      "picture": "https://fumo.website/img/685.jpg",
+      "marketPrice": 1500000,
+      "availability": {
+        "crate": true,
+        "event": false,
+        "pray": true,
+        "library": true,
+        "market": true
+      }
+    },
+    {
+      "id": "eirin_mythical",
+      "name": "Eirin",
+      "rarity": "MYTHICAL",
+      "picture": "https://fumo.website/img/807.jpg",
+      "marketPrice": 1350000,
+      "availability": {
+        "crate": true,
+        "event": false,
+        "pray": true,
+        "library": true,
+        "market": true
+      }
+    },
+    {
+      "id": "bluereimu_exclusive",
+      "name": "BlueReimu",
+      "rarity": "EXCLUSIVE",
+      "picture": "https://i.imgur.com/n6LCPHS.png",
+      "marketPrice": 2750000,
+      "availability": {
+        "crate": true,
+        "event": false,
+        "pray": true,
+        "library": true,
+        "market": true
+      }
+    },
+    {
+      "id": "redmarisa_exclusive",
+      "name": "RedMarisa",
+      "rarity": "EXCLUSIVE",
+      "picture": "https://i.imgur.com/yoeKCEb.png",
+      "marketPrice": 3250000,
+      "availability": {
+        "crate": true,
+        "event": false,
+        "pray": true,
+        "library": true,
+        "market": true
+      }
+    },
+    {
+      "id": "darkyoumu_exclusive",
+      "name": "DarkYoumu",
+      "rarity": "EXCLUSIVE",
+      "picture": "https://fumo.website/img/918.jpg",
+      "marketPrice": 3000000,
+      "availability": {
+        "crate": true,
+        "event": false,
+        "pray": true,
+        "library": true,
+        "market": true
+      }
+    },
+    {
+      "id": "cirnositting_exclusive",
+      "name": "CirnoSitting",
+      "rarity": "EXCLUSIVE",
+      "picture": "https://art.ngfiles.com/images/2071000/2071347_elperez678_cirno-fumo.jpg?f1631463942",
+      "marketPrice": null,
+      "availability": {
+        "crate": true,
+        "event": false,
+        "pray": true,
+        "library": true,
+        "market": false
+      }
+    },
+    {
+      "id": "hypersakuya_exclusive",
+      "name": "HyperSakuya",
+      "rarity": "EXCLUSIVE",
+      "picture": "https://th.bing.com/th/id/OIP.RjaoWcmyjdWdbQ7GOaUN2wAAAA?cb=iwp2&rs=1&pid=ImgDetMain",
+      "marketPrice": null,
+      "availability": {
+        "crate": true,
+        "event": false,
+        "pray": true,
+        "library": true,
+        "market": false
+      }
+    },
+    {
+      "id": "skibiditoilet_",
+      "name": "SkibidiToilet",
+      "rarity": "???",
+      "picture": "https://i.imgur.com/pOZ9Sdf.png",
+      "marketPrice": 57250000,
+      "availability": {
+        "crate": true,
+        "event": false,
+        "pray": true,
+        "library": true,
+        "market": true
+      }
+    },
+    {
+      "id": "gawrgura_",
+      "name": "GawrGura",
+      "rarity": "???",
+      "picture": "https://pbs.twimg.com/media/FNjhm89X0AEtPcU.jpg",
+      "marketPrice": 60203000,
+      "availability": {
+        "crate": true,
+        "event": false,
+        "pray": true,
+        "library": true,
+        "market": true
+      }
+    },
+    {
+      "id": "athena_astral",
+      "name": "Athena",
+      "rarity": "ASTRAL",
+      "picture": "https://media.discordapp.net/attachments/1372426801472737280/1372426818594017311/OIP.png?ex=6826bb94&is=68256a14&hm=eb47a890b02dc810beefb84938f01c70b98522c1fe3c4a2ccb96de9293da28ac&=&format=webp&quality=lossless&width=309&height=309",
+      "marketPrice": 75940000,
+      "availability": {
+        "crate": true,
+        "event": false,
+        "pray": true,
+        "library": true,
+        "market": true
+      }
+    },
+    {
+      "id": "cheshire_astral",
+      "name": "Cheshire",
+      "rarity": "ASTRAL",
+      "picture": "https://images.tokopedia.net/img/cache/500-square/VqbcmM/2024/2/25/932b310d-4256-42bc-abf7-c7d83869ee0c.jpg",
+      "marketPrice": 64150000,
+      "availability": {
+        "crate": true,
+        "event": false,
+        "pray": false,
+        "library": true,
+        "market": true
+      }
+    },
+    {
+      "id": "mostima_celestial",
+      "name": "Mostima",
+      "rarity": "CELESTIAL",
+      "picture": "https://media.discordapp.net/attachments/1372426801472737280/1372427631877685389/mostima-fumo-mostimo-v0-httirpx8ghhb1.png?ex=6826bc55&is=68256ad5&hm=e9511d6de0f908e22eedeb4ab965753e76446ed39a3bdb9ac4af7ef099c62dd6&=&format=webp&quality=lossless&width=1429&height=800",
+      "marketPrice": 124550000,
+      "availability": {
+        "crate": true,
+        "event": false,
+        "pray": true,
+        "library": true,
+        "market": true
+      }
+    },
+    {
+      "id": "grani_celestial",
+      "name": "Grani",
+      "rarity": "CELESTIAL",
+      "picture": "https://media.discordapp.net/attachments/1372426801472737280/1372427631877685389/mostima-fumo-mostimo-v0-httirpx8ghhb1.png?ex=6826bc55&is=68256ad5&hm=e9511d6de0f908e22eedeb4ab965753e76446ed39a3bdb9ac4af7ef099c62dd6&=&format=webp&quality=lossless&width=1429&height=800",
+      "marketPrice": 139575000,
+      "availability": {
+        "crate": true,
+        "event": false,
+        "pray": true,
+        "library": true,
+        "market": true
+      }
+    },
+    {
+      "id": "mima_infinite",
+      "name": "Mima",
+      "rarity": "INFINITE",
+      "picture": "https://media.discordapp.net/attachments/1372426801472737280/1372428382263967824/svru2t354ix81.png?ex=6826bd08&is=68256b88&hm=9ff0e6a614af9fee9626a549a57b331e4940ade36f9de38472dbcb452d965d97&=&format=webp&quality=lossless&width=698&height=930",
+      "marketPrice": 100000000,
+      "availability": {
+        "crate": true,
+        "event": false,
+        "pray": true,
+        "library": true,
+        "market": true
+      }
+    },
+    {
+      "id": "ultrakillv2_eternal",
+      "name": "UltraKillV2",
+      "rarity": "ETERNAL",
+      "picture": "https://th.bing.com/th/id/OIP.0rsVamUgjh_eW_1Ep5NDfAAAAA?cb=iwp2&rs=1&pid=ImgDetMain",
+      "marketPrice": 154590000,
+      "availability": {
+        "crate": true,
+        "event": false,
+        "pray": true,
+        "library": true,
+        "market": true
+      }
+    },
+    {
+      "id": "arisu_transcendent",
+      "name": "Arisu",
+      "rarity": "TRANSCENDENT",
+      "picture": "https://www.picclickimg.com/I70AAOSwPVJmW9NO/Blue-Archive-Tendou-Arisu-Fumo-Fumo-Plushie-Plush.webp",
+      "marketPrice": 1000000000,
+      "availability": {
+        "crate": true,
+        "event": false,
+        "pray": true,
+        "library": true,
+        "market": true
+      }
+    },
+    {
+      "id": "rinnosuke_transcendent",
+      "name": "Rinnosuke",
+      "rarity": "TRANSCENDENT",
+      "picture": "https://img1.picmix.com/output/stamp/normal/6/1/0/7/2577016_a2c58.png",
+      "marketPrice": 1000000000,
+      "availability": {
+        "crate": true,
+        "event": false,
+        "pray": false,
+        "library": true,
+        "market": true
+      }
+    },
+    {
+      "id": "traumatized_epic",
+      "name": "Traumatized",
+      "rarity": "EPIC",
+      "picture": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTO5lppyMpyRD7ABC_QLJ6-sF2DXmepDOjpgg&s",
+      "marketPrice": null,
+      "availability": {
+        "crate": false,
+        "event": true,
+        "pray": false,
+        "library": true,
+        "market": false
+      }
+    },
+    {
+      "id": "eye_popping_epic",
+      "name": "Eye-Popping",
+      "rarity": "EPIC",
+      "picture": "https://www.mugentoys.com/shop/image/cache/catalog/img/01/451391400a-500x500.jpg",
+      "marketPrice": null,
+      "availability": {
+        "crate": false,
+        "event": true,
+        "pray": false,
+        "library": true,
+        "market": false
+      }
+    },
+    {
+      "id": "abandonedchild_epic",
+      "name": "AbandonedChild",
+      "rarity": "EPIC",
+      "picture": "https://ae01.alicdn.com/kf/Hcb03f9597b394d6c8b5e225623379208c/Jujutsu-Kaisen-Plush-Toys-Plushies-Doll-Yuji-Gojo-Megumi-Toge-Stuffed-Toy-Doll-Removable-Clothes-Christmas.jpg",
+      "marketPrice": null,
+      "availability": {
+        "crate": false,
+        "event": true,
+        "pray": false,
+        "library": true,
+        "market": false
+      }
+    },
+    {
+      "id": "gambler_legendary",
+      "name": "Gambler",
+      "rarity": "LEGENDARY",
+      "picture": "https://ih1.redbubble.net/image.5028045676.6139/flat,750x,075,f-pad,750x1000,f8f8f8.jpg",
+      "marketPrice": null,
+      "availability": {
+        "crate": false,
+        "event": true,
+        "pray": false,
+        "library": true,
+        "market": false
+      }
+    },
+    {
+      "id": "explodedman_legendary",
+      "name": "ExplodedMan",
+      "rarity": "LEGENDARY",
+      "picture": "https://i.ebayimg.com/images/g/XeIAAOSwdTtheKuc/s-l1200.webp",
+      "marketPrice": null,
+      "availability": {
+        "crate": false,
+        "event": true,
+        "pray": false,
+        "library": true,
+        "market": false
+      }
+    },
+    {
+      "id": "monkeyleader_mythical",
+      "name": "MonkeyLeader",
+      "rarity": "MYTHICAL",
+      "picture": "https://m.media-amazon.com/images/I/517MfPrGaRL.jpg",
+      "marketPrice": null,
+      "availability": {
+        "crate": false,
+        "event": true,
+        "pray": false,
+        "library": true,
+        "market": false
+      }
+    },
+    {
+      "id": "oneshotcurse_mythical",
+      "name": "OneShotCurse",
+      "rarity": "MYTHICAL",
+      "picture": "https://animeislandca.com/cdn/shop/files/jujutsu-kaisen-kyurumaru-mahito-big-plush-toy-anime-island-ca.png?v=1692739157&width=1445",
+      "marketPrice": null,
+      "availability": {
+        "crate": false,
+        "event": true,
+        "pray": false,
+        "library": true,
+        "market": false
+      }
+    },
+    {
+      "id": "avoidchildsupport_mythical",
+      "name": "AvoidChildSupport",
+      "rarity": "MYTHICAL",
+      "picture": "https://i.ebayimg.com/images/g/d7wAAOSwtcdk2cIg/s-l1200.webp",
+      "marketPrice": null,
+      "availability": {
+        "crate": false,
+        "event": true,
+        "pray": false,
+        "library": true,
+        "market": false
+      }
+    },
+    {
+      "id": "fraudkuna_",
+      "name": "Fraudkuna",
+      "rarity": "???",
+      "picture": "https://i.ebayimg.com/images/g/JEsAAOSwxOBguJZG/s-l1200.webp",
+      "marketPrice": null,
+      "availability": {
+        "crate": false,
+        "event": true,
+        "pray": false,
+        "library": true,
+        "market": false
+      }
+    },
+    {
+      "id": "go_jo_",
+      "name": "Go/jo",
+      "rarity": "???",
+      "picture": "https://m.media-amazon.com/images/I/41PQuj80tDS._AC_UF894,1000_QL80_.jpg",
+      "marketPrice": null,
+      "availability": {
+        "crate": false,
+        "event": true,
+        "pray": false,
+        "library": true,
+        "market": false
+      }
+    },
+    {
+      "id": "heiansukuna_transcendent",
+      "name": "HeianSukuna",
+      "rarity": "TRANSCENDENT",
+      "picture": "https://media.discordapp.net/attachments/1372426801472737280/1372880397599244378/raw.png?ex=68286201&is=68271081&hm=354b51c0bb278e08cef1d63050e9e0fc41765335d37309f15298050a8fdd03da&=&format=webp&quality=lossless&width=438&height=438",
+      "marketPrice": null,
+      "availability": {
+        "crate": false,
+        "event": true,
+        "pray": false,
+        "library": true,
+        "market": false
+      }
+    },
+    {
+      "id": "faruzamn_otherworldly",
+      "name": "Faruzamn",
+      "rarity": "OTHERWORLDLY",
+      "picture": "https://image.tensorartassets.com/cdn-cgi/image/w=500,q=85/model_showcase/601734324150123536/151af48b-fa47-0325-04ae-51d091a3e727.png",
+      "marketPrice": null,
+      "availability": {
+        "crate": false,
+        "event": false,
+        "pray": true,
+        "library": true,
+        "market": false
+      }
+    },
+    {
+      "id": "cloaker_otherworldly",
+      "name": "Cloaker",
+      "rarity": "OTHERWORLDLY",
+      "picture": "https://static.wikia.nocookie.net/ce1e73b1-13a8-438d-b6e4-6f239b168895/scale-to-width/755",
+      "marketPrice": null,
+      "availability": {
+        "crate": false,
+        "event": false,
+        "pray": true,
+        "library": true,
+        "market": false
+      }
+    },
+    {
+      "id": "miku_",
+      "name": "Miku",
+      "rarity": "???",
+      "picture": "https://pbs.twimg.com/media/F-7Re-BWYAEJ6Zx?format=jpg&name=large",
+      "marketPrice": null,
+      "availability": {
+        "crate": false,
+        "event": false,
+        "pray": true,
+        "library": true,
+        "market": false
+      }
+    },
+    {
+      "id": "rin_",
+      "name": "Rin",
+      "rarity": "???",
+      "picture": "https://pics.craiyon.com/2023-09-09/877b164806f6483192cb6a19d648ff97.webp",
+      "marketPrice": null,
+      "availability": {
+        "crate": false,
+        "event": false,
+        "pray": true,
+        "library": true,
+        "market": false
+      }
+    },
+    {
+      "id": "miku_senbonzakura_version_",
+      "name": "Miku-Senbonzakura,version",
+      "rarity": "???",
+      "picture": null,
+      "marketPrice": 62150000,
+      "availability": {
+        "crate": false,
+        "event": false,
+        "pray": false,
+        "library": true,
+        "market": true
+      }
+    },
+    {
+      "id": "imsorryofficerfumo_",
+      "name": "ImSorryOfficerFumo",
+      "rarity": "???",
+      "picture": null,
+      "marketPrice": 54150000,
+      "availability": {
+        "crate": false,
+        "event": false,
+        "pray": false,
+        "library": true,
+        "market": true
+      }
+    },
+    {
+      "id": "theowner_transcendent",
+      "name": "TheOwner",
+      "rarity": "TRANSCENDENT",
+      "picture": null,
+      "marketPrice": 7777777777,
+      "availability": {
+        "crate": false,
+        "event": false,
+        "pray": false,
+        "library": true,
+        "market": true
+      }
+    }
+  ]
+}

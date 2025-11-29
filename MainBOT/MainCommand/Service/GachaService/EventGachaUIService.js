@@ -1,6 +1,7 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Colors } = require('discord.js');
 const { formatNumber } = require('../../Ultility/formatting');
 const { PITY_THRESHOLDS } = require('../../Configuration/rarity');
+const { EVENT_ROLL_LIMIT } = require('../../Configuration/eventConfig');
 
 function createEventShopEmbed(userData, boosts, chances, eventTimeRemaining) {
     const { gems, rollsInCurrentWindow, rollsSinceLastMythical, rollsSinceLastQuestionMark } = userData;
@@ -28,7 +29,7 @@ function createEventShopEmbed(userData, boosts, chances, eventTimeRemaining) {
             },
             { 
                 name: '🔄 Roll Limit', 
-                value: `${rollsInCurrentWindow} / 50,000 rolls`, 
+                value: `${rollsInCurrentWindow} / ${EVENT_ROLL_LIMIT} rolls`, 
                 inline: true 
             },
             { 
@@ -56,7 +57,7 @@ function createEventStatusEmbed(userData, boosts, chances, eventTimeRemaining, r
         .setTitle('🎲 Event Gacha Status')
         .addFields([
             { name: 'Gems', value: formatNumber(gems), inline: true },
-            { name: 'Rolls in Window', value: `${rollsInCurrentWindow || 0} / 50,000`, inline: true },
+            { name: 'Rolls in Window', value: `${rollsInCurrentWindow || 0} / ${EVENT_ROLL_LIMIT}`, inline: true },
             { name: 'Window Reset', value: rollResetTime, inline: true },
             { 
                 name: 'Pity', 
@@ -80,23 +81,28 @@ function createEventStatusEmbed(userData, boosts, chances, eventTimeRemaining, r
     return embed;
 }
 
-function createEventShopButtons(userId, rollLimitReached) {
+function createEventShopButtons(userId, rollLimitReached, isAutoRollActive = false) {
     return new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId(`eventbuy1fumo_${userId}`)
             .setLabel('Summon 1')
             .setStyle(ButtonStyle.Primary)
-            .setDisabled(rollLimitReached),
+            .setDisabled(rollLimitReached || isAutoRollActive),
         new ButtonBuilder()
             .setCustomId(`eventbuy10fumos_${userId}`)
             .setLabel('Summon 10')
             .setStyle(ButtonStyle.Secondary)
-            .setDisabled(rollLimitReached),
+            .setDisabled(rollLimitReached || isAutoRollActive),
         new ButtonBuilder()
             .setCustomId(`eventbuy100fumos_${userId}`)
             .setLabel('Summon 100')
             .setStyle(ButtonStyle.Success)
-            .setDisabled(rollLimitReached)
+            .setDisabled(rollLimitReached || isAutoRollActive),
+        new ButtonBuilder()
+            .setCustomId(isAutoRollActive ? `stopEventAuto_${userId}` : `startEventAuto_${userId}`)
+            .setLabel(isAutoRollActive ? '🛑 Stop Auto' : '🤖 Auto Roll')
+            .setStyle(isAutoRollActive ? ButtonStyle.Danger : ButtonStyle.Success)
+            .setDisabled(rollLimitReached && !isAutoRollActive)
     );
 }
 
@@ -144,7 +150,7 @@ function createEventResultEmbed(result, numSummons, rollsInCurrentWindow, rollRe
             },
             { 
                 name: '🔄 Roll Limit', 
-                value: `${rollsInCurrentWindow} / 50,000 rolls. ${rollResetTime} until reset.` 
+                value: `${rollsInCurrentWindow} / ${EVENT_ROLL_LIMIT} rolls. ${rollResetTime} until reset.` 
             }
         ])
         .setFooter({ text: boostText });
@@ -166,10 +172,86 @@ function createContinueButton(userId, numSummons, rollLimitReached) {
     );
 }
 
+function createEventAutoRollSummary(summary, userId) {
+    const rarityOrder = ['TRANSCENDENT', '???', 'MYTHICAL', 'LEGENDARY', 'EPIC'];
+    
+    let bestFumoText = 'None';
+    let bestFumoImage = null;
+
+    if (summary.bestFumo) {
+        let suffix = '';
+        if (summary.bestFumo.name?.includes('[🌟alG]')) suffix = ' [🌟alG]';
+        else if (summary.bestFumo.name?.includes('[✨SHINY]')) suffix = ' [✨SHINY]';
+
+        const cleanName = summary.bestFumo.name?.replace(/\s*\(.*?\)$/, '').replace(/\[.*?\]/g, '').trim();
+        bestFumoText = `🏆 Best: ${cleanName} (${summary.bestFumo.rarity})${suffix}`;
+
+        if (summary.bestFumoRoll && summary.bestFumoAt) {
+            bestFumoText += `\n🕒 Batch #${summary.bestFumoRoll}, at ${summary.bestFumoAt}`;
+        }
+
+        bestFumoImage = summary.bestFumo.picture || null;
+    }
+
+    const fumoSummary = {};
+    (summary.specialFumos || []).forEach(f => {
+        if (!fumoSummary[f.rarity]) fumoSummary[f.rarity] = [];
+        fumoSummary[f.rarity].push(f);
+    });
+
+    const summaryLines = rarityOrder.map(rarity => {
+        const arr = fumoSummary[rarity] || [];
+        if (arr.length === 0) return `**${rarity}:** None`;
+        
+        arr.sort((a, b) => a.roll - b.roll);
+        const first = arr[0];
+        return `**${rarity}:** \`${arr.length}\` (first: Batch #${first.roll})`;
+    });
+
+    const gemsSpent = summary.totalFumosRolled * 100;
+    const stopReason = summary.stoppedReason === 'LIMIT_REACHED' 
+        ? '⚠️ Stopped: Roll limit reached (10,000)'
+        : summary.stoppedReason === 'INSUFFICIENT_GEMS'
+        ? '⚠️ Stopped: Ran out of gems'
+        : summary.stoppedReason === 'ERROR'
+        ? '⚠️ Stopped: Error occurred'
+        : '✅ Stopped: Manual stop';
+
+    const statsField = [
+        `🎲 **Total Batches:** \`${summary.rollCount}\``,
+        `🎰 **Total Fumos:** \`${summary.totalFumosRolled.toLocaleString()}\``,
+        `💎 **Gems Spent:** \`${gemsSpent.toLocaleString()}\``,
+        bestFumoText,
+        `\n${stopReason}\n`,
+        `\n__**Special Fumos Obtained:**__\n${summaryLines.join('\n')}`
+    ].join('\n');
+
+    const embed = new EmbedBuilder()
+        .setTitle('🛑 Event Auto Roll Stopped!')
+        .setDescription('Your event auto roll session has ended.\n\nHere\'s your summary:')
+        .addFields([{ name: '📊 Results', value: statsField }])
+        .setColor(summary.stoppedReason === 'LIMIT_REACHED' ? 0xFFA500 : 0xCC3300)
+        .setFooter({ text: 'Event Auto Roll Summary' })
+        .setTimestamp();
+
+    if (bestFumoImage) embed.setImage(bestFumoImage);
+
+    const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId(`startEventAuto_${userId}`)
+            .setLabel('🔄 Restart Auto Roll')
+            .setStyle(ButtonStyle.Success)
+            .setDisabled(summary.stoppedReason === 'LIMIT_REACHED')
+    );
+
+    return { embed, components: [row] };
+}
+
 module.exports = {
     createEventShopEmbed,
     createEventStatusEmbed,
     createEventShopButtons,
     createEventResultEmbed,
-    createContinueButton
+    createContinueButton,
+    createEventAutoRollSummary
 };

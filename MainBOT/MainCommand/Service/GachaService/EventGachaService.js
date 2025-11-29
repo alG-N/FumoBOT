@@ -3,6 +3,7 @@ const { EVENT_BASE_CHANCES, PITY_THRESHOLDS } = require('../../Configuration/rar
 const { selectAndAddFumo } = require('./InventoryService');
 const { incrementWeeklyShiny } = require('../../Ultility/weekly');
 const { debugLog } = require('../../Core/logger');
+const FumoPool = require('../../Data/FumoPool');
 
 async function getEventUserBoosts(userId) {
     debugLog('EVENT_BOOST', `Fetching event boosts for user ${userId}`);
@@ -172,7 +173,8 @@ async function selectEventRarity(userId, boosts, userData, totalRolls) {
     return 'EPIC';
 }
 
-async function performEventSummon(userId, numSummons, eventFumos) {
+async function performEventSummon(userId, numSummons) {
+    const eventFumos = FumoPool.getForEvent(); 
     debugLog('EVENT_ROLL', `Event summon ${numSummons}x for user ${userId}`);
 
     const userData = await getEventUserRollData(userId);

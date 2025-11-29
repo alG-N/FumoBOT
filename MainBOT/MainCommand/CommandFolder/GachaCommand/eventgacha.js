@@ -2,8 +2,8 @@ const { EmbedBuilder } = require('discord.js');
 const { get, run } = require('../../Core/database');
 const { logToDiscord } = require('../../Core/logger');
 const { checkRestrictions } = require('../../Middleware/restrictions');
-const { checkButtonOwnership } = require('../../Middleware/buttonOwnership');
 const { checkAndSetCooldown } = require('../../Middleware/rateLimiter');
+const { getValidatedUserId } = require('../../Middleware/buttonOwnership');
 const { 
     isEventActive, 
     getRemainingTime, 
@@ -24,12 +24,18 @@ const {
     createEventStatusEmbed,
     createEventShopButtons,
     createEventResultEmbed,
-    createContinueButton
+    createContinueButton,
+    createEventAutoRollSummary
 } = require('../../Service/GachaService/EventGachaUIService');
+const {
+    startEventAutoRoll,
+    stopEventAutoRoll,
+    isEventAutoRollActive
+} = require('../../Service/GachaService/EventAutoRollService');
 
 const LOG_CHANNEL_ID = '1411386632589807719';
 
-module.exports = (client, Efumos) => {
+module.exports = (client) => {
     async function logEvent(message, type = 'info') {
         try {
             const channel = await client.channels.fetch(LOG_CHANNEL_ID);
@@ -124,12 +130,7 @@ module.exports = (client, Efumos) => {
                 );
             }
 
-            if (rollsInCurrentWindow >= EVENT_ROLL_LIMIT) {
-                return message.reply(
-                    `You have reached your roll limit. Please wait ${getRollResetTime(lastRollTime)} before rolling again.`
-                );
-            }
-
+            const rollLimitReached = rollsInCurrentWindow >= EVENT_ROLL_LIMIT;
             const rollsLeft = userData.rollsLeft || 0;
             const boosts = await getEventUserBoosts(message.author.id);
             const isBoostActive = boosts.ancient > 1 || boosts.mysterious > 1 || boosts.pet > 1;
@@ -148,9 +149,11 @@ module.exports = (client, Efumos) => {
                 getRemainingTime()
             );
 
+            const isAutoRollActive = isEventAutoRollActive(message.author.id);
             const rowButtons = createEventShopButtons(
                 message.author.id, 
-                rollsInCurrentWindow >= EVENT_ROLL_LIMIT
+                rollLimitReached,
+                isAutoRollActive
             );
 
             await message.channel.send({ embeds: [embed], components: [rowButtons] });
@@ -163,12 +166,25 @@ module.exports = (client, Efumos) => {
     client.on('interactionCreate', async interaction => {
         if (!interaction.isButton()) return;
 
-        const [baseId, buttonOwnerId] = interaction.customId.split('_');
-        const validButtons = ['eventbuy1fumo', 'eventbuy10fumos', 'eventbuy100fumos', 'continue1', 'continue10', 'continue100'];
+        const userId = getValidatedUserId(interaction);
+        const action = interaction.customId.split('_')[0];
 
-        if (!validButtons.includes(baseId)) return;
+        const validButtons = [
+            'eventbuy1fumo', 'eventbuy10fumos', 'eventbuy100fumos', 
+            'continue1', 'continue10', 'continue100',
+            'startEventAuto', 'stopEventAuto'
+        ];
 
-        if (!(await checkButtonOwnership(interaction, buttonOwnerId))) return;
+        if (!validButtons.includes(action)) return;
+
+        // Verify button ownership
+        const expectedCustomId = `${action}_${userId}`;
+        if (!interaction.customId.startsWith(expectedCustomId)) {
+            return interaction.reply({
+                content: "❌ You can't use someone else's button. Use `.eventgacha` yourself.",
+                ephemeral: true
+            });
+        }
 
         if (!isEventActive()) {
             return interaction.reply({ 
@@ -177,7 +193,75 @@ module.exports = (client, Efumos) => {
             });
         }
 
-        const cooldownCheck = await checkAndSetCooldown(interaction.user.id, 'eventgacha');
+        if (action === 'startEventAuto') {
+            const cooldownCheck = await checkAndSetCooldown(userId, 'eventgacha');
+            if (cooldownCheck.onCooldown) {
+                return interaction.reply({
+                    content: `🕒 Please wait ${cooldownCheck.remaining}s before clicking again.`,
+                    ephemeral: true
+                });
+            }
+
+            try {
+                const result = await startEventAutoRoll(userId, Efumos);
+
+                if (!result.success) {
+                    const errorMessages = {
+                        'ALREADY_RUNNING': 'Auto roll is already running!',
+                        'NO_FANTASY_BOOK': 'You need FantasyBook(M) to use auto-roll.'
+                    };
+                    return interaction.reply({
+                        content: errorMessages[result.error] || 'Failed to start auto-roll.',
+                        ephemeral: true
+                    });
+                }
+
+                return interaction.reply({
+                    embeds: [{
+                        title: '🤖 Event Auto Roll Started!',
+                        description: `Rolling **100 fumos every ${result.interval / 1000} seconds** until limit reached (10,000 rolls).\n\nUse the 🛑 Stop button to cancel.`,
+                        color: 0x00FF00,
+                        footer: { text: 'Auto-roll will stop automatically at 10k limit' }
+                    }],
+                    ephemeral: true
+                });
+            } catch (err) {
+                await logEvent(`Auto-roll start error for ${userId}: ${err.message}`, 'error');
+                return interaction.reply({
+                    content: 'Failed to start auto-roll.',
+                    ephemeral: true
+                });
+            }
+        }
+
+        if (action === 'stopEventAuto') {
+            try {
+                const result = stopEventAutoRoll(userId);
+
+                if (!result.success) {
+                    return interaction.reply({
+                        content: 'You don\'t have an active auto-roll.',
+                        ephemeral: true
+                    });
+                }
+
+                const summary = createEventAutoRollSummary(result.summary, userId);
+
+                return interaction.reply({
+                    embeds: [summary.embed],
+                    components: summary.components,
+                    ephemeral: true
+                });
+            } catch (err) {
+                await logEvent(`Auto-roll stop error for ${userId}: ${err.message}`, 'error');
+                return interaction.reply({
+                    content: 'Failed to stop auto-roll.',
+                    ephemeral: true
+                });
+            }
+        }
+
+        const cooldownCheck = await checkAndSetCooldown(userId, 'eventgacha');
         if (cooldownCheck.onCooldown) {
             return interaction.reply({
                 content: `🕒 Please wait ${cooldownCheck.remaining}s before clicking again.`,
@@ -185,8 +269,15 @@ module.exports = (client, Efumos) => {
             });
         }
 
+        if (isEventAutoRollActive(userId)) {
+            return interaction.reply({
+                content: '⚠️ You cannot manually roll while Auto Roll is active. Please stop it first.',
+                ephemeral: true
+            });
+        }
+
         try {
-            const userData = await getEventUserRollData(interaction.user.id);
+            const userData = await getEventUserRollData(userId);
             if (!userData) {
                 return interaction.reply({ 
                     content: 'User data not found. Please try again later.', 
@@ -203,7 +294,7 @@ module.exports = (client, Efumos) => {
                 lastRollTime = Date.now();
                 await run(
                     `UPDATE userCoins SET rollsInCurrentWindow = 0, lastRollTime = ? WHERE userId = ?`,
-                    [lastRollTime, interaction.user.id]
+                    [lastRollTime, userId]
                 );
             }
 
@@ -217,12 +308,12 @@ module.exports = (client, Efumos) => {
             await interaction.deferReply({ ephemeral: true });
 
             let numSummons;
-            if (baseId === 'eventbuy1fumo' || baseId === 'continue1') numSummons = 1;
-            else if (baseId === 'eventbuy10fumos' || baseId === 'continue10') numSummons = 10;
-            else if (baseId === 'eventbuy100fumos' || baseId === 'continue100') numSummons = 100;
+            if (action === 'eventbuy1fumo' || action === 'continue1') numSummons = 1;
+            else if (action === 'eventbuy10fumos' || action === 'continue10') numSummons = 10;
+            else if (action === 'eventbuy100fumos' || action === 'continue100') numSummons = 100;
             else numSummons = 1;
 
-            const result = await performEventSummon(interaction.user.id, numSummons, Efumos);
+            const result = await performEventSummon(userId, numSummons, Efumos);
 
             if (!result.success) {
                 const errorMessages = {
@@ -242,7 +333,7 @@ module.exports = (client, Efumos) => {
             );
 
             const continueButton = createContinueButton(
-                interaction.user.id,
+                userId,
                 numSummons,
                 (rollsInCurrentWindow + numSummons) >= EVENT_ROLL_LIMIT
             );
@@ -250,11 +341,11 @@ module.exports = (client, Efumos) => {
             await interaction.editReply({ embeds: [embed], components: [continueButton] });
 
             await logEvent(
-                `${interaction.user.id} summoned ${numSummons} fumos. Total rolls: ${userData.totalRolls + numSummons}`, 
+                `${userId} summoned ${numSummons} fumos. Total rolls: ${userData.totalRolls + numSummons}`, 
                 'info'
             );
         } catch (err) {
-            await logEvent(`Button interaction error for ${interaction.user.id}: ${err.message}`, 'error');
+            await logEvent(`Button interaction error for ${userId}: ${err.message}`, 'error');
             if (!interaction.replied) {
                 await interaction.reply({ 
                     content: 'An error occurred. Please try again.', 
