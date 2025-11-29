@@ -1,7 +1,7 @@
 const { get, run } = require('../../Core/database');
 const { getUserBoosts } = require('./BoostService');
 const { calculateRarity, updatePityCounters, updateBoostCharge } = require('./RarityService');
-const { selectAndAddFumo } = require('./InventoryService');
+const { selectAndAddFumo, selectAndAddMultipleFumos } = require('./InventoryService');
 const { ASTRAL_PLUS_RARITIES } = require('../../Configuration/rarity');
 const { incrementWeeklyAstral } = require('../../Ultility/weekly');
 const { debugLog } = require('../../Core/logger');
@@ -149,11 +149,9 @@ async function performMultiRoll(userId, fumos, rollCount) {
         pityAstral: row.pityAstral
     };
 
-    const fumosBought = [];
-    let bestFumo = null;
+    const rarities = [];
     let currentRolls = row.totalRolls;
 
-    // Perform all rolls
     for (let i = 0; i < rollCount; i++) {
         currentRolls++;
 
@@ -166,6 +164,7 @@ async function performMultiRoll(userId, fumos, rollCount) {
         };
 
         const { rarity } = await calculateRarity(userId, boosts, tempRow, hasFantasyBook);
+        rarities.push(rarity);
 
         if (ASTRAL_PLUS_RARITIES.includes(rarity)) {
             await incrementWeeklyAstral(userId);
@@ -177,12 +176,16 @@ async function performMultiRoll(userId, fumos, rollCount) {
         boostCharge = boostUpdate.boostCharge;
         boostActive = boostUpdate.boostActive;
         boostRollsRemaining = boostUpdate.boostRollsRemaining;
+    }
 
-        const fumo = await selectAndAddFumo(userId, rarity, fumos, row.luck);
-        if (fumo) {
-            fumosBought.push(fumo);
-            const { isRarer } = require('../../Configuration/rarity');
-            if (!bestFumo || isRarer(rarity, bestFumo.rarity)) {
+    const fumosBought = await selectAndAddMultipleFumos(userId, rarities, fumos, row.luck);
+    
+    let bestFumo = null;
+    if (fumosBought.length > 0) {
+        const { isRarer } = require('../../Configuration/rarity');
+        bestFumo = fumosBought[0];
+        for (const fumo of fumosBought) {
+            if (isRarer(fumo.rarity, bestFumo.rarity)) {
                 bestFumo = fumo;
             }
         }

@@ -1,6 +1,3 @@
-const https = require('https');
-const http = require('http');
-
 const fumos = [
     // common
     { name: 'Reimu(Common)', picture: 'https://i.imgur.com/AGQm5nR.jpeg' },
@@ -144,31 +141,48 @@ const fumos = [
     { name: 'Rinnosuke(TRANSCENDENT)', picture: 'https://img1.picmix.com/output/stamp/normal/6/1/0/7/2577016_a2c58.png' },
 ]
 
-// function checkImage(url) {
-//     return new Promise((resolve) => {
-//         const lib = url.startsWith('https') ? https : http;
-//         const req = lib.get(url, (res) => {
-//             resolve(res.statusCode === 200);
-//         });
-//         req.on('error', () => resolve(false));
-//         req.setTimeout(5000, () => {
-//             req.abort();
-//             resolve(false);
-//         });
-//     });
-// }
+/**
+ * Validate fumo structure
+ * Call this on bot startup to catch errors early
+ */
+function validateFumos() {
+    const errors = [];
+    const seenNames = new Set();
 
-// async function checkAllImages() {
-//     for (const fumo of fumos) {
-//         const isValid = await checkImage(fumo.picture);
-//         if (!isValid) {
-//             console.log(`❌ Image missing or broken for: ${fumo.name}`);
-//         } else {
-//             console.log(`✅ Image OK: ${fumo.name}`);
-//         }
-//     }
-// }
+    fumos.forEach((fumo, index) => {
+        if (!fumo.name || !fumo.picture) {
+            errors.push(`Fumo at index ${index} missing name or picture`);
+        }
 
-// checkAllImages();
-//120 lines
+        if (seenNames.has(fumo.name)) {
+            errors.push(`Duplicate fumo name: ${fumo.name}`);
+        }
+        seenNames.add(fumo.name);
+
+        const hasRarity = ['Common', 'UNCOMMON', 'RARE', 'EPIC', 'OTHERWORLDLY', 
+                           'LEGENDARY', 'MYTHICAL', 'EXCLUSIVE', '???', 
+                           'ASTRAL', 'CELESTIAL', 'INFINITE', 'ETERNAL', 'TRANSCENDENT']
+            .some(r => fumo.name.includes(r));
+        
+        if (!hasRarity) {
+            errors.push(`Fumo ${fumo.name} missing rarity tag`);
+        }
+    });
+
+    if (errors.length > 0) {
+        console.error('❌ Fumo validation errors:');
+        errors.forEach(err => console.error(`  - ${err}`));
+        return false;
+    }
+
+    console.log(`✅ Validated ${fumos.length} fumos successfully`);
+    return true;
+}
+
+// Auto-validate on load (only in development)
+if (process.env.NODE_ENV === 'development') {
+    validateFumos();
+}
+
 module.exports = fumos;
+module.exports.validateFumos = validateFumos;

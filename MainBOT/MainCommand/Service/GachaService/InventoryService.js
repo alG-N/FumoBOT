@@ -1,4 +1,4 @@
-const { run, get, all } = require('../../Core/database');
+const { run, get, all, transaction } = require('../../Core/database');
 const { SHINY_CONFIG, SELL_REWARDS } = require('../../Configuration/rarity');
 const { incrementWeeklyShiny } = require('../../Ultility/weekly');
 const { debugLog } = require('../../Core/logger');
@@ -37,12 +37,55 @@ async function selectAndAddFumo(userId, rarity, fumos, luck = 0) {
     return { ...fumo, rarity, name: fumoName };
 }
 
+async function selectAndAddMultipleFumos(userId, rarities, fumos, luck = 0) {
+    debugLog('INVENTORY', `Batch selecting ${rarities.length} fumos for user ${userId}`);
+    
+    const fumosToAdd = [];
+    const fumoResults = [];
+    
+    for (const rarity of rarities) {
+        const matchingFumos = fumos.filter(f => f.name.includes(rarity));
+        if (matchingFumos.length === 0) continue;
+
+        const fumo = matchingFumos[Math.floor(Math.random() * matchingFumos.length)];
+        
+        const shinyChance = SHINY_CONFIG.BASE_CHANCE + (Math.min(1, luck || 0) * SHINY_CONFIG.LUCK_BONUS);
+        const alGChance = SHINY_CONFIG.ALG_BASE_CHANCE + (Math.min(1, luck || 0) * SHINY_CONFIG.ALG_LUCK_BONUS);
+
+        const isAlterGolden = Math.random() < alGChance;
+        const isShiny = !isAlterGolden && Math.random() < shinyChance;
+
+        let fumoName = fumo.name;
+        if (isAlterGolden) {
+            fumoName += '[🌟alG]';
+            await incrementWeeklyShiny(userId);
+        } else if (isShiny) {
+            fumoName += '[✨SHINY]';
+            await incrementWeeklyShiny(userId);
+        }
+
+        fumosToAdd.push([userId, fumoName]);
+        fumoResults.push({ ...fumo, rarity, name: fumoName });
+    }
+
+    if (fumosToAdd.length === 0) return [];
+
+    const placeholders = fumosToAdd.map(() => '(?, ?)').join(', ');
+    const flatParams = fumosToAdd.flat();
+    
+    await run(
+        `INSERT INTO userInventory (userId, fumoName) VALUES ${placeholders}`,
+        flatParams
+    );
+
+    debugLog('INVENTORY', `Batch inserted ${fumosToAdd.length} fumos for user ${userId}`);
+    return fumoResults;
+}
 
 async function deductCoins(userId, amount) {
     debugLog('INVENTORY', `Deducting ${amount} coins from user ${userId}`);
     await run(`UPDATE userCoins SET coins = coins - ? WHERE userId = ?`, [amount, userId]);
 }
-
 
 async function addCoins(userId, amount) {
     debugLog('INVENTORY', `Adding ${amount} coins to user ${userId}`);
@@ -96,53 +139,68 @@ async function removeFumo(userId, fumoName, quantity = 1) {
     return true;
 }
 
-async function sellFumo(userId, fumoName, quantity = 1) {
-    const fumo = await getFumoByName(userId, fumoName);
-    if (!fumo || fumo.quantity < quantity) {
-        return { success: false, coinsEarned: 0 };
-    }
-
-    let rarity = null;
-    for (const r of Object.keys(SELL_REWARDS)) {
-        const regex = new RegExp(`\\b${r}\\b`, 'i');
-        if (regex.test(fumoName)) {
-            rarity = r;
-            break;
-        }
-    }
-
-    if (!rarity || !SELL_REWARDS[rarity]) {
-        return { success: false, coinsEarned: 0 };
-    }
-
-    let value = SELL_REWARDS[rarity];
-    if (fumoName.includes('[🌟alG]')) {
-        value *= SHINY_CONFIG.ALG_MULTIPLIER;
-    } else if (fumoName.includes('[✨SHINY]')) {
-        value *= SHINY_CONFIG.SHINY_MULTIPLIER;
-    }
-
-    const totalCoins = value * quantity;
-
-    await removeFumo(userId, fumoName, quantity);
-    await addCoins(userId, totalCoins);
-
-    debugLog('INVENTORY', `User ${userId} sold ${quantity}x ${fumoName} for ${totalCoins} coins`);
-    
-    return { success: true, coinsEarned: totalCoins };
-}
-
 async function sellMultipleFumos(userId, fumoList) {
     let totalCoins = 0;
+    const operations = [];
 
     for (const { fumoName, quantity } of fumoList) {
-        const result = await sellFumo(userId, fumoName, quantity);
-        if (result.success) {
-            totalCoins += result.coinsEarned;
+        const fumo = await getFumoByName(userId, fumoName);
+        if (!fumo || fumo.quantity < quantity) continue;
+
+        let rarity = null;
+        for (const r of Object.keys(SELL_REWARDS)) {
+            const regex = new RegExp(`\\b${r}\\b`, 'i');
+            if (regex.test(fumoName)) {
+                rarity = r;
+                break;
+            }
+        }
+
+        if (!rarity || !SELL_REWARDS[rarity]) continue;
+
+        let value = SELL_REWARDS[rarity];
+        if (fumoName.includes('[🌟alG]')) {
+            value *= SHINY_CONFIG.ALG_MULTIPLIER;
+        } else if (fumoName.includes('[✨SHINY]')) {
+            value *= SHINY_CONFIG.SHINY_MULTIPLIER;
+        }
+
+        totalCoins += value * quantity;
+
+        if (fumo.quantity > quantity) {
+            operations.push({
+                sql: `UPDATE userInventory SET quantity = quantity - ? WHERE userId = ? AND fumoName = ?`,
+                params: [quantity, userId, fumoName]
+            });
+        } else {
+            operations.push({
+                sql: `DELETE FROM userInventory WHERE userId = ? AND fumoName = ?`,
+                params: [userId, fumoName]
+            });
         }
     }
 
-    return { success: true, totalCoinsEarned: totalCoins };
+    if (operations.length === 0) {
+        return { success: false, totalCoinsEarned: 0 };
+    }
+
+    operations.push({
+        sql: `UPDATE userCoins SET coins = coins + ? WHERE userId = ?`,
+        params: [totalCoins, userId]
+    });
+
+    try {
+        await transaction(operations);
+        debugLog('INVENTORY', `User ${userId} sold ${fumoList.length} fumos for ${totalCoins} coins`);
+        return { success: true, totalCoinsEarned: totalCoins };
+    } catch (error) {
+        console.error('Batch sell failed:', error);
+        return { success: false, totalCoinsEarned: 0 };
+    }
+}
+
+async function sellFumo(userId, fumoName, quantity = 1) {
+    return await sellMultipleFumos(userId, [{ fumoName, quantity }]);
 }
 
 async function getTotalFumoCount(userId) {
@@ -230,8 +288,8 @@ async function transferFumo(fromUserId, toUserId, fumoName, quantity = 1) {
 }
 
 module.exports = {
-    // Fumo operations
     selectAndAddFumo,
+    selectAndAddMultipleFumos,
     removeFumo,
     sellFumo,
     sellMultipleFumos,

@@ -1,5 +1,66 @@
 const db = require('./dbSetting');
 
+function createIndexes() {
+    console.log('📊 Creating database indexes...');
+    
+    const indexes = [
+        // User Inventory - Most queried table
+        `CREATE INDEX IF NOT EXISTS idx_inventory_userId ON userInventory(userId)`,
+        `CREATE INDEX IF NOT EXISTS idx_inventory_itemName ON userInventory(userId, itemName)`,
+        `CREATE INDEX IF NOT EXISTS idx_inventory_rarity ON userInventory(userId, rarity)`,
+        
+        // Active Boosts - Checked on every roll
+        `CREATE INDEX IF NOT EXISTS idx_boosts_userId ON activeBoosts(userId)`,
+        `CREATE INDEX IF NOT EXISTS idx_boosts_expires ON activeBoosts(userId, expiresAt)`,
+        `CREATE INDEX IF NOT EXISTS idx_boosts_type ON activeBoosts(userId, type, source)`,
+        
+        // Daily Quests - Checked frequently
+        `CREATE INDEX IF NOT EXISTS idx_daily_quest ON dailyQuestProgress(userId, questId, date)`,
+        `CREATE INDEX IF NOT EXISTS idx_daily_completed ON dailyQuestProgress(userId, date, completed)`,
+        
+        // Weekly Quests
+        `CREATE INDEX IF NOT EXISTS idx_weekly_quest ON weeklyQuestProgress(userId, questId, week)`,
+        `CREATE INDEX IF NOT EXISTS idx_weekly_completed ON weeklyQuestProgress(userId, week, completed)`,
+        
+        // Achievements
+        `CREATE INDEX IF NOT EXISTS idx_achievement ON achievementProgress(userId, achievementId)`,
+        
+        // Farming Fumos
+        `CREATE INDEX IF NOT EXISTS idx_farming_user ON farmingFumos(userId)`,
+        `CREATE INDEX IF NOT EXISTS idx_farming_fumo ON farmingFumos(userId, fumoName)`,
+        
+        // Pet Inventory
+        `CREATE INDEX IF NOT EXISTS idx_pet_userId ON petInventory(userId)`,
+        `CREATE INDEX IF NOT EXISTS idx_pet_type ON petInventory(userId, type)`,
+        
+        // Equipped Pets
+        `CREATE INDEX IF NOT EXISTS idx_equipped_user ON equippedPets(userId)`,
+        
+        // User Sales History
+        `CREATE INDEX IF NOT EXISTS idx_sales_user ON userSales(userId, timestamp)`,
+        
+        // Exchange History
+        `CREATE INDEX IF NOT EXISTS idx_exchange_user ON exchangeHistory(userId, date)`,
+        
+        // Redeemed Codes (already has PRIMARY KEY, but add date for cleanup)
+        `CREATE INDEX IF NOT EXISTS idx_codes_user ON redeemedCodes(userId)`,
+    ];
+    
+    let completed = 0;
+    indexes.forEach((sql, idx) => {
+        db.run(sql, (err) => {
+            if (err) {
+                console.error(`❌ Failed to create index ${idx}:`, err.message);
+            } else {
+                completed++;
+                if (completed === indexes.length) {
+                    console.log(`✅ Created ${completed} database indexes successfully`);
+                }
+            }
+        });
+    });
+}
+
 /**
  * Creates all database tables if they don't exist
  */
@@ -361,25 +422,22 @@ function ensureColumnsExist() {
         });
     });
 
-    // Add extra column to activeBoosts if missing
     addColumnIfNotExists('activeBoosts', 'extra', "TEXT DEFAULT '{}'");
 
-    // Add ability column to petInventory if missing
     addColumnIfNotExists('petInventory', 'ability', 'TEXT');
 }
 
-/**
- * Initialize all database tables and columns
- * Call this when the bot starts
- */
 function initializeDatabase() {
+    console.log('🚀 Initializing database schema...');
     createTables();
     ensureColumnsExist();
-    console.log('✅ Database schema initialized');
+    createIndexes();
+    console.log('✅ Database initialization complete');
 }
 
 module.exports = {
     createTables,
     ensureColumnsExist,
+    createIndexes,
     initializeDatabase
 };
