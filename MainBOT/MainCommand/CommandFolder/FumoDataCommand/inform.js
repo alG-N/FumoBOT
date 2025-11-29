@@ -7,7 +7,7 @@ const {
     ButtonBuilder,
     ButtonStyle
 } = require('discord.js');
-const db = require('../../Core/Database/db.js');
+const db = require('../../Core/Database/dbSetting.js');
 const client = new Client({
     intents: [
         GatewayIntentBits.GuildMessages,
@@ -21,7 +21,7 @@ client.setMaxListeners(150);
 function formatNumber(number) {
     return number.toLocaleString();
 }
-const { maintenance, developerID } = require("../../Configuration/MaintenanceConfig.js");
+const { maintenance, developerID } = require("../../Configuration/Maintenance/maintenanceConfig.js");
 const { isBanned } = require('../../Administrator/BannedList/BanUtils.js');
 const { format } = require('date-fns');
 module.exports = (client) => {

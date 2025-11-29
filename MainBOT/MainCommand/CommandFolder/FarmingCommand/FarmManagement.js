@@ -9,12 +9,12 @@ const {
     Colors
 } = require('discord.js');
 const { promisify } = require('util');
-const db = require('../../Core/Database/db');
+const db = require('../../Core/Database/dbSetting');
 db.getAsync = promisify(db.get).bind(db);
 db.allAsync = promisify(db.all).bind(db);
 // Need more logging here, especially for farming start/stop and errors
 const farmingIntervals = new Map();
-const { maintenance, developerID } = require("../../Configuration/MaintenanceConfig");
+const { maintenance, developerID } = require("../../Configuration/Maintenance/maintenanceConfig");
 const { isBanned } = require('../../Administrator/BannedList/BanUtils');
 
 const LOG_CHANNEL_ID = '1411386632589807719';

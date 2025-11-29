@@ -7,7 +7,7 @@ const {
     ButtonBuilder,
     ButtonStyle
 } = require('discord.js');
-const db = require('../../Core/Database/db.js');
+const db = require('../../Core/Database/dbSetting.js');
 const client = new Client({
     intents: [
         GatewayIntentBits.GuildMessages,
@@ -18,7 +18,7 @@ const client = new Client({
     partials: [Partials.Message, Partials.Channel, Partials.Reaction]
 });
 client.setMaxListeners(150);
-const { maintenance, developerID } = require("../../Configuration/MaintenanceConfig.js");
+const { maintenance, developerID } = require("../../Configuration/Maintenance/maintenanceConfig.js");
 const { isBanned } = require('../../Administrator/BannedList/BanUtils.js');
 module.exports = (client, libraryFumos) => {
     const CATEGORIES = [

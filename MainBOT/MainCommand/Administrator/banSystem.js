@@ -2,7 +2,8 @@ const { EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 
-const BAN_FILE_PATH = path.join(__dirname, '../Banned/Banned.json');
+// Updated to use the existing Banned.json in BannedList directory
+const BAN_FILE_PATH = path.join(__dirname, 'BannedList/Banned.json');
 
 // Ensure the ban file exists
 if (!fs.existsSync(BAN_FILE_PATH)) {
@@ -10,7 +11,7 @@ if (!fs.existsSync(BAN_FILE_PATH)) {
     if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
     }
-    fs.writeFileSync(BAN_FILE_PATH, JSON.stringify([]));
+    fs.writeFileSync(BAN_FILE_PATH, JSON.stringify([], null, 2));
 }
 
 /**
@@ -45,7 +46,7 @@ function parseDuration(durationStr) {
  * @param {number|null} durationMs - Duration in milliseconds (null for permanent)
  */
 function banUser(userId, reason, durationMs = null) {
-    const banList = JSON.parse(fs.readFileSync(BAN_FILE_PATH));
+    const banList = JSON.parse(fs.readFileSync(BAN_FILE_PATH, 'utf8'));
     const expiresAt = durationMs ? Date.now() + durationMs : null;
 
     const existingIndex = banList.findIndex(b => b.userId === userId);
@@ -63,7 +64,7 @@ function banUser(userId, reason, durationMs = null) {
  * @param {string} userId - User ID to unban
  */
 function unbanUser(userId) {
-    const banList = JSON.parse(fs.readFileSync(BAN_FILE_PATH));
+    const banList = JSON.parse(fs.readFileSync(BAN_FILE_PATH, 'utf8'));
     const newList = banList.filter(ban => ban.userId !== userId);
     fs.writeFileSync(BAN_FILE_PATH, JSON.stringify(newList, null, 2));
 }
@@ -74,7 +75,7 @@ function unbanUser(userId) {
  * @returns {object|null} - Ban object if banned, null otherwise
  */
 function isUserBanned(userId) {
-    const banList = JSON.parse(fs.readFileSync(BAN_FILE_PATH));
+    const banList = JSON.parse(fs.readFileSync(BAN_FILE_PATH, 'utf8'));
     const ban = banList.find(b => b.userId === userId);
     
     if (!ban) return null;

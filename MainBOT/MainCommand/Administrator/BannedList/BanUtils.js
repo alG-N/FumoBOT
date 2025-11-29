@@ -1,18 +1,23 @@
 const fs = require('fs');
 const path = require('path');
+
 const banfilepath = path.join(__dirname, 'Banned.json');
 
-// Ensure file exists
+const banDir = path.dirname(banfilepath);
+if (!fs.existsSync(banDir)) {
+    fs.mkdirSync(banDir, { recursive: true });
+}
+
 if (!fs.existsSync(banfilepath)) {
-    fs.writeFileSync(banfilepath, JSON.stringify([]));
+    fs.writeFileSync(banfilepath, JSON.stringify([], null, 2));
 }
 
 function isBanned(userId) {
-    const banList = JSON.parse(fs.readFileSync(banfilepath));
+    const banList = JSON.parse(fs.readFileSync(banfilepath, 'utf8'));
 
     const updatedBanList = banList.filter(ban => {
         if (ban.expiresAt && Date.now() > ban.expiresAt) {
-            return false; // expired
+            return false;
         }
         return true;
     });

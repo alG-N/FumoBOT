@@ -8,7 +8,7 @@ const {
     ButtonStyle
 } = require('discord.js');
 const { promisify } = require('util');
-const db = require('../../Core/Database/db');
+const db = require('../../Core/Database/dbSetting');
 db.getAsync = promisify(db.get).bind(db);
 db.allAsync = promisify(db.all).bind(db);
 db.runAsync = (...args) => new Promise((resolve, reject) => {
@@ -27,7 +27,7 @@ const client = new Client({
     partials: [Partials.Message, Partials.Channel, Partials.Reaction]
 });
 client.setMaxListeners(150);
-const { maintenance, developerID } = require("../../Configuration/MaintenanceConfig");
+const { maintenance, developerID } = require("../../Configuration/Maintenance/maintenanceConfig");
 const { isBanned } = require('../../Administrator/BannedList/BanUtils');
 module.exports = async (client) => {
     client.on('messageCreate', async message => {

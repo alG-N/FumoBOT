@@ -29,7 +29,7 @@ const { registerTicketSystem } = require('./MainCommand/Administrator/ticketSyst
 const { registerCodeRedemption } = require('./MainCommand/CommandFolder/UserDataCommand/UsuableCommand/codeRedemption');
 
 // MAINTENANCE CONFIG
-const { maintenance, developerID } = require("./MainCommand/Configuration/MaintenanceConfig");
+const { maintenance, developerID } = require("./MainCommand/Configuration/Maintenance/maintenanceConfig");
 console.log(`Maintenance mode is currently: ${maintenance}`);
 
 // CLIENT INITIALIZATION

@@ -1,4 +1,4 @@
-const db = require('../Core/Database/db');
+const db = require('../Core/Database/dbSetting');
 
 function getWeekIdentifier() {
     const now = new Date();

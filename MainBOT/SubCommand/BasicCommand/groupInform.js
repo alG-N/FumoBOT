@@ -2,7 +2,7 @@ const {
     SlashCommandBuilder,
     EmbedBuilder
 } = require('discord.js');
-const { maintenance, developerID } = require("../../MainCommand/Configuration/MaintenanceConfig.js");
+const { maintenance, developerID } = require("../../MainCommand/Configuration/Maintenance/maintenanceConfig.js");
 const { isBanned } = require('../../MainCommand/Administrator/BannedList/BanUtils.js');
 
 module.exports = {
