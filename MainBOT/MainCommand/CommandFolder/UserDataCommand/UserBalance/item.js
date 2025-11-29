@@ -15,25 +15,42 @@ module.exports = (client) => {
         ) return;
 
         const userId = message.author.id;
-        debugLog('INVENTORY', `Processing inventory request for user ${userId}`);
+        console.log(`[ITEMS] Processing inventory request for user ${userId}`);
 
         const restrictions = checkRestrictions(userId);
         if (restrictions.blocked) {
             return message.reply({ embeds: [restrictions.embed] });
         }
 
+        let sentMessage = null;
+
         try {
+            console.log(`[ITEMS] Fetching inventory data...`);
             const inventoryData = await getUserInventoryPaginated(userId, ITEMS_PER_PAGE);
             
+            console.log(`[ITEMS] Inventory data retrieved:`, {
+                hasItems: inventoryData.hasItems,
+                totalPages: inventoryData.pages?.length || 0,
+                totalItems: inventoryData.totalItems
+            });
+
             if (!inventoryData.hasItems) {
                 return message.reply('🤷‍♂️ It appears you do not have any items at the moment.');
             }
 
+            if (!inventoryData.pages || inventoryData.pages.length === 0) {
+                console.error(`[ITEMS] No pages generated despite having items!`);
+                return message.reply('❌ Error: Failed to load inventory pages.');
+            }
+
+            console.log(`[ITEMS] Fetching inventory stats...`);
             const stats = await getInventoryStats(userId);
 
             let currentPage = 0;
             const totalPages = inventoryData.pages.length;
 
+            console.log(`[ITEMS] Creating initial embed for page 1/${totalPages}`);
+            
             const embed = createInventoryEmbed(
                 message.author,
                 inventoryData.pages[currentPage],
@@ -44,41 +61,98 @@ module.exports = (client) => {
 
             const buttons = createInventoryButtons(userId, currentPage, totalPages);
 
-            const sentMessage = await message.channel.send({
+            console.log(`[ITEMS] Sending message...`);
+            sentMessage = await message.channel.send({
                 embeds: [embed],
                 components: [buttons]
             });
 
+            console.log(`[ITEMS] Message sent, creating collector...`);
+
             const collector = sentMessage.createMessageComponentCollector({
-                filter: (i) => i.user.id === userId && ['prev_page', 'next_page'].includes(i.customId),
+                filter: (i) => {
+                    const isOwner = i.user.id === userId;
+                    const isValidButton = ['prev_page', 'next_page'].some(btn => i.customId.startsWith(btn));
+                    console.log(`[ITEMS] Collector filter: customId=${i.customId}, user=${i.user.id}, owner=${isOwner}, validButton=${isValidButton}`);
+                    return isOwner && isValidButton;
+                },
                 time: INTERACTION_TIMEOUT
             });
 
             collector.on('collect', async interaction => {
-                const result = await handleInventoryInteraction(
-                    interaction,
-                    inventoryData,
-                    currentPage,
-                    message.author,
-                    stats
-                );
+                console.log(`[ITEMS] Collected interaction: ${interaction.customId}`);
+                
+                try {
+                    const result = await handleInventoryInteraction(
+                        interaction,
+                        inventoryData,
+                        currentPage,
+                        message.author,
+                        stats
+                    );
 
-                if (result.success) {
-                    currentPage = result.newPage;
+                    if (result.success) {
+                        currentPage = result.newPage;
+                        console.log(`[ITEMS] Page updated to: ${currentPage}`);
+                    } else {
+                        console.log(`[ITEMS] Page navigation failed`);
+                    }
+                } catch (error) {
+                    console.error('[ITEMS] Error in collector:', error);
                 }
             });
 
-            collector.on('end', () => {
-                sentMessage.edit({ components: [] }).catch(() => {});
+            collector.on('end', (collected, reason) => {
+                console.log(`[ITEMS] Collector ended: ${reason}, collected ${collected.size} interactions`);
+                
+                sentMessage.edit({ components: [] }).catch(err => {
+                    console.error('[ITEMS] Failed to remove buttons:', err.message);
+                });
             });
 
             setTimeout(() => {
-                sentMessage.delete().catch(() => {});
+                console.log(`[ITEMS] Auto-delete timeout reached`);
+                sentMessage.delete().catch(err => {
+                    console.error('[ITEMS] Failed to delete message:', err.message);
+                });
             }, INTERACTION_TIMEOUT);
 
         } catch (error) {
-            console.error('[INVENTORY ERROR]', error);
-            return message.reply('❌ An error occurred while fetching your items.');
+            console.error('[ITEMS] Critical error:', error);
+            
+            const errorMessage = '❌ An error occurred while fetching your items.';
+            
+            if (sentMessage) {
+                try {
+                    await sentMessage.edit({
+                        content: errorMessage,
+                        embeds: [],
+                        components: []
+                    });
+                } catch (editError) {
+                    console.error('[ITEMS] Failed to edit message with error:', editError);
+                }
+            } else {
+                try {
+                    await message.reply(errorMessage);
+                } catch (replyError) {
+                    console.error('[ITEMS] Failed to reply with error:', replyError);
+                }
+            }
         }
+    });
+
+    client.on('interactionCreate', async interaction => {
+        if (!interaction.isButton()) return;
+
+        const parts = interaction.customId.split('_');
+        const action = parts.slice(0, -1).join('_');
+        
+        if (!['prev_page', 'next_page'].includes(action)) {
+            return;
+        }
+
+        console.log(`[ITEMS] Received button interaction: ${interaction.customId}`);
+        
     });
 };

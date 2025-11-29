@@ -3,48 +3,127 @@ const { createInventoryEmbed, createInventoryButtons } = require('./ItemUIServic
 const { debugLog } = require('../../../Core/logger');
 
 async function handleInventoryInteraction(interaction, inventoryData, currentPage, user, stats) {
-    debugLog('INVENTORY_INTERACTION', `Handling interaction ${interaction.customId} for user ${interaction.user.id}`);
+    console.log(`[INTERACTION] Handling ${interaction.customId} for user ${interaction.user.id}, current page: ${currentPage}`);
 
-    if (!await checkButtonOwnership(interaction)) {
+    try {
+        if (!await checkButtonOwnership(interaction, null, null, false)) {
+            console.log(`[INTERACTION] Ownership check failed`);
+            
+            try {
+                await interaction.reply({
+                    content: "❌ You can't use someone else's inventory buttons.",
+                    ephemeral: true
+                });
+            } catch (error) {
+                console.log(`[INTERACTION] Could not reply to ownership error (interaction expired)`);
+            }
+            
+            return { success: false, newPage: currentPage };
+        }
+
+        if (!inventoryData || !inventoryData.pages || inventoryData.pages.length === 0) {
+            console.error(`[INTERACTION] Invalid inventory data:`, inventoryData);
+            await interaction.reply({
+                content: '❌ Error: Invalid inventory data',
+                ephemeral: true
+            });
+            return { success: false, newPage: currentPage };
+        }
+
+        const totalPages = inventoryData.pages.length;
+        let newPage = currentPage;
+
+        console.log(`[INTERACTION] Total pages: ${totalPages}, Current page: ${currentPage}`);
+
+        if (interaction.customId.startsWith('prev_page')) {
+            if (currentPage > 0) {
+                newPage = currentPage - 1;
+                console.log(`[INTERACTION] Moving to previous page: ${newPage}`);
+            } else {
+                console.log(`[INTERACTION] Already on first page`);
+                await interaction.reply({
+                    content: '⚠️ You are already on the first page.',
+                    ephemeral: true
+                });
+                return { success: false, newPage: currentPage };
+            }
+        } else if (interaction.customId.startsWith('next_page')) {
+            if (currentPage < totalPages - 1) {
+                newPage = currentPage + 1;
+                console.log(`[INTERACTION] Moving to next page: ${newPage}`);
+            } else {
+                console.log(`[INTERACTION] Already on last page`);
+                await interaction.reply({
+                    content: '⚠️ You are already on the last page.',
+                    ephemeral: true
+                });
+                return { success: false, newPage: currentPage };
+            }
+        } else {
+            console.log(`[INTERACTION] Unknown interaction type: ${interaction.customId}`);
+            return { success: false, newPage: currentPage };
+        }
+
+        if (newPage !== currentPage) {
+            if (!inventoryData.pages[newPage]) {
+                console.error(`[INTERACTION] Page ${newPage} does not exist!`);
+                await interaction.reply({
+                    content: '❌ Error: Invalid page number',
+                    ephemeral: true
+                });
+                return { success: false, newPage: currentPage };
+            }
+
+            console.log(`[INTERACTION] Creating embed for page ${newPage}`);
+            
+            const embed = createInventoryEmbed(
+                user,
+                inventoryData.pages[newPage],
+                stats,
+                newPage,
+                totalPages
+            );
+
+            const buttons = createInventoryButtons(interaction.user.id, newPage, totalPages);
+
+            await interaction.update({
+                embeds: [embed],
+                components: [buttons]
+            });
+
+            console.log(`[INTERACTION] Successfully updated to page ${newPage + 1}/${totalPages}`);
+        }
+
+        return { success: true, newPage };
+
+    } catch (error) {
+        console.error('[INTERACTION] Error in handleInventoryInteraction:', error);
+        
+        try {
+            if (interaction.deferred || interaction.replied) {
+                await interaction.followUp({
+                    content: '❌ An error occurred while navigating pages.',
+                    ephemeral: true
+                });
+            } else {
+                await interaction.reply({
+                    content: '❌ An error occurred while navigating pages.',
+                    ephemeral: true
+                });
+            }
+        } catch (replyError) {
+            console.error('[INTERACTION] Failed to send error message:', replyError);
+        }
+
         return { success: false, newPage: currentPage };
     }
-
-    const totalPages = inventoryData.pages.length;
-    let newPage = currentPage;
-
-    if (interaction.customId.startsWith('prev_page') && currentPage > 0) {
-        newPage = currentPage - 1;
-    } else if (interaction.customId.startsWith('next_page') && currentPage < totalPages - 1) {
-        newPage = currentPage + 1;
-    }
-
-    if (newPage !== currentPage) {
-        const embed = createInventoryEmbed(
-            user,
-            inventoryData.pages[newPage],
-            stats,
-            newPage,
-            totalPages
-        );
-
-        const buttons = createInventoryButtons(interaction.user.id, newPage, totalPages);
-
-        await interaction.update({
-            embeds: [embed],
-            components: [buttons]
-        });
-
-        debugLog('INVENTORY_INTERACTION', `Updated to page ${newPage + 1}/${totalPages}`);
-    }
-
-    return { success: true, newPage };
 }
 
 async function handleInventoryRefresh(interaction, userId) {
-    debugLog('INVENTORY_INTERACTION', `Refreshing inventory for user ${userId}`);
+    console.log(`[INTERACTION] Refreshing inventory for user ${userId}`);
 
     try {
-        const { getUserInventoryPaginated, getInventoryStats } = require('./InventoryQueryService');
+        const { getUserInventoryPaginated, getInventoryStats } = require('./ItemQueryService');
         
         const inventoryData = await getUserInventoryPaginated(userId, 2);
         
@@ -74,10 +153,21 @@ async function handleInventoryRefresh(interaction, userId) {
             components: [buttons]
         });
 
+        console.log(`[INTERACTION] Successfully refreshed inventory`);
         return true;
 
     } catch (error) {
-        console.error('Error refreshing inventory:', error);
+        console.error('[INTERACTION] Error refreshing inventory:', error);
+        
+        try {
+            await interaction.reply({
+                content: '❌ An error occurred while refreshing your inventory.',
+                ephemeral: true
+            });
+        } catch (replyError) {
+            console.error('[INTERACTION] Failed to send error message:', replyError);
+        }
+        
         return false;
     }
 }

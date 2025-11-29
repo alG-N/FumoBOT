@@ -5,6 +5,7 @@ const { logUserActivity, logError, logToDiscord } = require('../../Core/logger')
 // Middleware
 const { checkRestrictions } = require('../../Middleware/restrictions');
 const { checkAndSetCooldown } = require('../../Middleware/rateLimiter');
+const { verifyButtonOwnership } = require('../../Middleware/buttonOwnership');
 
 // Services
 const { getUserBoosts } = require('../../Service/GachaService/NormalGachaService/BoostService');
@@ -120,8 +121,9 @@ async function handleAutoRollStart(interaction, client) {
             ephemeral: true
         });
 
-        const filter = i => i.user.id === userId &&
-            (i.customId === `autoRollProceed_${userId}` || i.customId === `autoRollAutoSell_${userId}`);
+        const filter = i => {
+            return verifyButtonOwnership(i);
+        };
 
         const collector = interaction.channel.createMessageComponentCollector({
             filter,
@@ -184,7 +186,6 @@ async function handleAutoRollStart(interaction, client) {
 }
 
 async function handleAutoRollStop(interaction, client) {
-    // SECURITY FIX: Use interaction.user.id directly
     const userId = interaction.user.id;
 
     const result = stopAutoRoll(userId);
@@ -264,17 +265,23 @@ module.exports = (client) => {
 
         try {
             const userId = interaction.user.id;
-            const action = interaction.customId.split('_')[0];
+            
+            const parts = interaction.customId.split('_');
+            const claimedUserId = parts[parts.length - 1];
+            const action = parts.slice(0, -1).join('_');
 
-            const expectedCustomId = `${action}_${userId}`;
-            if (!interaction.customId.startsWith(expectedCustomId)) {
+            const crategachaActions = ['buy1fumo', 'buy10fumos', 'buy100fumos', 'autoRoll50', 'stopAuto50', 'autoRollProceed', 'autoRollAutoSell'];
+            if (!crategachaActions.includes(action)) {
+                return;
+            }
+
+            if (!verifyButtonOwnership(interaction)) {
                 return interaction.reply({
-                    content: "You can't use someone else's button. Use `.crategacha` yourself.",
+                    content: "❌ You can't use someone else's buttons. Run the command yourself.",
                     ephemeral: true
                 });
             }
 
-            // Rate limiting
             if (['buy1fumo', 'buy10fumos', 'buy100fumos', 'autoRoll50', 'stopAuto50'].includes(action)) {
                 const cooldown = await checkAndSetCooldown(userId, 'gacha');
                 if (cooldown.onCooldown) {
@@ -284,7 +291,6 @@ module.exports = (client) => {
                     });
                 }
 
-                // Prevent manual rolls during auto-roll
                 if (['buy1fumo', 'buy10fumos', 'buy100fumos'].includes(action) && isAutoRollActive(userId)) {
                     return interaction.reply({
                         content: '⚠️ You cannot manually roll while Auto Roll is active. Please stop it first.',
@@ -293,7 +299,6 @@ module.exports = (client) => {
                 }
             }
 
-            // Route to handlers
             switch (action) {
                 case 'buy1fumo':
                     await handleSingleRoll(interaction, client);
