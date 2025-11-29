@@ -2,12 +2,12 @@ const { get, run } = require('../../../Core/database');
 const { getUserBoosts } = require('./BoostService');
 const { calculateRarity, updatePityCounters, updateBoostCharge } = require('./RarityService');
 const { selectAndAddFumo, selectAndAddMultipleFumos } = require('./InventoryService');
-const { ASTRAL_PLUS_RARITIES } = require('../../../Configuration/rarity');
+const { ASTRAL_PLUS_RARITIES, isRarer } = require('../../../Configuration/rarity');
 const { incrementWeeklyAstral } = require('../../../Ultility/weekly');
 const { debugLog } = require('../../../Core/logger');
 
 async function updateQuestsAndAchievements(userId, rollCount) {
-    const { getWeekIdentifier } = require('../../Ultility/weekly');
+    const { getWeekIdentifier } = require('../../../Ultility/weekly');
     const weekId = getWeekIdentifier();
 
     await Promise.all([
@@ -182,7 +182,6 @@ async function performMultiRoll(userId, fumos, rollCount) {
     
     let bestFumo = null;
     if (fumosBought.length > 0) {
-        const { isRarer } = require('../../Configuration/rarity');
         bestFumo = fumosBought[0];
         for (const fumo of fumosBought) {
             if (isRarer(fumo.rarity, bestFumo.rarity)) {
