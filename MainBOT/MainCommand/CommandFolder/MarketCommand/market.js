@@ -10,8 +10,8 @@ const {
 const db = require('../../Core/Database/dbSetting');
 const { maintenance, developerID } = require("../../Configuration/Maintenance/maintenanceConfig");
 const { isBanned } = require('../../Administrator/BannedList/BanUtils');
-const { allFumoList } = require('../../Data/BackupOld/MarketFumoStorage');
 const { incrementWeeklyShiny } = require('../../Ultility/weekly');
+const FumoPool = require('../../Data/FumoPool');
 
 const client = new Client({
     intents: [
@@ -48,7 +48,11 @@ const CELESTIAL_PLUS = ['CELESTIAL', 'INFINITE', 'ETERNAL', 'TRANSCENDENT'];
 
 module.exports = async (client) => {
     const userMarkets = {};
-    const fumoPool = allFumoList;
+    
+    // Get market fumos from FumoPool
+    const marketFumos = FumoPool.getForMarket();
+    
+    console.log(`✅ Loaded ${marketFumos.length} fumos available for market`);
 
     // Utility functions
     const getRandomStock = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
@@ -101,9 +105,9 @@ module.exports = async (client) => {
             if (banData.expiresAt) {
                 const remaining = banData.expiresAt - Date.now();
                 const days = Math.floor(remaining / (1000 * 60 * 60 * 24));
-                const hours = Math.floor((remaining / (1000 * 60 * 60)) % 24);
-                const minutes = Math.floor((remaining / (1000 * 60)) % 60);
-                const seconds = Math.floor((remaining / 1000) % 60);
+                const hours = Math.floor((remaining % (1000 * 60 * 60 * 24)) / (60 * 60 * 1000));
+                const minutes = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000));
+                const seconds = Math.floor((remaining % (60 * 1000)) / 1000);
 
                 const timeString = [
                     days && `${days}d`,
@@ -139,17 +143,30 @@ module.exports = async (client) => {
         const usedNames = new Set();
         const selected = [];
 
+        // Convert FumoPool data to market format
+        const fumoPool = marketFumos.map(fumo => {
+            // Extract rarity from name if not present
+            const rarity = extractRarity(fumo.name);
+            return {
+                name: fumo.name,
+                price: fumo.price,
+                rarity: rarity,
+                picture: fumo.picture || null
+            };
+        });
+
         // Select fumos based on rarity chances
         for (const fumo of fumoPool) {
-            const rarityName = extractRarity(fumo.name);
-            const rarity = getRarityData(rarityName);
+            const rarity = getRarityData(fumo.rarity);
             
             if (!rarity || usedNames.has(fumo.name) || Math.random() >= rarity.chance) continue;
 
             selected.push({
-                ...fumo,
+                name: fumo.name,
+                price: fumo.price,
                 rarity: rarity.name,
-                stock: getRandomStock(rarity.minStock, rarity.maxStock)
+                stock: getRandomStock(rarity.minStock, rarity.maxStock),
+                picture: fumo.picture
             });
             usedNames.add(fumo.name);
         }
@@ -159,15 +176,16 @@ module.exports = async (client) => {
         while (selected.length < 5 && candidates.length > 0) {
             const idx = Math.floor(Math.random() * candidates.length);
             const fumo = candidates.splice(idx, 1)[0];
-            const rarityName = extractRarity(fumo.name);
-            const rarity = getRarityData(rarityName);
+            const rarity = getRarityData(fumo.rarity);
             
             if (!rarity) continue;
 
             selected.push({
-                ...fumo,
+                name: fumo.name,
+                price: fumo.price,
                 rarity: rarity.name,
-                stock: getRandomStock(rarity.minStock, rarity.maxStock)
+                stock: getRandomStock(rarity.minStock, rarity.maxStock),
+                picture: fumo.picture
             });
             usedNames.add(fumo.name);
         }
@@ -178,35 +196,39 @@ module.exports = async (client) => {
             selected.splice(maxSize);
         }
 
-        // Force high-rarity injection logic (kept as-is since it's complex)
+        // Force high-rarity injection logic
         const now = Date.now();
-        const hasHighRarity = selected.some(f => HIGH_RARITIES.includes(extractRarity(f.name)));
-        const hasCelestialPlus = selected.some(f => CELESTIAL_PLUS.includes(extractRarity(f.name)));
+        const hasHighRarity = selected.some(f => HIGH_RARITIES.includes(f.rarity));
+        const hasCelestialPlus = selected.some(f => CELESTIAL_PLUS.includes(f.rarity));
 
-        // Force inject ??? or higher if none in 12h (simplified)
+        // Force inject ??? or higher if none
         if (!hasHighRarity) {
-            const highRarityFumos = fumoPool.filter(f => HIGH_RARITIES.includes(extractRarity(f.name)));
+            const highRarityFumos = fumoPool.filter(f => HIGH_RARITIES.includes(f.rarity));
             if (highRarityFumos.length > 0 && selected.length > 0) {
                 const forced = highRarityFumos[Math.floor(Math.random() * highRarityFumos.length)];
-                const rarity = getRarityData(extractRarity(forced.name));
+                const rarity = getRarityData(forced.rarity);
                 selected[0] = {
-                    ...forced,
+                    name: forced.name,
+                    price: forced.price,
                     rarity: rarity.name,
-                    stock: getRandomStock(rarity.minStock, rarity.maxStock)
+                    stock: getRandomStock(rarity.minStock, rarity.maxStock),
+                    picture: forced.picture
                 };
             }
         }
 
-        // Force inject CELESTIAL+ if none in 24h (simplified)
+        // Force inject CELESTIAL+ if none
         if (!hasCelestialPlus) {
-            const celestialFumos = fumoPool.filter(f => CELESTIAL_PLUS.includes(extractRarity(f.name)));
+            const celestialFumos = fumoPool.filter(f => CELESTIAL_PLUS.includes(f.rarity));
             if (celestialFumos.length > 0 && selected.length > 1) {
                 const forced = celestialFumos[Math.floor(Math.random() * celestialFumos.length)];
-                const rarity = getRarityData(extractRarity(forced.name));
+                const rarity = getRarityData(forced.rarity);
                 selected[1] = {
-                    ...forced,
+                    name: forced.name,
+                    price: forced.price,
                     rarity: rarity.name,
-                    stock: getRandomStock(rarity.minStock, rarity.maxStock)
+                    stock: getRandomStock(rarity.minStock, rarity.maxStock),
+                    picture: forced.picture
                 };
             }
         }
@@ -309,7 +331,7 @@ module.exports = async (client) => {
                 .setTitle("📖 How to Use .purchase")
                 .setDescription(
                     "To purchase a Fumo, use:\n`/purchase FumoName [amount]`\n\n" +
-                    "**Example:** `/purchase Marisa 3`\n" +
+                    "**Example:** `/purchase Marisa(Common) 3`\n" +
                     "You can also omit the amount to buy 1.\n\n" +
                     "Use `/market` to view what's for sale!"
                 )
@@ -477,4 +499,3 @@ module.exports = async (client) => {
         });
     };
 };
-

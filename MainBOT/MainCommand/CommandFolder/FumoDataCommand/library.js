@@ -20,7 +20,9 @@ const client = new Client({
 client.setMaxListeners(150);
 const { maintenance, developerID } = require("../../Configuration/Maintenance/maintenanceConfig.js");
 const { isBanned } = require('../../Administrator/BannedList/BanUtils.js');
-module.exports = (client, libraryFumos) => {
+const FumoPool = require('../../Data/FumoPool');
+
+module.exports = (client) => {
     const CATEGORIES = [
         'Common', 'UNCOMMON', 'RARE', 'EPIC', 'OTHERWORLDLY', 'LEGENDARY', 'MYTHICAL',
         'EXCLUSIVE', '???', 'ASTRAL', 'CELESTIAL', 'INFINITE', 'ETERNAL', 'TRANSCENDENT'
@@ -119,6 +121,8 @@ module.exports = (client, libraryFumos) => {
                 return message.reply({ embeds: [embed] });
             }
 
+            const libraryFumos = FumoPool.getForLibrary();
+            
             db.all(`SELECT fumoName FROM userInventory WHERE userId = ?`, [message.author.id], async (err, rows) => {
                 if (err) {
                     console.error(`[DB ERROR] ${err.message}`);
