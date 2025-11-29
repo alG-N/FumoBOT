@@ -1,4 +1,4 @@
-const { get } = require('../../../Core/database');
+const { get, all, run } = require('../../../Core/database');
 const { performEventSummon, getEventUserRollData } = require('./EventGachaService');
 const { 
     EVENT_AUTO_ROLL_INTERVAL, 
@@ -7,7 +7,7 @@ const {
     EVENT_ROLL_LIMIT,
     isWindowExpired
 } = require('../../../Configuration/eventConfig');
-const { SPECIAL_RARITIES, compareFumos } = require('../../../Configuration/rarity');
+const { SPECIAL_RARITIES, compareFumos, SELL_REWARDS, SHINY_CONFIG } = require('../../../Configuration/rarity');
 const { debugLog } = require('../../../Core/logger');
 
 const eventAutoRollMap = new Map();
@@ -33,8 +33,57 @@ async function calculateEventAutoRollInterval(userId) {
     return interval;
 }
 
-async function startEventAutoRoll(userId, eventFumos) {
-    debugLog('EVENT_AUTO_ROLL', `Starting event auto-roll for user ${userId}`);
+async function performEventAutoSell(userId) {
+    const inventoryRows = await all(
+        `SELECT id, fumoName, quantity FROM userInventory WHERE userId = ? ORDER BY id DESC LIMIT 100`,
+        [userId]
+    );
+
+    let totalCoins = 0;
+    const toDelete = [];
+    const toUpdate = [];
+
+    for (const row of inventoryRows) {
+        let rarity = null;
+        
+        if (row.fumoName.includes('(EPIC)')) {
+            rarity = 'EPIC';
+        } else if (row.fumoName.includes('(LEGENDARY)')) {
+            rarity = 'LEGENDARY';
+        }
+
+        if (rarity && ['EPIC', 'LEGENDARY'].includes(rarity)) {
+            let value = SELL_REWARDS[rarity] || 0;
+            
+            if (row.fumoName.includes('[🌟alG]')) {
+                value *= SHINY_CONFIG.ALG_MULTIPLIER;
+            } else if (row.fumoName.includes('[✨SHINY]')) {
+                value *= SHINY_CONFIG.SHINY_MULTIPLIER;
+            }
+            
+            totalCoins += value * row.quantity;
+
+            toDelete.push(row.id);
+        }
+    }
+
+    if (toDelete.length > 0) {
+        await run(
+            `DELETE FROM userInventory WHERE userId = ? AND id IN (${toDelete.map(() => '?').join(',')})`,
+            [userId, ...toDelete]
+        );
+    }
+
+    if (totalCoins > 0) {
+        await run(`UPDATE userCoins SET coins = coins + ? WHERE userId = ?`, [totalCoins, userId]);
+    }
+
+    debugLog('EVENT_AUTO_SELL', `Sold ${toDelete.length} fumos for ${totalCoins} coins`);
+    return totalCoins;
+}
+
+async function startEventAutoRoll(userId, autoSell = false) {
+    debugLog('EVENT_AUTO_ROLL', `Starting event auto-roll for user ${userId}, autoSell: ${autoSell}`);
 
     if (eventAutoRollMap.has(userId)) {
         return { success: false, error: 'ALREADY_RUNNING' };
@@ -48,6 +97,7 @@ async function startEventAutoRoll(userId, eventFumos) {
     const initialInterval = await calculateEventAutoRollInterval(userId);
 
     let rollCount = 0;
+    let totalCoinsFromSales = 0;
     let stopped = false;
 
     async function eventAutoRollLoop() {
@@ -76,7 +126,7 @@ async function startEventAutoRoll(userId, eventFumos) {
             const rollsRemaining = EVENT_ROLL_LIMIT - rollsInCurrentWindow;
             const batchSize = Math.min(EVENT_AUTO_ROLL_BATCH_SIZE, rollsRemaining);
 
-            const result = await performEventSummon(userId, batchSize, eventFumos);
+            const result = await performEventSummon(userId, batchSize);
 
             if (!result.success) {
                 debugLog('EVENT_AUTO_ROLL', `Roll failed for user ${userId}: ${result.error}`);
@@ -91,10 +141,16 @@ async function startEventAutoRoll(userId, eventFumos) {
 
             rollCount++;
 
+            if (autoSell) {
+                const coinsEarned = await performEventAutoSell(userId);
+                totalCoinsFromSales += coinsEarned;
+            }
+
             const current = eventAutoRollMap.get(userId);
             if (current) {
                 current.rollCount = rollCount;
                 current.totalFumosRolled += batchSize;
+                current.totalCoinsFromSales = totalCoinsFromSales;
                 const timeStr = new Date().toLocaleString();
 
                 if (result.fumoList && result.fumoList.length > 0) {
@@ -147,13 +203,15 @@ async function startEventAutoRoll(userId, eventFumos) {
         bestFumo: null,
         rollCount: 0,
         totalFumosRolled: 0,
+        totalCoinsFromSales: 0,
         bestFumoAt: null,
         bestFumoRoll: null,
         specialFumoCount: 0,
         specialFumoFirstAt: null,
         specialFumoFirstRoll: null,
         specialFumos: [],
-        stoppedReason: null
+        stoppedReason: null,
+        autoSell
     });
 
     eventAutoRollLoop();
@@ -188,5 +246,6 @@ module.exports = {
     isEventAutoRollActive,
     getEventAutoRollSummary,
     calculateEventAutoRollInterval,
+    performEventAutoSell,
     eventAutoRollMap
 };

@@ -37,7 +37,19 @@ module.exports = (client) => {
             }
 
             if (content.startsWith('.flip stats') || content.startsWith('.f stats')) {
-                await handleStatsCommand(message, userId, username);
+                await handleStatsCommand(client, message, userId, username);
+                return;
+            }
+
+            if (content.startsWith('.flip stat') || content.startsWith('.f stat')) {
+                const embed = createErrorEmbed('TYPO_STATS');
+                await message.channel.send({ embeds: [embed] });
+                return;
+            }
+
+            if (content.startsWith('.flip leaderboards') || content.startsWith('.f leaderboards')) {
+                const embed = createErrorEmbed('TYPO_LEADERBOARD');
+                await message.channel.send({ embeds: [embed] });
                 return;
             }
 
@@ -95,7 +107,14 @@ module.exports = (client) => {
             console.error('Flip command error:', err);
             await logError(client, 'Flip Command', err, message.author.id);
             
-            const embed = createErrorEmbed('GENERIC');
+            let errorType = 'GENERIC';
+            if (err.message?.includes('SQLITE')) {
+                errorType = 'DATABASE_ERROR';
+            } else if (err.message?.includes('timeout')) {
+                errorType = 'TIMEOUT';
+            }
+            
+            const embed = createErrorEmbed(errorType, { message: err.message });
             await message.channel.send({ embeds: [embed] });
         }
     });
@@ -158,12 +177,12 @@ async function handleLeaderboardCommand(client, message, content) {
         console.error('Leaderboard error:', err);
         await logError(client, 'Flip Leaderboard', err, message.author.id);
         
-        const embed = createErrorEmbed('GENERIC');
+        const embed = createErrorEmbed('GENERIC', { message: err.message });
         await message.channel.send({ embeds: [embed] });
     }
 }
 
-async function handleStatsCommand(message, userId, username) {
+async function handleStatsCommand(client, message, userId, username) {
     try {
         const stats = await getUserFlipStats(userId);
         
@@ -171,7 +190,8 @@ async function handleStatsCommand(message, userId, username) {
             Coins: await getUserRank(userId, 'coins'),
             Gems: await getUserRank(userId, 'gems'),
             Wins: await getUserRank(userId, 'wins'),
-            'Win Rate': await getUserRank(userId, 'winrate')
+            'Win Rate': await getUserRank(userId, 'winrate'),
+            Games: await getUserRank(userId, 'games')
         };
         
         const embed = createStatsEmbed(username, stats, ranks);
@@ -181,7 +201,7 @@ async function handleStatsCommand(message, userId, username) {
         console.error('Stats error:', err);
         await logError(client, 'Flip Stats', err, userId);
         
-        const embed = createErrorEmbed('GENERIC');
+        const embed = createErrorEmbed('STATS_ERROR', { message: err.message });
         await message.channel.send({ embeds: [embed] });
     }
 }

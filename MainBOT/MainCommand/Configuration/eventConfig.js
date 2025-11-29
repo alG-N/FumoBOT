@@ -8,8 +8,8 @@ const EVENT_START_TIME = new Date();
 const EVENT_DURATION = 11 * 24 * 60 * 60 * 1000; // 11 days
 const EVENT_END_TIME = new Date(EVENT_START_TIME.getTime() + EVENT_DURATION);
 
-// Roll limits - UPDATED: Reduced from 50k to 10k
-const EVENT_ROLL_LIMIT = 10000;
+// Roll limits
+const EVENT_ROLL_LIMIT = 50000;
 const EVENT_WINDOW_DURATION = 30 * 60 * 1000; // 30 minutes
 
 // Costs

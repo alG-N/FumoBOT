@@ -183,7 +183,12 @@ function createErrorEmbed(errorType, details = {}) {
         INVALID_MULTIPLIER: '❌ Invalid multiplier. Use x2, x3, x5, x10, or x100.',
         INVALID_COUNT: '❌ Invalid count. Must be between 1 and 100.',
         COOLDOWN: `❌ Please wait ${details.remaining || '0'}s before flipping again.`,
-        GENERIC: '❌ An error occurred. Please try again.'
+        TYPO_STATS: '❌ Did you mean `.flip stats`? (with an "s")',
+        TYPO_LEADERBOARD: '❌ Did you mean `.flip leaderboard`? (singular)',
+        STATS_ERROR: `❌ Error fetching stats: ${details.message || 'Unknown error'}`,
+        DATABASE_ERROR: '❌ Database error. Please try again in a moment.',
+        TIMEOUT: '❌ Request timed out. Please try again.',
+        GENERIC: `❌ An error occurred${details.message ? `: ${details.message}` : '. Please try again.'}`
     };
     
     return new EmbedBuilder()

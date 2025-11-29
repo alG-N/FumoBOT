@@ -1,6 +1,7 @@
 const { get, run } = require('../../../Core/database');
 const { EVENT_BASE_CHANCES, PITY_THRESHOLDS } = require('../../../Configuration/rarity');
 const { selectAndAddFumo } = require('../NormalGachaService/InventoryService');
+const { updateQuestsAndAchievements } = require('../NormalGachaService/CrateGachaRollService');
 const { incrementWeeklyShiny } = require('../../../Ultility/weekly');
 const { debugLog } = require('../../../Core/logger');
 const FumoPool = require('../../../Data/FumoPool');
@@ -178,74 +179,80 @@ async function performEventSummon(userId, numSummons) {
     const eventFumos = FumoPool.getForEvent(); 
     debugLog('EVENT_ROLL', `Event summon ${numSummons}x for user ${userId}`);
 
-    const userData = await getEventUserRollData(userId);
-    if (!userData || userData.gems < 100 * numSummons) {
-        return { success: false, error: 'INSUFFICIENT_GEMS' };
-    }
-
-    if (!userData.hasFantasyBook) {
-        return { success: false, error: 'NO_FANTASY_BOOK' };
-    }
-
-    const boosts = await getEventUserBoosts(userId);
-    const fumoList = [];
-
-    let currentMythical = userData.rollsSinceLastMythical || 0;
-    let currentQuestion = userData.rollsSinceLastQuestionMark || 0;
-    let currentTotalRolls = userData.totalRolls || 0;
-    let currentRollsLeft = userData.rollsLeft || 0;
-
-    for (let i = 0; i < numSummons; i++) {
-        currentTotalRolls++;
-
-        const rarity = await selectEventRarity(
-            userId, 
-            boosts, 
-            currentMythical, 
-            currentQuestion,
-            currentTotalRolls, 
-            userData.luck,
-            currentRollsLeft
-        );
-
-        if (rarity === '???') {
-            currentMythical++;
-            currentQuestion = 0;
-        } else if (rarity === 'MYTHICAL') {
-            currentMythical = 0;
-            currentQuestion++;
-        } else {
-            currentMythical++;
-            currentQuestion++;
+    try {
+        const userData = await getEventUserRollData(userId);
+        if (!userData || userData.gems < 100 * numSummons) {
+            return { success: false, error: 'INSUFFICIENT_GEMS' };
         }
 
-        if (currentRollsLeft > 0) {
-            currentRollsLeft--;
+        if (!userData.hasFantasyBook) {
+            return { success: false, error: 'NO_FANTASY_BOOK' };
         }
 
-        const fumo = await selectAndAddFumo(userId, rarity, eventFumos, userData.luck);
-        if (fumo) {
-            fumoList.push({ name: fumo.name, rarity, picture: fumo.picture });
+        const boosts = await getEventUserBoosts(userId);
+        const fumoList = [];
+
+        let currentMythical = userData.rollsSinceLastMythical || 0;
+        let currentQuestion = userData.rollsSinceLastQuestionMark || 0;
+        let currentTotalRolls = userData.totalRolls || 0;
+        let currentRollsLeft = userData.rollsLeft || 0;
+
+        for (let i = 0; i < numSummons; i++) {
+            currentTotalRolls++;
+
+            const rarity = await selectEventRarity(
+                userId, 
+                boosts, 
+                currentMythical, 
+                currentQuestion,
+                currentTotalRolls, 
+                userData.luck,
+                currentRollsLeft
+            );
+
+            if (rarity === '???') {
+                currentMythical++;
+                currentQuestion = 0;
+            } else if (rarity === 'MYTHICAL') {
+                currentMythical = 0;
+                currentQuestion++;
+            } else {
+                currentMythical++;
+                currentQuestion++;
+            }
+
+            if (currentRollsLeft > 0) {
+                currentRollsLeft--;
+            }
+
+            const fumo = await selectAndAddFumo(userId, rarity, eventFumos, userData.luck);
+            if (fumo) {
+                fumoList.push({ name: fumo.name, rarity, picture: fumo.picture });
+            }
         }
+
+        await updateEventUserAfterRoll(userId, {
+            cost: 100 * numSummons,
+            rollCount: numSummons,
+            rollsSinceLastMythical: currentMythical,
+            rollsSinceLastQuestionMark: currentQuestion
+        });
+
+        // FIXED: Correct import path
+        await updateQuestsAndAchievements(userId, numSummons);
+
+        return {
+            success: true,
+            fumoList,
+            rollsSinceLastMythical: currentMythical,
+            rollsSinceLastQuestionMark: currentQuestion,
+            boostText: boosts.lines.join('\n') || 'No luck boost applied...'
+        };
+    } catch (error) {
+        console.error(`❌ Error in performEventSummon for user ${userId}:`, error);
+        debugLog('EVENT_ROLL_ERROR', `Event summon failed: ${error.message}`);
+        return { success: false, error: 'ROLL_FAILED', details: error.message };
     }
-
-    await updateEventUserAfterRoll(userId, {
-        cost: 100 * numSummons,
-        rollCount: numSummons,
-        rollsSinceLastMythical: currentMythical,
-        rollsSinceLastQuestionMark: currentQuestion
-    });
-
-    const { updateQuestsAndAchievements } = require('./CrateGachaRollService');
-    await updateQuestsAndAchievements(userId, numSummons);
-
-    return {
-        success: true,
-        fumoList,
-        rollsSinceLastMythical: currentMythical,
-        rollsSinceLastQuestionMark: currentQuestion,
-        boostText: boosts.lines.join('\n') || 'No luck boost applied...'
-    };
 }
 
 module.exports = {

@@ -1,5 +1,5 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Colors } = require('discord.js');
-const { SPECIAL_RARITIES, RARITY_PRIORITY } = require('../../../Configuration/rarity');
+const { SPECIAL_RARITIES, RARITY_PRIORITY, isRarer } = require('../../../Configuration/rarity');
 const { formatNumber } = require('../../../Ultility/formatting');
 
 function createShopEmbed(userData, boosts, hasFantasyBook, isAutoRollActive) {
@@ -129,9 +129,6 @@ Take a chance—who knows what you'll get?
     return embed;
 }
 
-/**
- * Create button row for shop
- */
 function createShopButtons(userId, isAutoRollActive) {
     return new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -153,9 +150,6 @@ function createShopButtons(userId, isAutoRollActive) {
     );
 }
 
-/**
- * Create single roll animation embeds
- */
 async function displaySingleRollAnimation(interaction, fumo, rarity) {
     const hasRareFumo = SPECIAL_RARITIES.includes(rarity);
     
@@ -184,11 +178,7 @@ async function displaySingleRollAnimation(interaction, fumo, rarity) {
     }, 2000);
 }
 
-/**
- * Display multi-roll results with animation
- */
 async function displayMultiRollResults(interaction, fumosBought, bestFumo, rollCount) {
-    const { isRarer } = require('../../Configuration/rarity');
     const isRareCutscene = isRarer(bestFumo.rarity, 'LEGENDARY');
     const embedColor = rollCount === 10 ? Colors.Yellow : Colors.Gold;
 

@@ -46,6 +46,9 @@ async function getUserRollData(userId) {
 }
 
 async function updateUserAfterRoll(userId, updates) {
+    // FIX: Separate rollsLeft calculation - it should decrement by rollCount if enough exist
+    const rollsLeftDeduction = updates.rollCount;
+    
     await run(
         `UPDATE userCoins SET
             coins = coins - ?,
@@ -58,7 +61,10 @@ async function updateUserAfterRoll(userId, updates) {
             pityInfinite = ?,
             pityCelestial = ?,
             pityAstral = ?,
-            rollsLeft = CASE WHEN rollsLeft >= ? THEN rollsLeft - ? ELSE 0 END
+            rollsLeft = CASE 
+                WHEN rollsLeft >= ? THEN rollsLeft - ?
+                ELSE 0 
+            END
         WHERE userId = ?`,
         [
             updates.cost,
@@ -71,8 +77,8 @@ async function updateUserAfterRoll(userId, updates) {
             updates.pityInfinite,
             updates.pityCelestial,
             updates.pityAstral,
-            updates.rollCount,
-            updates.rollCount,
+            rollsLeftDeduction,  // Check if we have this many rollsLeft
+            rollsLeftDeduction,  // Deduct this many
             userId
         ]
     );
@@ -81,127 +87,139 @@ async function updateUserAfterRoll(userId, updates) {
 async function performSingleRoll(userId, fumos) {
     debugLog('ROLL', `Single roll for user ${userId}`);
     
-    const row = await getUserRollData(userId);
-    if (!row || row.coins < 100) {
-        return { success: false, error: 'INSUFFICIENT_COINS' };
-    }
+    try {
+        const row = await getUserRollData(userId);
+        if (!row || row.coins < 100) {
+            return { success: false, error: 'INSUFFICIENT_COINS' };
+        }
 
-    const hasFantasyBook = !!row.hasFantasyBook;
-    const boosts = await getUserBoosts(userId);
+        const hasFantasyBook = !!row.hasFantasyBook;
+        const boosts = await getUserBoosts(userId);
 
-    const { rarity } = await calculateRarity(userId, boosts, row, hasFantasyBook);
-
-    if (ASTRAL_PLUS_RARITIES.includes(rarity)) {
-        await incrementWeeklyAstral(userId);
-    }
-
-    const boostUpdates = updateBoostCharge(row.boostCharge, row.boostActive, row.boostRollsRemaining);
-    const updatedPities = updatePityCounters(
-        {
-            pityTranscendent: row.pityTranscendent,
-            pityEternal: row.pityEternal,
-            pityInfinite: row.pityInfinite,
-            pityCelestial: row.pityCelestial,
-            pityAstral: row.pityAstral
-        },
-        rarity,
-        hasFantasyBook
-    );
-
-    const fumo = await selectAndAddFumo(userId, rarity, fumos, row.luck);
-    if (!fumo) {
-        return { success: false, error: 'NO_FUMO_FOUND' };
-    }
-
-    await updateUserAfterRoll(userId, {
-        cost: 100,
-        rollCount: 1,
-        boostCharge: boostUpdates.boostCharge,
-        boostActive: boostUpdates.boostActive,
-        boostRollsRemaining: boostUpdates.boostRollsRemaining,
-        ...updatedPities
-    });
-
-    await updateQuestsAndAchievements(userId, 1);
-
-    return { success: true, fumo, rarity };
-}
-
-async function performMultiRoll(userId, fumos, rollCount) {
-    debugLog('ROLL', `${rollCount}x roll for user ${userId}`);
-    
-    const cost = rollCount * 100;
-    const row = await getUserRollData(userId);
-    
-    if (!row || row.coins < cost) {
-        return { success: false, error: 'INSUFFICIENT_COINS' };
-    }
-
-    const hasFantasyBook = !!row.hasFantasyBook;
-    const boosts = await getUserBoosts(userId);
-
-    let { boostCharge, boostActive, boostRollsRemaining } = row;
-    let pities = {
-        pityTranscendent: row.pityTranscendent,
-        pityEternal: row.pityEternal,
-        pityInfinite: row.pityInfinite,
-        pityCelestial: row.pityCelestial,
-        pityAstral: row.pityAstral
-    };
-
-    const rarities = [];
-    let currentRolls = row.totalRolls;
-
-    for (let i = 0; i < rollCount; i++) {
-        currentRolls++;
-
-        const tempRow = {
-            ...row,
-            boostActive,
-            boostRollsRemaining,
-            totalRolls: currentRolls,
-            ...pities
-        };
-
-        const { rarity } = await calculateRarity(userId, boosts, tempRow, hasFantasyBook);
-        rarities.push(rarity);
+        const { rarity } = await calculateRarity(userId, boosts, row, hasFantasyBook);
 
         if (ASTRAL_PLUS_RARITIES.includes(rarity)) {
             await incrementWeeklyAstral(userId);
         }
 
-        pities = updatePityCounters(pities, rarity, hasFantasyBook);
+        const boostUpdates = updateBoostCharge(row.boostCharge, row.boostActive, row.boostRollsRemaining);
+        const updatedPities = updatePityCounters(
+            {
+                pityTranscendent: row.pityTranscendent,
+                pityEternal: row.pityEternal,
+                pityInfinite: row.pityInfinite,
+                pityCelestial: row.pityCelestial,
+                pityAstral: row.pityAstral
+            },
+            rarity,
+            hasFantasyBook
+        );
 
-        const boostUpdate = updateBoostCharge(boostCharge, boostActive, boostRollsRemaining);
-        boostCharge = boostUpdate.boostCharge;
-        boostActive = boostUpdate.boostActive;
-        boostRollsRemaining = boostUpdate.boostRollsRemaining;
+        const fumo = await selectAndAddFumo(userId, rarity, fumos, row.luck);
+        if (!fumo) {
+            return { success: false, error: 'NO_FUMO_FOUND' };
+        }
+
+        await updateUserAfterRoll(userId, {
+            cost: 100,
+            rollCount: 1,
+            boostCharge: boostUpdates.boostCharge,
+            boostActive: boostUpdates.boostActive,
+            boostRollsRemaining: boostUpdates.boostRollsRemaining,
+            ...updatedPities
+        });
+
+        await updateQuestsAndAchievements(userId, 1);
+
+        return { success: true, fumo, rarity };
+    } catch (error) {
+        console.error('❌ Error in performSingleRoll:', error);
+        debugLog('ROLL_ERROR', `Single roll failed for ${userId}: ${error.message}`);
+        return { success: false, error: 'ROLL_FAILED', details: error.message };
     }
+}
 
-    const fumosBought = await selectAndAddMultipleFumos(userId, rarities, fumos, row.luck);
+async function performMultiRoll(userId, fumos, rollCount) {
+    debugLog('ROLL', `${rollCount}x roll for user ${userId}`);
     
-    let bestFumo = null;
-    if (fumosBought.length > 0) {
-        bestFumo = fumosBought[0];
-        for (const fumo of fumosBought) {
-            if (isRarer(fumo.rarity, bestFumo.rarity)) {
-                bestFumo = fumo;
+    try {
+        const cost = rollCount * 100;
+        const row = await getUserRollData(userId);
+        
+        if (!row || row.coins < cost) {
+            return { success: false, error: 'INSUFFICIENT_COINS' };
+        }
+
+        const hasFantasyBook = !!row.hasFantasyBook;
+        const boosts = await getUserBoosts(userId);
+
+        let { boostCharge, boostActive, boostRollsRemaining } = row;
+        let pities = {
+            pityTranscendent: row.pityTranscendent,
+            pityEternal: row.pityEternal,
+            pityInfinite: row.pityInfinite,
+            pityCelestial: row.pityCelestial,
+            pityAstral: row.pityAstral
+        };
+
+        const rarities = [];
+        let currentRolls = row.totalRolls;
+
+        for (let i = 0; i < rollCount; i++) {
+            currentRolls++;
+
+            const tempRow = {
+                ...row,
+                boostActive,
+                boostRollsRemaining,
+                totalRolls: currentRolls,
+                ...pities
+            };
+
+            const { rarity } = await calculateRarity(userId, boosts, tempRow, hasFantasyBook);
+            rarities.push(rarity);
+
+            if (ASTRAL_PLUS_RARITIES.includes(rarity)) {
+                await incrementWeeklyAstral(userId);
+            }
+
+            pities = updatePityCounters(pities, rarity, hasFantasyBook);
+
+            const boostUpdate = updateBoostCharge(boostCharge, boostActive, boostRollsRemaining);
+            boostCharge = boostUpdate.boostCharge;
+            boostActive = boostUpdate.boostActive;
+            boostRollsRemaining = boostUpdate.boostRollsRemaining;
+        }
+
+        const fumosBought = await selectAndAddMultipleFumos(userId, rarities, fumos, row.luck);
+        
+        let bestFumo = null;
+        if (fumosBought.length > 0) {
+            bestFumo = fumosBought[0];
+            for (const fumo of fumosBought) {
+                if (isRarer(fumo.rarity, bestFumo.rarity)) {
+                    bestFumo = fumo;
+                }
             }
         }
+
+        await updateUserAfterRoll(userId, {
+            cost,
+            rollCount,
+            boostCharge,
+            boostActive,
+            boostRollsRemaining,
+            ...pities
+        });
+
+        await updateQuestsAndAchievements(userId, rollCount);
+
+        return { success: true, fumosBought, bestFumo };
+    } catch (error) {
+        console.error(`❌ Error in performMultiRoll (${rollCount}x):`, error);
+        debugLog('ROLL_ERROR', `Multi roll failed for ${userId}: ${error.message}`);
+        return { success: false, error: 'ROLL_FAILED', details: error.message };
     }
-
-    await updateUserAfterRoll(userId, {
-        cost,
-        rollCount,
-        boostCharge,
-        boostActive,
-        boostRollsRemaining,
-        ...pities
-    });
-
-    await updateQuestsAndAchievements(userId, rollCount);
-
-    return { success: true, fumosBought, bestFumo };
 }
 
 async function performBatch100Roll(userId, fumos) {
