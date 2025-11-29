@@ -4,7 +4,6 @@ const { logUserActivity, logError, logToDiscord } = require('../../Core/logger')
 
 // Middleware
 const { checkRestrictions } = require('../../Middleware/restrictions');
-const { checkButtonOwnership } = require('../../Middleware/buttonOwnership');
 const { checkAndSetCooldown } = require('../../Middleware/rateLimiter');
 
 // Services
@@ -88,7 +87,9 @@ async function handleMultiRoll(interaction, fumos, rollCount, client) {
     }
 }
 
-async function handleAutoRollStart(interaction, fumos, userId, client) {
+async function handleAutoRollStart(interaction, fumos, client) {
+    const userId = interaction.user.id;
+    
     try {
         const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Colors } = require('discord.js');
         
@@ -176,7 +177,9 @@ async function handleAutoRollStart(interaction, fumos, userId, client) {
     }
 }
 
-async function handleAutoRollStop(interaction, userId, client) {
+async function handleAutoRollStop(interaction, client) {
+    // SECURITY FIX: Use interaction.user.id directly
+    const userId = interaction.user.id;
     
     const result = stopAutoRoll(userId);
 
@@ -254,14 +257,20 @@ module.exports = (client, fumos) => {
         if (!interaction.isButton()) return;
 
         try {
-            const [action, userId] = interaction.customId.split('_');
+            // SECURITY FIX: NEVER trust customId userId - always use interaction.user.id
+            const userId = interaction.user.id;
+            const action = interaction.customId.split('_')[0];
 
-            const protectedActions = ['buy1fumo', 'buy10fumos', 'buy100fumos', 'autoRoll50', 'stopAuto50', 'autoRollProceed', 'autoRollAutoSell'];
-            if (protectedActions.includes(action)) {
-                const isOwner = await checkButtonOwnership(interaction, userId);
-                if (!isOwner) return;
+            // Validate button ownership by checking if customId contains user's ID
+            const expectedCustomId = `${action}_${userId}`;
+            if (!interaction.customId.startsWith(expectedCustomId)) {
+                return interaction.reply({
+                    content: "You can't use someone else's button. Use `.crategacha` yourself.",
+                    ephemeral: true
+                });
             }
 
+            // Rate limiting
             if (['buy1fumo', 'buy10fumos', 'buy100fumos', 'autoRoll50', 'stopAuto50'].includes(action)) {
                 const cooldown = await checkAndSetCooldown(userId, 'gacha');
                 if (cooldown.onCooldown) {
@@ -271,6 +280,7 @@ module.exports = (client, fumos) => {
                     });
                 }
 
+                // Prevent manual rolls during auto-roll
                 if (['buy1fumo', 'buy10fumos', 'buy100fumos'].includes(action) && isAutoRollActive(userId)) {
                     return interaction.reply({
                         content: '⚠️ You cannot manually roll while Auto Roll is active. Please stop it first.',
@@ -279,6 +289,7 @@ module.exports = (client, fumos) => {
                 }
             }
 
+            // Route to handlers
             switch (action) {
                 case 'buy1fumo':
                     await handleSingleRoll(interaction, fumos, client);
@@ -293,11 +304,11 @@ module.exports = (client, fumos) => {
                     break;
 
                 case 'autoRoll50':
-                    await handleAutoRollStart(interaction, fumos, userId, client);
+                    await handleAutoRollStart(interaction, fumos, client);
                     break;
 
                 case 'stopAuto50':
-                    await handleAutoRollStop(interaction, userId, client);
+                    await handleAutoRollStop(interaction, client);
                     break;
 
                 default:
