@@ -10,26 +10,26 @@ const path = require('path');
 require('dotenv').config();  // done 
 
 // DATABASE MODULES
-const { initializeDatabase } = require('./MainCommand/Database/schema');
-const { startIncomeSystem } = require('./MainCommand/Database/PassiveIncome/income'); 
-const { scheduleBackups } = require('./MainCommand/Database/backup'); 
+const { initializeDatabase } = require('./MainCommand/Core/Database/schema');
+const { startIncomeSystem } = require('./MainCommand/Core/Database/PassiveIncome/income'); 
+const { scheduleBackups } = require('./MainCommand/Core/Database/backup'); 
 
 // UTILITY MODULES
-const { initializeErrorHandlers } = require('./MainCommand/utils/errorHandler');
+const { initializeErrorHandlers } = require('./MainCommand/Ultility/errorHandler');
 
 // PET MODULES
-const { initializePetSystems } = require('./MainCommand/PetManagement/Passive/petAging');
+const { initializePetSystems } = require('./MainCommand/CommandFolder/PetCommand/Passive/petAging');
 
 // ADMIN MODULES
-const { registerAdminCommands } = require('./MainCommand/Admin/adminCommands');
-const { registerBanSystem } = require('./MainCommand/Admin/banSystem');
-const { registerTicketSystem } = require('./MainCommand/Admin/ticketSystem');
+const { registerAdminCommands } = require('./MainCommand/Administrator/adminCommands');
+const { registerBanSystem } = require('./MainCommand/Administrator/banSystem');
+const { registerTicketSystem } = require('./MainCommand/Administrator/ticketSystem');
 
 // USER DATA MODULES
-const { registerCodeRedemption } = require('./MainCommand/UserData/codeRedemption');
+const { registerCodeRedemption } = require('./MainCommand/CommandFolder/UserDataCommand/codeRedemption');
 
 // MAINTENANCE CONFIG
-const { maintenance, developerID } = require("./MainCommand/Maintenace/MaintenaceConfig");
+const { maintenance, developerID } = require("./MainCommand/Configuration/MaintenanceConfig");
 console.log(`Maintenance mode is currently: ${maintenance}`);
 
 // CLIENT INITIALIZATION
@@ -64,46 +64,46 @@ for (const folder of commandFolders) {
 }
 
 // LOAD GAME COMMAND MODULES
-const gacha = require('./MainCommand/Gacha/crategacha');
-const fumos = require('./MainCommand/Storage/ThyFumoStorage');
-const help = require('./MainCommand/Tutorial/help');
-const inventory = require('./MainCommand/UserData/Storage');
-const balance = require('./MainCommand/UserData/Balance');
-const item = require('./MainCommand/UserData/Item');
+const gacha = require('./MainCommand/CommandFolder/GachaCommand/crategacha');
+const fumos = require('./MainCommand/Storage/NormalCrateFumoStorage');
+const help = require('./MainCommand/TutorialCommand/help');
+const inventory = require('./MainCommand/CommandFolder/UserDataCommand/Storage');
+const balance = require('./MainCommand/CommandFolder/UserDataCommand/Balance');
+const item = require('./MainCommand/CommandFolder/UserDataCommand/Item');
 const Efumos = require('./MainCommand/Storage/EventFumoStorage');
-const Egacha = require('./MainCommand/Gacha/eventgacha');
-const library = require('./MainCommand/FumoData/library');
-const libraryFumos = require('./MainCommand/FumoData/libraryFumo');
-const inform = require('./MainCommand/FumoData/inform');
-const leaderboard = require('./MainCommand/UserData/leaderboard');
-const gamble = require('./MainCommand/Gacha/gamble');
-const slot = require('./MainCommand/Gacha/slot');
-const flip = require('./MainCommand/Gacha/flip');
-const mysteryCrate = require('./MainCommand/Gacha/mysterycrate');
-const sell = require('./MainCommand/UserData/sell');
-const pray = require('./MainCommand/PrayCMD/pray');
-const Pfumos = require('./MainCommand/PrayCMD/fumoStorage');
-const market = require('./MainCommand/Market/market');
-const marketFumos = require('./MainCommand/Market/Storage/marketStorage');
-const exchange = require('./MainCommand/Market/exchange');
-const shop = require('./MainCommand/Market/shop');
-const useItem = require('./MainCommand/UserData/use');
-const itemInfo = require('./MainCommand/UserData/itemInfo');
-const boost = require('./MainCommand/UserData/boost');
-const credit = require('./MainCommand/UserData/aboutBot');
-const Pcraft = require('./MainCommand/Craft/potionCraft');
-const Icraft = require('./MainCommand/Craft/itemCraft');
-const craft = require('./MainCommand/Craft/craft');
-const quest = require('./MainCommand/UserData/quest');
-const daily = require('./MainCommand/UserData/daily');
-const starter = require('./MainCommand/UserData/starter');
-const eggshop = require('./MainCommand/Market/eggshop');
-const eggInventory = require('./MainCommand/PetManagement/Functionality/eggInventory');
-const eggOpen = require('./MainCommand/PetManagement/Functionality/eggOpen');
-const eggcheck = require('./MainCommand/PetManagement/Functionality/eggcheck');
-const equipPet = require('./MainCommand/PetManagement/Functionality/equipPet');
-const useFragment = require('./MainCommand/Farming/useFragment');
-const farm = require('./MainCommand/Farming/FarmManagement');
+const Egacha = require('./MainCommand/CommandFolder/GachaCommand/eventgacha');
+const library = require('./MainCommand/CommandFolder/FumoDataCommand/library');
+const libraryFumos = require('./MainCommand/Storage/LibraryFumoStorage');
+const inform = require('./MainCommand/CommandFolder/FumoDataCommand/inform');
+const leaderboard = require('./MainCommand/CommandFolder/UserDataCommand/leaderboard');
+const gamble = require('./MainCommand/CommandFolder/GachaCommand/gamble');
+const slot = require('./MainCommand/CommandFolder/GachaCommand/slot');
+const flip = require('./MainCommand/CommandFolder/GachaCommand/flip');
+const mysteryCrate = require('./MainCommand/CommandFolder/GachaCommand/mysterycrate');
+const sell = require('./MainCommand/CommandFolder/UserDataCommand/sell');
+const pray = require('./MainCommand/CommandFolder/PrayCommand/pray');
+const Pfumos = require('./MainCommand/Storage/PrayFumoStorage');
+const market = require('./MainCommand/CommandFolder/MarketCommand/market');
+const marketFumos = require('./MainCommand/Storage/MarketFumoStorage');
+const exchange = require('./MainCommand/CommandFolder/MarketCommand/exchange');
+const shop = require('./MainCommand/CommandFolder/MarketCommand/shop');
+const useItem = require('./MainCommand/CommandFolder/UserDataCommand/use');
+const itemInfo = require('./MainCommand/CommandFolder/UserDataCommand/itemInfo');
+const boost = require('./MainCommand/CommandFolder/UserDataCommand/boost');
+const credit = require('./MainCommand/CommandFolder/UserDataCommand/aboutBot');
+const Pcraft = require('./MainCommand/CommandFolder/CraftCommand/potionCraft');
+const Icraft = require('./MainCommand/CommandFolder/CraftCommand/itemCraft');
+const craft = require('./MainCommand/CommandFolder/CraftCommand/craft');
+const quest = require('./MainCommand/CommandFolder/UserDataCommand/quest');
+const daily = require('./MainCommand/CommandFolder/UserDataCommand/DailyStuff/daily');
+const starter = require('./MainCommand/CommandFolder/UserDataCommand/starter');
+const eggshop = require('./MainCommand/CommandFolder/MarketCommand/eggshop');
+const eggInventory = require('./MainCommand/CommandFolder/PetCommand/Functionality/eggInventory');
+const eggOpen = require('./MainCommand/CommandFolder/PetCommand/Functionality/eggOpen');
+const eggcheck = require('./MainCommand/CommandFolder/PetCommand/Functionality/eggcheck');
+const equipPet = require('./MainCommand/CommandFolder/PetCommand/Functionality/equipPet');
+const useFragment = require('./MainCommand/CommandFolder/FarmingCommand/useFragment');
+const farm = require('./MainCommand/CommandFolder/FarmingCommand/FarmManagement');
 
 // OTHER FUN COMMANDS
 const anime = require('./SubCommand/API-Website/Anime/anime');

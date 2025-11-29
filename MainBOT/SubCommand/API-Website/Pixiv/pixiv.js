@@ -6,8 +6,8 @@ const {
     ButtonStyle
 } = require('discord.js');
 
-const { maintenance, developerID } = require("../../../MainCommand/Maintenace/MaintenaceConfig.js");
-const { isBanned } = require("../../../MainCommand/Banned/BanUtils.js");
+const { maintenance, developerID } = require("../../../MainCommand/Configuration/MaintenanceConfig.js");
+const { isBanned } = require("../../../MainCommand/Administrator/BannedList/BanUtils.js");
 
 const fetch = require('node-fetch');
 require('dotenv').config({ path: __dirname + '/.env' });
