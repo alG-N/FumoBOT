@@ -7,7 +7,7 @@ const {
     ButtonBuilder,
     ButtonStyle
 } = require('discord.js');
-const db = require('../../Core/Database/db');
+const db = require('../../Core/Database/dbSetting');
 const fs = require('fs');
 const path = require('path');
 const client = new Client({
@@ -29,7 +29,7 @@ function formatNumber(num) {
     if (num >= 1e3) return (num / 1e3).toFixed(2) + 'K';
     return num.toString();
 }
-const { maintenance, developerID } = require("../../Configuration/MaintenanceConfig");
+const { maintenance, developerID } = require("../../Configuration/Maintenance/maintenanceConfig");
 const { isBanned } = require('../../Administrator/BannedList/BanUtils');
 module.exports = (client) => {
 

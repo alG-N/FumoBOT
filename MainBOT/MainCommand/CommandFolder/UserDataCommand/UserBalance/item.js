@@ -7,7 +7,7 @@ const {
     ButtonBuilder,
     ButtonStyle
 } = require('discord.js');
-const db = require('../../../Core/Database/db');
+const db = require('../../../Core/Database/dbSetting');
 const client = new Client({
     intents: [
         GatewayIntentBits.GuildMessages,
@@ -18,7 +18,7 @@ const client = new Client({
     partials: [Partials.Message, Partials.Channel, Partials.Reaction]
 });
 client.setMaxListeners(150);
-const { maintenance, developerID } = require("../../../Configuration/MaintenanceConfig");
+const { maintenance, developerID } = require("../../../Configuration/Maintenance/maintenanceConfig");
 const { isBanned } = require('../../../Administrator/BannedList/BanUtils');
 const ITEMS_PER_PAGE = 2;
 const RARITY_ORDER = ['Common', 'Rare', 'Epic', 'Legendary', 'Mythical', 'Secret'];

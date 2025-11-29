@@ -1,6 +1,6 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 const { v4: uuidv4 } = require('uuid');
-const db = require('../../../Core/Database/db');
+const db = require('../../../Core/Database/dbSetting');
 const { EGG_POOLS, RARITY_COLORS } = require('../Configuration/petConfig');
 const { pickRandomPet, getRandomWeight, getRandomQuality, getMaxHunger, generatePetName, hasAlterGoldenBonus } = require('../Utilities/petUtils');
 const { getHatchingEggs, deleteHatchingEgg } = require('../Utilities/dbUtils');

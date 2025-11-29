@@ -7,7 +7,7 @@ const {
     ButtonBuilder,
     ButtonStyle
 } = require('discord.js');
-const db = require('../../Core/Database/db');
+const db = require('../../Core/Database/dbSetting');
 const client = new Client({
     intents: [
         GatewayIntentBits.GuildMessages,
@@ -19,7 +19,7 @@ const client = new Client({
 });
 client.setMaxListeners(150);
 const tutorialCommands = require('./helpCMD');
-const { maintenance, developerID } = require("../../Configuration/MaintenanceConfig");
+const { maintenance, developerID } = require("../../Configuration/Maintenance/maintenanceConfig");
 const { isBanned } = require('../../Administrator/BannedList/BanUtils');
 module.exports = (client) => {
     client.on('messageCreate', async message => {

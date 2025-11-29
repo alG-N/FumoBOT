@@ -1,6 +1,6 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const db = require('../../Core/Database/db');
-const { maintenance, developerID } = require("../../Configuration/MaintenanceConfig");
+const db = require('../../Core/Database/dbSetting');
+const { maintenance, developerID } = require("../../Configuration/Maintenance/maintenanceConfig");
 const { isBanned } = require('../../Administrator/BannedList/BanUtils');
 const { incrementDailyGamble } = require('../../Ultility/weekly');
 
