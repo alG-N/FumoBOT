@@ -326,7 +326,6 @@ module.exports = (client) => {
             }
         }
 
-        // Regular roll button handling (only reached if not auto-roll buttons)
         const cooldownCheck = await checkAndSetCooldown(userId, 'eventgacha');
         if (cooldownCheck.onCooldown) {
             return interaction.reply({
@@ -413,7 +412,6 @@ module.exports = (client) => {
         } catch (err) {
             await logEvent(`Button interaction error for ${userId}: ${err.message}`, 'error');
 
-            // Better error handling
             const errorContent = {
                 content: 'An error occurred. Please try again.',
                 ephemeral: true
