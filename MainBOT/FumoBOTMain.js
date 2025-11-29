@@ -1,13 +1,8 @@
-const {
-    Client,
-    GatewayIntentBits,
-    Partials,
-    ActivityType,
-    Collection
-} = require('discord.js');
+const { Collection } = require('discord.js');
+const { createClient, setPresence, ActivityType } = require('./MainCommand/Configuration/discord');
 const fs = require('fs');
 const path = require('path');
-require('dotenv').config();  // done 
+require('dotenv').config();
 
 // DATABASE MODULES
 const { initializeDatabase } = require('./MainCommand/Core/Database/schema');
@@ -32,19 +27,8 @@ const { registerCodeRedemption } = require('./MainCommand/CommandFolder/UserData
 const { maintenance, developerID } = require("./MainCommand/Configuration/Maintenance/maintenanceConfig");
 console.log(`Maintenance mode is currently: ${maintenance}`);
 
-// CLIENT INITIALIZATION
-const client = new Client({
-    intents: [
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildVoiceStates,
-    ],
-    partials: [Partials.Message, Partials.Channel, Partials.Reaction]
-});
-
-client.setMaxListeners(150);
+// CLIENT INITIALIZATION - Now using the discord.js config
+const client = createClient();
 client.commands = new Collection();
 
 // LOAD SLASH COMMANDS
@@ -144,8 +128,9 @@ client.once('ready', () => {
     // Initialize error handlers
     initializeErrorHandlers(client);
 
-    // Set bot status
-    setStaticStatus();
+    // Set bot status using the config helper
+    setPresence(client, 'online', '.help and .starter', ActivityType.PLAYING);
+    console.log('✅ Status set to: Playing .help and .starter');
 
     // Set pet exp gaining and aging systems
     initializePetSystems();
@@ -277,7 +262,6 @@ client.on('interactionCreate', async interaction => {
 
     // Handle AUTOCOMPLETE
     if (interaction.isAutocomplete()) {
-        // console.log('🔍 Autocomplete triggered for:', interaction.commandName);
         const command = client.commands.get(interaction.commandName);
 
         if (!command || !command.autocomplete) return;
@@ -300,29 +284,8 @@ client.on('messageCreate', message => {
     anime.onMessage(message, client);
 });
 
-
 // MUSIC COMMANDS
 musicCommands(client);
-
-// BOT STATUS
-function setStaticStatus() {
-    try {
-        if (client.user) {
-            client.user.setPresence({
-                activities: [{
-                    name: '.help and .starter',
-                    type: ActivityType.Playing,
-                }],
-                status: 'online',
-            });
-            console.log('✅ Status set to: Playing .help and .starter');
-        } else {
-            console.warn('Client user is not ready yet.');
-        }
-    } catch (error) {
-        console.error('Failed to set bot presence:', error);
-    }
-}
 
 // BOT LOGIN
 client.login(process.env.BOT_TOKEN);
