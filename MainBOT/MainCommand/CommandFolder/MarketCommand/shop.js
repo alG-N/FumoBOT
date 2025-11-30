@@ -39,11 +39,10 @@ module.exports = async (client) => {
             await handleReroll(interaction);
         } else if (interaction.customId.startsWith('buy_all_')) {
             await handleBuyAll(interaction);
-        } else if (interaction.customId === 'purchase_confirm' || interaction.customId === 'purchase_cancel') {
-            await handlePurchaseConfirmation(interaction);
         } else if (interaction.customId === 'buyall_confirm' || interaction.customId === 'buyall_cancel') {
             await handleBuyAllConfirmation(interaction);
         }
+        // Removed the handlePurchaseConfirmation references since they're handled by collectors in handleBuyCommand
     });
 
     async function handleReroll(interaction) {

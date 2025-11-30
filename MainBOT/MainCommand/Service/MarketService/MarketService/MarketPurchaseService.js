@@ -99,7 +99,15 @@ async function handleMarketPurchase(message, args) {
     const validation = await validatePurchase(message.author.id, fumoName, amount, userMarket);
 
     if (!validation.valid) {
-        const errorEmbed = createErrorEmbed(validation.error, validation);
+        const errorDetails = {
+            fumoName: validation.fumoName || fumoName,
+            stock: validation.stock || 0,
+            requested: validation.requested || amount,
+            required: validation.required || 0,
+            current: validation.current || 0,
+            currency: 'coins'
+        };
+        const errorEmbed = createErrorEmbed(validation.error, errorDetails);
         return message.reply({ embeds: [errorEmbed] });
     }
 

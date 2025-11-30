@@ -3,6 +3,7 @@ const { PRAY_CHARACTERS } = require('../../../Configuration/prayConfig');
 const { formatNumber } = require('../../../Ultility/formatting');
 const { incrementWeeklyShiny, incrementWeeklyAstral } = require('../../../Ultility/weekly');
 const FumoPool = require('../../../Data/FumoPool');
+const { run } = require('../../../Core/database');
 const {
     getUserData,
     deductUserCurrency,
@@ -81,11 +82,12 @@ async function handleGiftPhase(userId, channel, user, config, interactionUserId)
         await incrementWeeklyShiny(interactionUserId);
     }
 
-    if (giftConfig.ultraRares.includes(fumo.rarity)) {
+    // Use pickedRarity instead of fumo.rarity
+    if (giftConfig.ultraRares.includes(pickedRarity)) {
         await incrementWeeklyAstral(interactionUserId);
     }
 
-    await addToInventory(userId, fumoName, 1);
+    await addToInventory(userId, pickedRarity, fumoName, 1);
 
     const variantNote = isAlterGolden
         ? " It's a **divine, golden anomaly**—a truly miraculous find!"
@@ -97,7 +99,7 @@ async function handleGiftPhase(userId, channel, user, config, interactionUserId)
         embeds: [new EmbedBuilder()
             .setTitle(`🎁 A Gift from Reimu! 🎁`)
             .setImage(fumo.picture)
-            .setDescription(`She gives you a **${fumo.rarity}** Fumo: **${fumoName}**.${variantNote}`)
+            .setDescription(`She gives you a **${pickedRarity}** Fumo: **${fumoName}**.${variantNote}`)
             .setColor('#0099ff')
             .setTimestamp()]
     });
@@ -114,7 +116,8 @@ async function handleGiftPhase(userId, channel, user, config, interactionUserId)
         });
     }
 
-    const resetPity = giftConfig.ultraRares.includes(fumo.rarity) ? 0 : pityCount + 1;
+    // Use pickedRarity instead of fumo.rarity
+    const resetPity = giftConfig.ultraRares.includes(pickedRarity) ? 0 : pityCount + 1;
 
     await updateReimuData(userId, {
         reimuStatus: 0,

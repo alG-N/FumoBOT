@@ -57,9 +57,11 @@ function generateUserMarket(userId) {
         };
     });
 
+    // Main loop - add fumos based on their rarity chance
     for (const fumo of fumoPool) {
         const rarity = getRarityData(fumo.rarity);
         
+        // Skip if already in market or no rarity data or failed chance
         if (!rarity || usedNames.has(fumo.name) || Math.random() >= rarity.chance) continue;
 
         selected.push({
@@ -72,6 +74,7 @@ function generateUserMarket(userId) {
         usedNames.add(fumo.name);
     }
 
+    // Fill to minimum - add random fumos if we don't have enough
     const candidates = fumoPool.filter(f => !usedNames.has(f.name));
     while (selected.length < MIN_MARKET_SIZE && candidates.length > 0) {
         const idx = Math.floor(Math.random() * candidates.length);
@@ -79,6 +82,9 @@ function generateUserMarket(userId) {
         const rarity = getRarityData(fumo.rarity);
         
         if (!rarity) continue;
+
+        // Double-check name isn't used (safety check)
+        if (usedNames.has(fumo.name)) continue;
 
         selected.push({
             name: fumo.name,
@@ -90,19 +96,26 @@ function generateUserMarket(userId) {
         usedNames.add(fumo.name);
     }
 
+    // Trim to maximum size if needed
     if (selected.length > MAX_MARKET_SIZE_BASE) {
         const maxSize = MAX_MARKET_SIZE_BASE + Math.floor(Math.random() * MAX_MARKET_SIZE_RANGE);
         selected.splice(maxSize);
     }
 
+    // Guarantee high rarity - replace first slot if needed
     const hasHighRarity = selected.some(f => HIGH_RARITIES.includes(f.rarity));
-    const hasCelestialPlus = selected.some(f => CELESTIAL_PLUS.includes(f.rarity));
-
     if (!hasHighRarity) {
-        const highRarityFumos = fumoPool.filter(f => HIGH_RARITIES.includes(f.rarity));
+        const highRarityFumos = fumoPool.filter(f => 
+            HIGH_RARITIES.includes(f.rarity) && !usedNames.has(f.name)
+        );
+        
         if (highRarityFumos.length > 0 && selected.length > 0) {
             const forced = highRarityFumos[Math.floor(Math.random() * highRarityFumos.length)];
             const rarity = getRarityData(forced.rarity);
+            
+            // Remove the old first item from usedNames
+            usedNames.delete(selected[0].name);
+            
             selected[0] = {
                 name: forced.name,
                 price: forced.price,
@@ -110,14 +123,24 @@ function generateUserMarket(userId) {
                 stock: getRandomStock(rarity.minStock, rarity.maxStock),
                 picture: forced.picture
             };
+            usedNames.add(forced.name);
         }
     }
 
+    // Guarantee celestial+ - replace second slot if needed
+    const hasCelestialPlus = selected.some(f => CELESTIAL_PLUS.includes(f.rarity));
     if (!hasCelestialPlus) {
-        const celestialFumos = fumoPool.filter(f => CELESTIAL_PLUS.includes(f.rarity));
+        const celestialFumos = fumoPool.filter(f => 
+            CELESTIAL_PLUS.includes(f.rarity) && !usedNames.has(f.name)
+        );
+        
         if (celestialFumos.length > 0 && selected.length > 1) {
             const forced = celestialFumos[Math.floor(Math.random() * celestialFumos.length)];
             const rarity = getRarityData(forced.rarity);
+            
+            // Remove the old second item from usedNames
+            usedNames.delete(selected[1].name);
+            
             selected[1] = {
                 name: forced.name,
                 price: forced.price,
@@ -125,6 +148,7 @@ function generateUserMarket(userId) {
                 stock: getRandomStock(rarity.minStock, rarity.maxStock),
                 picture: forced.picture
             };
+            usedNames.add(forced.name);
         }
     }
 

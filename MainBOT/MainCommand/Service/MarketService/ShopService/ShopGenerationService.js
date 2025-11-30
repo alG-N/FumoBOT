@@ -97,6 +97,36 @@ function generateUserShop() {
         shop[def.name] = createItem(def.basePrice, def.currency, def.rarity, forceMystery);
     }
 
+    // CRITICAL FIX: Guarantee at least 3 items have stock
+    const itemsWithStock = Object.values(shop).filter(item => item.stock > 0 || item.stock === 'unlimited');
+    
+    if (itemsWithStock.length < 3) {
+        debugLog('SHOP', `Only ${itemsWithStock.length} items with stock, forcing minimum stock on random items`);
+        
+        const itemsWithoutStock = Object.keys(shop).filter(key => {
+            const item = shop[key];
+            return item.stock === 0;
+        });
+
+        // Force stock on random items until we have at least 3
+        const itemsToFix = Math.min(3 - itemsWithStock.length, itemsWithoutStock.length);
+        
+        for (let i = 0; i < itemsToFix; i++) {
+            const randomIndex = Math.floor(Math.random() * itemsWithoutStock.length);
+            const itemName = itemsWithoutStock.splice(randomIndex, 1)[0];
+            const item = shop[itemName];
+            
+            // Find the item definition to get stock ranges
+            const def = ITEM_DEFINITIONS.find(d => d.name === itemName);
+            if (def) {
+                const stockRange = def.rarity === '???' ? STOCK_RANGES.MYSTERY : STOCK_RANGES.ON_STOCK;
+                item.stock = getRandomInt(...stockRange);
+                item.message = 'On-Stock';
+                debugLog('SHOP', `Forced stock on ${itemName}: ${item.stock}`);
+            }
+        }
+    }
+
     debugLog('SHOP', `Generated shop with ${Object.keys(shop).length} items`);
     return shop;
 }
