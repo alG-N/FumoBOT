@@ -312,7 +312,7 @@ function handleSpecialItems(message, itemName, quantity, row, userId) {
         "MysteriousDice(M)": handleMysteriousDice,
         "TimeClock(L)": handleTimeClock,
         "S!gil?(?)": handleSgil,
-        "PetFoob(C)": handlePetFoob
+        "PetFoob(B)": handlePetFoob
     };
 
     const handler = specialHandlers[itemName];
