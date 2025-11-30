@@ -2,56 +2,56 @@ const db = require('./dbSetting');
 
 function createIndexes() {
     console.log('📊 Creating database indexes...');
-    
+
     const indexes = [
         // User Inventory - Most queried table
         `CREATE INDEX IF NOT EXISTS idx_inventory_userId ON userInventory(userId)`,
         `CREATE INDEX IF NOT EXISTS idx_inventory_itemName ON userInventory(userId, itemName)`,
         `CREATE INDEX IF NOT EXISTS idx_inventory_rarity ON userInventory(userId, rarity)`,
-        
+
         // Active Boosts - Checked on every roll
         `CREATE INDEX IF NOT EXISTS idx_boosts_userId ON activeBoosts(userId)`,
         `CREATE INDEX IF NOT EXISTS idx_boosts_expires ON activeBoosts(userId, expiresAt)`,
         `CREATE INDEX IF NOT EXISTS idx_boosts_type ON activeBoosts(userId, type, source)`,
-        
+
         // Daily Quests - Checked frequently
         `CREATE INDEX IF NOT EXISTS idx_daily_quest ON dailyQuestProgress(userId, questId, date)`,
         `CREATE INDEX IF NOT EXISTS idx_daily_completed ON dailyQuestProgress(userId, date, completed)`,
-        
+
         // Weekly Quests
         `CREATE INDEX IF NOT EXISTS idx_weekly_quest ON weeklyQuestProgress(userId, questId, week)`,
         `CREATE INDEX IF NOT EXISTS idx_weekly_completed ON weeklyQuestProgress(userId, week, completed)`,
-        
+
         // Achievements
         `CREATE INDEX IF NOT EXISTS idx_achievement ON achievementProgress(userId, achievementId)`,
-        
+
         // Farming Fumos
         `CREATE INDEX IF NOT EXISTS idx_farming_user ON farmingFumos(userId)`,
         `CREATE INDEX IF NOT EXISTS idx_farming_fumo ON farmingFumos(userId, fumoName)`,
-        
+
         // Pet Inventory
         `CREATE INDEX IF NOT EXISTS idx_pet_userId ON petInventory(userId)`,
         `CREATE INDEX IF NOT EXISTS idx_pet_type ON petInventory(userId, type)`,
-        
+
         // Equipped Pets
         `CREATE INDEX IF NOT EXISTS idx_equipped_user ON equippedPets(userId)`,
-        
+
         // User Sales History
         `CREATE INDEX IF NOT EXISTS idx_sales_user ON userSales(userId, timestamp)`,
-        
+
         // Exchange History
         `CREATE INDEX IF NOT EXISTS idx_exchange_user ON exchangeHistory(userId, date)`,
-        
+
         // Redeemed Codes
         `CREATE INDEX IF NOT EXISTS idx_codes_user ON redeemedCodes(userId)`,
-        
+
         // User Buildings
         `CREATE INDEX IF NOT EXISTS idx_buildings_user ON userBuildings(userId)`,
     ];
-    
+
     return new Promise((resolve) => {
         let completed = 0;
-        
+
         indexes.forEach((sql, idx) => {
             db.run(sql, (err) => {
                 if (err) {
@@ -75,7 +75,7 @@ function createTables() {
     return new Promise((resolve) => {
         const tables = [];
         let completed = 0;
-        
+
         const checkCompletion = () => {
             completed++;
             if (completed === tables.length) {
@@ -481,6 +481,24 @@ function ensureColumnsExist() {
             });
         };
 
+        db.all(`PRAGMA table_info(userUpgrades)`, [], async (err, rows) => {
+            if (err) {
+                console.error('Error fetching userUpgrades table info:', err.message);
+                resolve();
+                return;
+            }
+
+            const existingColumns = rows.map(row => row.name);
+
+            // Check if limitBreaks column exists
+            if (!existingColumns.includes('limitBreaks')) {
+                await addColumnIfNotExists('userUpgrades', 'limitBreaks', 'INTEGER DEFAULT 0');
+                console.log('✅ Added limitBreaks column to userUpgrades table');
+            }
+
+            resolve();
+        });
+
         // Check userCoins table columns
         db.all(`PRAGMA table_info(userCoins)`, [], async (err, rows) => {
             if (err) {
@@ -536,16 +554,16 @@ function ensureColumnsExist() {
 
 async function initializeDatabase() {
     console.log('🚀 Initializing database schema...');
-    
+
     // Create tables first (returns a promise)
     await createTables();
-    
+
     // Then ensure columns exist
     await ensureColumnsExist();
-    
+
     // Finally create indexes
     await createIndexes();
-    
+
     console.log('✅ Database initialization complete');
 }
 
