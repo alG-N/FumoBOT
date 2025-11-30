@@ -3,7 +3,6 @@ const { formatNumber } = require('../../Ultility/formatting');
 const { RARITY_PRIORITY } = require('../../Configuration/rarity');
 const { getRarityFromName } = require('./FarmingCalculationService');
 
-// Format numbers with K, M, B, T suffixes
 function formatFarmingNumber(num) {
     if (num >= 1e12) return (num / 1e12).toFixed(2) + 'T';
     if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
@@ -12,7 +11,6 @@ function formatFarmingNumber(num) {
     return num.toString();
 }
 
-// Group by rarity WITH boost multipliers applied
 function groupByRarityWithBoosts(farmingFumos, boosts) {
     const grouped = {};
     
@@ -39,15 +37,13 @@ function groupByRarityWithBoosts(farmingFumos, boosts) {
 }
 
 function createFarmStatusEmbed(userData) {
-    const { username, farmingFumos, farmLimit, fragmentUses, boosts } = userData;
+    const { username, farmingFumos, farmLimit, fragmentUses, boosts, seasons } = userData;
     
-    // Use the corrected grouping function with boosts
     const grouped = groupByRarityWithBoosts(farmingFumos, {
         coinMultiplier: boosts?.coinMultiplier || 1,
         gemMultiplier: boosts?.gemMultiplier || 1
     });
 
-    // Calculate total
     let totalCoins = 0;
     let totalGems = 0;
     Object.values(grouped).forEach(g => {
@@ -71,7 +67,6 @@ function createFarmStatusEmbed(userData) {
                 const cleanName = stripRarityFromName(f.fumoName);
                 const traits = [];
                 
-                // Check the ORIGINAL fumoName for traits
                 if (f.fumoName.includes('🌟alG')) traits.push('🌟alG');
                 if (f.fumoName.includes('✨SHINY')) traits.push('✨SHINY');
                 
@@ -88,7 +83,7 @@ function createFarmStatusEmbed(userData) {
 
     embed.addFields(
         { 
-            name: '💰 Total Earnings (with boosts)', 
+            name: '💰 Total Earnings (with all boosts)', 
             value: `${formatFarmingNumber(totalCoins)} coins/min | ${formatFarmingNumber(totalGems)} gems/min`, 
             inline: true 
         },
@@ -104,7 +99,13 @@ function createFarmStatusEmbed(userData) {
         }
     );
 
-    // Filter boosts to only show coin/gem related ones
+    if (seasons?.active && seasons.active !== 'No active seasonal events') {
+        embed.addFields({
+            name: '🌤️ Active Seasonal Events',
+            value: seasons.active || 'None'
+        });
+    }
+
     if (boosts?.activeBoosts && boosts.activeBoosts.length > 0) {
         const relevantBoosts = boosts.activeBoosts.filter(b => {
             const type = (b.type || '').toLowerCase();
@@ -113,7 +114,7 @@ function createFarmStatusEmbed(userData) {
 
         if (relevantBoosts.length > 0) {
             embed.addFields({
-                name: '⚡ Active Boosts',
+                name: '⚡ Active Personal Boosts',
                 value: relevantBoosts.map(b =>
                     `• **${b.type}** x${b.multiplier} from [${b.source}]${b.expiresAt ? ` (expires <t:${Math.floor(b.expiresAt / 1000)}:R>)` : ''}`
                 ).join('\n')
@@ -187,12 +188,11 @@ function createWarningEmbed(message) {
 }
 
 function stripRarityFromName(fumoName) {
-    // Remove rarity and tag, but keep the rest intact
     return fumoName
-        .replace(/\((.*?)\)/g, '')  // Remove rarity in parentheses
-        .replace(/\[.*?\]/g, '')    // Remove tags in brackets (like [alG])
-        .replace(/✨SHINY/g, '')     // Remove SHINY emoji
-        .replace(/🌟alG/g, '')       // Remove alG emoji
+        .replace(/\((.*?)\)/g, '') 
+        .replace(/\[.*?\]/g, '')  
+        .replace(/✨SHINY/g, '')  
+        .replace(/🌟alG/g, '') 
         .trim();
 }
 
