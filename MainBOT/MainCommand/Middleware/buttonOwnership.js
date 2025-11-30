@@ -9,8 +9,26 @@ function verifyButtonOwnership(interaction, expectedAction = null) {
         return false;
     }
     
-    const claimedUserId = parts[parts.length - 1];
-    const action = parts.slice(0, -1).join('_');
+    // Find the userId by looking for a part that's all digits
+    let userIdIndex = -1;
+    let claimedUserId = null;
+    
+    // Search from right to left for the first part that looks like a Discord user ID (all digits, 17-19 chars)
+    for (let i = parts.length - 1; i >= 0; i--) {
+        if (/^\d{17,19}$/.test(parts[i])) {
+            userIdIndex = i;
+            claimedUserId = parts[i];
+            break;
+        }
+    }
+    
+    // If no valid userId found, fall back to last part (old behavior)
+    if (!claimedUserId) {
+        claimedUserId = parts[parts.length - 1];
+        userIdIndex = parts.length - 1;
+    }
+    
+    const action = parts.slice(0, userIdIndex).join('_');
     
     debugLog('BUTTON_OWNERSHIP', `Parsed: action="${action}", claimedUserId="${claimedUserId}", actualUserId="${actualUserId}"`);
     
@@ -98,47 +116,34 @@ function parseCustomId(customId) {
     
     let userId, action, additionalData = null;
     
-    if (parts.length === 2) {
-        action = parts[0];
-        userId = parts[1];
-    } else if (parts.length === 3) {
-        const lastPart = parts[2];
-        if (/^\d+$/.test(lastPart)) {
-            action = parts.slice(0, -1).join('_');
-            userId = lastPart;
-        } else {
-            action = parts[0];
-            userId = parts[1];
-            try {
-                additionalData = JSON.parse(Buffer.from(lastPart, 'base64').toString('utf8'));
-            } catch (error) {
-                debugLog('BUTTON_OWNERSHIP', `Failed to parse additional data: ${error.message}`);
-            }
+    // Find userId by searching for Discord ID pattern (17-19 digits)
+    let userIdIndex = -1;
+    for (let i = parts.length - 1; i >= 0; i--) {
+        if (/^\d{17,19}$/.test(parts[i])) {
+            userIdIndex = i;
+            userId = parts[i];
+            break;
         }
-    } else {
-        let userIdIndex = -1;
-        for (let i = parts.length - 1; i >= 0; i--) {
-            if (/^\d+$/.test(parts[i])) {
-                userIdIndex = i;
-                break;
-            }
-        }
+    }
+    
+    if (userIdIndex === -1) {
+        // Fallback: assume last part is userId
+        userIdIndex = parts.length - 1;
+        userId = parts[userIdIndex];
+    }
+    
+    action = parts.slice(0, userIdIndex).join('_');
+    
+    // Everything after userId is additional data
+    if (userIdIndex < parts.length - 1) {
+        const remaining = parts.slice(userIdIndex + 1).join('_');
         
-        if (userIdIndex === -1) {
-            action = parts.join('_');
-            userId = '';
-        } else {
-            action = parts.slice(0, userIdIndex).join('_');
-            userId = parts[userIdIndex];
-            
-            if (userIdIndex < parts.length - 1) {
-                try {
-                    const dataStr = parts.slice(userIdIndex + 1).join('_');
-                    additionalData = JSON.parse(Buffer.from(dataStr, 'base64').toString('utf8'));
-                } catch (error) {
-                    debugLog('BUTTON_OWNERSHIP', `Failed to parse additional data: ${error.message}`);
-                }
-            }
+        // Try to parse as base64 JSON first
+        try {
+            additionalData = JSON.parse(Buffer.from(remaining, 'base64').toString('utf8'));
+        } catch (error) {
+            // If that fails, treat it as plain text
+            additionalData = remaining;
         }
     }
     
