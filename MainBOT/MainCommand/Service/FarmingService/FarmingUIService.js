@@ -1,7 +1,7 @@
 const { EmbedBuilder, Colors } = require('discord.js');
 const { formatNumber } = require('../../Ultility/formatting');
 const { RARITY_PRIORITY } = require('../../Configuration/rarity');
-const { groupByRarity, calculateTotalIncome, getRarityFromName } = require('./FarmingCalculationService');
+const { getRarityFromName } = require('./FarmingCalculationService');
 
 // Format numbers with K, M, B, T suffixes
 function formatFarmingNumber(num) {
@@ -12,13 +12,47 @@ function formatFarmingNumber(num) {
     return num.toString();
 }
 
+// Group by rarity WITH boost multipliers applied
+function groupByRarityWithBoosts(farmingFumos, boosts) {
+    const grouped = {};
+    
+    farmingFumos.forEach(fumo => {
+        const rarity = getRarityFromName(fumo.fumoName);
+        if (!grouped[rarity]) {
+            grouped[rarity] = {
+                fumos: [],
+                totalCoins: 0,
+                totalGems: 0
+            };
+        }
+        
+        const quantity = fumo.quantity || 1;
+        const coinsWithBoost = Math.floor(fumo.coinsPerMin * quantity * boosts.coinMultiplier);
+        const gemsWithBoost = Math.floor(fumo.gemsPerMin * quantity * boosts.gemMultiplier);
+        
+        grouped[rarity].fumos.push(fumo);
+        grouped[rarity].totalCoins += coinsWithBoost;
+        grouped[rarity].totalGems += gemsWithBoost;
+    });
+
+    return grouped;
+}
+
 function createFarmStatusEmbed(userData) {
     const { username, farmingFumos, farmLimit, fragmentUses, boosts } = userData;
     
-    const grouped = groupByRarity(farmingFumos);
-    const { totalCoins, totalGems } = calculateTotalIncome(farmingFumos, {
+    // Use the corrected grouping function with boosts
+    const grouped = groupByRarityWithBoosts(farmingFumos, {
         coinMultiplier: boosts?.coinMultiplier || 1,
         gemMultiplier: boosts?.gemMultiplier || 1
+    });
+
+    // Calculate total
+    let totalCoins = 0;
+    let totalGems = 0;
+    Object.values(grouped).forEach(g => {
+        totalCoins += g.totalCoins;
+        totalGems += g.totalGems;
     });
 
     const embed = new EmbedBuilder()
@@ -36,10 +70,12 @@ function createFarmStatusEmbed(userData) {
             .map(f => {
                 const cleanName = stripRarityFromName(f.fumoName);
                 const traits = [];
-                if (f.fumoName.includes('🌟alG')) traits.push('[🌟alG]');
-                if (f.fumoName.includes('🌟SHINY')) traits.push('[🌟Shiny]');
                 
-                const traitStr = traits.length > 0 ? ` ${traits.join(' ')}` : '';
+                // Check the ORIGINAL fumoName for traits
+                if (f.fumoName.includes('🌟alG')) traits.push('🌟alG');
+                if (f.fumoName.includes('✨SHINY')) traits.push('✨SHINY');
+                
+                const traitStr = traits.length > 0 ? ` [${traits.join(' ')}]` : '';
                 return f.quantity > 1 ? `${cleanName}${traitStr} (x${f.quantity})` : `${cleanName}${traitStr}`;
             })
             .join(', ');
@@ -151,12 +187,12 @@ function createWarningEmbed(message) {
 }
 
 function stripRarityFromName(fumoName) {
-    // Remove rarity and tag, but keep alG and SHINY
+    // Remove rarity and tag, but keep the rest intact
     return fumoName
-        .replace(/\((.*?)\)/g, '') // Remove rarity in parentheses
-        .replace(/\[.*?\]/g, '')    // Remove tags in brackets
-        .replace(/✨SHINY/g, '')     // Remove SHINY (we'll add it back separately)
-        .replace(/🌟alG/g, '')       // Remove alG (we'll add it back separately)
+        .replace(/\((.*?)\)/g, '')  // Remove rarity in parentheses
+        .replace(/\[.*?\]/g, '')    // Remove tags in brackets (like [alG])
+        .replace(/✨SHINY/g, '')     // Remove SHINY emoji
+        .replace(/🌟alG/g, '')       // Remove alG emoji
         .trim();
 }
 

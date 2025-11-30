@@ -611,6 +611,131 @@ async function handleChangePetName(message) {
 }
 
 /**
+ * Admin command: .remove
+ * Removes all pets of a specific rarity from a user's inventory
+ */
+async function handleRemove(message) {
+    const allowedUsers = ['1128296349566251068', '1362450043939979378'];
+    if (!allowedUsers.includes(message.author.id)) {
+        return message.reply({
+            embeds: [
+                new EmbedBuilder()
+                    .setColor('Red')
+                    .setTitle('❌ Access Denied')
+                    .setDescription('You do not have permission to use this command.')
+            ]
+        });
+    }
+
+    const args = message.content.trim().split(' ').slice(1);
+
+    // Check if args exist and have minimum required arguments
+    if (args.length < 2) {
+        return message.reply({
+            embeds: [
+                new EmbedBuilder()
+                    .setColor('Orange')
+                    .setTitle('Usage')
+                    .setDescription('`.remove <rarity> <userId>`\n\nExample: `.remove legendary 123456789012345678`')
+            ]
+        });
+    }
+
+    const rarity = args[0].toLowerCase();
+    const userId = args[1];
+
+    // Validate rarity
+    const validRarities = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'];
+    if (!validRarities.includes(rarity)) {
+        return message.reply({
+            embeds: [
+                new EmbedBuilder()
+                    .setColor('Orange')
+                    .setTitle('⚠️ Invalid Rarity')
+                    .setDescription(`Please provide a valid rarity: ${validRarities.map(r => `\`${r}\``).join(', ')}`)
+            ]
+        });
+    }
+
+    // Validate user ID
+    if (!/^\d{17,19}$/.test(userId)) {
+        return message.reply({
+            embeds: [
+                new EmbedBuilder()
+                    .setColor('Orange')
+                    .setTitle('⚠️ Invalid User ID')
+                    .setDescription('Please provide a valid Discord user ID (17-19 digits).')
+            ]
+        });
+    }
+
+    // Check how many pets will be removed
+    db.get(
+        `SELECT COUNT(*) as count FROM petInventory WHERE userId = ? AND LOWER(rarity) = ?`,
+        [userId, rarity],
+        (err, row) => {
+            if (err) {
+                console.error('Remove command error:', err.message);
+                return message.reply({
+                    embeds: [
+                        new EmbedBuilder()
+                            .setColor('Red')
+                            .setTitle('❌ Database Error')
+                            .setDescription('Failed to query pet inventory.')
+                    ]
+                });
+            }
+
+            const petCount = row.count;
+
+            if (petCount === 0) {
+                return message.reply({
+                    embeds: [
+                        new EmbedBuilder()
+                            .setColor('Orange')
+                            .setTitle('⚠️ No Pets Found')
+                            .setDescription(`<@${userId}> has no **${rarity}** pets to remove.`)
+                    ]
+                });
+            }
+
+            // Remove the pets
+            db.run(
+                `DELETE FROM petInventory WHERE userId = ? AND LOWER(rarity) = ?`,
+                [userId, rarity],
+                function(err) {
+                    if (err) {
+                        console.error('Remove pets error:', err.message);
+                        return message.reply({
+                            embeds: [
+                                new EmbedBuilder()
+                                    .setColor('Red')
+                                    .setTitle('❌ Removal Failed')
+                                    .setDescription('Failed to remove pets from inventory.')
+                            ]
+                        });
+                    }
+
+                    return message.reply({
+                        embeds: [
+                            new EmbedBuilder()
+                                .setColor('Green')
+                                .setTitle('✅ Pets Removed')
+                                .addFields(
+                                    { name: 'User', value: `<@${userId}>`, inline: true },
+                                    { name: 'Rarity', value: rarity.charAt(0).toUpperCase() + rarity.slice(1), inline: true },
+                                    { name: 'Pets Removed', value: `${petCount}`, inline: true }
+                                )
+                                .setTimestamp()
+                        ]
+                    });
+                }
+            );
+        }
+    );
+}
+
+/**
  * Register all admin commands
  */
 function registerAdminCommands(client) {
@@ -633,6 +758,8 @@ function registerAdminCommands(client) {
             await handleChangeId(message);
         } else if (content.startsWith('.changepetname')) {
             await handleChangePetName(message);
+        } else if (content.startsWith('.remove')){
+            await handleRemove(message);
         }
     });
 }
