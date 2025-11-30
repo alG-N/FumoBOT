@@ -16,8 +16,6 @@ async function getUserInventoryPaginated(userId, itemsPerPage = 2) {
             [userId]
         );
 
-        console.log(`[INVENTORY] User ${userId} has ${rows.length} unique items`);
-
         if (!rows || rows.length === 0) {
             return { hasItems: false, pages: [], totalItems: 0 };
         }
@@ -53,7 +51,6 @@ async function getUserInventoryPaginated(userId, itemsPerPage = 2) {
                     name: row.itemName,
                     quantity: quantity
                 });
-                console.log(`[INVENTORY] Added ${row.itemName} (${quantity}) to ${rarity}`);
             } else {
                 console.warn(`[INVENTORY] Unknown rarity for item: ${row.itemName}`);
             }
@@ -71,8 +68,6 @@ async function getUserInventoryPaginated(userId, itemsPerPage = 2) {
 
             pages.push(pageData);
         }
-
-        console.log(`[INVENTORY] Created ${pages.length} pages for user ${userId}`);
 
         return {
             hasItems: true,

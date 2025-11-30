@@ -3,8 +3,6 @@ const { createInventoryEmbed, createInventoryButtons } = require('./ItemUIServic
 const { debugLog } = require('../../../Core/logger');
 
 async function handleInventoryInteraction(interaction, inventoryData, currentPage, user, stats) {
-    console.log(`[INTERACTION] Handling ${interaction.customId} for user ${interaction.user.id}, current page: ${currentPage}`);
-
     try {
         if (!await checkButtonOwnership(interaction, null, null, false)) {
             console.log(`[INTERACTION] Ownership check failed`);
@@ -33,14 +31,10 @@ async function handleInventoryInteraction(interaction, inventoryData, currentPag
         const totalPages = inventoryData.pages.length;
         let newPage = currentPage;
 
-        console.log(`[INTERACTION] Total pages: ${totalPages}, Current page: ${currentPage}`);
-
         if (interaction.customId.startsWith('prev_page')) {
             if (currentPage > 0) {
                 newPage = currentPage - 1;
-                console.log(`[INTERACTION] Moving to previous page: ${newPage}`);
             } else {
-                console.log(`[INTERACTION] Already on first page`);
                 await interaction.reply({
                     content: '⚠️ You are already on the first page.',
                     ephemeral: true
@@ -50,9 +44,7 @@ async function handleInventoryInteraction(interaction, inventoryData, currentPag
         } else if (interaction.customId.startsWith('next_page')) {
             if (currentPage < totalPages - 1) {
                 newPage = currentPage + 1;
-                console.log(`[INTERACTION] Moving to next page: ${newPage}`);
             } else {
-                console.log(`[INTERACTION] Already on last page`);
                 await interaction.reply({
                     content: '⚠️ You are already on the last page.',
                     ephemeral: true
@@ -73,8 +65,6 @@ async function handleInventoryInteraction(interaction, inventoryData, currentPag
                 });
                 return { success: false, newPage: currentPage };
             }
-
-            console.log(`[INTERACTION] Creating embed for page ${newPage}`);
             
             const embed = createInventoryEmbed(
                 user,
@@ -90,8 +80,6 @@ async function handleInventoryInteraction(interaction, inventoryData, currentPag
                 embeds: [embed],
                 components: [buttons]
             });
-
-            console.log(`[INTERACTION] Successfully updated to page ${newPage + 1}/${totalPages}`);
         }
 
         return { success: true, newPage };
@@ -120,8 +108,6 @@ async function handleInventoryInteraction(interaction, inventoryData, currentPag
 }
 
 async function handleInventoryRefresh(interaction, userId) {
-    console.log(`[INTERACTION] Refreshing inventory for user ${userId}`);
-
     try {
         const { getUserInventoryPaginated, getInventoryStats } = require('./ItemQueryService');
         
@@ -153,7 +139,6 @@ async function handleInventoryRefresh(interaction, userId) {
             components: [buttons]
         });
 
-        console.log(`[INTERACTION] Successfully refreshed inventory`);
         return true;
 
     } catch (error) {
