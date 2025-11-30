@@ -7,12 +7,16 @@ async function getUserInventoryPaginated(userId, itemsPerPage = 2) {
 
     try {
         const rows = await all(
-            `SELECT itemName, SUM(quantity) as totalQuantity 
+            `SELECT 
+                COALESCE(itemName, fumoName) as itemName,
+                SUM(quantity) as totalQuantity 
              FROM userInventory 
-             WHERE userId = ? AND itemName IS NOT NULL AND TRIM(itemName) != ''
-             GROUP BY itemName 
+             WHERE userId = ? 
+             AND (itemName IS NOT NULL OR fumoName IS NOT NULL)
+             AND (TRIM(COALESCE(itemName, '')) != '' OR TRIM(COALESCE(fumoName, '')) != '')
+             GROUP BY COALESCE(itemName, fumoName)
              HAVING totalQuantity > 0
-             ORDER BY itemName`,
+             ORDER BY COALESCE(itemName, fumoName)`,
             [userId]
         );
 
@@ -29,13 +33,11 @@ async function getUserInventoryPaginated(userId, itemsPerPage = 2) {
 
         for (const row of rows) {
             if (!row.itemName || typeof row.itemName !== 'string' || row.itemName.trim() === '') {
-                console.warn(`[INVENTORY] Skipping invalid item:`, row);
                 continue;
             }
 
             const quantity = parseInt(row.totalQuantity) || 0;
             if (quantity <= 0) {
-                console.warn(`[INVENTORY] Skipping zero quantity item: ${row.itemName}`);
                 continue;
             }
 
@@ -51,8 +53,6 @@ async function getUserInventoryPaginated(userId, itemsPerPage = 2) {
                     name: row.itemName,
                     quantity: quantity
                 });
-            } else {
-                console.warn(`[INVENTORY] Unknown rarity for item: ${row.itemName}`);
             }
         }
 
@@ -78,7 +78,6 @@ async function getUserInventoryPaginated(userId, itemsPerPage = 2) {
         };
 
     } catch (error) {
-        console.error('[INVENTORY] Error in getUserInventoryPaginated:', error);
         throw error;
     }
 }
@@ -88,10 +87,14 @@ async function getInventoryStats(userId) {
 
     try {
         const rows = await all(
-            `SELECT itemName, SUM(quantity) as totalQuantity 
+            `SELECT 
+                COALESCE(itemName, fumoName) as itemName,
+                SUM(quantity) as totalQuantity 
              FROM userInventory 
-             WHERE userId = ? AND itemName IS NOT NULL AND TRIM(itemName) != ''
-             GROUP BY itemName 
+             WHERE userId = ? 
+             AND (itemName IS NOT NULL OR fumoName IS NOT NULL)
+             AND (TRIM(COALESCE(itemName, '')) != '' OR TRIM(COALESCE(fumoName, '')) != '')
+             GROUP BY COALESCE(itemName, fumoName)
              HAVING totalQuantity > 0`,
             [userId]
         );
@@ -131,15 +134,9 @@ async function getInventoryStats(userId) {
             }
         }
 
-        console.log(`[INVENTORY STATS] User ${userId}:`, {
-            totalItems: stats.totalItems,
-            uniqueItems: stats.totalUniqueItems
-        });
-
         return stats;
 
     } catch (error) {
-        console.error('[INVENTORY] Error in getInventoryStats:', error);
         throw error;
     }
 }
@@ -150,18 +147,19 @@ async function getItemsByRarity(userId, rarity) {
     try {
         const suffix = Object.entries(RARITY_SUFFIX_MAP).find(([_, r]) => r === rarity)?.[0];
         if (!suffix) {
-            console.warn(`[INVENTORY] No suffix found for rarity: ${rarity}`);
             return [];
         }
 
         const rows = await all(
-            `SELECT itemName, SUM(quantity) as totalQuantity 
+            `SELECT 
+                COALESCE(itemName, fumoName) as itemName,
+                SUM(quantity) as totalQuantity 
              FROM userInventory 
              WHERE userId = ? 
-             AND itemName LIKE ? 
-             AND itemName IS NOT NULL 
-             AND TRIM(itemName) != ''
-             GROUP BY itemName 
+             AND COALESCE(itemName, fumoName) LIKE ? 
+             AND (itemName IS NOT NULL OR fumoName IS NOT NULL)
+             AND (TRIM(COALESCE(itemName, '')) != '' OR TRIM(COALESCE(fumoName, '')) != '')
+             GROUP BY COALESCE(itemName, fumoName)
              HAVING totalQuantity > 0`,
             [userId, `%${suffix}`]
         );
@@ -175,7 +173,6 @@ async function getItemsByRarity(userId, rarity) {
             .filter(item => item.quantity > 0);
 
     } catch (error) {
-        console.error('[INVENTORY] Error in getItemsByRarity:', error);
         throw error;
     }
 }
@@ -185,13 +182,15 @@ async function searchInventory(userId, searchTerm) {
 
     try {
         const rows = await all(
-            `SELECT itemName, SUM(quantity) as totalQuantity 
+            `SELECT 
+                COALESCE(itemName, fumoName) as itemName,
+                SUM(quantity) as totalQuantity 
              FROM userInventory 
              WHERE userId = ? 
-             AND itemName LIKE ? 
-             AND itemName IS NOT NULL 
-             AND TRIM(itemName) != ''
-             GROUP BY itemName 
+             AND COALESCE(itemName, fumoName) LIKE ? 
+             AND (itemName IS NOT NULL OR fumoName IS NOT NULL)
+             AND (TRIM(COALESCE(itemName, '')) != '' OR TRIM(COALESCE(fumoName, '')) != '')
+             GROUP BY COALESCE(itemName, fumoName)
              HAVING totalQuantity > 0`,
             [userId, `%${searchTerm}%`]
         );
@@ -205,7 +204,6 @@ async function searchInventory(userId, searchTerm) {
             .filter(item => item.quantity > 0);
 
     } catch (error) {
-        console.error('[INVENTORY] Error in searchInventory:', error);
         throw error;
     }
 }

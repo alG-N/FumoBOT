@@ -105,7 +105,6 @@ module.exports = (client) => {
             await message.channel.send({ embeds: [embed] });
 
         } catch (err) {
-            console.error('Flip command error:', err);
             await logError(client, 'Flip Command', err, message.author.id);
             
             let errorType = 'GENERIC';
@@ -175,7 +174,6 @@ async function handleLeaderboardCommand(client, message, content) {
         await message.channel.send({ embeds: [embed] });
 
     } catch (err) {
-        console.error('Leaderboard error:', err);
         await logError(client, 'Flip Leaderboard', err, message.author.id);
         
         const embed = createErrorEmbed('GENERIC', { message: err.message });
@@ -207,7 +205,6 @@ async function handleStatsCommand(client, message, userId, username) {
         await message.channel.send({ embeds: [embed] });
 
     } catch (err) {
-        console.error('Stats error:', err);
         await logError(client, 'Flip Stats', err, userId);
         
         const embed = createErrorEmbed('STATS_ERROR', { message: err.message });
