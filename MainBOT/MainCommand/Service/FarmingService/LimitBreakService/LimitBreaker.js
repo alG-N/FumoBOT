@@ -1,8 +1,8 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
-const { checkRestrictions } = require('../../Middleware/restrictions');
-const { checkButtonOwnership } = require('../../Middleware/buttonOwnership');
-const { get, run } = require('../../Core/database');
-const { logToDiscord, LogLevel } = require('../../Core/logger');
+const { checkRestrictions } = require('../../../Middleware/restrictions');
+const { checkButtonOwnership } = require('../../../Middleware/buttonOwnership');
+const { get, run } = require('../../../Core/database');
+const { logToDiscord, LogLevel } = require('../../../Core/logger');
 
 const LIMIT_BREAK_FUMO_POOL = [
     'Reimu(Common)',
