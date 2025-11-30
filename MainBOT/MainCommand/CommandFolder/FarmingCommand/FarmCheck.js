@@ -69,7 +69,9 @@ function setupInteractionCollector(msg, userId, message, client) {
         try {
             const { customId } = interaction;
 
-            if (customId.startsWith('open_buildings_')) {
+            console.log('Interaction received:', customId);
+
+            if (customId.startsWith('open_buildings_') || customId.startsWith('upgrade_') || customId.startsWith('building_close_')) {
                 await handleBuildingInteraction(interaction, userId, client);
             } 
             else if (customId.startsWith('open_limitbreaker_') || customId.startsWith('limitbreak_')) {
@@ -80,6 +82,25 @@ function setupInteractionCollector(msg, userId, message, client) {
             }
         } catch (error) {
             console.error('Error in farmcheck button interaction:', error);
+            console.error('CustomId:', interaction.customId);
+            console.error('Stack:', error.stack);
+            
+            // Try to send error message to user
+            try {
+                if (!interaction.replied && !interaction.deferred) {
+                    await interaction.reply({
+                        content: '❌ An error occurred while processing your request.',
+                        ephemeral: true
+                    });
+                } else {
+                    await interaction.followUp({
+                        content: '❌ An error occurred while processing your request.',
+                        ephemeral: true
+                    });
+                }
+            } catch (err) {
+                console.error('Failed to send error message:', err);
+            }
         }
     });
 
