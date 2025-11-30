@@ -21,7 +21,7 @@ const validCodes = {
         maxUses: null,
         description: "Updated server lets gooo!"
     },
-    "BetaTest33": {
+    "BetaTest3322": {
         items: [
             { item: "Lumina(M)", quantity: 150 },
             { item: "ForgottenBook(C)", quantity: 500 },
@@ -36,6 +36,7 @@ const validCodes = {
             { item: "HakureiTicket(L)", quantity: 150 },
             { item: "TimeClock(L)", quantity: 150 },
             { item: "MysteriousDice(M)", quantity: 150 },
+            { item: "PrayTicket(R)", quantity: 150 },
         ],
         expires: "2025-12-31T23:59:59Z",
         maxUses: null,
