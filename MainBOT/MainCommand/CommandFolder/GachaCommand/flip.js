@@ -1,5 +1,6 @@
 const { checkRestrictions } = require('../../Middleware/restrictions');
-const { checkAndSetFlipCooldown } = require('../../Middleware/flipRateLimiter');
+const { checkAndSetCooldown } = require('../../Middleware/rateLimiter');
+const { FLIP_COOLDOWN } = require('../../Configuration/flipConfig');
 const { parseFlipCommand, parseLeaderboardCommand } = require('../../Ultility/flipParser');
 const { executeSingleFlip, getUserFlipStats } = require('../../Service/GachaService/FlipService/flipGameService');
 const {
@@ -17,7 +18,7 @@ const {
     createStatsEmbed,
     createErrorEmbed
 } = require('../../Service/GachaService/FlipService/FlipGameUI');
-const { logError } = require('../../Core/logger');
+const { logError } = require('../../Ultility/errorHandler');
 
 module.exports = (client) => {
     client.on('messageCreate', async (message) => {
@@ -65,7 +66,7 @@ module.exports = (client) => {
                 return;
             }
 
-            const cooldown = checkAndSetFlipCooldown(userId);
+            const cooldown = await checkAndSetCooldown(userId, 'flip', FLIP_COOLDOWN);
             if (cooldown.onCooldown) {
                 const embed = createErrorEmbed('COOLDOWN', { remaining: cooldown.remaining });
                 await message.channel.send({ embeds: [embed] });
@@ -108,7 +109,7 @@ module.exports = (client) => {
             await logError(client, 'Flip Command', err, message.author.id);
             
             let errorType = 'GENERIC';
-            if (err.message?.includes('SQLITE')) {
+            if (err.message?.includes('SQLITE') || err.code === 'SQLITE_BUSY') {
                 errorType = 'DATABASE_ERROR';
             } else if (err.message?.includes('timeout')) {
                 errorType = 'TIMEOUT';
@@ -162,7 +163,7 @@ async function handleLeaderboardCommand(client, message, content) {
         }
 
         if (!rows || rows.length === 0) {
-            await message.channel.send('No leaderboard data yet.');
+            await message.channel.send('📊 No leaderboard data available yet. Start flipping to see rankings!');
             return;
         }
 
@@ -186,12 +187,20 @@ async function handleStatsCommand(client, message, userId, username) {
     try {
         const stats = await getUserFlipStats(userId);
         
+        const [coinsRank, gemsRank, winsRank, winrateRank, gamesRank] = await Promise.all([
+            getUserRank(userId, 'coins'),
+            getUserRank(userId, 'gems'),
+            getUserRank(userId, 'wins'),
+            getUserRank(userId, 'winrate'),
+            getUserRank(userId, 'games')
+        ]);
+        
         const ranks = {
-            Coins: await getUserRank(userId, 'coins'),
-            Gems: await getUserRank(userId, 'gems'),
-            Wins: await getUserRank(userId, 'wins'),
-            'Win Rate': await getUserRank(userId, 'winrate'),
-            Games: await getUserRank(userId, 'games')
+            Coins: coinsRank,
+            Gems: gemsRank,
+            Wins: winsRank,
+            'Win Rate': winrateRank,
+            Games: gamesRank
         };
         
         const embed = createStatsEmbed(username, stats, ranks);
