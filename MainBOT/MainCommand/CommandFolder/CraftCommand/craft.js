@@ -29,7 +29,7 @@ function formatNumber(num) {
     if (num >= 1e3) return (num / 1e3).toFixed(2) + 'K';
     return num.toString();
 }
-const { maintenance, developerID } = require("../../Configuration/Maintenance/maintenanceConfig");
+const { maintenance, developerID } = require("../../Configuration/maintenanceConfig");
 const { isBanned } = require('../../Administrator/BannedList/BanUtils');
 module.exports = (client) => {
 

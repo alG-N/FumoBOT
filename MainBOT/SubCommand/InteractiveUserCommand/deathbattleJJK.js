@@ -2,7 +2,7 @@ const {
     SlashCommandBuilder,
     EmbedBuilder
 } = require('discord.js');
-const { maintenance, developerID } = require("../../MainCommand/Configuration/Maintenance/maintenanceConfig.js");
+const { maintenance, developerID } = require("../../MainCommand/Configuration/maintenanceConfig.js");
 const { isBanned } = require('../../MainCommand/Administrator/BannedList/BanUtils.js');
 
 function formatNumber(num) {

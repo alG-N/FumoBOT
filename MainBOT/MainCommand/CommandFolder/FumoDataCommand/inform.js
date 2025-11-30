@@ -21,7 +21,7 @@ client.setMaxListeners(150);
 function formatNumber(number) {
     return number.toLocaleString();
 }
-const { maintenance, developerID } = require("../../Configuration/Maintenance/maintenanceConfig.js");
+const { maintenance, developerID } = require("../../Configuration/maintenanceConfig.js");
 const { isBanned } = require('../../Administrator/BannedList/BanUtils.js');
 const { format } = require('date-fns');
 module.exports = (client) => {

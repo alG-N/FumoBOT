@@ -19,7 +19,7 @@ const client = new Client({
 });
 client.setMaxListeners(150);
 const tutorialCommands = require('./helpCMD');
-const { maintenance, developerID } = require("../../Configuration/Maintenance/maintenanceConfig");
+const { maintenance, developerID } = require("../../Configuration/maintenanceConfig");
 const { isBanned } = require('../../Administrator/BannedList/BanUtils');
 module.exports = (client) => {
     client.on('messageCreate', async message => {

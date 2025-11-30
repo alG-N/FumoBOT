@@ -8,7 +8,7 @@ const {
     ButtonStyle
 } = require('discord.js');
 const db = require('../../Core/Database/dbSetting');
-const { maintenance, developerID } = require("../../Configuration/Maintenance/maintenanceConfig");
+const { maintenance, developerID } = require("../../Configuration/maintenanceConfig");
 const { isBanned } = require('../../Administrator/BannedList/BanUtils');
 const { getWeekIdentifier, incrementWeeklyShiny, incrementWeeklyAstral } = require('../../Ultility/weekly');
 

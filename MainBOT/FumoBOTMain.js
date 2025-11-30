@@ -27,7 +27,7 @@ const { registerTicketSystem } = require('./MainCommand/Administrator/ticketSyst
 const { registerCodeRedemption } = require('./MainCommand/CommandFolder/UserDataCommand/UsuableCommand/codeRedemption');
 
 // MAINTENANCE CONFIG
-const { maintenance, developerID } = require("./MainCommand/Configuration/Maintenance/maintenanceConfig");
+const { maintenance, developerID } = require("./MainCommand/Configuration/maintenanceConfig");
 console.log(`Maintenance mode is currently: ${maintenance}`);
 
 // CLIENT INITIALIZATION - Now using the discord.js config
