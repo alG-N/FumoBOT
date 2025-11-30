@@ -1,0 +1,137 @@
+const { EmbedBuilder, Colors } = require('discord.js');
+const { formatNumber } = require('../../Ultility/formatting');
+const { RARITY_PRIORITY } = require('../../Configuration/rarity');
+const { groupByRarity, calculateTotalIncome, getRarityFromName } = require('./FarmingCalculationService');
+
+function createFarmStatusEmbed(userData) {
+    const { username, farmingFumos, farmLimit, fragmentUses, boosts } = userData;
+    
+    const grouped = groupByRarity(farmingFumos);
+    const { totalCoins, totalGems } = calculateTotalIncome(farmingFumos, {
+        coinMultiplier: boosts?.coinMultiplier || 1,
+        gemMultiplier: boosts?.gemMultiplier || 1
+    });
+
+    const embed = new EmbedBuilder()
+        .setTitle('🌾 Fumo Farming Status')
+        .setColor(Colors.Blurple)
+        .setDescription(`🛠️ Your Fumos are working hard. Let's check how much loot they're bringing!`)
+        .setImage('https://tse4.mm.bing.net/th/id/OIP.uPn1KR9q8AKKhhJVCr1C4QHaDz?rs=1&pid=ImgDetMain&o=7&rm=3');
+
+    for (const rarity of RARITY_PRIORITY) {
+        if (!grouped[rarity]) continue;
+
+        const { fumos, totalCoins: rarityCoins, totalGems: rarityGems } = grouped[rarity];
+        
+        const nameList = fumos
+            .map(f => {
+                const cleanName = stripRarityFromName(f.fumoName);
+                return f.quantity > 1 ? `${cleanName} (x${f.quantity})` : cleanName;
+            })
+            .join(', ');
+
+        embed.addFields({
+            name: `🔹 ${rarity}: ${formatNumber(rarityCoins)} coins/min, ${formatNumber(rarityGems)} gems/min`,
+            value: nameList || 'None'
+        });
+    }
+
+    embed.addFields(
+        { 
+            name: '💰 Total Earnings (with boosts)', 
+            value: `${formatNumber(totalCoins)} coins/min | ${formatNumber(totalGems)} gems/min`, 
+            inline: true 
+        },
+        { 
+            name: '📦 Max Farming Slots', 
+            value: `${farmingFumos.length} / ${farmLimit}`, 
+            inline: true 
+        },
+        { 
+            name: '🔮 Fragment of 1800s', 
+            value: `${fragmentUses} used`, 
+            inline: true 
+        }
+    );
+
+    if (boosts?.activeBoosts && boosts.activeBoosts.length > 0) {
+        embed.addFields({
+            name: '⚡ Active Boosts',
+            value: boosts.activeBoosts.map(b =>
+                `• **${b.type}** x${b.multiplier} from [${b.source}]${b.expiresAt ? ` (expires <t:${Math.floor(b.expiresAt / 1000)}:R>)` : ''}`
+            ).join('\n')
+        });
+    }
+
+    embed.addFields({
+        name: '📋 Notes:',
+        value: 'Use `.endfarm` to stop farming specific Fumos.\nCheck `.farminfo` for rarity stats.'
+    });
+
+    return embed;
+}
+
+function createFarmInfoEmbed() {
+    const embed = new EmbedBuilder()
+        .setTitle('🧠 Fumo Farming Info')
+        .setColor('Purple')
+        .setDescription(
+            `💡 **Note**:\nEach Fumo has a different power rate based on its rarity.\n` +
+            `You can stop farming anytime using \`.endfarm <fumo name>\`.`
+        )
+        .addFields([{
+            name: '📢 Power by Rarity',
+            value:
+                `\`\`\`\n` +
+                `🌿 Common          → 25 coins/min    | 5 gems/min\n` +
+                `🍀 Uncommon        → 45 coins/min    | 10 gems/min\n` +
+                `🔷 Rare            → 70 coins/min    | 20 gems/min\n` +
+                `💎 Epic            → 100 coins/min   | 35 gems/min\n` +
+                `🌌 Otherworldly    → 150 coins/min   | 50 gems/min\n` +
+                `🏆 Legendary       → 200 coins/min   | 75 gems/min\n` +
+                `🌠 Mythical        → 350 coins/min   | 115 gems/min\n` +
+                `🎟️ Exclusive       → 500 coins/min   | 150 gems/min\n` +
+                `❓ ???             → 750 coins/min   | 220 gems/min\n` +
+                `🌟 Astral          → 1,000 coins/min | 450 gems/min\n` +
+                `🌙 Celestial       → 2,000 coins/min | 700 gems/min\n` +
+                `♾️ Infinite        → 3,500 coins/min | 915 gems/min\n` +
+                `🕊️ Eternal         → 5,000 coins/min | 1,150 gems/min\n` +
+                `💫 Transcendent    → 25,000 coins/min| 2,500 gems/min\n` +
+                `\`\`\``
+        }])
+        .setFooter({ text: 'Extra traits on fumo can boost farming rates too!' })
+        .setTimestamp();
+
+    return embed;
+}
+
+function createSuccessEmbed(message) {
+    return new EmbedBuilder()
+        .setDescription(`🎉 ${message}`)
+        .setColor(Colors.Green);
+}
+
+function createErrorEmbed(message) {
+    return new EmbedBuilder()
+        .setDescription(`❌ ${message}`)
+        .setColor(Colors.Red);
+}
+
+function createWarningEmbed(message) {
+    return new EmbedBuilder()
+        .setDescription(`⚠️ ${message}`)
+        .setColor(Colors.Yellow);
+}
+
+function stripRarityFromName(fumoName) {
+    return fumoName.replace(/\((.*?)\)/g, '').replace(/\[.*?\]/g, '').trim();
+}
+
+module.exports = {
+    createFarmStatusEmbed,
+    createFarmInfoEmbed,
+    createSuccessEmbed,
+    createErrorEmbed,
+    createWarningEmbed,
+    stripRarityFromName
+};

@@ -82,7 +82,12 @@ const eggOpen = require('./MainCommand/CommandFolder/PetCommand/Functionality/eg
 const eggcheck = require('./MainCommand/CommandFolder/PetCommand/Functionality/eggcheck');
 const equipPet = require('./MainCommand/CommandFolder/PetCommand/Functionality/equipPet');
 const useFragment = require('./MainCommand/CommandFolder/FarmingCommand/useFragment');
-const farm = require('./MainCommand/CommandFolder/FarmingCommand/FarmManagement');
+const addFarm = require('./MainCommand/CommandFolder/FarmingCommand/AddFarm');
+const addBest = require('./MainCommand/CommandFolder/FarmingCommand/AddBest');
+const endFarm = require('./MainCommand/CommandFolder/FarmingCommand/EndFarm');
+const farmCheck = require('./MainCommand/CommandFolder/FarmingCommand/FarmCheck');
+const farmInfo = require('./MainCommand/CommandFolder/FarmingCommand/FarmInfo');
+const initializeFarming = require('./MainCommand/CommandFolder/FarmingCommand/InitializeFarming');
 
 // OTHER FUN COMMANDS
 const anime = require('./SubCommand/API-Website/Anime/anime');
@@ -91,6 +96,7 @@ const musicCommands = require('./SubCommand/MusicFunction/MainMusic');
 const reddit = require('./SubCommand/API-Website/Reddit/reddit');
 const pixiv = require('./SubCommand/API-Website/Pixiv/pixiv');
 const steam = require('./SubCommand/API-Website/Steam/steam');
+const InitializeFarming = require('./MainCommand/CommandFolder/FarmingCommand/InitializeFarming');
 
 if (reddit && reddit.data && reddit.data.name) {
     client.commands.set(reddit.data.name, reddit);
@@ -158,7 +164,12 @@ useItem(client);
 itemInfo(client);
 boost(client);
 useFragment(client);
-farm(client);
+addFarm(client);
+addBest(client);
+endFarm(client);
+farmCheck(client);
+farmInfo(client);
+InitializeFarming(client);
 credit(client);
 Pcraft(client);
 Icraft(client);
