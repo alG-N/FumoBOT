@@ -1,20 +1,74 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { getRarityColor, getRarityEmoji } = require('../../Configuration/prayConfig');
 
-function createCharacterEmbed(character) {
+function createRitualWelcomeEmbed(hasBasicShards, hasEnhancedShards) {
+    const embed = new EmbedBuilder()
+        .setTitle('🔮 Welcome to the Prayer Ritual 🔮')
+        .setDescription(
+            '**You stand before the sacred altar...**\n\n' +
+            'The ancient ritual requires offerings to summon a character. Choose your path:\n\n' +
+            '**Basic Prayer** requires:\n' +
+            '• 1x Prayer Ticket\n' +
+            '• 1x RedShard(L)\n' +
+            '• 1x BlueShard(L)\n' +
+            '• 1x YellowShard(L)\n' +
+            '• 1x WhiteShard(L)\n' +
+            '• 1x DarkShard(L)\n\n' +
+            '**Enhanced Prayer** requires:\n' +
+            '• All Basic Prayer items\n' +
+            '• 1x DivineOrb(D)\n' +
+            '• 5x CelestialEssence(D)\n' +
+            '• ✨ **Increased chance for higher rarities!**\n\n' +
+            `${hasBasicShards ? '✅ You have basic shards!' : '❌ Missing basic shards'}\n` +
+            `${hasEnhancedShards ? '✨ You can use Enhanced Prayer!' : '❌ Missing enhanced materials'}`
+        )
+        .setColor('#9b59b6')
+        .setFooter({ text: 'Choose wisely... The ritual awaits.' })
+        .setTimestamp();
+
+    return embed;
+}
+
+function createPrayButtons(userId, hasBasicShards, hasEnhancedShards) {
+    const basicButton = new ButtonBuilder()
+        .setCustomId(`pray_basic_${userId}`)
+        .setLabel('Basic Prayer')
+        .setStyle(ButtonStyle.Primary)
+        .setEmoji('🙏')
+        .setDisabled(!hasBasicShards);
+
+    const enhancedButton = new ButtonBuilder()
+        .setCustomId(`pray_enhanced_${userId}`)
+        .setLabel('Enhanced Prayer')
+        .setStyle(ButtonStyle.Success)
+        .setEmoji('✨')
+        .setDisabled(!hasEnhancedShards);
+
+    const cancelButton = new ButtonBuilder()
+        .setCustomId(`pray_cancel_${userId}`)
+        .setLabel('Cancel')
+        .setStyle(ButtonStyle.Danger)
+        .setEmoji('❌');
+
+    return new ActionRowBuilder().addComponents(basicButton, enhancedButton, cancelButton);
+}
+
+function createCharacterEmbed(character, enhancedMode = false) {
     const rarityEmoji = getRarityEmoji(character.rarity);
     const rarityColor = getRarityColor(character.rarity);
 
     const embed = new EmbedBuilder()
-        .setTitle(`${rarityEmoji} ${character.name} Appears! ${rarityEmoji}`)
+        .setTitle(`${rarityEmoji} ${character.name} Answers Your Call! ${rarityEmoji}`)
         .setDescription(
+            `${enhancedMode ? '✨ **Enhanced Prayer** - The ritual was strengthened!\n\n' : ''}` +
             `**Rarity:** ${character.rarity}\n\n` +
             `${character.description}\n\n` +
+            `The character materializes before you...\n` +
             `Will you accept their offer?`
         )
         .setImage(character.picture)
         .setColor(rarityColor)
-        .setFooter({ text: `Character Rarity: ${character.rarity}` })
+        .setFooter({ text: `Character Rarity: ${character.rarity}${enhancedMode ? ' | Enhanced Prayer' : ''}` })
         .setTimestamp();
 
     return embed;
@@ -51,17 +105,17 @@ function disableButtons(row) {
 
 function createDeclineEmbed(characterName) {
     return new EmbedBuilder()
-        .setTitle('🔮 Offer Declined')
-        .setDescription(`You decided to decline ${characterName}'s offer. Nothing happened until you pray again...`)
-        .setColor('#0099ff')
+        .setTitle('🔮 Ritual Cancelled')
+        .setDescription(`You decided to step away from ${characterName}. The altar dims...`)
+        .setColor('#95a5a6')
         .setTimestamp();
 }
 
 function createTimeoutEmbed() {
     return new EmbedBuilder()
-        .setTitle('⏳ Time\'s Up!')
-        .setDescription('You didn\'t respond in time, so they leave.')
-        .setColor('#ff0000')
+        .setTitle('⏳ Ritual Expired')
+        .setDescription('The energy fades... You took too long to decide.')
+        .setColor('#e74c3c')
         .setTimestamp();
 }
 
@@ -157,6 +211,8 @@ function createInfoEmbed(character) {
 }
 
 module.exports = {
+    createRitualWelcomeEmbed,
+    createPrayButtons,
     createCharacterEmbed,
     createActionButtons,
     disableButtons,

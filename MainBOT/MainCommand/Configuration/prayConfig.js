@@ -3,6 +3,8 @@ const PRAY_CHARACTERS = {
         id: 'yuyuko',
         name: 'Yuyuko',
         rarity: 'Legendary',
+        weight: 7,  // Base weight
+        enhancedWeight: 12,  // Enhanced weight
         picture: 'https://th.bing.com/th/id/R.0b8e747c85c844e21285070088e39298?rik=Gdm12AsVV%2fAH9A&pid=ImgRaw&r=0',
         description: 'The Princess of the Netherworld offers ghostly blessings... or curses.',
         color: 0xFF69B4,
@@ -30,6 +32,8 @@ const PRAY_CHARACTERS = {
         id: 'yukari',
         name: 'Yukari',
         rarity: 'Mythical',
+        weight: 2,
+        enhancedWeight: 5,
         picture: 'https://th.bing.com/th/id/R.cfd0fe7d995179d74aa79180e02ac1d8?rik=B3rQ%2f9r4uo6g8g&riu=http%3a%2f%2fwww.stock2007.sakura.ne.jp%2fedp2016%2f03%2fYakumo+Yukari.png&ehk=J7T9Ekd6NnH2Lsj2HWEZ2QVHtgVOpe40gS5zEueckWc%3d&risl=&pid=ImgRaw&r=0',
         description: 'The gap youkai trades your fumos for coins and gems. Better have enough collection!',
         color: 0x9932CC,
@@ -98,6 +102,8 @@ const PRAY_CHARACTERS = {
         id: 'reimu',
         name: 'Reimu',
         rarity: 'Epic',
+        weight: 15,
+        enhancedWeight: 20,
         picture: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/00f39406-ea15-4816-a71f-48c412d96de6/dfaxgup-4dc13bb7-2c07-4856-b6e6-069cbc57dc07.png/v1/fill/w_1280,h_2273/reimu_hakurei__render__1__by_wtfbooomsh_dfaxgup-fullview.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7ImhlaWdodCI6Ijw9MjI3MyIsInBhdGgiOiJcL2ZcLzAwZjM5NDA2LWVhMTUtNDgxNi1hNzFmLTQ4YzQxMmQ5NmRlNlwvZGZheGd1cC00ZGMxM2JiNy0yYzA3LTQ4NTYtYjZlNi0wNjljYmM1N2RjMDcucG5nIiwid2lkdGgiOiI8PTEyODAifV1dLCJhdWQiOlsidXJuOnNlcnZpY2U6aW1hZ2Uub3BlcmF0aW9ucyJdfQ.ZwsnkThzOy7bqMkPetnLOWCspac2geguh11VLirZU08',
         description: 'The shrine maiden accepts donations and gives rare fumos in return.',
         color: 0xFF0000,
@@ -147,6 +153,8 @@ const PRAY_CHARACTERS = {
         id: 'marisa',
         name: 'Marisa',
         rarity: 'Rare',
+        weight: 25,
+        enhancedWeight: 28,
         picture: 'https://www.pikpng.com/pngl/b/445-4450104_png-touhou-project-marisa-png-clipart.png',
         description: 'The ordinary magician borrows coins and returns them with interest... usually.',
         color: 0xFFD700,
@@ -199,6 +207,8 @@ const PRAY_CHARACTERS = {
         id: 'sakuya',
         name: 'Sakuya',
         rarity: 'Divine',
+        weight: 1,
+        enhancedWeight: 3,
         picture: 'https://vignette.wikia.nocookie.net/death-battle-en-espanol/images/4/4e/Sakuya.png/revision/latest?cb=20180504021545&path-prefix=es',
         description: 'The time-manipulating maid can skip time, but demands payment for her services.',
         color: 0x87CEEB,
@@ -267,19 +277,21 @@ const FUMO_PRICES = {
     TRANSCENDENT: 720000000
 };
 
-function getCharacterPool() {
+function getCharacterPool(enhanced = false) {
     const pool = [];
+    const weightKey = enhanced ? 'enhancedWeight' : 'weight';
+    
     for (const [key, character] of Object.entries(PRAY_CHARACTERS)) {
-        const rarityConfig = RARITY_CONFIG[character.rarity];
-        for (let i = 0; i < rarityConfig.weight; i++) {
+        const weight = character[weightKey];
+        for (let i = 0; i < weight; i++) {
             pool.push(character);
         }
     }
     return pool;
 }
 
-function selectRandomCharacter() {
-    const pool = getCharacterPool();
+function selectRandomCharacter(enhanced = false) {
+    const pool = getCharacterPool(enhanced);
     return pool[Math.floor(Math.random() * pool.length)];
 }
 
