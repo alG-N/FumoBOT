@@ -294,6 +294,7 @@ function createTables() {
                 type TEXT,
                 amount REAL,
                 taxedAmount REAL,
+                taxRate REAL DEFAULT 0,
                 result REAL,
                 date TEXT
             )`, (err) => {

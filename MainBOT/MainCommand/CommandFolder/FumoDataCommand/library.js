@@ -18,7 +18,7 @@ const client = new Client({
     partials: [Partials.Message, Partials.Channel, Partials.Reaction]
 });
 client.setMaxListeners(150);
-const { maintenance, developerID } = require("../../Configuration/Maintenance/maintenanceConfig.js");
+const { maintenance, developerID } = require("../../Configuration/maintenanceConfig.js");
 const { isBanned } = require('../../Administrator/BannedList/BanUtils.js');
 const FumoPool = require('../../Data/FumoPool');
 

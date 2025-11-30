@@ -18,7 +18,7 @@ const client = new Client({
     partials: [Partials.Message, Partials.Channel, Partials.Reaction]
 });
 client.setMaxListeners(150);
-const { maintenance, developerID } = require("../../../Configuration/Maintenance/maintenanceConfig");
+const { maintenance, developerID } = require("../../../Configuration/maintenanceConfig");
 const { isBanned } = require('../../../Administrator/BannedList/BanUtils');
 module.exports = (client) => {
     const rarityLevels = {
