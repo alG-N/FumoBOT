@@ -6,8 +6,8 @@ const { calculateFarmLimit } = require('../../Service/FarmingService/FarmingCalc
 const { createFarmStatusEmbed, createErrorEmbed } = require('../../Service/FarmingService/FarmingUIService');
 const { getCurrentMultipliers, getActiveSeasonsList } = require('../../Service/FarmingService/SeasonService/SeasonManagerService');
 const { getBuildingLevels } = require('../../Service/FarmingService/BuildingService/BuildingDatabaseService');
-const { 
-    getAllBuildingsInfo, 
+const {
+    getAllBuildingsInfo,
     calculateUpgradeCost,
     canUpgrade,
     calculateBuildingMultiplier
@@ -19,6 +19,7 @@ const {
     createUpgradeErrorEmbed
 } = require('../../Service/FarmingService/BuildingService/BuildingUIService');
 const { all, get, run } = require('../../Core/database');
+const { logToDiscord, LogLevel } = require('../../Core/logger');
 
 module.exports = async (client) => {
     client.on('messageCreate', async (message) => {
@@ -57,7 +58,7 @@ module.exports = async (client) => {
             boosts.forEach(b => {
                 const type = (b.type || '').toLowerCase();
                 const mult = b.multiplier || 1;
-                
+
                 if (['coin', 'income'].includes(type)) {
                     coinMultiplier *= mult;
                 }
@@ -122,13 +123,13 @@ module.exports = async (client) => {
                         .setStyle(ButtonStyle.Danger)
                 );
 
-            const msg = await message.reply({ 
+            const msg = await message.reply({
                 embeds: [embed],
                 components: [buttonRow]
             });
 
             const collector = msg.createMessageComponentCollector({
-                time: 300000 
+                time: 300000
             });
 
             collector.on('collect', async (interaction) => {
@@ -147,13 +148,13 @@ module.exports = async (client) => {
                             getFarmLimit(userId),
                             getUserFarmingFumos(userId)
                         ]);
-                        
+
                         const newBoosts = await all(
                             `SELECT type, multiplier, source, expiresAt FROM activeBoosts 
                              WHERE userId = ? AND (expiresAt IS NULL OR expiresAt > ?)`,
                             [userId, Date.now()]
                         );
-                        
+
                         let newCoinMult = 1, newGemMult = 1;
                         newBoosts.forEach(b => {
                             const type = (b.type || '').toLowerCase();
@@ -161,7 +162,7 @@ module.exports = async (client) => {
                             if (['coin', 'income'].includes(type)) newCoinMult *= mult;
                             if (['gem', 'gems', 'income'].includes(type)) newGemMult *= mult;
                         });
-                        
+
                         const newSeasonalMults = await getCurrentMultipliers();
                         const newActiveSeasons = await getActiveSeasonsList();
                         const newBuildingLevels = await getBuildingLevels(userId);
@@ -169,11 +170,11 @@ module.exports = async (client) => {
                         const newGemBuildingBoost = calculateBuildingMultiplier('GEM_BOOST', newBuildingLevels.GEM_BOOST);
                         const newFinalCoinMult = newCoinMult * newCoinBuildingBoost * newSeasonalMults.coinMultiplier;
                         const newFinalGemMult = newGemMult * newGemBuildingBoost * newSeasonalMults.gemMultiplier;
-                        
+
                         const newUpgradesRow = await get(`SELECT limitBreaks FROM userUpgrades WHERE userId = ?`, [userId]);
                         const newLimitBreaks = newUpgradesRow?.limitBreaks || 0;
                         const newFarmLimit = calculateFarmLimit(newFragmentUses) + newLimitBreaks;
-                        
+
                         const newEmbed = createFarmStatusEmbed({
                             username: message.author.username,
                             farmingFumos: newFarmingFumos,
@@ -189,7 +190,7 @@ module.exports = async (client) => {
                                 multipliers: newSeasonalMults
                             }
                         });
-                        
+
                         if (newLimitBreaks > 0) {
                             newEmbed.addFields({
                                 name: '⚡ Limit Breaks',
@@ -197,7 +198,7 @@ module.exports = async (client) => {
                                 inline: true
                             });
                         }
-                        
+
                         await interaction.update({
                             embeds: [newEmbed],
                             components: [buttonRow]
@@ -238,7 +239,7 @@ async function handleBuildingMenu(interaction, userId, client) {
     try {
         const levels = await getBuildingLevels(userId);
         const buildings = getAllBuildingsInfo(levels);
-        
+
         const embed = createBuildingOverviewEmbed(userId, buildings);
         const buttons = createBuildingButtons(userId, buildings);
 
@@ -260,7 +261,7 @@ async function handleLimitBreakerMenu(interaction, userId, message) {
 
     try {
         const { EmbedBuilder } = require('discord.js');
-        
+
         // Pool of fumos that can be required for limit breaking
         const LIMIT_BREAK_FUMO_POOL = [
             'Reimu(Common)',
@@ -276,28 +277,28 @@ async function handleLimitBreakerMenu(interaction, userId, message) {
             'Satori(EPIC)',
             'Kasen(EPIC)'
         ];
-        
+
         const MAX_LIMIT_BREAKS = 100;
-        
+
         // Calculate requirements based on current break level
         function calculateRequirements(currentBreaks) {
             const baseFragments = 15;
             const baseNullified = 1;
-            
+
             const fragmentIncrease = Math.floor(currentBreaks / 10) * 5;
             const nullifiedIncrease = Math.floor(currentBreaks / 20);
-            
+
             return {
                 fragments: baseFragments + fragmentIncrease,
                 nullified: baseNullified + nullifiedIncrease
             };
         }
-        
+
         // Get random fumo from pool
         function getRandomRequiredFumo() {
             return LIMIT_BREAK_FUMO_POOL[Math.floor(Math.random() * LIMIT_BREAK_FUMO_POOL.length)];
         }
-        
+
         // Get user's current limit breaks
         const userRow = await get(
             `SELECT limitBreaks, fragmentUses FROM userUpgrades WHERE userId = ?`,
@@ -339,17 +340,17 @@ async function handleLimitBreakerMenu(interaction, userId, message) {
         // Create embed
         const nextBreakNumber = currentBreaks + 1;
         const canBreak = currentBreaks < MAX_LIMIT_BREAKS;
-        
+
         const embed = new EmbedBuilder()
             .setTitle('⚡ Limit Breaker System')
             .setColor(canBreak ? 0xFFD700 : 0xFF0000)
             .setDescription(
-                canBreak 
+                canBreak
                     ? '**Break through your farming limits!**\n\n' +
-                      'Sacrifice specific items to gain additional farming slots beyond the fragment limit.\n\n' +
-                      '**Current Progress:**'
+                    'Sacrifice specific items to gain additional farming slots beyond the fragment limit.\n\n' +
+                    '**Current Progress:**'
                     : '**Maximum Limit Breaks Reached!**\n\n' +
-                      'You have reached the maximum of 100 limit breaks.'
+                    'You have reached the maximum of 100 limit breaks.'
             );
 
         if (canBreak) {
@@ -361,12 +362,12 @@ async function handleLimitBreakerMenu(interaction, userId, message) {
                 {
                     name: '📊 Limit Break Status',
                     value: `Current Breaks: **${currentBreaks} / ${MAX_LIMIT_BREAKS}**\n` +
-                           `Total Farm Limit: **${5 + (userInventory.fragmentUses || 0) + currentBreaks}**`,
+                        `Total Farm Limit: **${5 + (userInventory.fragmentUses || 0) + currentBreaks}**`,
                     inline: false
                 },
                 {
                     name: `💎 Next Break Requirements (#${nextBreakNumber})`,
-                    value: 
+                    value:
                         `${hasFragments ? '✅' : '❌'} **${requirements.fragments}x** FragmentOf1800s(R)\n` +
                         `${hasNullified ? '✅' : '❌'} **${requirements.nullified}x** Nullified(?)\n` +
                         `${hasFumo ? '✅' : '❌'} **1x** ${requiredFumo}`,
@@ -374,7 +375,7 @@ async function handleLimitBreakerMenu(interaction, userId, message) {
                 },
                 {
                     name: '📦 Your Inventory',
-                    value: 
+                    value:
                         `Fragments: **${userInventory.fragments}**\n` +
                         `Nullified: **${userInventory.nullified}**\n` +
                         `${requiredFumo}: **${hasFumo ? '✓' : 'None'}**`,
@@ -385,7 +386,7 @@ async function handleLimitBreakerMenu(interaction, userId, message) {
             if (currentBreaks > 0) {
                 const nextFragmentMilestone = Math.ceil((currentBreaks + 1) / 10) * 10;
                 const nextNullifiedMilestone = Math.ceil((currentBreaks + 1) / 20) * 20;
-                
+
                 let milestoneText = '**Upcoming Milestones:**\n';
                 if (currentBreaks < nextFragmentMilestone) {
                     const nextFragReq = calculateRequirements(nextFragmentMilestone).fragments;
@@ -395,7 +396,7 @@ async function handleLimitBreakerMenu(interaction, userId, message) {
                     const nextNullReq = calculateRequirements(nextNullifiedMilestone).nullified;
                     milestoneText += `• Break #${nextNullifiedMilestone}: Nullified increase to ${nextNullReq}\n`;
                 }
-                
+
                 embed.addFields({
                     name: '🎯 Progression',
                     value: milestoneText,
@@ -406,22 +407,22 @@ async function handleLimitBreakerMenu(interaction, userId, message) {
             embed.addFields({
                 name: '🏆 Achievement Unlocked',
                 value: 'You have maxed out the Limit Breaker system!\n' +
-                       `Your total farm limit is now: **${5 + (userInventory.fragmentUses || 0) + currentBreaks}**`,
+                    `Your total farm limit is now: **${5 + (userInventory.fragmentUses || 0) + currentBreaks}**`,
                 inline: false
             });
         }
 
-        embed.setFooter({ 
-            text: canBreak 
-                ? '⚡ Click the button below to perform a Limit Break' 
-                : '🎉 Congratulations on reaching the maximum!' 
+        embed.setFooter({
+            text: canBreak
+                ? '⚡ Click the button below to perform a Limit Break'
+                : '🎉 Congratulations on reaching the maximum!'
         });
 
         // Create button
         const canBreakNow = currentBreaks < MAX_LIMIT_BREAKS &&
-                           userInventory.fragments >= requirements.fragments &&
-                           userInventory.nullified >= requirements.nullified &&
-                           userInventory.hasFumo;
+            userInventory.fragments >= requirements.fragments &&
+            userInventory.nullified >= requirements.nullified &&
+            userInventory.hasFumo;
 
         const limitBreakRow = new ActionRowBuilder()
             .addComponents(
@@ -457,22 +458,170 @@ async function handleLimitBreakerMenu(interaction, userId, message) {
     }
 }
 
+async function handleLimitBreakConfirm(interaction, userId, client, message) {
+    await interaction.deferUpdate();
+
+    try {
+        const parts = interaction.customId.split('_');
+        const fumoToConsume = parts.slice(3).join('_'); // Adjusted index since format is limitbreak_confirm_{userId}_{fumo}
+
+        // Get current limit breaks
+        const checkRow = await get(
+            `SELECT limitBreaks, fragmentUses FROM userUpgrades WHERE userId = ?`,
+            [userId]
+        );
+
+        const breaks = checkRow?.limitBreaks || 0;
+        const MAX_LIMIT_BREAKS = 100;
+
+        if (breaks >= MAX_LIMIT_BREAKS) {
+            return interaction.followUp({
+                content: '❌ You have already reached the maximum limit breaks!',
+                ephemeral: true
+            });
+        }
+
+        // Calculate requirements for current break level
+        function calculateRequirements(currentBreaks) {
+            const baseFragments = 15;
+            const baseNullified = 1;
+            const fragmentIncrease = Math.floor(currentBreaks / 10) * 5;
+            const nullifiedIncrease = Math.floor(currentBreaks / 20);
+            return {
+                fragments: baseFragments + fragmentIncrease,
+                nullified: baseNullified + nullifiedIncrease
+            };
+        }
+
+        const reqs = calculateRequirements(breaks);
+
+        // Check if user has required items
+        const fragCheck = await get(
+            `SELECT quantity FROM userInventory WHERE userId = ? AND itemName = ?`,
+            [userId, 'FragmentOf1800s(R)']
+        );
+
+        const nullCheck = await get(
+            `SELECT quantity FROM userInventory WHERE userId = ? AND itemName = ?`,
+            [userId, 'Nullified(?)']
+        );
+
+        const fumoCheck = await get(
+            `SELECT id FROM userInventory WHERE userId = ? AND fumoName = ? LIMIT 1`,
+            [userId, fumoToConsume]
+        );
+
+        const frags = fragCheck?.quantity || 0;
+        const nulls = nullCheck?.quantity || 0;
+        const hasFumoCheck = !!fumoCheck;
+
+        // Validate requirements
+        if (frags < reqs.fragments) {
+            return interaction.followUp({
+                content: `❌ You need ${reqs.fragments} FragmentOf1800s(R) but only have ${frags}!`,
+                ephemeral: true
+            });
+        }
+
+        if (nulls < reqs.nullified) {
+            return interaction.followUp({
+                content: `❌ You need ${reqs.nullified} Nullified(?) but only have ${nulls}!`,
+                ephemeral: true
+            });
+        }
+
+        if (!hasFumoCheck) {
+            return interaction.followUp({
+                content: `❌ You don't have ${fumoToConsume} in your inventory!`,
+                ephemeral: true
+            });
+        }
+
+        // Consume items
+        await run(
+            `UPDATE userInventory SET quantity = quantity - ? WHERE userId = ? AND itemName = ?`,
+            [reqs.fragments, userId, 'FragmentOf1800s(R)']
+        );
+
+        await run(
+            `UPDATE userInventory SET quantity = quantity - ? WHERE userId = ? AND itemName = ?`,
+            [reqs.nullified, userId, 'Nullified(?)']
+        );
+
+        await run(
+            `DELETE FROM userInventory WHERE id = ?`,
+            [fumoCheck.id]
+        );
+
+        // Increment limit breaks
+        if (checkRow) {
+            await run(
+                `UPDATE userUpgrades SET limitBreaks = limitBreaks + 1 WHERE userId = ?`,
+                [userId]
+            );
+        } else {
+            await run(
+                `INSERT INTO userUpgrades (userId, limitBreaks, fragmentUses) VALUES (?, 1, 0)`,
+                [userId]
+            );
+        }
+
+        const newBreaks = breaks + 1;
+        const totalLimit = 5 + (checkRow?.fragmentUses || 0) + newBreaks;
+
+        await logToDiscord(
+            client,
+            `User ${message.author.username} performed Limit Break #${newBreaks}`,
+            null,
+            LogLevel.ACTIVITY
+        );
+
+        const { EmbedBuilder } = require('discord.js');
+        const successEmbed = new EmbedBuilder()
+            .setTitle('⚡ LIMIT BREAK SUCCESSFUL!')
+            .setColor(0x00FF00)
+            .setDescription(
+                `**Congratulations!** You've broken through your limits!\n\n` +
+                `**Limit Break:** #${newBreaks}\n` +
+                `**New Farm Limit:** ${totalLimit} slots\n\n` +
+                `**Items Consumed:**\n` +
+                `• ${reqs.fragments}x FragmentOf1800s(R)\n` +
+                `• ${reqs.nullified}x Nullified(?)\n` +
+                `• 1x ${fumoToConsume}`
+            )
+            .setFooter({ text: `Progress: ${newBreaks} / ${MAX_LIMIT_BREAKS}` })
+            .setTimestamp();
+
+        await interaction.editReply({
+            embeds: [successEmbed],
+            components: []
+        });
+
+    } catch (error) {
+        console.error('Error in limit break confirm:', error);
+        await interaction.followUp({
+            content: '❌ An error occurred during the limit break.',
+            ephemeral: true
+        });
+    }
+}
+
 async function handleUpgrade(interaction, userId, client) {
     await interaction.deferUpdate();
 
     try {
         const parts = interaction.customId.split('_');
         const buildingType = parts.slice(1, -1).join('_');
-        
+
         const levels = await getBuildingLevels(userId);
         const currentLevel = levels[buildingType];
-        
+
         const upgradeCheck = canUpgrade(buildingType, currentLevel);
         if (!upgradeCheck.valid) {
             const errorEmbed = createUpgradeErrorEmbed(upgradeCheck.error, {
                 maxLevel: upgradeCheck.maxLevel
             });
-            
+
             return interaction.followUp({
                 embeds: [errorEmbed],
                 ephemeral: true
@@ -480,33 +629,33 @@ async function handleUpgrade(interaction, userId, client) {
         }
 
         const cost = calculateUpgradeCost(buildingType, currentLevel);
-        
+
         const userRow = await get(
             `SELECT coins, gems FROM userCoins WHERE userId = ?`,
             [userId]
         );
-        
+
         const coins = userRow?.coins || 0;
         const gems = userRow?.gems || 0;
-        
+
         if (coins < cost.coins) {
             const errorEmbed = createUpgradeErrorEmbed('INSUFFICIENT_COINS', {
                 required: cost.coins,
                 current: coins
             });
-            
+
             return interaction.followUp({
                 embeds: [errorEmbed],
                 ephemeral: true
             });
         }
-        
+
         if (gems < cost.gems) {
             const errorEmbed = createUpgradeErrorEmbed('INSUFFICIENT_GEMS', {
                 required: cost.gems,
                 current: gems
             });
-            
+
             return interaction.followUp({
                 embeds: [errorEmbed],
                 ephemeral: true
@@ -520,30 +669,30 @@ async function handleUpgrade(interaction, userId, client) {
 
         const { upgradeBuilding } = require('../../Service/FarmingService/BuildingService/BuildingDatabaseService');
         await upgradeBuilding(userId, buildingType);
-        
+
         const newLevel = currentLevel + 1;
         const newBonus = calculateBuildingMultiplier(buildingType, newLevel);
-        
+
         const successEmbed = createUpgradeSuccessEmbed(buildingType, newLevel, newBonus);
-        
+
         const updatedLevels = await getBuildingLevels(userId);
         const updatedBuildings = getAllBuildingsInfo(updatedLevels);
         const updatedEmbed = createBuildingOverviewEmbed(userId, updatedBuildings);
         const updatedButtons = createBuildingButtons(userId, updatedBuildings);
-        
+
         await interaction.editReply({
             embeds: [updatedEmbed],
             components: updatedButtons
         });
-        
+
         await interaction.followUp({
             embeds: [successEmbed],
             ephemeral: true
         });
-        
+
     } catch (error) {
         console.error('Error upgrading building:', error);
-        
+
         const errorEmbed = createUpgradeErrorEmbed('UNKNOWN');
         await interaction.followUp({
             embeds: [errorEmbed],

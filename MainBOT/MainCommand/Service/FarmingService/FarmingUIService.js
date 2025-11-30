@@ -13,7 +13,7 @@ function formatFarmingNumber(num) {
 
 function groupByRarityWithBoosts(farmingFumos, boosts) {
     const grouped = {};
-    
+
     farmingFumos.forEach(fumo => {
         const rarity = getRarityFromName(fumo.fumoName);
         if (!grouped[rarity]) {
@@ -23,11 +23,11 @@ function groupByRarityWithBoosts(farmingFumos, boosts) {
                 totalGems: 0
             };
         }
-        
+
         const quantity = fumo.quantity || 1;
         const coinsWithBoost = Math.floor(fumo.coinsPerMin * quantity * boosts.coinMultiplier);
         const gemsWithBoost = Math.floor(fumo.gemsPerMin * quantity * boosts.gemMultiplier);
-        
+
         grouped[rarity].fumos.push(fumo);
         grouped[rarity].totalCoins += coinsWithBoost;
         grouped[rarity].totalGems += gemsWithBoost;
@@ -38,7 +38,7 @@ function groupByRarityWithBoosts(farmingFumos, boosts) {
 
 function createFarmStatusEmbed(userData) {
     const { username, farmingFumos, farmLimit, fragmentUses, boosts, seasons } = userData;
-    
+
     const grouped = groupByRarityWithBoosts(farmingFumos, {
         coinMultiplier: boosts?.coinMultiplier || 1,
         gemMultiplier: boosts?.gemMultiplier || 1
@@ -61,15 +61,15 @@ function createFarmStatusEmbed(userData) {
         if (!grouped[rarity]) continue;
 
         const { fumos, totalCoins: rarityCoins, totalGems: rarityGems } = grouped[rarity];
-        
+
         const nameList = fumos
             .map(f => {
                 const cleanName = stripRarityFromName(f.fumoName);
                 const traits = [];
-                
+
                 if (f.fumoName.includes('🌟alG')) traits.push('🌟alG');
                 if (f.fumoName.includes('✨SHINY')) traits.push('✨SHINY');
-                
+
                 const traitStr = traits.length > 0 ? ` [${traits.join(' ')}]` : '';
                 return f.quantity > 1 ? `${cleanName}${traitStr} (x${f.quantity})` : `${cleanName}${traitStr}`;
             })
@@ -82,20 +82,20 @@ function createFarmStatusEmbed(userData) {
     }
 
     embed.addFields(
-        { 
-            name: '💰 Total Earnings (with all boosts)', 
-            value: `${formatFarmingNumber(totalCoins)} coins/min | ${formatFarmingNumber(totalGems)} gems/min`, 
-            inline: true 
+        {
+            name: '💰 Total Earnings (with all boosts)',
+            value: `${formatFarmingNumber(totalCoins)} coins/min | ${formatFarmingNumber(totalGems)} gems/min`,
+            inline: true
         },
-        { 
-            name: '📦 Max Farming Slots', 
-            value: `${farmingFumos.length} / ${farmLimit}`, 
-            inline: true 
+        {
+            name: '📦 Max Farming Slots',
+            value: `${farmingFumos.length} / ${farmLimit}`,
+            inline: true
         },
-        { 
-            name: '🔮 Fragment of 1800s', 
-            value: `${fragmentUses} used`, 
-            inline: true 
+        {
+            name: '🔮 Fragment of 1800s',
+            value: `${fragmentUses} used`,
+            inline: true
         }
     );
 
@@ -142,20 +142,20 @@ function createFarmInfoEmbed() {
             name: '📢 Power by Rarity',
             value:
                 `\`\`\`\n` +
-                `🌿 Common          → 25 coins/min    | 5 gems/min\n` +
-                `🍀 Uncommon        → 45 coins/min    | 10 gems/min\n` +
-                `🔷 Rare            → 70 coins/min    | 20 gems/min\n` +
-                `💎 Epic            → 100 coins/min   | 35 gems/min\n` +
-                `🌌 Otherworldly    → 150 coins/min   | 50 gems/min\n` +
-                `🏆 Legendary       → 200 coins/min   | 75 gems/min\n` +
-                `🌠 Mythical        → 350 coins/min   | 115 gems/min\n` +
-                `🎟️ Exclusive       → 500 coins/min   | 150 gems/min\n` +
-                `❓ ???             → 750 coins/min   | 220 gems/min\n` +
-                `🌟 Astral          → 1,000 coins/min | 450 gems/min\n` +
-                `🌙 Celestial       → 2,000 coins/min | 700 gems/min\n` +
-                `♾️ Infinite        → 3,500 coins/min | 915 gems/min\n` +
-                `🕊️ Eternal         → 5,000 coins/min | 1,150 gems/min\n` +
-                `💫 Transcendent    → 175,000 coins/min| 17,500 gems/min\n` +
+                `🌿 Common          → 25 coins/min      | 5 gems/min\n` +
+                `🍀 Uncommon        → 55 coins/min      | 15 gems/min\n` +
+                `🔷 Rare            → 120 coins/min     | 35 gems/min\n` +
+                `💎 Epic            → 250 coins/min     | 75 gems/min\n` +
+                `🌌 Otherworldly    → 550 coins/min     | 165 gems/min\n` +
+                `🏆 Legendary       → 1,200 coins/min   | 360 gems/min\n` +
+                `🌠 Mythical        → 2,500 coins/min   | 750 gems/min\n` +
+                `🎟️ Exclusive       → 5,500 coins/min   | 1,650 gems/min\n` +
+                `❓ ???             → 12,000 coins/min  | 3,600 gems/min\n` +
+                `🌟 Astral          → 25,000 coins/min  | 7,500 gems/min\n` +
+                `🌙 Celestial       → 50,000 coins/min  | 15,000 gems/min\n` +
+                `♾️ Infinite        → 85,000 coins/min  | 25,500 gems/min\n` +
+                `🕊️ Eternal         → 125,000 coins/min | 37,500 gems/min\n` +
+                `💫 Transcendent    → 375,000 coins/min | 57,500 gems/min\n` +
                 `\n` +
                 `Special Traits:\n` +
                 `✨ SHINY  → 2x multiplier\n` +
@@ -189,10 +189,10 @@ function createWarningEmbed(message) {
 
 function stripRarityFromName(fumoName) {
     return fumoName
-        .replace(/\((.*?)\)/g, '') 
-        .replace(/\[.*?\]/g, '')  
-        .replace(/✨SHINY/g, '')  
-        .replace(/🌟alG/g, '') 
+        .replace(/\((.*?)\)/g, '')
+        .replace(/\[.*?\]/g, '')
+        .replace(/✨SHINY/g, '')
+        .replace(/🌟alG/g, '')
         .trim();
 }
 
