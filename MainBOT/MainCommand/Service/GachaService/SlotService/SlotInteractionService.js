@@ -29,14 +29,21 @@ async function displayResult(interaction, result, isTextCommand) {
     const buttons = createPlayAgainButtons();
 
     if (isTextCommand) {
-        const messages = await interaction.channel.messages.fetch({ limit: 5 });
-        const botMsg = messages.find(m => 
-            m.author.id === interaction.client.user.id && m.embeds.length > 0
-        );
-        
-        if (botMsg) {
-            await botMsg.edit({ embeds: [resultEmbed] });
-        } else {
+        try {
+            const messages = await interaction.channel.messages.fetch({ limit: 5 });
+            const botMsg = messages.find(m => 
+                m.author.id === interaction.client.user.id && 
+                m.embeds.length > 0 &&
+                m.createdTimestamp > Date.now() - 10000 
+            );
+            
+            if (botMsg) {
+                await botMsg.edit({ embeds: [resultEmbed] });
+            } else {
+                await interaction.channel.send({ embeds: [resultEmbed] });
+            }
+        } catch (error) {
+            console.error('[Slot] Failed to edit message:', error.message);
             await interaction.channel.send({ embeds: [resultEmbed] });
         }
 
@@ -45,11 +52,19 @@ async function displayResult(interaction, result, isTextCommand) {
             components: [buttons]
         });
     } else {
-        await interaction.editReply({ embeds: [resultEmbed] });
-        await interaction.followUp({
-            embeds: [createFollowupEmbed()],
-            components: [buttons]
-        });
+        try {
+            await interaction.editReply({ embeds: [resultEmbed] });
+            await interaction.followUp({
+                embeds: [createFollowupEmbed()],
+                components: [buttons]
+            });
+        } catch (error) {
+            console.error('[Slot] Failed to edit interaction reply:', error.message);
+            await interaction.followUp({
+                embeds: [resultEmbed, createFollowupEmbed()],
+                components: [buttons]
+            });
+        }
     }
 }
 
@@ -89,6 +104,12 @@ async function handleButtonInteraction(interaction, userBets) {
             embeds: [createCancelEmbed()],
             ephemeral: true
         });
+
+        try {
+            await interaction.message.edit({ components: [] });
+        } catch (error) {
+            console.error('[Slot] Failed to disable buttons:', error.message);
+        }
 
         setTimeout(() => {
             interaction.deleteReply().catch(() => {});

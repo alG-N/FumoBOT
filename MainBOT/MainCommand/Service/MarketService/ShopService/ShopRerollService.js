@@ -3,6 +3,7 @@ const { REROLL_COOLDOWN, MAX_REROLLS } = require('../../../Configuration/shopCon
 const { debugLog } = require('../../../Core/logger');
 
 const userRerollData = new Map();
+const paidRerollCount = new Map(); // Track paid rerolls per user
 
 function getRerollData(userId) {
     if (!userRerollData.has(userId)) {
@@ -15,6 +16,8 @@ function getRerollData(userId) {
     if (now - data.lastResetTime >= REROLL_COOLDOWN) {
         data.count = MAX_REROLLS;
         data.lastResetTime = now;
+        // Reset paid reroll count on cooldown reset
+        paidRerollCount.delete(userId);
     }
     
     return data;
@@ -30,6 +33,7 @@ async function initializeRerollData(userId) {
             lastResetTime: now 
         });
         await updateRerollCount(userId, MAX_REROLLS, now);
+        paidRerollCount.delete(userId);
     } else {
         userRerollData.set(userId, { 
             count: dbData.rerollCount, 
@@ -40,14 +44,31 @@ async function initializeRerollData(userId) {
     return userRerollData.get(userId);
 }
 
-function useReroll(userId) {
+function useReroll(userId, isPaid = false) {
     const data = getRerollData(userId);
-    if (data.count > 0) {
-        data.count--;
-        debugLog('SHOP_REROLL', `Used reroll for ${userId}, remaining: ${data.count}`);
+    
+    if (!isPaid) {
+        // Free reroll
+        if (data.count > 0) {
+            data.count--;
+            debugLog('SHOP_REROLL', `Used free reroll for ${userId}, remaining: ${data.count}`);
+            return true;
+        }
+        return false;
+    } else {
+        // Paid reroll - increment the paid counter
+        const current = paidRerollCount.get(userId) || 0;
+        paidRerollCount.set(userId, current + 1);
+        debugLog('SHOP_REROLL', `Used paid reroll for ${userId}, total paid: ${current + 1}`);
         return true;
     }
-    return false;
+}
+
+function getPaidRerollCost(userId) {
+    const paidCount = paidRerollCount.get(userId) || 0;
+    // Base cost is 15,000 gems, multiplied by the number of paid rerolls used + 1
+    const cost = 15000 * (paidCount + 1);
+    return cost;
 }
 
 function getRerollCooldownRemaining(userId) {
@@ -73,6 +94,7 @@ module.exports = {
     getRerollData,
     initializeRerollData,
     useReroll,
+    getPaidRerollCost,
     getRerollCooldownRemaining,
     formatTimeRemaining
 };

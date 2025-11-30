@@ -83,7 +83,89 @@ async function processPurchase(userId, itemName, itemData, quantity) {
     }
 }
 
+async function processBuyAll(userId, userShop) {
+    try {
+        const currency = await getUserCurrency(userId);
+        let totalCoins = 0;
+        let totalGems = 0;
+        const purchases = [];
+
+        // Calculate what we can buy
+        const itemsToBuy = [];
+        for (const [itemName, itemData] of Object.entries(userShop)) {
+            if (itemData.stock === 0) continue;
+
+            // Determine quantity to buy
+            let quantity;
+            if (itemData.stock === 'unlimited') {
+                quantity = 100; // Limit unlimited items to 100
+            } else {
+                quantity = itemData.stock;
+            }
+
+            const totalCost = itemData.cost * quantity;
+
+            // Check if user can afford it
+            if (itemData.currency === 'coins') {
+                if (currency.coins >= totalCoins + totalCost) {
+                    itemsToBuy.push({ itemName, itemData, quantity, totalCost });
+                    totalCoins += totalCost;
+                }
+            } else if (itemData.currency === 'gems') {
+                if (currency.gems >= totalGems + totalCost) {
+                    itemsToBuy.push({ itemName, itemData, quantity, totalCost });
+                    totalGems += totalCost;
+                }
+            }
+        }
+
+        if (itemsToBuy.length === 0) {
+            return {
+                success: false,
+                message: '❌ You cannot afford any items in your shop.'
+            };
+        }
+
+        // Process all purchases
+        for (const item of itemsToBuy) {
+            await deductCurrency(userId, item.itemData.currency, item.totalCost);
+            await addItemToInventory(userId, item.itemName, item.quantity);
+
+            // Update stock
+            if (item.itemData.stock !== 'unlimited') {
+                item.itemData.stock = 0;
+                item.itemData.message = 'Out of Stock';
+            }
+
+            purchases.push({
+                itemName: item.itemName,
+                quantity: item.quantity,
+                cost: item.totalCost,
+                currency: item.itemData.currency
+            });
+
+            debugLog('SHOP_BUY_ALL', `${userId} bought ${item.quantity}x ${item.itemName} for ${item.totalCost} ${item.itemData.currency}`);
+        }
+
+        return {
+            success: true,
+            purchases,
+            totalCoins,
+            totalGems
+        };
+
+    } catch (error) {
+        console.error('Buy all processing error:', error);
+        return {
+            success: false,
+            error: 'PROCESSING_ERROR',
+            message: '❌ Bulk purchase failed. Please try again.'
+        };
+    }
+}
+
 module.exports = {
     validatePurchase,
-    processPurchase
+    processPurchase,
+    processBuyAll
 };
