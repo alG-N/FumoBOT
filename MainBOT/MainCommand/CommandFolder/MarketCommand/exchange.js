@@ -158,6 +158,53 @@ const showExchangeGuide = async (message, userId, today) => {
     }
 };
 
+function executeExchange(interaction, userId, type, amount, taxedAmount, exchangeAmount, taxRate, today) {
+
+    const fromCol = type; // coins OR gems
+    const toCol = type === 'coins' ? 'gems' : 'coins';
+
+    db.run(
+        `UPDATE userCoins 
+         SET ${fromCol} = ${fromCol} - ?, 
+             ${toCol} = ${toCol} + ?
+         WHERE userId = ?`,
+        [amount, exchangeAmount, userId],
+        (err) => {
+            if (err) {
+                console.error(err);
+                return interaction.reply('❌ **Database error while updating balances.**');
+            }
+
+            // Insert history
+            db.run(
+                `INSERT INTO exchangeHistory (userId, type, amount, taxedAmount, result, taxRate, date)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                [userId, type, amount, taxedAmount, exchangeAmount, taxRate, today]
+            );
+
+            // Update daily counter
+            db.run(
+                `INSERT INTO userExchangeLimits (userId, date, count)
+                 VALUES (?, ?, 1)
+                 ON CONFLICT(userId, date)
+                 DO UPDATE SET count = count + 1`,
+                [userId, today]
+            );
+
+            // Reply success
+            interaction.reply({
+                content: `✅ **Exchange Successful!**\nYou received **${exchangeAmount.toLocaleString()} ${toCol}**.`,
+                ephemeral: true
+            });
+
+            // Disable buttons
+            interaction.message.edit({
+                components: [createExchangeButtons(true)]
+            });
+        }
+    );
+}
+
 module.exports = async (client) => {
     const today = new Date().toISOString().split('T')[0];
 

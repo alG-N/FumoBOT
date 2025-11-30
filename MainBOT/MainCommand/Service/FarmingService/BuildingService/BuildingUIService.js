@@ -1,6 +1,15 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Colors } = require('discord.js');
 const { getAllBuildingsInfo, formatMultiplier, BUILDING_TYPES } = require('../../../Configuration/buildingConfig');
-const { formatNumber } = require('../../../Ultility/formatting');
+
+// Helper function to format large numbers
+function formatLargeNumber(num) {
+    if (num >= 1e15) return (num / 1e15).toFixed(2) + 'Qa';
+    if (num >= 1e12) return (num / 1e12).toFixed(2) + 'T';
+    if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
+    if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
+    if (num >= 1e3) return (num / 1e3).toFixed(2) + 'K';
+    return num.toLocaleString();
+}
 
 function createBuildingOverviewEmbed(userId, buildings) {
     const embed = new EmbedBuilder()
@@ -23,7 +32,7 @@ function createBuildingOverviewEmbed(userId, buildings) {
             : 'MAX LEVEL';
         
         const costText = building.canUpgrade
-            ? `💰 ${formatNumber(building.upgradeCost.coins)} coins | 💎 ${formatNumber(building.upgradeCost.gems)} gems`
+            ? `💰 ${formatLargeNumber(building.upgradeCost.coins)} coins | 💎 ${formatLargeNumber(building.upgradeCost.gems)} gems`
             : 'N/A';
         
         embed.addFields({
@@ -103,16 +112,16 @@ function createUpgradeErrorEmbed(errorType, details = {}) {
         case 'INSUFFICIENT_COINS':
             embed.setTitle('❌ Insufficient Coins')
                 .setDescription(
-                    `You need **${formatNumber(details.required)}** coins but only have **${formatNumber(details.current)}**.\n\n` +
-                    `Missing: **${formatNumber(details.required - details.current)}** coins`
+                    `You need **${formatLargeNumber(details.required)}** coins but only have **${formatLargeNumber(details.current)}**.\n\n` +
+                    `Missing: **${formatLargeNumber(details.required - details.current)}** coins`
                 );
             break;
         
         case 'INSUFFICIENT_GEMS':
             embed.setTitle('❌ Insufficient Gems')
                 .setDescription(
-                    `You need **${formatNumber(details.required)}** gems but only have **${formatNumber(details.current)}**.\n\n` +
-                    `Missing: **${formatNumber(details.required - details.current)}** gems`
+                    `You need **${formatLargeNumber(details.required)}** gems but only have **${formatLargeNumber(details.current)}**.\n\n` +
+                    `Missing: **${formatLargeNumber(details.required - details.current)}** gems`
                 );
             break;
         
@@ -180,5 +189,6 @@ module.exports = {
     createBuildingButtons,
     createUpgradeSuccessEmbed,
     createUpgradeErrorEmbed,
-    createBuildingStatsEmbed
+    createBuildingStatsEmbed,
+    formatLargeNumber
 };

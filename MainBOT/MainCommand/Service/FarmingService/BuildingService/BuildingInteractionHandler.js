@@ -12,6 +12,7 @@ const {
     createUpgradeErrorEmbed
 } = require('./BuildingUIService');
 const { get, run } = require('../../../Core/database');
+const { getFarmStatusData, createFarmStatusEmbed } = require('../FarmStatusHelper');
 
 async function handleBuildingInteraction(interaction, userId, client) {
     const { customId } = interaction;
@@ -23,8 +24,7 @@ async function handleBuildingInteraction(interaction, userId, client) {
         await handleUpgrade(interaction, userId);
     }
     else if (customId.startsWith('building_close_')) {
-        // Return to main view - handled by parent
-        return 'CLOSE';
+        await handleClose(interaction, userId);
     }
 }
 
@@ -50,11 +50,65 @@ async function openBuildingMenu(interaction, userId) {
     }
 }
 
+async function handleClose(interaction, userId) {
+    await interaction.deferUpdate();
+
+    try {
+        // Get the username from the interaction
+        const username = interaction.user.username;
+        
+        // Refresh farm status
+        const farmData = await getFarmStatusData(userId, username);
+        const embed = createFarmStatusEmbed(farmData);
+        
+        // Create main buttons (Farm Buildings and Limit Breaker)
+        const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+        const mainButtons = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`open_buildings_${userId}`)
+                    .setLabel('🏗️ Farm Buildings')
+                    .setStyle(ButtonStyle.Primary),
+                new ButtonBuilder()
+                    .setCustomId(`open_limitbreaker_${userId}`)
+                    .setLabel('⚡ Limit Breaker')
+                    .setStyle(ButtonStyle.Danger)
+            );
+
+        await interaction.editReply({
+            embeds: [embed],
+            components: [mainButtons]
+        });
+    } catch (error) {
+        console.error('Error closing building menu:', error);
+        await interaction.followUp({
+            content: '❌ Failed to return to farm status.',
+            ephemeral: true
+        });
+    }
+}
+
 async function handleUpgrade(interaction, userId) {
+    // Add this check at the very beginning
+    if (!interaction.customId.startsWith('upgrade_')) {
+        console.log('Not an upgrade button, ignoring');
+        return;
+    }
+
     await interaction.deferUpdate();
 
     try {
         const buildingType = extractBuildingType(interaction.customId);
+        
+        // Add validation for building type
+        if (!buildingType || !['COIN_BOOST', 'GEM_BOOST', 'CRITICAL_FARMING', 'EVENT_BOOST'].includes(buildingType)) {
+            console.error('Invalid building type:', buildingType, 'from customId:', interaction.customId);
+            return await interaction.followUp({
+                content: '❌ Invalid building type.',
+                ephemeral: true
+            });
+        }
+
         const levels = await getBuildingLevels(userId);
         const currentLevel = levels[buildingType];
 
@@ -113,20 +167,49 @@ async function handleUpgrade(interaction, userId) {
 
     } catch (error) {
         console.error('Error upgrading building:', error);
+        console.error('Stack:', error.stack);
         await interaction.followUp({
             embeds: [createUpgradeErrorEmbed('UNKNOWN')],
             ephemeral: true
-        });
+        }).catch(err => console.error('Failed to send error message:', err));
     }
 }
 
 function extractBuildingType(customId) {
+    // customId format: upgrade_BUILDING_TYPE_userId
+    // Example: upgrade_COIN_BOOST_123456789
     const parts = customId.split('_');
-    return parts.slice(1, -1).join('_');
+    
+    // Remove 'upgrade' from the beginning and userId from the end
+    if (parts.length < 3) {
+        console.error('Invalid customId format:', customId);
+        return null;
+    }
+    
+    // Find the userId (all digits, 17-19 chars)
+    let userIdIndex = -1;
+    for (let i = parts.length - 1; i >= 0; i--) {
+        if (/^\d{17,19}$/.test(parts[i])) {
+            userIdIndex = i;
+            break;
+        }
+    }
+    
+    if (userIdIndex === -1) {
+        // Fallback: assume last part is userId
+        userIdIndex = parts.length - 1;
+    }
+    
+    // Building type is everything between 'upgrade' and userId
+    const buildingType = parts.slice(1, userIdIndex).join('_');
+    
+    console.log('Extracted building type:', buildingType, 'from customId:', customId);
+    return buildingType;
 }
 
 module.exports = {
     handleBuildingInteraction,
     openBuildingMenu,
-    handleUpgrade
+    handleUpgrade,
+    handleClose
 };
