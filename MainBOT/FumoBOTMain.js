@@ -6,14 +6,15 @@ require('dotenv').config();
 
 // DATABASE MODULES
 const { initializeDatabase } = require('./MainCommand/Core/Database/schema');
-const { startIncomeSystem } = require('./MainCommand/Core/Database/PassiveIncome/income'); 
-const { scheduleBackups } = require('./MainCommand/Core/Database/backup'); 
+const { startIncomeSystem } = require('./MainCommand/Core/Database/PassiveIncome/income');
+const { scheduleBackups } = require('./MainCommand/Core/Database/backup');
 
 // UTILITY MODULES
 const { initializeErrorHandlers } = require('./MainCommand/Ultility/errorHandler');
 
 // PET MODULES
 const { initializePetSystems } = require('./MainCommand/CommandFolder/PetCommand/Passive/petAging');
+const { initializeShop } = require('./MainCommand/Service/MarketService/EggShopService/EggShopCacheService');
 
 // SEASON MODULES
 const { initializeSeasonSystem } = require('./MainCommand/Service/FarmingService/SeasonService/SeasonManagerService')
@@ -39,7 +40,7 @@ const commandFolders = fs.readdirSync(path.join(__dirname, 'SubCommand'));
 for (const folder of commandFolders) {
     const commandFiles = fs.readdirSync(path.join(__dirname, 'SubCommand', folder))
         .filter(file => file.endsWith('.js') && file !== 'MainMusic.js');
-    
+
     for (const file of commandFiles) {
         const command = require(path.join(__dirname, 'SubCommand', folder, file));
         if (command && command.data && command.data.name) {
@@ -140,6 +141,8 @@ client.once('ready', () => {
 
     initializeSeasonSystem(client);
 
+    initializeShop();
+
     console.log('🚀 Bot is fully operational!');
 });
 
@@ -198,10 +201,10 @@ client.on('interactionCreate', async interaction => {
         console.log('🔘 Button interaction received:', interaction.customId);
 
         // Reddit button handler
-        if (interaction.customId.startsWith('show_post_') || 
-            interaction.customId.startsWith('gallery_') || 
-            interaction.customId.startsWith('back_to_list_') || 
-            interaction.customId.startsWith('page_next_') || 
+        if (interaction.customId.startsWith('show_post_') ||
+            interaction.customId.startsWith('gallery_') ||
+            interaction.customId.startsWith('back_to_list_') ||
+            interaction.customId.startsWith('page_next_') ||
             interaction.customId.startsWith('page_prev_')) {
             const redditCommand = client.commands.get('reddit');
             if (redditCommand && redditCommand.handleButton) {
