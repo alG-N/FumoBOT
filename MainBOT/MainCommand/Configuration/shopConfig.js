@@ -10,7 +10,7 @@ const RARITY_ICONS = {
 };
 
 const RARITY_THRESHOLDS = {
-    Basic: [0.01, 0.1, 0.4, 1.0],
+    Basic: [0.03, 0.2, 0.6, 1.0],
     Common: [0.005, 0.05, 0.25, 1.0],
     Rare: [0.005, 0.03, 0.12, 0.3],
     Epic: [0.005, 0.02, 0.08, 0.2],
@@ -21,7 +21,6 @@ const RARITY_THRESHOLDS = {
 };
 
 const STOCK_RANGES = {
-    BASIC: [30, 100],
     LEGENDARY: [15, 30],
     LOTS: [3, 15],
     ON_STOCK: [1, 3],

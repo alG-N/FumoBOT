@@ -1,11 +1,13 @@
-const RARITY_ORDER = ['Common', 'Rare', 'Epic', 'Legendary', 'Mythical', 'Secret'];
+const RARITY_ORDER = ['Basic', 'Common', 'Rare', 'Epic', 'Legendary', 'Mythical', 'Divine', 'Secret'];
 
 const RARITY_SUFFIX_MAP = {
+    '(B)': 'Basic',
     '(C)': 'Common',
     '(R)': 'Rare',
     '(E)': 'Epic',
     '(L)': 'Legendary',
     '(M)': 'Mythical',
+    '(D)': 'Divine',
     '(?)': 'Secret'
 };
 
@@ -14,23 +16,27 @@ const RARITY_TO_SUFFIX = Object.fromEntries(
 );
 
 const RARITY_COLORS = {
-    'Common': 0x808080,  
-    'Rare': 0x0099FF,  
-    'Epic': 0x9933FF,    
+    'Basic': 0xC0C0C0,      // NEW
+    'Common': 0x808080,
+    'Rare': 0x0099FF,
+    'Epic': 0x9933FF,
     'Legendary': 0xFFAA00,
-    'Mythical': 0xFF0000,    
-    'Secret': 0xFF00FF     
+    'Mythical': 0xFF0000,
+    'Divine': 0xFFFF66,     // NEW
+    'Secret': 0xFF00FF
 };
 
-
 const RARITY_EMOJI = {
+    'Basic': '⚫',           // NEW
     'Common': '⚪',
     'Rare': '🔵',
     'Epic': '🟣',
     'Legendary': '🟠',
     'Mythical': '🔴',
+    'Divine': '✨',          // NEW
     'Secret': '❓'
 };
+
 
 const PAGINATION = {
     ITEMS_PER_PAGE: 2,      
