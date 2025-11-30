@@ -8,16 +8,6 @@ const {
     ButtonStyle
 } = require('discord.js');
 const db = require('../../Core/Database/dbSetting.js');
-const client = new Client({
-    intents: [
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.MessageContent
-    ],
-    partials: [Partials.Message, Partials.Channel, Partials.Reaction]
-});
-client.setMaxListeners(150);
 function formatNumber(number) {
     return number.toLocaleString();
 }
@@ -91,7 +81,6 @@ module.exports = (client) => {
                 return message.reply({ embeds: [tutorialEmbed] });
             }
 
-            // --- Data Definitions (move to a separate file for maintainability) ---
             const coinBannerChances = {
                 'TRANSCENDENT': '0.0000667%',
                 'ETERNAL': '0.0002%',
@@ -280,26 +269,19 @@ module.exports = (client) => {
                 { name: 'ImSorryOfficerFumo(???)', picture: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ12E41aug7Gz4o2480KbQh0VMuqeILVCzCbA&usqp=CAU', currency: 'coins', price: 54150000, origin: '', fact: '' },
                 { name: 'TheOwner(TRANSCENDENT)', picture: 'https://media.discordapp.net/attachments/1372426801472737280/1372439224485150750/raw.png?ex=6826c721&is=682575a1&hm=a72a009e12f63be9b10c5dba154451bc7704a54c1e68ef997c83bb2d9f9ee092&=&format=webp&quality=lossless&width=930&height=930', currency: 'coins', price: 777777777, origin: 'alterGolden or golden_exist', fact: 'I love fixing bug' },
             ];
-            // ... (keep your coinBannerChances, gemBannerChances, ReimuChances, gemFumos, coinFumos, Reimu, market as is) ...
-
             // Assign summonPlace for each fumo
             [...Reimu, ...market].forEach(fumo => fumo.summonPlace = fumo.summonPlace || (market.includes(fumo) ? 'Market' : 'Reimus Prayer'));
             coinFumos.forEach(fumo => fumo.summonPlace = 'Coins Banner');
             gemFumos.forEach(fumo => fumo.summonPlace = 'Gems Banner');
 
             // --- Variant Detection ---
-            let isShiny = false, isAlg = false;
-            let normalizedFumoName = fumoName;
-
-            if (/\[✨SHINY\]$/i.test(normalizedFumoName) || /^shiny\s+/i.test(normalizedFumoName)) {
-                isShiny = true;
-                normalizedFumoName = normalizedFumoName.replace(/\[✨SHINY\]$/i, '').replace(/^shiny\s+/i, '').trim();
-            }
-            if (/\[🌟alG\]$/i.test(normalizedFumoName) || /^alg\s+/i.test(normalizedFumoName)) {
-                isAlg = true;
-                normalizedFumoName = normalizedFumoName.replace(/\[🌟alG\]$/i, '').replace(/^alg\s+/i, '').trim();
-            }
-            normalizedFumoName = normalizedFumoName.replace(/\s+/g, ' ').trim();
+            let normalizedFumoName = fumoName
+                .replace(/\[✨SHINY\]$/i, '')
+                .replace(/\[🌟alG\]$/i, '')
+                .replace(/^shiny\s+/i, '')
+                .replace(/^alg\s+/i, '')
+                .replace(/\s+/g, ' ')
+                .trim();
 
             // --- Fumo Lookup ---
             const fumos = [...gemFumos, ...coinFumos, ...Reimu, ...market];
@@ -311,98 +293,153 @@ module.exports = (client) => {
                 });
             }
 
-            // --- Variant Handling ---
-            let variantTag = '';
-            let fullFumoName = fumo.name;
-            let rarityModifier = 1;
-            if (isShiny) {
-                variantTag = '[✨SHINY]';
-                fullFumoName += variantTag;
-                rarityModifier = 1 / 100;
-            } else if (isAlg) {
-                variantTag = '[🌟alG]';
-                fullFumoName += variantTag;
-                rarityModifier = 1 / 100000;
-            }
+            // --- Create Variant Selection Buttons ---
+            const variantButtons = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`variant_normal_${message.author.id}`)
+                        .setLabel('Normal')
+                        .setStyle(ButtonStyle.Primary),
+                    new ButtonBuilder()
+                        .setCustomId(`variant_shiny_${message.author.id}`)
+                        .setLabel('✨ Shiny')
+                        .setStyle(ButtonStyle.Success),
+                    new ButtonBuilder()
+                        .setCustomId(`variant_alg_${message.author.id}`)
+                        .setLabel('🌟 alG')
+                        .setStyle(ButtonStyle.Danger)
+                );
 
-            // --- Database Queries ---
-            db.get('SELECT COUNT(*) as totalCount FROM userInventory WHERE fumoName = ?', [fullFumoName], (err, totalRow) => {
-                if (err) {
-                    console.error(`[inform] DB error (totalCount):`, err);
-                    return message.reply({ content: 'An error occurred while fetching the fumo data.' });
+            const selectionEmbed = new EmbedBuilder()
+                .setTitle(`Select Variant for ${fumo.name}`)
+                .setDescription('Choose which variant you want to view information for:')
+                .setColor('#FFA500')
+                .setThumbnail(fumo.picture);
+
+            const variantMessage = await message.reply({
+                embeds: [selectionEmbed],
+                components: [variantButtons]
+            });
+
+            // --- Button Interaction Collector ---
+            const collector = variantMessage.createMessageComponentCollector({
+                time: 60000 // 60 seconds timeout
+            });
+
+            collector.on('collect', async interaction => {
+                // Check if the button clicker is the command author
+                if (interaction.user.id !== message.author.id) {
+                    return interaction.reply({
+                        content: 'These buttons are not for you!',
+                        ephemeral: true
+                    });
                 }
 
-                db.all('SELECT dateObtained FROM userInventory WHERE userId = ? AND fumoName = ? ORDER BY dateObtained', [message.author.id, fullFumoName], (err, rows) => {
+                const [_, variantType, __] = interaction.customId.split('_');
+
+                let isShiny = false, isAlg = false;
+                let variantTag = '';
+                let rarityModifier = 1;
+
+                if (variantType === 'shiny') {
+                    isShiny = true;
+                    variantTag = '[✨SHINY]';
+                    rarityModifier = 1 / 100;
+                } else if (variantType === 'alg') {
+                    isAlg = true;
+                    variantTag = '[🌟alG]';
+                    rarityModifier = 1 / 100000;
+                }
+
+                const fullFumoName = fumo.name + variantTag;
+
+                // --- Database Queries ---
+                db.get('SELECT COUNT(*) as totalCount FROM userInventory WHERE fumoName = ?', [fullFumoName], (err, totalRow) => {
                     if (err) {
-                        console.error(`[inform] DB error (userInventory):`, err);
-                        return message.reply({ content: 'An error occurred while fetching your inventory.' });
+                        console.error(`[inform] DB error (totalCount):`, err);
+                        return interaction.update({ content: 'An error occurred while fetching the fumo data.', embeds: [], components: [] });
                     }
 
-                    let firstFumoDate = rows.length > 0 && rows[0].dateObtained ? format(new Date(rows[0].dateObtained), 'PPPppp') : 'N/A';
-                    let titleSuffix = isShiny ? ' - [✨SHINY] Variant' : isAlg ? ' - [🌟alG] Variant' : '';
+                    db.all('SELECT dateObtained FROM userInventory WHERE userId = ? AND fumoName = ? ORDER BY dateObtained', [message.author.id, fullFumoName], (err, rows) => {
+                        if (err) {
+                            console.error(`[inform] DB error (userInventory):`, err);
+                            return interaction.update({ content: 'An error occurred while fetching your inventory.', embeds: [], components: [] });
+                        }
 
-                    // --- Embed Construction ---
-                    const embed = new EmbedBuilder()
-                        .setTitle(`Fumo Information: ${fumo.name}${titleSuffix}`)
-                        .setColor('#0099ff')
-                        .setImage(fumo.picture);
+                        let firstFumoDate = rows.length > 0 && rows[0].dateObtained ? format(new Date(rows[0].dateObtained), 'PPPppp') : 'N/A';
+                        let titleSuffix = isShiny ? ' - [✨SHINY] Variant' : isAlg ? ' - [🌟alG] Variant' : '';
 
-                    if (fumo.origin) embed.addFields({ name: 'Origin', value: fumo.origin, inline: true });
-                    if (fumo.fact) embed.addFields({ name: 'Interesting Fact', value: fumo.fact, inline: true });
+                        // --- Embed Construction ---
+                        const embed = new EmbedBuilder()
+                            .setTitle(`Fumo Information: ${fumo.name}${titleSuffix}`)
+                            .setColor('#0099ff')
+                            .setImage(fumo.picture);
 
-                    let description = '';
-                    if (rows.length === 0) {
-                        description += `❌ You currently don't own this fumo.\n`;
-                    } else {
-                        description += `🎉 You are the proud owner of ${rows.length} of this fumo. ✅\n`;
-                    }
-                    description += `🌐 Currently, there are ${formatNumber(totalRow.totalCount)} of this fumo in existence.`;
-                    if (rows.length > 0) description += `\n📅 You welcomed your first fumo on ${firstFumoDate}.`;
+                        if (fumo.origin) embed.addFields({ name: 'Origin', value: fumo.origin, inline: true });
+                        if (fumo.fact) embed.addFields({ name: 'Interesting Fact', value: fumo.fact, inline: true });
 
-                    // Summon source
-                    if (fumo.summonPlace === 'Market') {
-                        description += `\n🛍️ This fumo can be acquired at the ${fumo.summonPlace} for a mere ${formatNumber(fumo.price)} coins.`;
-                    } else if (fumo.summonPlace === 'Code') {
-                        description += `\n🔑 This fumo is obtained using a special code.`;
-                    } else if (fumo.summonPlace === 'Crate') {
-                        // Not used in your data, but kept for extensibility
-                        const modChance = (parseFloat(fumo.chance) * rarityModifier).toFixed(2);
-                        description += `\n📦 This fumo is obtained from the ${fumo.crateType} crate with a chance of ${modChance}%.`;
-                    } else {
-                        let baseChance = parseFloat(fumo.chance) * rarityModifier;
-                        let chanceDisplay = '';
-                        if (!isNaN(baseChance)) {
-                            if (baseChance >= 0.01) {
-                                chanceDisplay = `${baseChance.toFixed(2)}%`;
-                            } else if (baseChance > 0) {
-                                const inverse = Math.round(100 / baseChance);
-                                chanceDisplay = `1 in ${formatNumber(inverse)}`;
-                            } else {
-                                chanceDisplay = fumo.chance;
+                        let description = '';
+                        if (rows.length === 0) {
+                            description += `❌ You currently don't own this fumo.\n`;
+                        } else {
+                            description += `🎉 You are the proud owner of ${rows.length} of this fumo. ✅\n`;
+                        }
+                        description += `🌐 Currently, there are ${formatNumber(totalRow.totalCount)} of this fumo in existence.`;
+                        if (rows.length > 0) description += `\n📅 You welcomed your first fumo on ${firstFumoDate}.`;
+
+                        // Summon source
+                        if (fumo.summonPlace === 'Market') {
+                            description += `\n🛍️ This fumo can be acquired at the ${fumo.summonPlace} for a mere ${formatNumber(fumo.price)} coins.`;
+                        } else if (fumo.summonPlace === 'Code') {
+                            description += `\n🔑 This fumo is obtained using a special code.`;
+                        } else if (fumo.summonPlace === 'Crate') {
+                            const modChance = (parseFloat(fumo.chance) * rarityModifier).toFixed(2);
+                            description += `\n📦 This fumo is obtained from the ${fumo.crateType} crate with a chance of ${modChance}%.`;
+                        } else {
+                            let baseChance = parseFloat(fumo.chance) * rarityModifier;
+                            let chanceDisplay = '';
+                            if (!isNaN(baseChance)) {
+                                if (baseChance >= 0.01) {
+                                    chanceDisplay = `${baseChance.toFixed(2)}%`;
+                                } else if (baseChance > 0) {
+                                    const inverse = Math.round(100 / baseChance);
+                                    chanceDisplay = `1 in ${formatNumber(inverse)}`;
+                                } else {
+                                    chanceDisplay = fumo.chance;
+                                }
+                                description += `\n🔮 This fumo is summoned at the mystical ${fumo.summonPlace} using ${fumo.currency} with a chance of ${chanceDisplay}.`;
                             }
-                            description += `\n🔮 This fumo is summoned at the mystical ${fumo.summonPlace} using ${fumo.currency} with a chance of ${chanceDisplay}.`;
                         }
-                    }
 
-                    if (isShiny) {
-                        description += `\n✨ This is a rare **SHINY** variant with a 1% base summon chance.`;
-                    } else if (isAlg) {
-                        description += `\n🌟 This is an **Extremely Rare alG** variant with a 0.001% base summon chance.`;
-                    }
-
-                    // --- New Feature: Show how many unique users own this fumo ---
-                    db.get('SELECT COUNT(DISTINCT userId) as userCount FROM userInventory WHERE fumoName = ?', [fullFumoName], (err, userRow) => {
-                        if (!err && userRow) {
-                            description += `\n👥 Owned by ${formatNumber(userRow.userCount)} unique users.`;
+                        if (isShiny) {
+                            description += `\n✨ This is a rare **SHINY** variant with a 1% base summon chance.`;
+                        } else if (isAlg) {
+                            description += `\n🌟 This is an **Extremely Rare alG** variant with a 0.001% base summon chance.`;
                         }
-                        embed.setDescription(description);
-                        message.channel.send({ embeds: [embed] });
+
+                        // --- Show how many unique users own this fumo ---
+                        db.get('SELECT COUNT(DISTINCT userId) as userCount FROM userInventory WHERE fumoName = ?', [fullFumoName], (err, userRow) => {
+                            if (!err && userRow) {
+                                description += `\n👥 Owned by ${formatNumber(userRow.userCount)} unique users.`;
+                            }
+                            embed.setDescription(description);
+                            interaction.update({ embeds: [embed], components: [] });
+                        });
                     });
                 });
             });
-        } catch (e) {
-            console.error(`[inform] Unexpected error:`, e);
-            message.reply({ content: 'An unexpected error occurred while processing your request.' });
+
+            collector.on('end', collected => {
+                if (collected.size === 0) {
+                    variantMessage.edit({
+                        content: 'Selection timed out.',
+                        components: []
+                    }).catch(console.error);
+                }
+            });
+
+        } catch (error) {
+            console.error(`[inform] Unexpected error:`, error);
         }
     });
 };

@@ -9,14 +9,16 @@ const {
     removeActiveSession
 } = require('../../Service/PrayService/PrayValidationService');
 const {
-    createCharacterEmbed,
-    createActionButtons,
+    createRitualWelcomeEmbed,
+    createPrayButtons,
     disableButtons,
     createDeclineEmbed,
     createTimeoutEmbed,
+    createCharacterEmbed,
+    createActionButtons,
     createInfoEmbed
 } = require('../../Service/PrayService/PrayUIService');
-const { consumeTicket } = require('../../Service/PrayService/PrayDatabaseService');
+const { consumeTicket, consumeShards, getUserInventory } = require('../../Service/PrayService/PrayDatabaseService');
 const { checkButtonOwnership } = require('../../Middleware/buttonOwnership');
 
 // Character handlers
@@ -28,6 +30,12 @@ const { handleSakuya } = require('../../Service/PrayService/CharacterHandlers/Sa
 
 const client = createClient();
 client.setMaxListeners(150);
+
+const BASIC_SHARDS = ['RedShard(L)', 'BlueShard(L)', 'YellowShard(L)', 'WhiteShard(L)', 'DarkShard(L)'];
+const ENHANCED_SHARDS = {
+    divineOrb: 'DivineOrb(D)',
+    celestialEssence: 'CelestialEssence(D)'
+};
 
 module.exports = async (discordClient) => {
     discordClient.on('messageCreate', async (message) => {
@@ -83,18 +91,23 @@ module.exports = async (discordClient) => {
                 return;
             }
 
-            // Consume ticket
-            await consumeTicket(userId);
+            // Check if user has the required shards for basic pray
+            const inventory = await getUserInventory(userId);
+            const hasBasicShards = BASIC_SHARDS.every(shard => {
+                const item = inventory.find(i => i.itemName === shard);
+                return item && item.quantity >= 1;
+            });
 
-            // Track usage
-            trackUsage(userId);
+            // Check if user has enhanced shards
+            const divineOrb = inventory.find(i => i.itemName === ENHANCED_SHARDS.divineOrb);
+            const celestialEssence = inventory.find(i => i.itemName === ENHANCED_SHARDS.celestialEssence);
+            const hasEnhancedShards = divineOrb && divineOrb.quantity >= 1 && 
+                                     celestialEssence && celestialEssence.quantity >= 5 &&
+                                     hasBasicShards;
 
-            // Select random character
-            const character = selectRandomCharacter();
-
-            // Create and send embed with buttons
-            const embed = createCharacterEmbed(character);
-            const buttons = createActionButtons(character.id, userId);
+            // Create and send ritual welcome embed with buttons
+            const embed = createRitualWelcomeEmbed(hasBasicShards, hasEnhancedShards);
+            const buttons = createPrayButtons(userId, hasBasicShards, hasEnhancedShards);
             const sentMessage = await message.channel.send({ 
                 embeds: [embed], 
                 components: [buttons] 
@@ -119,62 +132,134 @@ module.exports = async (discordClient) => {
                 const isOwner = await checkButtonOwnership(interaction, null, null, true);
                 if (!isOwner) return;
 
-                const [, action, characterId] = interaction.customId.split('_');
+                const [, action, type] = interaction.customId.split('_');
 
-                if (action === 'decline') {
+                if (action === 'cancel') {
                     removeActiveSession(userId);
-                    await interaction.reply({
-                        embeds: [createDeclineEmbed(character.name)]
+                    await interaction.update({
+                        embeds: [createDeclineEmbed('the ritual')],
+                        components: []
                     });
-
-                    const disabledRow = disableButtons(buttons);
-                    await interaction.message.edit({ components: [disabledRow] });
-                    collector.stop('declined');
+                    collector.stop('cancelled');
                     return;
                 }
 
-                if (action === 'info') {
-                    await interaction.reply({
-                        embeds: [createInfoEmbed(character)],
-                        ephemeral: true
-                    });
-                    return;
-                }
-
-                if (action === 'accept') {
+                if (action === 'basic' || action === 'enhanced') {
                     await interaction.deferUpdate();
-                    removeActiveSession(userId);
 
-                    const disabledRow = disableButtons(buttons);
-                    await interaction.message.edit({ components: [disabledRow] });
+                    // Consume ticket and shards
+                    await consumeTicket(userId);
+                    await consumeShards(userId, BASIC_SHARDS);
 
-                    collector.stop('accepted');
-
-                    // Route to appropriate handler
-                    try {
-                        switch (character.id) {
-                            case 'yuyuko':
-                                await handleYuyuko(userId, message.channel);
-                                break;
-                            case 'yukari':
-                                await handleYukari(userId, message.channel);
-                                break;
-                            case 'reimu':
-                                await handleReimu(userId, message.channel, interaction.user.id);
-                                break;
-                            case 'marisa':
-                                await handleMarisa(userId, message.channel);
-                                break;
-                            case 'sakuya':
-                                await handleSakuya(userId, message.channel);
-                                break;
-                            default:
-                                await message.channel.send('❌ Unknown character handler.');
-                        }
-                    } catch (error) {
-                        console.error(`[${character.name}] Handler Error:`, error);
-                        message.channel.send("❌ An error occurred while processing your prayer.");
+                    let enhancedMode = false;
+                    if (action === 'enhanced') {
+                        await consumeShards(userId, [
+                            ENHANCED_SHARDS.divineOrb,
+                            ...Array(5).fill(ENHANCED_SHARDS.celestialEssence)
+                        ]);
+                        enhancedMode = true;
                     }
+
+                    // Track usage
+                    trackUsage(userId);
+
+                    // Select random character with enhanced chances if applicable
+                    const character = selectRandomCharacter(enhancedMode);
+
+                    // Show character reveal with accept/decline/info buttons
+                    const characterEmbed = createCharacterEmbed(character, enhancedMode);
+                    const characterButtons = createActionButtons(character.id, userId);
+                    
+                    await interaction.editReply({
+                        embeds: [characterEmbed],
+                        components: [characterButtons]
+                    });
+
+                    collector.stop('summoned');
+
+                    // Create new collector for character interaction
+                    const characterFilter = (i) => {
+                        const [action] = i.customId.split('_');
+                        return action === 'pray';
+                    };
+
+                    const characterCollector = sentMessage.createMessageComponentCollector({
+                        filter: characterFilter,
+                        time: 60000
+                    });
+
+                    characterCollector.on('collect', async (characterInteraction) => {
+                        const isOwner = await checkButtonOwnership(characterInteraction, null, null, true);
+                        if (!isOwner) return;
+
+                        const [, action, characterId] = characterInteraction.customId.split('_');
+
+                        if (action === 'decline') {
+                            removeActiveSession(userId);
+                            await characterInteraction.update({
+                                embeds: [createDeclineEmbed(character.name)],
+                                components: []
+                            });
+                            characterCollector.stop('declined');
+                            return;
+                        }
+
+                        if (action === 'info') {
+                            await characterInteraction.reply({
+                                embeds: [createInfoEmbed(character)],
+                                ephemeral: true
+                            });
+                            return;
+                        }
+
+                        if (action === 'accept') {
+                            await characterInteraction.deferUpdate();
+                            removeActiveSession(userId);
+
+                            const disabledRow = disableButtons(characterButtons);
+                            await characterInteraction.message.edit({ components: [disabledRow] });
+
+                            characterCollector.stop('accepted');
+
+                            // Route to appropriate handler
+                            try {
+                                switch (character.id) {
+                                    case 'yuyuko':
+                                        await handleYuyuko(userId, message.channel);
+                                        break;
+                                    case 'yukari':
+                                        await handleYukari(userId, message.channel);
+                                        break;
+                                    case 'reimu':
+                                        await handleReimu(userId, message.channel, characterInteraction.user.id);
+                                        break;
+                                    case 'marisa':
+                                        await handleMarisa(userId, message.channel);
+                                        break;
+                                    case 'sakuya':
+                                        await handleSakuya(userId, message.channel);
+                                        break;
+                                    default:
+                                        await message.channel.send('❌ Unknown character handler.');
+                                }
+                            } catch (error) {
+                                console.error(`[${character.name}] Handler Error:`, error);
+                                message.channel.send("❌ An error occurred while processing your prayer.");
+                            }
+                        }
+                    });
+
+                    characterCollector.on('end', (collected, reason) => {
+                        removeActiveSession(userId);
+                        
+                        if (reason === 'time') {
+                            const disabledRow = disableButtons(characterButtons);
+                            message.channel.send({
+                                embeds: [createTimeoutEmbed()]
+                            });
+                            sentMessage.edit({ components: [disabledRow] }).catch(() => {});
+                        }
+                    });
                 }
             });
 

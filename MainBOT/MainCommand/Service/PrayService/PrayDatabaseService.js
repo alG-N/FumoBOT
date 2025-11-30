@@ -8,6 +8,22 @@ async function consumeTicket(userId) {
     );
 }
 
+async function consumeShards(userId, shardNames) {
+    for (const shardName of shardNames) {
+        await run(
+            `UPDATE userInventory SET quantity = quantity - 1 WHERE userId = ? AND itemName = ?`,
+            [userId, shardName]
+        );
+    }
+}
+
+async function getUserInventory(userId) {
+    return await all(
+        `SELECT * FROM userInventory WHERE userId = ?`,
+        [userId]
+    );
+}
+
 async function getUserData(userId) {
     const user = await get(`SELECT * FROM userCoins WHERE userId = ?`, [userId]);
     return user;
@@ -65,21 +81,6 @@ async function addToInventory(userId, itemName, quantity = 1) {
             [userId, itemName, quantity]
         );
     }
-}
-
-async function getUserInventory(userId, filterRarities = null) {
-    if (filterRarities && filterRarities.length > 0) {
-        const placeholders = filterRarities.map(() => '?').join(',');
-        return await all(
-            `SELECT * FROM userInventory WHERE userId = ? AND fumoName LIKE '%(%)'`,
-            [userId]
-        );
-    }
-    
-    return await all(
-        `SELECT * FROM userInventory WHERE userId = ? AND fumoName LIKE '%(%)'`,
-        [userId]
-    );
 }
 
 async function deleteFumoFromInventory(userId, fumoId, quantity = 1) {
@@ -222,13 +223,14 @@ async function addSpiritTokens(userId, amount) {
 
 module.exports = {
     consumeTicket,
+    consumeShards,
+    getUserInventory,
     getUserData,
     updateUserCoins,
     deductUserCurrency,
     updateUserLuck,
     updateUserRolls,
     addToInventory,
-    getUserInventory,
     deleteFumoFromInventory,
     incrementDailyPray,
     updateYukariData,
