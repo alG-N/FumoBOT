@@ -26,7 +26,7 @@ module.exports = (client) => {
 
         const content = message.content.toLowerCase();
 
-        if (!content.startsWith('.flip') && !content.startsWith('.f')) return;
+        if (content !== '.flip' && content !== '.f') return;
 
         try {
             const userId = message.author.id;
@@ -106,14 +106,14 @@ module.exports = (client) => {
 
         } catch (err) {
             await logError(client, 'Flip Command', err, message.author.id);
-            
+
             let errorType = 'GENERIC';
             if (err.message?.includes('SQLITE') || err.code === 'SQLITE_BUSY') {
                 errorType = 'DATABASE_ERROR';
             } else if (err.message?.includes('timeout')) {
                 errorType = 'TIMEOUT';
             }
-            
+
             const embed = createErrorEmbed(errorType, { message: err.message });
             await message.channel.send({ embeds: [embed] });
         }
@@ -167,15 +167,15 @@ async function handleLeaderboardCommand(client, message, content) {
         }
 
         const entries = await formatLeaderboardData(client, rows, category);
-        
+
         const userRank = await getUserRank(message.author.id, category);
-        
+
         const embed = createLeaderboardEmbed(entries, category, userRank);
         await message.channel.send({ embeds: [embed] });
 
     } catch (err) {
         await logError(client, 'Flip Leaderboard', err, message.author.id);
-        
+
         const embed = createErrorEmbed('GENERIC', { message: err.message });
         await message.channel.send({ embeds: [embed] });
     }
@@ -184,7 +184,7 @@ async function handleLeaderboardCommand(client, message, content) {
 async function handleStatsCommand(client, message, userId, username) {
     try {
         const stats = await getUserFlipStats(userId);
-        
+
         const [coinsRank, gemsRank, winsRank, winrateRank, gamesRank] = await Promise.all([
             getUserRank(userId, 'coins'),
             getUserRank(userId, 'gems'),
@@ -192,7 +192,7 @@ async function handleStatsCommand(client, message, userId, username) {
             getUserRank(userId, 'winrate'),
             getUserRank(userId, 'games')
         ]);
-        
+
         const ranks = {
             Coins: coinsRank,
             Gems: gemsRank,
@@ -200,13 +200,13 @@ async function handleStatsCommand(client, message, userId, username) {
             'Win Rate': winrateRank,
             Games: gamesRank
         };
-        
+
         const embed = createStatsEmbed(username, stats, ranks);
         await message.channel.send({ embeds: [embed] });
 
     } catch (err) {
         await logError(client, 'Flip Stats', err, userId);
-        
+
         const embed = createErrorEmbed('STATS_ERROR', { message: err.message });
         await message.channel.send({ embeds: [embed] });
     }

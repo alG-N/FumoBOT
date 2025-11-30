@@ -1,6 +1,15 @@
 const { all } = require('../../Core/database');
 const { getUserFarmingFumos, updateFarmingIncome, updateDailyQuest } = require('./FarmingDatabaseService');
 const { INCOME_INTERVAL } = require('./FarmingCalculationService');
+const { getCurrentMultipliers } = require('./SeasonService/SeasonManagerService');
+const { getBuildingLevels } = require('./BuildingService/BuildingDatabaseService');
+const { 
+    calculateBuildingMultiplier, 
+    calculateCriticalChance,
+    rollCritical,
+    calculateEventAmplification,
+    BUILDING_TYPES
+} = require('../../Configuration/buildingConfig');
 const { debugLog } = require('../../Core/logger');
 
 const farmingIntervals = new Map();
@@ -59,14 +68,44 @@ async function startFarmingInterval(userId, fumoName, coinsPerMin, gemsPerMin) {
                 return;
             }
 
-            const { coinMultiplier, gemMultiplier } = await getActiveBoostMultipliers(userId);
+            // Get user boosts
+            const { coinMultiplier: userCoinBoost, gemMultiplier: userGemBoost } = await getActiveBoostMultipliers(userId);
+            
+            // Get seasonal multipliers
+            let { coinMultiplier: seasonCoinMult, gemMultiplier: seasonGemMult } = await getCurrentMultipliers();
+            
+            // Get building levels
+            const buildingLevels = await getBuildingLevels(userId);
+            
+            // Calculate building multipliers
+            const coinBuildingBoost = calculateBuildingMultiplier('COIN_BOOST', buildingLevels.COIN_BOOST);
+            const gemBuildingBoost = calculateBuildingMultiplier('GEM_BOOST', buildingLevels.GEM_BOOST);
+            
+            // Apply event amplification to seasonal multipliers
+            seasonCoinMult = calculateEventAmplification(buildingLevels.EVENT_BOOST, seasonCoinMult);
+            seasonGemMult = calculateEventAmplification(buildingLevels.EVENT_BOOST, seasonGemMult);
+            
+            // Calculate critical chance
+            const criticalChance = calculateCriticalChance(buildingLevels.CRITICAL_FARMING);
+            const isCritical = rollCritical(criticalChance);
+            const criticalMult = isCritical ? BUILDING_TYPES.CRITICAL_FARMING.criticalMultiplier : 1;
 
             const quantity = fumo.quantity || 1;
-            const coinsAwarded = Math.floor(fumo.coinsPerMin * quantity * coinMultiplier);
-            const gemsAwarded = Math.floor(fumo.gemsPerMin * quantity * gemMultiplier);
+            
+            // Apply ALL multipliers: base * quantity * user boosts * building boosts * seasonal * critical
+            let coinsAwarded = Math.floor(
+                fumo.coinsPerMin * quantity * userCoinBoost * coinBuildingBoost * seasonCoinMult * criticalMult
+            );
+            let gemsAwarded = Math.floor(
+                fumo.gemsPerMin * quantity * userGemBoost * gemBuildingBoost * seasonGemMult * criticalMult
+            );
 
             await updateFarmingIncome(userId, coinsAwarded, gemsAwarded);
             await updateDailyQuest(userId, coinsAwarded);
+            
+            if (isCritical) {
+                debugLog('FARMING', `⚡ CRITICAL farming tick for ${userId}! Rewards: ${coinsAwarded} coins, ${gemsAwarded} gems`);
+            }
 
         } catch (err) {
             console.error(`Farming update failed for ${key}:`, err);

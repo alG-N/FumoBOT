@@ -15,6 +15,9 @@ const { initializeErrorHandlers } = require('./MainCommand/Ultility/errorHandler
 // PET MODULES
 const { initializePetSystems } = require('./MainCommand/CommandFolder/PetCommand/Passive/petAging');
 
+// SEASON/BUILDING MODULES
+const { initializeSeasonSystem } = require('./MainCommand/Service/FarmingService/SeasonService/SeasonManagerService')
+
 // ADMIN MODULES
 const { registerAdminCommands } = require('./MainCommand/Administrator/adminCommands');
 const { registerBanSystem } = require('./MainCommand/Administrator/banSystem');
@@ -134,6 +137,8 @@ client.once('ready', () => {
 
     // Set pet exp gaining and aging systems
     initializePetSystems();
+
+    initializeSeasonSystem(client);
 
     console.log('🚀 Bot is fully operational!');
 });
