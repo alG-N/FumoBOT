@@ -11,11 +11,10 @@ module.exports = (client) => {
     client.on('messageCreate', async message => {
         if (
             message.author.bot ||
-            (!['.items', '.i'].includes(message.content.split(' ')[0]))
+            (!['.item', '.i'].includes(message.content.split(' ')[0]))
         ) return;
 
         const userId = message.author.id;
-        console.log(`[ITEMS] Processing inventory request for user ${userId}`);
 
         const restrictions = checkRestrictions(userId);
         if (restrictions.blocked) {
@@ -25,7 +24,6 @@ module.exports = (client) => {
         let sentMessage = null;
 
         try {
-            console.log(`[ITEMS] Fetching inventory data...`);
             const inventoryData = await getUserInventoryPaginated(userId, ITEMS_PER_PAGE);
             
             console.log(`[ITEMS] Inventory data retrieved:`, {
@@ -43,13 +41,10 @@ module.exports = (client) => {
                 return message.reply('❌ Error: Failed to load inventory pages.');
             }
 
-            console.log(`[ITEMS] Fetching inventory stats...`);
             const stats = await getInventoryStats(userId);
 
             let currentPage = 0;
             const totalPages = inventoryData.pages.length;
-
-            console.log(`[ITEMS] Creating initial embed for page 1/${totalPages}`);
             
             const embed = createInventoryEmbed(
                 message.author,
@@ -61,26 +56,21 @@ module.exports = (client) => {
 
             const buttons = createInventoryButtons(userId, currentPage, totalPages);
 
-            console.log(`[ITEMS] Sending message...`);
             sentMessage = await message.channel.send({
                 embeds: [embed],
                 components: [buttons]
             });
 
-            console.log(`[ITEMS] Message sent, creating collector...`);
-
             const collector = sentMessage.createMessageComponentCollector({
                 filter: (i) => {
                     const isOwner = i.user.id === userId;
                     const isValidButton = ['prev_page', 'next_page'].some(btn => i.customId.startsWith(btn));
-                    console.log(`[ITEMS] Collector filter: customId=${i.customId}, user=${i.user.id}, owner=${isOwner}, validButton=${isValidButton}`);
                     return isOwner && isValidButton;
                 },
                 time: INTERACTION_TIMEOUT
             });
 
             collector.on('collect', async interaction => {
-                console.log(`[ITEMS] Collected interaction: ${interaction.customId}`);
                 
                 try {
                     const result = await handleInventoryInteraction(
@@ -93,7 +83,6 @@ module.exports = (client) => {
 
                     if (result.success) {
                         currentPage = result.newPage;
-                        console.log(`[ITEMS] Page updated to: ${currentPage}`);
                     } else {
                         console.log(`[ITEMS] Page navigation failed`);
                     }
@@ -103,7 +92,6 @@ module.exports = (client) => {
             });
 
             collector.on('end', (collected, reason) => {
-                console.log(`[ITEMS] Collector ended: ${reason}, collected ${collected.size} interactions`);
                 
                 sentMessage.edit({ components: [] }).catch(err => {
                     console.error('[ITEMS] Failed to remove buttons:', err.message);
@@ -111,7 +99,6 @@ module.exports = (client) => {
             });
 
             setTimeout(() => {
-                console.log(`[ITEMS] Auto-delete timeout reached`);
                 sentMessage.delete().catch(err => {
                     console.error('[ITEMS] Failed to delete message:', err.message);
                 });
@@ -151,8 +138,6 @@ module.exports = (client) => {
         if (!['prev_page', 'next_page'].includes(action)) {
             return;
         }
-
-        console.log(`[ITEMS] Received button interaction: ${interaction.customId}`);
         
     });
 };
