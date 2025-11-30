@@ -15,7 +15,7 @@ const { initializeErrorHandlers } = require('./MainCommand/Ultility/errorHandler
 // PET MODULES
 const { initializePetSystems } = require('./MainCommand/CommandFolder/PetCommand/Passive/petAging');
 
-// SEASON/BUILDING MODULES
+// SEASON MODULES
 const { initializeSeasonSystem } = require('./MainCommand/Service/FarmingService/SeasonService/SeasonManagerService')
 
 // ADMIN MODULES

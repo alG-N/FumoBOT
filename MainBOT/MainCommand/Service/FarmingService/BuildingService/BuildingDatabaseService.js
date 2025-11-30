@@ -1,20 +1,6 @@
 const { get, run } = require('../../../Core/database');
 const { debugLog } = require('../../../Core/logger');
 
-async function initializeBuildingTables() {
-    await run(`
-        CREATE TABLE IF NOT EXISTS userBuildings (
-            userId TEXT PRIMARY KEY,
-            coinBoostLevel INTEGER DEFAULT 0,
-            gemBoostLevel INTEGER DEFAULT 0,
-            criticalFarmingLevel INTEGER DEFAULT 0,
-            eventBoostLevel INTEGER DEFAULT 0
-        )
-    `);
-    
-    debugLog('BUILDINGS', 'Building tables initialized');
-}
-
 async function getUserBuildings(userId) {
     const row = await get(
         `SELECT * FROM userBuildings WHERE userId = ?`,
@@ -124,7 +110,6 @@ async function setBuildingLevel(userId, buildingType, level) {
 }
 
 module.exports = {
-    initializeBuildingTables,
     getUserBuildings,
     getBuildingLevel,
     upgradeBuilding,
