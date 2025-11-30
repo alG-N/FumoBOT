@@ -23,7 +23,6 @@ let cleanupInterval = null;
 
 async function initializeSeasonSystem(client) {
     try {
-        await initializeSeasonTables();
         await cleanExpiredSeasons();
         
         if (isWeekend()) {

@@ -231,7 +231,7 @@ async function handleUpgrade(interaction, userId, client) {
             [cost.coins, cost.gems, userId]
         );
 
-        const { upgradeBuilding } = require('../../Service/FarmingService/BuildingDatabaseService');
+        const { upgradeBuilding } = require('../../Service/FarmingService/BuildingService/BuildingDatabaseService');
         await upgradeBuilding(userId, buildingType);
         
         const newLevel = currentLevel + 1;

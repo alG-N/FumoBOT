@@ -1,20 +1,6 @@
 const { get, all, run } = require('../../../Core/database');
 const { debugLog } = require('../../../Core/logger');
 
-async function initializeSeasonTables() {
-    await run(`
-        CREATE TABLE IF NOT EXISTS activeSeasons (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            seasonType TEXT NOT NULL,
-            startedAt INTEGER NOT NULL,
-            expiresAt INTEGER,
-            isActive INTEGER DEFAULT 1
-        )
-    `);
-    
-    debugLog('SEASONS', 'Season tables initialized');
-}
-
 async function getActiveSeasons() {
     const now = Date.now();
     return await all(
@@ -101,7 +87,6 @@ async function endAllSeasons() {
 }
 
 module.exports = {
-    initializeSeasonTables,
     getActiveSeasons,
     startSeason,
     endSeason,
