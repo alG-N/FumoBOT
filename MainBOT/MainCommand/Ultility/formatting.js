@@ -1,7 +1,17 @@
 const { RARITY_PRIORITY, compareFumos, isRarer } = require('../Configuration/rarity');
 
 function formatNumber(number) {
-    return number.toLocaleString();
+    if (number === undefined || number === null || isNaN(number)) {
+        return '0';
+    }
+    
+    const num = typeof number === 'string' ? parseFloat(number) : number;
+    
+    if (isNaN(num)) {
+        return '0';
+    }
+    
+    return num.toLocaleString();
 }
 
 function parseBet(str) {

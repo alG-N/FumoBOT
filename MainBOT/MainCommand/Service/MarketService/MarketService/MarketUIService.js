@@ -76,10 +76,10 @@ function createPurchaseSuccessEmbed(amount, fumoName, remainingCoins, remainingS
 
 function createErrorEmbed(errorType, details = {}) {
     const errorMessages = {
-        NOT_FOUND: `⚠️ Fumo Not Found ⚠️\nCould not find a Fumo named **"${details.fumoName}"** in the market. Make sure you typed it exactly.`,
-        INSUFFICIENT_STOCK: `⚠️ Not Enough Stock ⚠️\nOnly **${details.stock}** of **${details.fumoName}** left in the market, but you asked for **${details.requested}**.`,
+        NOT_FOUND: `⚠️ Fumo Not Found ⚠️\nCould not find a Fumo named **"${details.fumoName || 'Unknown'}"** in the market. Make sure you typed it exactly.`,
+        INSUFFICIENT_STOCK: `⚠️ Not Enough Stock ⚠️\nOnly **${details.stock || 0}** of **${details.fumoName || 'Unknown'}** left in the market, but you asked for **${details.requested || 0}**.`,
         NO_ACCOUNT: `⚠️ Empty Coin Pouch ⚠️\nYou do not have any coins yet. Go on adventures to earn some before shopping!`,
-        INSUFFICIENT_COINS: `⚠️ Not Enough Coins ⚠️\nYou need **${formatNumber(details.required)}** coins to buy this, but you only have **${formatNumber(details.current)}**.`,
+        INSUFFICIENT_COINS: `⚠️ Not Enough Coins ⚠️\nYou need **${formatNumber(details.required || 0)}** coins to buy this, but you only have **${formatNumber(details.current || 0)}**.`,
         PROCESSING_ERROR: `❌ Purchase failed. Please try again.`
     };
 

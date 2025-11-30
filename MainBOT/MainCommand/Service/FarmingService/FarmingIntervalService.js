@@ -50,6 +50,17 @@ function generateFarmingKey(userId, fumoName) {
     return `${userId}-${fumoName}`;
 }
 
+// Add this helper function at the top of FarmingIntervalService.js
+async function validateFumoInInventory(userId, fumoName) {
+    const { get } = require('../../Core/database');
+    const row = await get(
+        `SELECT COUNT(*) as count FROM userInventory WHERE userId = ? AND fumoName = ?`,
+        [userId, fumoName]
+    );
+    return (row?.count || 0) > 0;
+}
+
+// Modify the startFarmingInterval function
 async function startFarmingInterval(userId, fumoName, coinsPerMin, gemsPerMin) {
     const key = generateFarmingKey(userId, fumoName);
     
@@ -59,6 +70,22 @@ async function startFarmingInterval(userId, fumoName, coinsPerMin, gemsPerMin) {
 
     const intervalId = setInterval(async () => {
         try {
+            // VALIDATE INVENTORY FIRST
+            const existsInInventory = await validateFumoInInventory(userId, fumoName);
+            
+            if (!existsInInventory) {
+                debugLog('FARMING', `⚠️ ${fumoName} no longer in inventory for user ${userId}, removing from farm`);
+                
+                // Remove from database
+                const { removeFumoFromFarm } = require('./FarmingDatabaseService');
+                await removeFumoFromFarm(userId, fumoName, 999); // Remove all quantities
+                
+                // Stop this interval
+                clearInterval(intervalId);
+                farmingIntervals.delete(key);
+                return;
+            }
+
             const farmingFumos = await getUserFarmingFumos(userId);
             const fumo = farmingFumos.find(f => f.fumoName === fumoName);
             
@@ -92,7 +119,7 @@ async function startFarmingInterval(userId, fumoName, coinsPerMin, gemsPerMin) {
 
             const quantity = fumo.quantity || 1;
             
-            // Apply ALL multipliers: base * quantity * user boosts * building boosts * seasonal * critical
+            // Apply ALL multipliers
             let coinsAwarded = Math.floor(
                 fumo.coinsPerMin * quantity * userCoinBoost * coinBuildingBoost * seasonCoinMult * criticalMult
             );
