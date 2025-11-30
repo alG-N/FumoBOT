@@ -2,7 +2,7 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Colors } = r
 const { RARITY_ICONS } = require('../../../Configuration/shopConfig');
 const { formatNumber } = require('../../../Ultility/formatting');
 const { getUserShopTimeLeft } = require('./ShopCacheService');
-const { getRerollData, getRerollCooldownRemaining, formatTimeRemaining } = require('./ShopRerollService');
+const { getRerollData, getRerollCooldownRemaining, formatTimeRemaining, getPaidRerollCost } = require('./ShopRerollService');
 const { isDoubleLuckDay, isGuaranteedMysteryBlock } = require('./ShopGenerationService');
 
 function formatStockText(stock, stockMessage) {
@@ -63,14 +63,36 @@ function createShopEmbed(userId, userShop) {
 }
 
 function createShopButtons(userId, rerollCount) {
-    const rerollButton = new ButtonBuilder()
+    const row1 = new ActionRowBuilder();
+    const row2 = new ActionRowBuilder();
+
+    // Free reroll button
+    const freeRerollButton = new ButtonBuilder()
         .setCustomId(`free_reroll_${userId}`)
         .setLabel(`Free Reroll (${rerollCount}/5)`)
         .setStyle(ButtonStyle.Primary)
         .setEmoji('🔄')
         .setDisabled(rerollCount <= 0);
 
-    return new ActionRowBuilder().addComponents(rerollButton);
+    // Paid reroll button
+    const paidRerollCost = getPaidRerollCost(userId);
+    const paidRerollButton = new ButtonBuilder()
+        .setCustomId(`paid_reroll_${userId}`)
+        .setLabel(`Gem Reroll (${formatNumber(paidRerollCost)} 💎)`)
+        .setStyle(ButtonStyle.Secondary)
+        .setEmoji('💎');
+
+    // Buy all button
+    const buyAllButton = new ButtonBuilder()
+        .setCustomId(`buy_all_${userId}`)
+        .setLabel('Buy All Available')
+        .setStyle(ButtonStyle.Success)
+        .setEmoji('🛒');
+
+    row1.addComponents(freeRerollButton, paidRerollButton);
+    row2.addComponents(buyAllButton);
+
+    return [row1, row2];
 }
 
 function createSearchResultsEmbed(searchQuery, userShop) {
@@ -119,28 +141,69 @@ function createPurchaseConfirmationEmbed(quantity, itemName, totalCost, currency
         .setColor(Colors.Blue);
 }
 
-function createPurchaseButtons() {
+function createBuyAllConfirmationEmbed(userShop) {
+    const itemsList = [];
+    let totalCoins = 0;
+    let totalGems = 0;
+
+    for (const [itemName, itemData] of Object.entries(userShop)) {
+        if (itemData.stock === 0) continue;
+
+        const quantity = itemData.stock === 'unlimited' ? 100 : itemData.stock;
+        const cost = itemData.cost * quantity;
+
+        itemsList.push(`• ${quantity}x ${itemName} - ${formatNumber(cost)} ${itemData.currency}`);
+
+        if (itemData.currency === 'coins') {
+            totalCoins += cost;
+        } else {
+            totalGems += cost;
+        }
+    }
+
+    return new EmbedBuilder()
+        .setTitle("🛒 Confirm Bulk Purchase")
+        .setDescription(
+            `Are you sure you want to buy **all available items**?\n\n` +
+            `**Items to purchase:**\n${itemsList.slice(0, 10).join('\n')}` +
+            `${itemsList.length > 10 ? `\n...and ${itemsList.length - 10} more` : ''}\n\n` +
+            `**Total Cost:**\n` +
+            `💰 ${formatNumber(totalCoins)} coins\n` +
+            `💎 ${formatNumber(totalGems)} gems\n\n` +
+            `*Note: Unlimited stock items limited to 100 each*`
+        )
+        .setColor(Colors.Gold);
+}
+
+function createPurchaseButtons(type = 'purchase') {
+    const confirmId = type === 'buyall' ? 'buyall_confirm' : 'purchase_confirm';
+    const cancelId = type === 'buyall' ? 'buyall_cancel' : 'purchase_cancel';
+
     return new ActionRowBuilder().addComponents(
         new ButtonBuilder()
-            .setCustomId('purchase_confirm')
+            .setCustomId(confirmId)
             .setLabel('Confirm')
             .setStyle(ButtonStyle.Success),
         new ButtonBuilder()
-            .setCustomId('purchase_cancel')
+            .setCustomId(cancelId)
             .setLabel('Cancel')
             .setStyle(ButtonStyle.Danger)
     );
 }
 
-function createRerollSuccessEmbed(rerollCount, cooldownRemaining) {
+function createRerollSuccessEmbed(rerollCount, cooldownRemaining, gemCost = null) {
+    const description = gemCost 
+        ? `💎 Your shop has been rerolled for **${formatNumber(gemCost)} gems**!\n\n` +
+          `**Free Rerolls Remaining:** ${rerollCount}/5\n` +
+          `**Rerolls reset in:** ${formatTimeRemaining(cooldownRemaining)}`
+        : `✨ Your shop has been rerolled!\n\n` +
+          `**Free Rerolls Remaining:** ${rerollCount}/5\n` +
+          `**Rerolls reset in:** ${formatTimeRemaining(cooldownRemaining)}`;
+
     return new EmbedBuilder()
         .setTitle("🔄 Shop Rerolled!")
-        .setDescription(
-            `✨ Your shop has been rerolled!\n\n` +
-            `**Free Rerolls Remaining:** ${rerollCount}/5\n` +
-            `**Rerolls reset in:** ${formatTimeRemaining(cooldownRemaining)}`
-        )
-        .setColor(Colors.Green)
+        .setDescription(description)
+        .setColor(gemCost ? Colors.Purple : Colors.Green)
         .setTimestamp();
 }
 
@@ -149,6 +212,7 @@ module.exports = {
     createShopButtons,
     createSearchResultsEmbed,
     createPurchaseConfirmationEmbed,
+    createBuyAllConfirmationEmbed,
     createPurchaseButtons,
     createRerollSuccessEmbed
 };
