@@ -4,9 +4,9 @@ const { formatNumber } = require('../../Ultility/formatting');
 const { getUserShop, forceRerollUserShop, getUserShopTimeLeft } = require('../../Service/MarketService/ShopService/ShopCacheService');
 const { useReroll, getRerollData, getRerollCooldownRemaining, formatTimeRemaining, getPaidRerollCost } = require('../../Service/MarketService/ShopService/ShopRerollService');
 const { processPurchase, processBuyAll } = require('../../Service/MarketService/ShopService/ShopPurchaseService');
-const { 
-    createShopEmbed, 
-    createShopButtons, 
+const {
+    createShopEmbed,
+    createShopButtons,
     createSearchResultsEmbed,
     createPurchaseConfirmationEmbed,
     createPurchaseButtons,
@@ -48,32 +48,40 @@ module.exports = async (client) => {
 
     async function handleReroll(interaction) {
         const isPaidReroll = interaction.customId.startsWith('paid_reroll_');
-        
+
         if (!await checkButtonOwnership(interaction, isPaidReroll ? 'paid_reroll' : 'free_reroll', null, false)) {
             return;
         }
 
         const userId = interaction.user.id;
         const rerollData = getRerollData(userId);
-        
+
         if (!isPaidReroll) {
             // Free reroll logic
             if (rerollData.count <= 0) {
                 const cooldownRemaining = getRerollCooldownRemaining(userId);
                 const timeLeft = formatTimeRemaining(cooldownRemaining);
-                
+                const gemCost = getPaidRerollCost(userId);
+
                 return interaction.reply({
-                    content: `❌ You have no free rerolls left! Rerolls reset in: **${timeLeft}**\n💎 Use the paid reroll button to reroll for gems.`,
+                    content: `❌ You have no free rerolls left! Rerolls reset in: **${timeLeft}**\n💎 Use the Gem Reroll button to reroll for **${formatNumber(gemCost)} gems**.`,
                     ephemeral: true
                 });
             }
 
             useReroll(userId, false);
         } else {
-            // Paid reroll logic
+            // Paid reroll logic - check if free rerolls are exhausted
+            if (rerollData.count > 0) {
+                return interaction.reply({
+                    content: `❌ You must use all free rerolls first! You have **${rerollData.count}** free reroll(s) remaining.`,
+                    ephemeral: true
+                });
+            }
+
             const cost = getPaidRerollCost(userId);
             const db = require('../../Core/Database/dbSetting');
-            
+
             const userGems = await new Promise((resolve) => {
                 db.get('SELECT gems FROM userCoins WHERE userId = ?', [userId], (err, row) => {
                     if (err || !row) resolve(0);
@@ -95,30 +103,30 @@ module.exports = async (client) => {
 
             useReroll(userId, true);
         }
-        
+
         const newShop = forceRerollUserShop(userId);
         const updatedRerollData = getRerollData(userId);
-        
+
         const rerollEmbed = createRerollSuccessEmbed(
-            updatedRerollData.count, 
+            updatedRerollData.count,
             getRerollCooldownRemaining(userId),
-            isPaidReroll ? getPaidRerollCost(userId) : null
+            isPaidReroll ? getPaidRerollCost(userId) / 5 : null // Show the cost that was just paid (before increment)
         );
-        
+
         await interaction.reply({ embeds: [rerollEmbed], ephemeral: true });
-        
-        await interaction.followUp({ 
+
+        await interaction.followUp({
             content: "Here's your new shop:",
-            ephemeral: true 
+            ephemeral: true
         });
-        
+
         const shopEmbed = createShopEmbed(userId, newShop);
         const buttons = createShopButtons(userId, updatedRerollData.count);
-        
-        await interaction.followUp({ 
-            embeds: [shopEmbed], 
+
+        await interaction.followUp({
+            embeds: [shopEmbed],
             components: buttons,
-            ephemeral: true 
+            ephemeral: true
         });
     }
 
@@ -143,69 +151,69 @@ module.exports = async (client) => {
         const itemCost = userShop[itemName];
 
         if (!itemCost) {
-            return message.reply({ 
-                content: `🔍 The item "${itemName}" is not available in your magical shop.`, 
-                ephemeral: true 
+            return message.reply({
+                content: `🔍 The item "${itemName}" is not available in your magical shop.`,
+                ephemeral: true
             });
         }
 
         const confirmationEmbed = createPurchaseConfirmationEmbed(
-            quantity, 
-            itemName, 
-            itemCost.cost * quantity, 
+            quantity,
+            itemName,
+            itemCost.cost * quantity,
             itemCost.currency
         );
         const buttonRow = createPurchaseButtons();
 
-        const confirmationMessage = await message.reply({ 
-            embeds: [confirmationEmbed], 
-            components: [buttonRow], 
-            ephemeral: true 
+        const confirmationMessage = await message.reply({
+            embeds: [confirmationEmbed],
+            components: [buttonRow],
+            ephemeral: true
         });
 
         const filter = i => i.user.id === userId;
-        const collector = confirmationMessage.createMessageComponentCollector({ 
-            filter, 
-            time: 15000 
+        const collector = confirmationMessage.createMessageComponentCollector({
+            filter,
+            time: 15000
         });
 
         collector.on('collect', async i => {
             if (i.customId === 'purchase_confirm') {
                 const result = await processPurchase(userId, itemName, itemCost, quantity);
-                
+
                 if (result.success) {
                     await i.update({
                         content: `✅ You have successfully purchased **${result.quantity} ${result.itemName}(s)** for **${formatNumber(result.totalCost)} ${result.currency}**!`,
-                        embeds: [], 
-                        components: [], 
+                        embeds: [],
+                        components: [],
                         ephemeral: true
                     });
                 } else {
                     await i.update({
                         content: result.message,
-                        embeds: [], 
-                        components: [], 
+                        embeds: [],
+                        components: [],
                         ephemeral: true
                     });
                 }
             } else {
-                await i.update({ 
-                    content: '⏸️ Purchase canceled.', 
-                    embeds: [], 
-                    components: [], 
-                    ephemeral: true 
+                await i.update({
+                    content: '⏸️ Purchase canceled.',
+                    embeds: [],
+                    components: [],
+                    ephemeral: true
                 });
             }
         });
 
         collector.on('end', collected => {
             if (collected.size === 0) {
-                confirmationMessage.edit({ 
-                    content: '⏱️ Purchase timed out.', 
-                    embeds: [], 
-                    components: [], 
-                    ephemeral: true 
-                }).catch(() => {});
+                confirmationMessage.edit({
+                    content: '⏱️ Purchase timed out.',
+                    embeds: [],
+                    components: [],
+                    ephemeral: true
+                }).catch(() => { });
             }
         });
     }

@@ -3,7 +3,7 @@ const { REROLL_COOLDOWN, MAX_REROLLS } = require('../../../Configuration/shopCon
 const { debugLog } = require('../../../Core/logger');
 
 const userRerollData = new Map();
-const paidRerollCount = new Map(); // Track paid rerolls per user
+const paidRerollCount = new Map();
 
 function getRerollData(userId) {
     if (!userRerollData.has(userId)) {
@@ -16,7 +16,6 @@ function getRerollData(userId) {
     if (now - data.lastResetTime >= REROLL_COOLDOWN) {
         data.count = MAX_REROLLS;
         data.lastResetTime = now;
-        // Reset paid reroll count on cooldown reset
         paidRerollCount.delete(userId);
     }
     
@@ -48,7 +47,6 @@ function useReroll(userId, isPaid = false) {
     const data = getRerollData(userId);
     
     if (!isPaid) {
-        // Free reroll
         if (data.count > 0) {
             data.count--;
             debugLog('SHOP_REROLL', `Used free reroll for ${userId}, remaining: ${data.count}`);
@@ -56,7 +54,6 @@ function useReroll(userId, isPaid = false) {
         }
         return false;
     } else {
-        // Paid reroll - increment the paid counter
         const current = paidRerollCount.get(userId) || 0;
         paidRerollCount.set(userId, current + 1);
         debugLog('SHOP_REROLL', `Used paid reroll for ${userId}, total paid: ${current + 1}`);
@@ -66,8 +63,7 @@ function useReroll(userId, isPaid = false) {
 
 function getPaidRerollCost(userId) {
     const paidCount = paidRerollCount.get(userId) || 0;
-    // Base cost is 15,000 gems, multiplied by the number of paid rerolls used + 1
-    const cost = 15000 * (paidCount + 1);
+    const cost = 15000 * Math.pow(5, paidCount);
     return cost;
 }
 
@@ -90,11 +86,17 @@ function formatTimeRemaining(milliseconds) {
     return `${hours}h ${minutes}m ${seconds}s`;
 }
 
+function canUseGemReroll(userId) {
+    const data = getRerollData(userId);
+    return data.count === 0;
+}
+
 module.exports = {
     getRerollData,
     initializeRerollData,
     useReroll,
     getPaidRerollCost,
     getRerollCooldownRemaining,
-    formatTimeRemaining
+    formatTimeRemaining,
+    canUseGemReroll
 };

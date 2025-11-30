@@ -2,7 +2,7 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Colors } = r
 const { RARITY_ICONS } = require('../../../Configuration/shopConfig');
 const { formatNumber } = require('../../../Ultility/formatting');
 const { getUserShopTimeLeft } = require('./ShopCacheService');
-const { getRerollData, getRerollCooldownRemaining, formatTimeRemaining, getPaidRerollCost } = require('./ShopRerollService');
+const { getRerollData, getRerollCooldownRemaining, formatTimeRemaining, getPaidRerollCost, canUseGemReroll } = require('./ShopRerollService');
 const { isDoubleLuckDay, isGuaranteedMysteryBlock } = require('./ShopGenerationService');
 
 function formatStockText(stock, stockMessage) {
@@ -63,36 +63,46 @@ function createShopEmbed(userId, userShop) {
 }
 
 function createShopButtons(userId, rerollCount) {
-    const row1 = new ActionRowBuilder();
+    const rows = [];
+    const canGemReroll = canUseGemReroll(userId);
+
+    if (rerollCount > 0) {
+        // Show only free reroll button when rerolls are available
+        const row1 = new ActionRowBuilder();
+        const freeRerollButton = new ButtonBuilder()
+            .setCustomId(`free_reroll_${userId}`)
+            .setLabel(`Free Reroll (${rerollCount}/5)`)
+            .setStyle(ButtonStyle.Primary)
+            .setEmoji('🔄');
+
+        row1.addComponents(freeRerollButton);
+        rows.push(row1);
+    } else {
+        // Show only gem reroll button when free rerolls are exhausted
+        const row1 = new ActionRowBuilder();
+        const paidRerollCost = getPaidRerollCost(userId);
+        const paidRerollButton = new ButtonBuilder()
+            .setCustomId(`paid_reroll_${userId}`)
+            .setLabel(`Gem Reroll (${formatNumber(paidRerollCost)} 💎)`)
+            .setStyle(ButtonStyle.Secondary)
+            .setEmoji('💎');
+
+        row1.addComponents(paidRerollButton);
+        rows.push(row1);
+    }
+
+    // Always show buy all button on second row
     const row2 = new ActionRowBuilder();
-
-    // Free reroll button
-    const freeRerollButton = new ButtonBuilder()
-        .setCustomId(`free_reroll_${userId}`)
-        .setLabel(`Free Reroll (${rerollCount}/5)`)
-        .setStyle(ButtonStyle.Primary)
-        .setEmoji('🔄')
-        .setDisabled(rerollCount <= 0);
-
-    // Paid reroll button
-    const paidRerollCost = getPaidRerollCost(userId);
-    const paidRerollButton = new ButtonBuilder()
-        .setCustomId(`paid_reroll_${userId}`)
-        .setLabel(`Gem Reroll (${formatNumber(paidRerollCost)} 💎)`)
-        .setStyle(ButtonStyle.Secondary)
-        .setEmoji('💎');
-
-    // Buy all button
     const buyAllButton = new ButtonBuilder()
         .setCustomId(`buy_all_${userId}`)
         .setLabel('Buy All Available')
         .setStyle(ButtonStyle.Success)
         .setEmoji('🛒');
 
-    row1.addComponents(freeRerollButton, paidRerollButton);
     row2.addComponents(buyAllButton);
+    rows.push(row2);
 
-    return [row1, row2];
+    return rows;
 }
 
 function createSearchResultsEmbed(searchQuery, userShop) {
@@ -195,7 +205,8 @@ function createRerollSuccessEmbed(rerollCount, cooldownRemaining, gemCost = null
     const description = gemCost 
         ? `💎 Your shop has been rerolled for **${formatNumber(gemCost)} gems**!\n\n` +
           `**Free Rerolls Remaining:** ${rerollCount}/5\n` +
-          `**Rerolls reset in:** ${formatTimeRemaining(cooldownRemaining)}`
+          `**Rerolls reset in:** ${formatTimeRemaining(cooldownRemaining)}\n\n` +
+          `⚠️ **Next gem reroll will cost:** ${formatNumber(gemCost * 5)} gems`
         : `✨ Your shop has been rerolled!\n\n` +
           `**Free Rerolls Remaining:** ${rerollCount}/5\n` +
           `**Rerolls reset in:** ${formatTimeRemaining(cooldownRemaining)}`;
