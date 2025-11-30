@@ -3,6 +3,15 @@ const { formatNumber } = require('../../Ultility/formatting');
 const { RARITY_PRIORITY } = require('../../Configuration/rarity');
 const { groupByRarity, calculateTotalIncome, getRarityFromName } = require('./FarmingCalculationService');
 
+// Format numbers with K, M, B, T suffixes
+function formatFarmingNumber(num) {
+    if (num >= 1e12) return (num / 1e12).toFixed(2) + 'T';
+    if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
+    if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
+    if (num >= 1e3) return (num / 1e3).toFixed(2) + 'K';
+    return num.toString();
+}
+
 function createFarmStatusEmbed(userData) {
     const { username, farmingFumos, farmLimit, fragmentUses, boosts } = userData;
     
@@ -26,12 +35,17 @@ function createFarmStatusEmbed(userData) {
         const nameList = fumos
             .map(f => {
                 const cleanName = stripRarityFromName(f.fumoName);
-                return f.quantity > 1 ? `${cleanName} (x${f.quantity})` : cleanName;
+                const traits = [];
+                if (f.fumoName.includes('🌟alG')) traits.push('[🌟alG]');
+                if (f.fumoName.includes('🌟SHINY')) traits.push('[🌟Shiny]');
+                
+                const traitStr = traits.length > 0 ? ` ${traits.join(' ')}` : '';
+                return f.quantity > 1 ? `${cleanName}${traitStr} (x${f.quantity})` : `${cleanName}${traitStr}`;
             })
             .join(', ');
 
         embed.addFields({
-            name: `🔹 ${rarity}: ${formatNumber(rarityCoins)} coins/min, ${formatNumber(rarityGems)} gems/min`,
+            name: `🔹 ${rarity}: ${formatFarmingNumber(rarityCoins)} coins/min, ${formatFarmingNumber(rarityGems)} gems/min`,
             value: nameList || 'None'
         });
     }
@@ -39,7 +53,7 @@ function createFarmStatusEmbed(userData) {
     embed.addFields(
         { 
             name: '💰 Total Earnings (with boosts)', 
-            value: `${formatNumber(totalCoins)} coins/min | ${formatNumber(totalGems)} gems/min`, 
+            value: `${formatFarmingNumber(totalCoins)} coins/min | ${formatFarmingNumber(totalGems)} gems/min`, 
             inline: true 
         },
         { 
@@ -54,13 +68,21 @@ function createFarmStatusEmbed(userData) {
         }
     );
 
+    // Filter boosts to only show coin/gem related ones
     if (boosts?.activeBoosts && boosts.activeBoosts.length > 0) {
-        embed.addFields({
-            name: '⚡ Active Boosts',
-            value: boosts.activeBoosts.map(b =>
-                `• **${b.type}** x${b.multiplier} from [${b.source}]${b.expiresAt ? ` (expires <t:${Math.floor(b.expiresAt / 1000)}:R>)` : ''}`
-            ).join('\n')
+        const relevantBoosts = boosts.activeBoosts.filter(b => {
+            const type = (b.type || '').toLowerCase();
+            return ['coin', 'coins', 'gem', 'gems', 'income'].includes(type);
         });
+
+        if (relevantBoosts.length > 0) {
+            embed.addFields({
+                name: '⚡ Active Boosts',
+                value: relevantBoosts.map(b =>
+                    `• **${b.type}** x${b.multiplier} from [${b.source}]${b.expiresAt ? ` (expires <t:${Math.floor(b.expiresAt / 1000)}:R>)` : ''}`
+                ).join('\n')
+            });
+        }
     }
 
     embed.addFields({
@@ -96,10 +118,15 @@ function createFarmInfoEmbed() {
                 `🌙 Celestial       → 2,000 coins/min | 700 gems/min\n` +
                 `♾️ Infinite        → 3,500 coins/min | 915 gems/min\n` +
                 `🕊️ Eternal         → 5,000 coins/min | 1,150 gems/min\n` +
-                `💫 Transcendent    → 25,000 coins/min| 2,500 gems/min\n` +
+                `💫 Transcendent    → 175,000 coins/min| 17,500 gems/min\n` +
+                `\n` +
+                `Special Traits:\n` +
+                `✨ SHINY  → 2x multiplier\n` +
+                `🌟 alG    → 100x multiplier\n` +
+                `(These multiply the base rarity rates)\n` +
                 `\`\`\``
         }])
-        .setFooter({ text: 'Extra traits on fumo can boost farming rates too!' })
+        .setFooter({ text: '✨SHINY = 2x boost | 🌟alG = 100x boost' })
         .setTimestamp();
 
     return embed;
@@ -124,7 +151,13 @@ function createWarningEmbed(message) {
 }
 
 function stripRarityFromName(fumoName) {
-    return fumoName.replace(/\((.*?)\)/g, '').replace(/\[.*?\]/g, '').trim();
+    // Remove rarity and tag, but keep alG and SHINY
+    return fumoName
+        .replace(/\((.*?)\)/g, '') // Remove rarity in parentheses
+        .replace(/\[.*?\]/g, '')    // Remove tags in brackets
+        .replace(/✨SHINY/g, '')     // Remove SHINY (we'll add it back separately)
+        .replace(/🌟alG/g, '')       // Remove alG (we'll add it back separately)
+        .trim();
 }
 
 module.exports = {

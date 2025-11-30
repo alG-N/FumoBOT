@@ -251,8 +251,35 @@ async function getProxyImageUrl(item, mangaPageIndex = 0) {
             item.image_urls.square_medium;
     }
 
-    const proxyUrl = imageUrl.replace('i.pximg.net', 'i.pixiv.re');
-    return proxyUrl;
+    const proxies = [
+        'i.pixiv.cat', 
+        'i.pixiv.nl', 
+        'i.pximg.net',     
+    ];
+
+    // Try each proxy
+    for (const proxy of proxies) {
+        try {
+            const proxyUrl = imageUrl.replace('i.pximg.net', proxy);
+            
+            // Quick validation check
+            const response = await fetch(proxyUrl, { 
+                method: 'HEAD',
+                timeout: 3000 
+            });
+            
+            if (response.ok) {
+                console.log(`✅ Working proxy: ${proxy}`);
+                return proxyUrl;
+            }
+        } catch (err) {
+            console.log(`❌ Proxy failed: ${proxy}`);
+            continue;
+        }
+    }
+
+    console.warn('⚠️ All proxies failed, using fallback');
+    return imageUrl.replace('i.pximg.net', 'i.pixiv.cat');
 }
 
 async function createContentEmbed(item, resultIndex, totalResults, searchPage, cacheKey, contentType, hasNextPage, shouldTranslate, originalQuery, translatedQuery, mangaPageIndex = 0, sortMode = 'popular') {

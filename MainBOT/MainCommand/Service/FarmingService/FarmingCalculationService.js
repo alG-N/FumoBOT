@@ -14,7 +14,7 @@ const FARMING_STATS = {
     'CELESTIAL': { coins: 2000, gems: 700 },
     'INFINITE': { coins: 3500, gems: 915 },
     'ETERNAL': { coins: 5000, gems: 1150 },
-    'TRANSCENDENT': { coins: 25000, gems: 2500 }
+    'TRANSCENDENT': { coins: 175000, gems: 17500 }
 };
 
 const BASE_FARM_LIMIT = 5;
@@ -32,6 +32,7 @@ function calculateFarmingStats(fumoName) {
     let coinsPerMin = stats.coins;
     let gemsPerMin = stats.gems;
 
+    // Apply multipliers
     if (fumoName.includes('✨SHINY')) {
         coinsPerMin *= 2;
         gemsPerMin *= 2;
@@ -94,6 +95,7 @@ module.exports = {
     FARMING_STATS,
     BASE_FARM_LIMIT,
     INCOME_INTERVAL,
+    
     getRarityFromName,
     calculateFarmingStats,
     calculateFarmLimit,
