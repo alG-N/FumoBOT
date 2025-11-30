@@ -13,6 +13,7 @@ const {
 } = require('./FarmingDatabaseService');
 const { startFarmingInterval, stopFarmingInterval, stopAllFarmingIntervals } = require('./FarmingIntervalService');
 const { debugLog } = require('../../Core/logger');
+const { get } = require('../../Core/database');
 
 async function addSingleFumo(userId, fumoName) {
     const fragmentUses = await getFarmLimit(userId);
@@ -43,7 +44,9 @@ async function addSingleFumo(userId, fumoName) {
 
 async function addRandomByRarity(userId, rarity) {
     const fragmentUses = await getFarmLimit(userId);
-    const limit = calculateFarmLimit(fragmentUses);
+    const upgradesRow = await get(`SELECT limitBreaks FROM userUpgrades WHERE userId = ?`, [userId]);
+    const limitBreaks = upgradesRow?.limitBreaks || 0;
+    const limit = calculateFarmLimit(fragmentUses) + limitBreaks;
     const farmingFumos = await getUserFarmingFumos(userId);
     const availableSlots = limit - farmingFumos.length;
 
@@ -78,7 +81,12 @@ async function addRandomByRarity(userId, rarity) {
 
 async function optimizeFarm(userId) {
     const fragmentUses = await getFarmLimit(userId);
-    const limit = calculateFarmLimit(fragmentUses);
+    const upgradesRow = await get(`SELECT limitBreaks FROM userUpgrades WHERE userId = ?`, [userId]);
+    const limitBreaks = upgradesRow?.limitBreaks || 0;
+    
+    // UPDATE THIS LINE: Add limitBreaks to the calculation
+    const limit = calculateFarmLimit(fragmentUses) + limitBreaks;
+    
     const farmingFumos = await getUserFarmingFumos(userId);
     const inventory = await getAllUserInventory(userId);
 

@@ -58,8 +58,12 @@ const STOCK_RANGES = {
     MYSTERY: [1, 2]
 };
 
+const REROLL_COOLDOWN = 3 * 60 * 60 * 1000; // 3 hours in milliseconds
+const MAX_REROLLS = 5;
+
 module.exports = async (client) => {
     const userShopCache = new Map();
+    const userRerollData = new Map(); // Store reroll data: { count, lastResetTime }
 
     // Utility functions
     const getRandomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
@@ -93,6 +97,51 @@ module.exports = async (client) => {
         if (stock === 0) return `~~Out of Stock~~`;
         if (stock === 'unlimited') return stockMessage;
         return `Stock: ${stock} (${stockMessage})`;
+    };
+
+    const formatTimeRemaining = (milliseconds) => {
+        const hours = Math.floor(milliseconds / (1000 * 60 * 60));
+        const minutes = Math.floor((milliseconds % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((milliseconds % (1000 * 60)) / 1000);
+        return `${hours}h ${minutes}m ${seconds}s`;
+    };
+
+    const getRerollData = (userId) => {
+        if (!userRerollData.has(userId)) {
+            userRerollData.set(userId, { count: MAX_REROLLS, lastResetTime: Date.now() });
+        }
+        
+        const data = userRerollData.get(userId);
+        const now = Date.now();
+        
+        // Reset rerolls if cooldown has passed
+        if (now - data.lastResetTime >= REROLL_COOLDOWN) {
+            data.count = MAX_REROLLS;
+            data.lastResetTime = now;
+        }
+        
+        return data;
+    };
+
+    const useReroll = (userId) => {
+        const data = getRerollData(userId);
+        if (data.count > 0) {
+            data.count--;
+            return true;
+        }
+        return false;
+    };
+
+    const getRerollCooldownRemaining = (userId) => {
+        const data = getRerollData(userId);
+        const now = Date.now();
+        const timeSinceReset = now - data.lastResetTime;
+        
+        if (timeSinceReset >= REROLL_COOLDOWN) {
+            return 0;
+        }
+        
+        return REROLL_COOLDOWN - timeSinceReset;
     };
 
     const createAccessEmbed = (isMaintenance, banData) => {
@@ -280,6 +329,16 @@ module.exports = async (client) => {
         return cache.shop;
     };
 
+    const forceRerollUserShop = (userId) => {
+        const currentHour = getCurrentHourTimestamp();
+        const cache = {
+            shop: generateUserShop(),
+            timestamp: currentHour
+        };
+        userShopCache.set(userId, cache);
+        return cache.shop;
+    };
+
     client.on('messageCreate', async (message) => {
         if (!message.content.startsWith('.shop') && !message.content.startsWith('.sh')) return;
 
@@ -292,6 +351,65 @@ module.exports = async (client) => {
 
         handleShopCommand(message);
     });
+
+    client.on('interactionCreate', async (interaction) => {
+        if (!interaction.isButton()) return;
+
+        if (interaction.customId === 'free_reroll') {
+            const access = checkAccess(interaction.user.id);
+            if (access.blocked) {
+                const embed = createAccessEmbed(access.isMaintenance, access.banData);
+                return interaction.reply({ embeds: [embed], ephemeral: true });
+            }
+
+            await handleFreeReroll(interaction);
+        }
+    });
+
+    const handleFreeReroll = async (interaction) => {
+        const userId = interaction.user.id;
+        const rerollData = getRerollData(userId);
+        
+        if (rerollData.count <= 0) {
+            const cooldownRemaining = getRerollCooldownRemaining(userId);
+            const timeLeft = formatTimeRemaining(cooldownRemaining);
+            
+            return interaction.reply({
+                content: `❌ You have no free rerolls left! Rerolls reset in: **${timeLeft}**`,
+                ephemeral: true
+            });
+        }
+
+        // Use a reroll
+        useReroll(userId);
+        
+        // Force generate new shop
+        const newShop = forceRerollUserShop(userId);
+        
+        const rerollEmbed = new EmbedBuilder()
+            .setTitle("🔄 Shop Rerolled!")
+            .setDescription(
+                `✨ Your shop has been rerolled!\n\n` +
+                `**Free Rerolls Remaining:** ${rerollData.count}/${MAX_REROLLS}\n` +
+                `**Rerolls reset in:** ${formatTimeRemaining(getRerollCooldownRemaining(userId))}`
+            )
+            .setColor('#00FF00')
+            .setTimestamp();
+
+        await interaction.reply({ embeds: [rerollEmbed], ephemeral: true });
+        
+        // Show the new shop
+        await interaction.followUp({ 
+            content: "Here's your new shop:",
+            ephemeral: true 
+        });
+        
+        // Display updated shop
+        handleDisplayShop({ 
+            reply: (data) => interaction.followUp({ ...data, ephemeral: true }),
+            author: { id: userId }
+        }, userId, newShop);
+    };
 
     const handleShopCommand = async (message) => {
         const args = message.content.split(' ');
@@ -506,6 +624,8 @@ module.exports = async (client) => {
         });
 
         const timeUntilNextReset = getUserShopTimeLeft();
+        const rerollData = getRerollData(userId);
+        const cooldownRemaining = getRerollCooldownRemaining(userId);
 
         const shopEmbed = new EmbedBuilder()
             .setTitle("✨ Welcome to Your Magical Shop ✨")
@@ -513,7 +633,9 @@ module.exports = async (client) => {
                 `🧙‍♂️ **Some random guy's magical shop** is open just for you!\n\n` +
                 `📜 To buy: \`.shop buy <ItemName> <Quantity>\`\n` +
                 `🔎 To search: \`.shop search <ItemName>\`\n\n` +
-                `🔄 **Your shop resets in:** ${timeUntilNextReset}` +
+                `🔄 **Your shop resets in:** ${timeUntilNextReset}\n` +
+                `🎁 **Free Rerolls:** ${rerollData.count}/${MAX_REROLLS} ` +
+                `(Reset in: ${formatTimeRemaining(cooldownRemaining)})` +
                 (isDoubleLuckDay() ? `\n🍀 **x2 Luck is active!**` : '') +
                 (isGuaranteedMysteryBlock() ? `\n⬛ **Guaranteed ??? item in this shop!**` : '')
             )
@@ -532,7 +654,16 @@ module.exports = async (client) => {
             });
         }
 
-        message.reply({ embeds: [shopEmbed], ephemeral: true });
+        // Add free reroll button
+        const rerollButton = new ButtonBuilder()
+            .setCustomId('free_reroll')
+            .setLabel(`Free Reroll (${rerollData.count}/${MAX_REROLLS})`)
+            .setStyle(ButtonStyle.Primary)
+            .setEmoji('🔄')
+            .setDisabled(rerollData.count <= 0);
+
+        const buttonRow = new ActionRowBuilder().addComponents(rerollButton);
+
+        message.reply({ embeds: [shopEmbed], components: [buttonRow], ephemeral: true });
     };
 };
-

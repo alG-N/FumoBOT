@@ -90,6 +90,7 @@ async function performSlotSpin(userId, currency, bet, autoSpinCount = 1) {
         return validation;
     }
 
+    // Deduct first bet
     await updateUserBalance(userId, currency, -bet);
     
     try {
@@ -99,25 +100,52 @@ async function performSlotSpin(userId, currency, bet, autoSpinCount = 1) {
     }
 
     let totalWin = 0;
+    let totalBet = bet;
     let lastResult = null;
+    let spinResults = []; // Track all spins for auto-spin
 
     for (let spin = 0; spin < autoSpinCount; spin++) {
+        // CRITICAL FIX: Deduct bet for each spin after the first
+        if (spin > 0) {
+            const checkBalance = await getUserBalance(userId);
+            
+            // Stop auto-spin if insufficient funds
+            if (!checkBalance || checkBalance[currency] < bet) {
+                debugLog('SLOT', `Auto-spin stopped at spin ${spin + 1}: insufficient funds`);
+                break;
+            }
+            
+            await updateUserBalance(userId, currency, -bet);
+            totalBet += bet;
+        }
+
         const spinResult = spinReels();
         const winInfo = calculateWinInfo(spinResult);
         const winAmount = Math.floor(bet * winInfo.multiplier);
         totalWin += winAmount;
-        lastResult = { spinResult, winInfo };
+        
+        lastResult = { spinResult, winInfo, winAmount };
+        spinResults.push(lastResult);
 
+        // Only add winnings back to balance
         if (winAmount > 0) {
             await updateUserBalance(userId, currency, winAmount);
         }
+
+        debugLog('SLOT', `Spin ${spin + 1}: ${spinResult.join('-')} | Win: ${winAmount} ${currency}`);
     }
+
+    // Calculate net profit/loss
+    const netProfit = totalWin - totalBet;
 
     return {
         success: true,
         spinResult: lastResult.spinResult,
         winInfo: lastResult.winInfo,
         totalWin,
+        totalBet,
+        netProfit,
+        spinsCompleted: spinResults.length,
         bet,
         currency
     };
