@@ -1,0 +1,291 @@
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { get, run } = require('../../../Core/database');
+const { logToDiscord, LogLevel } = require('../../../Core/logger');
+
+const LIMIT_BREAK_FUMO_POOL = [
+    'Reimu(Common)', 'Marisa(Common)', 'Cirno(Common)', 'Sanae(Common)',
+    'Sakuya(UNCOMMON)', 'Meiling(UNCOMMON)', 'Patchouli(UNCOMMON)',
+    'Remilia(RARE)', 'Youmu(RARE)',
+    'Ran(EPIC)', 'Satori(EPIC)', 'Kasen(EPIC)'
+];
+
+const MAX_LIMIT_BREAKS = 100;
+
+async function handleLimitBreakerInteraction(interaction, userId, message, client) {
+    const { customId } = interaction;
+
+    if (customId.startsWith('open_limitbreaker_')) {
+        await openLimitBreakerMenu(interaction, userId);
+    } 
+    else if (customId.startsWith('limitbreak_confirm_')) {
+        await handleLimitBreakConfirm(interaction, userId, message, client);
+    }
+    else if (customId.startsWith('limitbreak_back_')) {
+        return 'BACK_TO_FARM';
+    }
+}
+
+async function openLimitBreakerMenu(interaction, userId) {
+    await interaction.deferUpdate();
+
+    try {
+        const data = await getLimitBreakerData(userId);
+        const embed = createLimitBreakerEmbed(data);
+        const buttons = createLimitBreakerButtons(userId, data);
+
+        await interaction.editReply({
+            embeds: [embed],
+            components: buttons
+        });
+    } catch (error) {
+        console.error('Error opening limit breaker menu:', error);
+        await interaction.followUp({
+            content: '❌ Failed to open Limit Breaker menu.',
+            ephemeral: true
+        });
+    }
+}
+
+async function getLimitBreakerData(userId) {
+    const userRow = await get(`SELECT limitBreaks, fragmentUses FROM userUpgrades WHERE userId = ?`, [userId]);
+    const currentBreaks = userRow?.limitBreaks || 0;
+    const fragmentUses = userRow?.fragmentUses || 0;
+
+    const requiredFumo = getRandomRequiredFumo();
+    const requirements = calculateRequirements(currentBreaks);
+
+    const [fragmentRow, nullifiedRow, fumoRow] = await Promise.all([
+        get(`SELECT quantity FROM userInventory WHERE userId = ? AND itemName = ?`, [userId, 'FragmentOf1800s(R)']),
+        get(`SELECT quantity FROM userInventory WHERE userId = ? AND itemName = ?`, [userId, 'Nullified(?)']),
+        get(`SELECT COUNT(*) as count FROM userInventory WHERE userId = ? AND fumoName = ?`, [userId, requiredFumo])
+    ]);
+
+    return {
+        currentBreaks,
+        fragmentUses,
+        requiredFumo,
+        requirements,
+        inventory: {
+            fragments: fragmentRow?.quantity || 0,
+            nullified: nullifiedRow?.quantity || 0,
+            hasFumo: (fumoRow?.count || 0) > 0
+        }
+    };
+}
+
+async function handleLimitBreakConfirm(interaction, userId, message, client) {
+    await interaction.deferUpdate();
+
+    try {
+        const fumoToConsume = extractFumoFromCustomId(interaction.customId);
+        const checkRow = await get(`SELECT limitBreaks, fragmentUses FROM userUpgrades WHERE userId = ?`, [userId]);
+        const breaks = checkRow?.limitBreaks || 0;
+
+        if (breaks >= MAX_LIMIT_BREAKS) {
+            return interaction.followUp({
+                content: '❌ You have already reached the maximum limit breaks!',
+                ephemeral: true
+            });
+        }
+
+        const reqs = calculateRequirements(breaks);
+        const validation = await validateResources(userId, reqs, fumoToConsume);
+
+        if (!validation.valid) {
+            return interaction.followUp({
+                content: validation.error,
+                ephemeral: true
+            });
+        }
+
+        // Consume resources
+        await consumeResources(userId, reqs, validation.fumoId);
+        
+        // Increment limit breaks
+        if (checkRow) {
+            await run(`UPDATE userUpgrades SET limitBreaks = limitBreaks + 1 WHERE userId = ?`, [userId]);
+        } else {
+            await run(`INSERT INTO userUpgrades (userId, limitBreaks, fragmentUses) VALUES (?, 1, 0)`, [userId]);
+        }
+
+        const newBreaks = breaks + 1;
+        const totalLimit = 5 + (checkRow?.fragmentUses || 0) + newBreaks;
+
+        await logToDiscord(client, `User ${message.author.username} performed Limit Break #${newBreaks}`, null, LogLevel.ACTIVITY);
+
+        const successEmbed = createSuccessEmbed(newBreaks, totalLimit, reqs, fumoToConsume);
+        await interaction.editReply({ embeds: [successEmbed], components: [] });
+
+    } catch (error) {
+        console.error('Error in limit break confirm:', error);
+        await interaction.followUp({
+            content: '❌ An error occurred during the limit break.',
+            ephemeral: true
+        });
+    }
+}
+
+async function validateResources(userId, reqs, fumoToConsume) {
+    const [fragCheck, nullCheck, fumoCheck] = await Promise.all([
+        get(`SELECT quantity FROM userInventory WHERE userId = ? AND itemName = ?`, [userId, 'FragmentOf1800s(R)']),
+        get(`SELECT quantity FROM userInventory WHERE userId = ? AND itemName = ?`, [userId, 'Nullified(?)']),
+        get(`SELECT id FROM userInventory WHERE userId = ? AND fumoName = ? LIMIT 1`, [userId, fumoToConsume])
+    ]);
+
+    const frags = fragCheck?.quantity || 0;
+    const nulls = nullCheck?.quantity || 0;
+
+    if (frags < reqs.fragments) {
+        return { valid: false, error: `❌ You need ${reqs.fragments} FragmentOf1800s(R) but only have ${frags}!` };
+    }
+    if (nulls < reqs.nullified) {
+        return { valid: false, error: `❌ You need ${reqs.nullified} Nullified(?) but only have ${nulls}!` };
+    }
+    if (!fumoCheck) {
+        return { valid: false, error: `❌ You don't have ${fumoToConsume} in your inventory!` };
+    }
+
+    return { valid: true, fumoId: fumoCheck.id };
+}
+
+async function consumeResources(userId, reqs, fumoId) {
+    await Promise.all([
+        run(`UPDATE userInventory SET quantity = quantity - ? WHERE userId = ? AND itemName = ?`, 
+            [reqs.fragments, userId, 'FragmentOf1800s(R)']),
+        run(`UPDATE userInventory SET quantity = quantity - ? WHERE userId = ? AND itemName = ?`, 
+            [reqs.nullified, userId, 'Nullified(?)']),
+        run(`DELETE FROM userInventory WHERE id = ?`, [fumoId])
+    ]);
+}
+
+function calculateRequirements(currentBreaks) {
+    const baseFragments = 15;
+    const baseNullified = 1;
+    const fragmentIncrease = Math.floor(currentBreaks / 10) * 5;
+    const nullifiedIncrease = Math.floor(currentBreaks / 20);
+    
+    return {
+        fragments: baseFragments + fragmentIncrease,
+        nullified: baseNullified + nullifiedIncrease
+    };
+}
+
+function getRandomRequiredFumo() {
+    return LIMIT_BREAK_FUMO_POOL[Math.floor(Math.random() * LIMIT_BREAK_FUMO_POOL.length)];
+}
+
+function extractFumoFromCustomId(customId) {
+    const parts = customId.split('_');
+    return parts.slice(3).join('_');
+}
+
+function createLimitBreakerEmbed(data) {
+    const { currentBreaks, fragmentUses, requiredFumo, requirements, inventory } = data;
+    const nextBreakNumber = currentBreaks + 1;
+    const canBreak = currentBreaks < MAX_LIMIT_BREAKS;
+
+    const embed = new EmbedBuilder()
+        .setTitle('⚡ Limit Breaker System')
+        .setColor(canBreak ? 0xFFD700 : 0xFF0000)
+        .setDescription(
+            canBreak 
+                ? '**Break through your farming limits!**\n\nSacrifice specific items to gain additional farming slots beyond the fragment limit.\n\n**Current Progress:**'
+                : '**Maximum Limit Breaks Reached!**\n\nYou have reached the maximum of 100 limit breaks.'
+        );
+
+    if (canBreak) {
+        const hasFragments = inventory.fragments >= requirements.fragments;
+        const hasNullified = inventory.nullified >= requirements.nullified;
+        const hasFumo = inventory.hasFumo;
+
+        embed.addFields(
+            {
+                name: '📊 Limit Break Status',
+                value: `Current Breaks: **${currentBreaks} / ${MAX_LIMIT_BREAKS}**\n` +
+                       `Total Farm Limit: **${5 + fragmentUses + currentBreaks}**`,
+                inline: false
+            },
+            {
+                name: `💎 Next Break Requirements (#${nextBreakNumber})`,
+                value: 
+                    `${hasFragments ? '✅' : '❌'} **${requirements.fragments}x** FragmentOf1800s(R)\n` +
+                    `${hasNullified ? '✅' : '❌'} **${requirements.nullified}x** Nullified(?)\n` +
+                    `${hasFumo ? '✅' : '❌'} **1x** ${requiredFumo}`,
+                inline: false
+            },
+            {
+                name: '📦 Your Inventory',
+                value: 
+                    `Fragments: **${inventory.fragments}**\n` +
+                    `Nullified: **${inventory.nullified}**\n` +
+                    `${requiredFumo}: **${hasFumo ? '✓' : 'None'}**`,
+                inline: false
+            }
+        );
+    } else {
+        embed.addFields({
+            name: '🏆 Achievement Unlocked',
+            value: `You have maxed out the Limit Breaker system!\nYour total farm limit is now: **${5 + fragmentUses + currentBreaks}**`,
+            inline: false
+        });
+    }
+
+    embed.setFooter({ 
+        text: canBreak ? '⚡ Click the button below to perform a Limit Break' : '🎉 Congratulations on reaching the maximum!' 
+    });
+
+    return embed;
+}
+
+function createLimitBreakerButtons(userId, data) {
+    const { currentBreaks, requiredFumo, requirements, inventory } = data;
+    
+    const canBreak = currentBreaks < MAX_LIMIT_BREAKS &&
+                   inventory.fragments >= requirements.fragments &&
+                   inventory.nullified >= requirements.nullified &&
+                   inventory.hasFumo;
+
+    const row = new ActionRowBuilder();
+    
+    if (currentBreaks < MAX_LIMIT_BREAKS) {
+        row.addComponents(
+            new ButtonBuilder()
+                .setCustomId(`limitbreak_confirm_${userId}_${requiredFumo}`)
+                .setLabel('⚡ Perform Limit Break')
+                .setStyle(ButtonStyle.Danger)
+                .setDisabled(!canBreak)
+        );
+    }
+    
+    row.addComponents(
+        new ButtonBuilder()
+            .setCustomId(`limitbreak_back_${userId}`)
+            .setLabel('◀️ Back to Farm')
+            .setStyle(ButtonStyle.Secondary)
+    );
+
+    return [row];
+}
+
+function createSuccessEmbed(newBreaks, totalLimit, reqs, fumoToConsume) {
+    return new EmbedBuilder()
+        .setTitle('⚡ LIMIT BREAK SUCCESSFUL!')
+        .setColor(0x00FF00)
+        .setDescription(
+            `**Congratulations!** You've broken through your limits!\n\n` +
+            `**Limit Break:** #${newBreaks}\n` +
+            `**New Farm Limit:** ${totalLimit} slots\n\n` +
+            `**Items Consumed:**\n` +
+            `• ${reqs.fragments}x FragmentOf1800s(R)\n` +
+            `• ${reqs.nullified}x Nullified(?)\n` +
+            `• 1x ${fumoToConsume}`
+        )
+        .setFooter({ text: `Progress: ${newBreaks} / ${MAX_LIMIT_BREAKS}` })
+        .setTimestamp();
+}
+
+module.exports = {
+    handleLimitBreakerInteraction,
+    openLimitBreakerMenu,
+    handleLimitBreakConfirm
+};
