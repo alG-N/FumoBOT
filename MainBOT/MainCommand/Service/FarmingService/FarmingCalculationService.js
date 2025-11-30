@@ -2,19 +2,19 @@ const { RARITY_PRIORITY } = require('../../Configuration/rarity');
 
 const FARMING_STATS = {
     'Common': { coins: 25, gems: 5 },
-    'UNCOMMON': { coins: 45, gems: 10 },
-    'RARE': { coins: 70, gems: 20 },
-    'EPIC': { coins: 100, gems: 35 },
-    'OTHERWORLDLY': { coins: 150, gems: 50 },
-    'LEGENDARY': { coins: 200, gems: 75 },
-    'MYTHICAL': { coins: 350, gems: 115 },
-    'EXCLUSIVE': { coins: 500, gems: 150 },
-    '???': { coins: 750, gems: 220 },
-    'ASTRAL': { coins: 1000, gems: 450 },
-    'CELESTIAL': { coins: 2000, gems: 700 },
-    'INFINITE': { coins: 3500, gems: 915 },
-    'ETERNAL': { coins: 5000, gems: 1150 },
-    'TRANSCENDENT': { coins: 175000, gems: 17500 }
+    'UNCOMMON': { coins: 55, gems: 15 },
+    'RARE': { coins: 120, gems: 35 },
+    'EPIC': { coins: 250, gems: 75 },
+    'OTHERWORLDLY': { coins: 550, gems: 165 },
+    'LEGENDARY': { coins: 1200, gems: 360 },
+    'MYTHICAL': { coins: 2500, gems: 750 },
+    'EXCLUSIVE': { coins: 5500, gems: 1650 },
+    '???': { coins: 12000, gems: 3600 },
+    'ASTRAL': { coins: 25000, gems: 7500 },
+    'CELESTIAL': { coins: 50000, gems: 15000 },
+    'INFINITE': { coins: 85000, gems: 25500 },
+    'ETERNAL': { coins: 125000, gems: 37500 },
+    'TRANSCENDENT': { coins: 375000, gems: 57500 }
 };
 
 const BASE_FARM_LIMIT = 5;
@@ -95,7 +95,7 @@ module.exports = {
     FARMING_STATS,
     BASE_FARM_LIMIT,
     INCOME_INTERVAL,
-    
+
     getRarityFromName,
     calculateFarmingStats,
     calculateFarmLimit,
