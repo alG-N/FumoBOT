@@ -5,13 +5,8 @@ const { RARITY_PRIORITY } = require('../Configuration/rarity');
 
 const ALLOWED_ADMINS = ['1128296349566251068', '1362450043939979378'];
 
-// Store pending admin actions
 const pendingActions = new Map();
 
-/**
- * Admin command: .additem
- * Adds items to a user's inventory with rarity and quantity selection
- */
 async function handleAddItem(message) {
     const allowedUsers = ['1128296349566251068'];
     if (!allowedUsers.includes(message.author.id)) {
@@ -51,7 +46,6 @@ async function handleAddItem(message) {
         });
     }
 
-    // Show rarity selection menu
     const rarityOptions = [
         { label: 'Basic (B)', value: 'B' },
         { label: 'Common (C)', value: 'C' },
@@ -82,7 +76,6 @@ async function handleAddItem(message) {
         components: [rarityMenu]
     });
 
-    // Store pending action
     pendingActions.set(message.author.id, {
         type: 'additem',
         userId,
@@ -91,10 +84,6 @@ async function handleAddItem(message) {
     });
 }
 
-/**
- * Admin command: .addfumo
- * Adds fumos to a user's inventory with rarity, fumo, and trait selection
- */
 async function handleAddFumo(message) {
     const allowedUsers = ['1128296349566251068'];
     if (!allowedUsers.includes(message.author.id)) {
@@ -122,7 +111,6 @@ async function handleAddFumo(message) {
 
     const userId = args[0];
 
-    // Show rarity selection menu
     const rarityOptions = RARITY_PRIORITY.map(rarity => ({
         label: rarity,
         value: rarity
@@ -132,7 +120,7 @@ async function handleAddFumo(message) {
         new StringSelectMenuBuilder()
             .setCustomId(`admin_fumo_rarity_${message.author.id}`)
             .setPlaceholder('Select fumo rarity')
-            .addOptions(rarityOptions.slice(0, 25)) // Discord limit
+            .addOptions(rarityOptions.slice(0, 25))
     );
 
     const embed = new EmbedBuilder()
@@ -145,7 +133,6 @@ async function handleAddFumo(message) {
         components: [rarityMenu]
     });
 
-    // Store pending action
     pendingActions.set(message.author.id, {
         type: 'addfumo',
         userId,
@@ -153,9 +140,6 @@ async function handleAddFumo(message) {
     });
 }
 
-/**
- * Handle admin item rarity selection
- */
 async function handleItemRaritySelection(interaction) {
     const adminId = interaction.customId.split('_').pop();
     if (interaction.user.id !== adminId) {
@@ -176,7 +160,6 @@ async function handleItemRaritySelection(interaction) {
     const rarity = interaction.values[0];
     const fullItemName = `${pending.itemName}(${rarity})`;
 
-    // Show quantity input prompt
     const embed = new EmbedBuilder()
         .setColor('Blue')
         .setTitle('🎁 Add Item - Step 2')
@@ -191,7 +174,6 @@ async function handleItemRaritySelection(interaction) {
         components: []
     });
 
-    // Update pending action
     pendingActions.set(adminId, {
         ...pending,
         fullItemName,
@@ -199,9 +181,6 @@ async function handleItemRaritySelection(interaction) {
     });
 }
 
-/**
- * Handle admin fumo rarity selection
- */
 async function handleFumoRaritySelection(interaction) {
     const adminId = interaction.customId.split('_').pop();
     if (interaction.user.id !== adminId) {
@@ -221,7 +200,6 @@ async function handleFumoRaritySelection(interaction) {
 
     const rarity = interaction.values[0];
 
-    // Get fumos from pool using getRaw() instead of getAll()
     const allFumos = FumoPool.getRaw();
     const fumosOfRarity = allFumos.filter(fumo => fumo.rarity === rarity);
 
@@ -237,7 +215,6 @@ async function handleFumoRaritySelection(interaction) {
         });
     }
 
-    // Create fumo selection menu (max 25 options)
     const fumoOptions = fumosOfRarity.slice(0, 25).map(fumo => {
         return {
             label: fumo.name.length > 100 ? fumo.name.substring(0, 97) + '...' : fumo.name,
@@ -263,16 +240,12 @@ async function handleFumoRaritySelection(interaction) {
         components: [fumoMenu]
     });
 
-    // Update pending action
     pendingActions.set(adminId, {
         ...pending,
         rarity
     });
 }
 
-/**
- * Handle admin fumo selection
- */
 async function handleFumoSelection(interaction) {
     const adminId = interaction.customId.split('_').pop();
     if (interaction.user.id !== adminId) {
@@ -292,7 +265,6 @@ async function handleFumoSelection(interaction) {
 
     const baseFumoName = interaction.values[0];
 
-    // Show trait selection menu
     const traitOptions = [
         { label: 'Normal (no trait)', value: 'normal' },
         { label: '✨ SHINY', value: 'shiny' },
@@ -320,16 +292,12 @@ async function handleFumoSelection(interaction) {
         components: [traitMenu]
     });
 
-    // Update pending action
     pendingActions.set(adminId, {
         ...pending,
         baseFumoName
     });
 }
 
-/**
- * Handle admin fumo trait selection
- */
 async function handleFumoTraitSelection(interaction) {
     const adminId = interaction.customId.split('_').pop();
     if (interaction.user.id !== adminId) {
@@ -350,14 +318,12 @@ async function handleFumoTraitSelection(interaction) {
     const trait = interaction.values[0];
     let fullFumoName = `${pending.baseFumoName}(${pending.rarity})`;
 
-    // Add trait suffix
     if (trait === 'shiny') {
         fullFumoName += '[✨SHINY]';
     } else if (trait === 'alg') {
         fullFumoName += '[🌟alG]';
     }
 
-    // Show quantity input prompt
     const embed = new EmbedBuilder()
         .setColor('Blue')
         .setTitle('🎭 Add Fumo - Step 4')
@@ -372,7 +338,6 @@ async function handleFumoTraitSelection(interaction) {
         components: []
     });
 
-    // Update pending action
     pendingActions.set(adminId, {
         ...pending,
         fullFumoName,
@@ -380,9 +345,6 @@ async function handleFumoTraitSelection(interaction) {
     });
 }
 
-/**
- * Handle admin quantity input
- */
 async function handleQuantityInput(message) {
     const pending = pendingActions.get(message.author.id);
     if (!pending || !pending.awaitingQuantity) return;
@@ -411,7 +373,6 @@ async function handleQuantityInput(message) {
         });
     }
 
-    // Execute the addition based on type
     if (pending.type === 'additem') {
         await executeAddItem(message, pending.userId, pending.fullItemName, quantity);
     } else if (pending.type === 'addfumo') {
@@ -421,9 +382,6 @@ async function handleQuantityInput(message) {
     pendingActions.delete(message.author.id);
 }
 
-/**
- * Execute item addition
- */
 async function executeAddItem(message, userId, itemName, quantity) {
     db.get(
         `SELECT * FROM userInventory WHERE userId = ? AND itemName = ?`,
@@ -494,9 +452,6 @@ async function executeAddItem(message, userId, itemName, quantity) {
     );
 }
 
-/**
- * Execute fumo addition
- */
 async function executeAddFumo(message, userId, fumoName, quantity) {
     for (let i = 0; i < quantity; i++) {
         db.run(
@@ -520,22 +475,17 @@ async function executeAddFumo(message, userId, fumoName, quantity) {
     });
 }
 
-/**
- * Register all admin commands and interactions
- */
 function registerAdminCommands(client) {
     client.on('messageCreate', async (message) => {
         if (message.author.bot) return;
 
         const content = message.content.trim();
 
-        // Handle quantity input for pending actions
         const pending = pendingActions.get(message.author.id);
         if (pending && pending.awaitingQuantity) {
             return handleQuantityInput(message);
         }
 
-        // Handle commands
         if (content.startsWith('.additem')) {
             await handleAddItem(message);
         } else if (content.startsWith('.addfumo')) {
@@ -543,7 +493,6 @@ function registerAdminCommands(client) {
         }
     });
 
-    // Handle interactions
     client.on('interactionCreate', async (interaction) => {
         if (!interaction.isStringSelectMenu()) return;
 

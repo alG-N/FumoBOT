@@ -1,12 +1,6 @@
 const { EmbedBuilder, Colors } = require('discord.js');
 const { formatNumber } = require('../../../Ultility/formatting');
 
-/**
- * Send a DM to users whose event auto-rolls were restored
- * @param {Client} client - Discord client
- * @param {string} userId - User ID
- * @param {Object} state - Restored state
- */
 async function notifyUserEventAutoRollRestored(client, userId, state) {
     try {
         const user = await client.users.fetch(userId).catch(() => null);
@@ -15,7 +9,7 @@ async function notifyUserEventAutoRollRestored(client, userId, state) {
             return false;
         }
 
-        const uptime = Math.floor((Date.now() - state.startTime) / 1000 / 60); // minutes
+        const uptime = Math.floor((Date.now() - state.startTime) / 1000 / 60);
         const totalRolls = state.totalFumosRolled || (state.rollCount * 100);
         const gemsSpent = totalRolls * 100;
 
@@ -93,12 +87,6 @@ async function notifyUserEventAutoRollRestored(client, userId, state) {
     }
 }
 
-/**
- * Send event restoration summary to log channel
- * @param {Client} client - Discord client
- * @param {Object} results - Restoration results
- * @param {string} logChannelId - Log channel ID
- */
 async function sendEventRestorationSummary(client, results, logChannelId) {
     try {
         const channel = await client.channels.fetch(logChannelId).catch(() => null);

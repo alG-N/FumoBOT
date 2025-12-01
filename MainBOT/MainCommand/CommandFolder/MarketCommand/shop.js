@@ -29,12 +29,9 @@ module.exports = async (client) => {
 
     client.on('interactionCreate', async (interaction) => {
         if (!interaction.isButton()) return;
-
-        // Handle pagination buttons
         if (interaction.customId.startsWith('shop_prev_') || interaction.customId.startsWith('shop_next_')) {
             await handlePagination(interaction);
         }
-        // Handle reroll buttons
         else if (interaction.customId.startsWith('free_reroll_') || interaction.customId.startsWith('paid_reroll_')) {
             const restriction = checkRestrictions(interaction.user.id);
             if (restriction.blocked) {
@@ -43,29 +40,25 @@ module.exports = async (client) => {
 
             await handleReroll(interaction);
         }
-        // Handle buy all
         else if (interaction.customId.startsWith('buy_all_')) {
             await handleBuyAll(interaction);
         }
-        // Handle buy all confirmation
         else if (interaction.customId === 'buyall_confirm' || interaction.customId === 'buyall_cancel') {
             await handleBuyAllConfirmation(interaction);
         }
     });
 
     async function handlePagination(interaction) {
-        // Check if interaction is still valid
         if (!interaction.isButton() || interaction.replied || interaction.deferred) {
             console.log('[SHOP] Interaction already handled or expired');
             return;
         }
 
         const parts = interaction.customId.split('_');
-        const action = parts[1]; // 'prev' or 'next'
+        const action = parts[1]; 
         const userId = parts[2];
         const currentPage = parseInt(parts[3]);
 
-        // Verify button ownership
         if (!await checkButtonOwnership(interaction, `shop_${action}`, null, false)) {
             return;
         }
@@ -78,7 +71,6 @@ module.exports = async (client) => {
             const shopEmbed = createShopEmbed(userId, userShop, newPage);
             const buttons = createShopButtons(userId, rerollData.count, newPage);
 
-            // Add timeout check and error handling
             await Promise.race([
                 interaction.update({
                     embeds: [shopEmbed],
@@ -92,10 +84,8 @@ module.exports = async (client) => {
         } catch (error) {
             console.error('[SHOP] Pagination error:', error.message);
 
-            // If the interaction failed, try to send an ephemeral message instead
             if (error.code === 10062 || error.message === 'Update timeout') {
                 try {
-                    // Check if we can still reply
                     if (!interaction.replied && !interaction.deferred) {
                         await interaction.reply({
                             content: '⚠️ This button has expired. Please run `.shop` again.',
@@ -120,7 +110,6 @@ module.exports = async (client) => {
         const rerollData = getRerollData(userId);
 
         if (!isPaidReroll) {
-            // Free reroll logic
             if (rerollData.count <= 0) {
                 const cooldownRemaining = getRerollCooldownRemaining(userId);
                 const timeLeft = formatTimeRemaining(cooldownRemaining);
@@ -134,7 +123,6 @@ module.exports = async (client) => {
 
             useReroll(userId, false);
         } else {
-            // Paid reroll logic - check if free rerolls are exhausted
             if (rerollData.count > 0) {
                 return interaction.reply({
                     content: `❌ You must use all free rerolls first! You have **${rerollData.count}** free reroll(s) remaining.`,
@@ -159,7 +147,6 @@ module.exports = async (client) => {
                 });
             }
 
-            // Deduct gems
             await new Promise((resolve) => {
                 db.run('UPDATE userCoins SET gems = gems - ? WHERE userId = ?', [cost, userId], resolve);
             });
@@ -183,7 +170,6 @@ module.exports = async (client) => {
             ephemeral: true
         });
 
-        // Start at page 0 after reroll
         const shopEmbed = createShopEmbed(userId, newShop, 0);
         const buttons = createShopButtons(userId, updatedRerollData.count, 0);
 
@@ -344,7 +330,7 @@ module.exports = async (client) => {
 
     function handleDisplayShop(message, userId, userShop) {
         const rerollData = getRerollData(userId);
-        const shopEmbed = createShopEmbed(userId, userShop, 0); // Start at page 0
+        const shopEmbed = createShopEmbed(userId, userShop, 0);
         const buttons = createShopButtons(userId, rerollData.count, 0);
         message.reply({ embeds: [shopEmbed], components: buttons, ephemeral: true });
     }

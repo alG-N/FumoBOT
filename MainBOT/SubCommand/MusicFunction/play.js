@@ -16,8 +16,8 @@ const {
     AudioPlayerStatus,
 } = require("@discordjs/voice");
 const youtubedl = require("youtube-dl-exec");
-const ytSearch = require("yt-search"); // Primary - fastest
-const ytsr = require("ytsr"); // Secondary fallback
+const ytSearch = require("yt-search"); 
+const ytsr = require("ytsr"); 
 const queues = new Map();
 const INACTIVITY_TIMEOUT = 2 * 60 * 1000;
 
@@ -290,7 +290,6 @@ async function resolveTrack(query, user, forceAlt = false) {
     let views = null;
     let source = "YouTube";
 
-    // Handle URL input
     if (/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/.test(query)) {
         try {
             console.log("[resolveTrack] URL detected, using yt-search");
@@ -314,11 +313,9 @@ async function resolveTrack(query, user, forceAlt = false) {
             throw new Error("INVALID_URL");
         }
     } else {
-        // Search mode with ranking
         let ytResult;
         let searchQuery = forceAlt ? query + " music" : query + " song";
 
-        // Try yt-search with "song" suffix first
         try {
             console.log(`[resolveTrack] Searching: ${searchQuery}`);
             ytResult = await ytSearch(searchQuery);
@@ -350,7 +347,6 @@ async function resolveTrack(query, user, forceAlt = false) {
             console.log(`[resolveTrack] yt-search "${searchQuery}" failed: ${e.message}`);
         }
 
-        // Fallback: try without suffix, sorted by view count
         if ((!ytResult || ytResult.videos.length === 0) && !forceAlt) {
             try {
                 console.log(`[resolveTrack] Fallback search: ${query} (by popularity)`);
@@ -384,7 +380,6 @@ async function resolveTrack(query, user, forceAlt = false) {
             }
         }
 
-        // Last resort: ytsr
         if (!ytResult || ytResult.videos.length === 0) {
             try {
                 console.log(`[resolveTrack] Last resort: ytsr for ${query}`);
@@ -447,60 +442,47 @@ function rankSearchResults(results, query) {
         const views = Number(result.view_count || result.views || 0);
         const duration = Number(result.duration || result.seconds || result.lengthSeconds || 0);
 
-        // Parse duration if it's a string (from ytsr)
         const durationSeconds = typeof duration === 'string' ? parseDuration(duration) : duration;
 
-        // 1. Word matching (most important for relevance)
         const wordsInTitle = queryWords.filter(word => title.includes(word)).length;
         const wordMatchRatio = queryWords.length > 0 ? wordsInTitle / queryWords.length : 0;
-        score += wordMatchRatio * 2000; // High priority for matching words
+        score += wordMatchRatio * 2000; 
 
-        // 2. Query contained as phrase (nice bonus but not overwhelming)
         if (title.includes(queryLower)) {
             score += 500;
         }
 
-        // 3. Title starts with query (slightly better)
         if (title.startsWith(queryLower)) {
             score += 800;
         }
 
-        // 4. View count (MAJOR factor - popular = likely what they want)
         if (views > 0) {
-            // Use square root to balance - still rewards popularity but not exponentially
             score += Math.sqrt(views) * 0.5;
-
-            // Extra bonus for extremely popular videos (>10M views)
             if (views > 10000000) {
                 score += 1000;
             }
-            // Bonus for very popular (>1M views)
             else if (views > 1000000) {
                 score += 500;
             }
         }
 
-        // 5. Official/verified channels (important but not decisive)
         const officialKeywords = ['official', 'vevo', 'records', 'music', 'topic'];
         const isOfficial = officialKeywords.some(keyword => author.includes(keyword));
         if (isOfficial) {
             score += 600;
         }
 
-        // 6. Official tags in title
         if (title.includes('official audio') || title.includes('official video') ||
             title.includes('official music video') || title.includes('official mv')) {
             score += 400;
         }
 
-        // 7. Ideal song duration (2-8 minutes)
         if (durationSeconds >= 120 && durationSeconds <= 480) {
             score += 200;
         } else if (durationSeconds >= 60 && durationSeconds <= 600) {
-            score += 100; // Still okay if slightly outside range
+            score += 100;
         }
 
-        // 8. HEAVY penalties for unwanted content (this is crucial)
         const spamKeywords = [
             // Compilations - these are the worst offenders
             'top 10', 'top 15', 'top 20', 'top 30', 'top 50', 'best of', 'compilation',
@@ -523,31 +505,27 @@ function rankSearchResults(results, query) {
         spamKeywords.forEach(keyword => {
             if (title.includes(keyword)) spamCount++;
         });
-        score -= spamCount * 1500; // VERY heavy penalty
+        score -= spamCount * 1500; 
 
-        // 9. Extra penalty for compilation patterns
         if (/\d+/.test(title) && (title.includes('top') || title.includes('best') ||
             title.includes('greatest') || title.includes('most'))) {
-            score -= 2000; // Massive penalty for "Top X" patterns
+            score -= 2000; 
         }
 
-        // 10. Penalize very long videos (compilations/DJ sets)
         if (durationSeconds > 600) {
             score -= 1000;
         } else if (durationSeconds > 480) {
-            score -= 300; // Smaller penalty for slightly long
+            score -= 300; 
         }
 
-        // 11. Penalize very short videos (clips/memes)
         if (durationSeconds > 0 && durationSeconds < 60) {
             score -= 500;
         } else if (durationSeconds < 90) {
-            score -= 100; // Smaller penalty for short but reasonable
+            score -= 100; 
         }
 
-        // 12. Bonus for typical music video characteristics
         if (!isOfficial && views > 100000 && durationSeconds >= 180 && durationSeconds <= 360) {
-            score += 200; // Likely a real music video
+            score += 200; 
         }
 
         return { ...result, _searchScore: score };
@@ -565,8 +543,8 @@ function parseDuration(durationStr) {
     if (!durationStr) return 0;
 
     const parts = durationStr.toString().split(':').map(Number);
-    if (parts.length === 2) return parts[0] * 60 + parts[1]; // MM:SS
-    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]; // HH:MM:SS
+    if (parts.length === 2) return parts[0] * 60 + parts[1]; 
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]; 
     return 0;
 }
 
@@ -577,7 +555,6 @@ async function playNext(interaction, guildId) {
         try {
             q.currentYtdlpProcess.kill('SIGKILL');
         } catch (e) {
-            // Ignore kill errors
         }
         q.currentYtdlpProcess = null;
     }
@@ -787,7 +764,6 @@ function setupCollector(q, guildId, interaction) {
         if (id === "skip") {
             log(`[controls] Skip requested`, interaction);
 
-            // Kill any running yt-dlp process immediately
             if (q2.currentYtdlpProcess) {
                 q2.currentYtdlpProcess.kill('SIGKILL');
                 q2.currentYtdlpProcess = null;
@@ -811,7 +787,6 @@ function setupCollector(q, guildId, interaction) {
                     q2.skipVotingTimeout = setTimeout(async () => {
                         q2.skipVoting = false;
                         if (q2.skipVotes.size >= 2) {
-                            // Kill process before stopping player
                             if (q2.currentYtdlpProcess) {
                                 q2.currentYtdlpProcess.kill('SIGKILL');
                                 q2.currentYtdlpProcess = null;
@@ -970,7 +945,6 @@ module.exports = {
             });
         }
 
-        // Ask for confirmation if video > 7 mins
         if (track.lengthSeconds > 420) {
             log(`[play] Long video detected: ${track.title} (${track.lengthSeconds}s)`, interaction);
             const confirmRow = new ActionRowBuilder().addComponents(
@@ -1058,7 +1032,6 @@ module.exports = {
             q.player.on(AudioPlayerStatus.Idle, async () => {
                 log(`[player] Status: Idle`, interaction);
 
-                // CRITICAL: Kill any lingering yt-dlp process before proceeding
                 if (q.currentYtdlpProcess) {
                     try {
                         q.currentYtdlpProcess.kill('SIGKILL');
@@ -1098,7 +1071,6 @@ module.exports = {
                     await sendSongFinishedEmbed(interaction.channel, q.current);
                 }
 
-                // Clear current track reference AFTER we've used it for loop logic
                 q.current = null;
 
                 if (q.tracks.length > 0) {

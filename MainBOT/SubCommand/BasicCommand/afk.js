@@ -64,7 +64,6 @@ module.exports = {
 
         await interaction.reply({ embeds: [embed] });
     },
-    // Message event handler for AFK logic
     
     onMessage(message, client) {
         if (message.author.bot) return;
@@ -72,7 +71,6 @@ module.exports = {
         const userId = message.author.id;
         const guildId = message.guild?.id;
 
-        // Remove AFK if user sends a message
         let wasAfk = false;
         let afkInfo;
         if (afkData[userId]?.type === 'global') {

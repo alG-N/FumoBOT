@@ -44,11 +44,9 @@ const {
     handleSelectFumo
 } = require('../../Service/TradingService/TradingHandlers');
 
-// Store pending trade invites
 const pendingInvites = new Map();
 
 module.exports = (client) => {
-    // Handle .trade command
     client.on('messageCreate', async (message) => {
         if (message.author.bot) return;
         if (!message.content.startsWith('.trade')) return;
@@ -72,7 +70,6 @@ module.exports = (client) => {
             return message.reply('❌ You cannot trade with bots!');
         }
 
-        // Check if either user is already trading
         const requesterCheck = isUserTrading(message.author.id);
         const targetCheck = isUserTrading(mentionedUser.id);
 
@@ -84,7 +81,6 @@ module.exports = (client) => {
             return message.reply(`❌ ${mentionedUser.tag} is already in an active trade!`);
         }
 
-        // Create trade session
         const trade = createTradeSession(
             { id: message.author.id, tag: message.author.tag },
             { id: mentionedUser.id, tag: mentionedUser.tag }
@@ -93,17 +89,14 @@ module.exports = (client) => {
         const inviteEmbed = createInviteEmbed(message.author, mentionedUser);
         const inviteButtons = createInviteButtons(trade.sessionKey);
 
-        // Send confirmation to requester
         await message.reply(`📨 Trade request sent to **${mentionedUser.tag}**!`);
 
-        // Send invite in channel (pings the target)
         const inviteMsg = await message.channel.send({
             content: `<@${mentionedUser.id}> - You have a trade request!`,
             embeds: [inviteEmbed],
             components: [inviteButtons]
         });
 
-        // Store pending invite with timeout
         const timeoutId = setTimeout(() => {
             const pending = pendingInvites.get(trade.sessionKey);
             if (pending) {
@@ -128,13 +121,11 @@ module.exports = (client) => {
         });
     });
 
-    // Handle all trade interactions
     client.on('interactionCreate', async (interaction) => {
         if (!interaction.customId?.startsWith('trade_')) return;
 
         const parts = interaction.customId.split('_');
         
-        // Find where the sessionKey starts
         let sessionKeyStartIndex = -1;
         for (let i = 0; i < parts.length - 1; i++) {
             if (/^\d{17,19}$/.test(parts[i]) && /^\d{17,19}$/.test(parts[i + 1])) {
@@ -154,7 +145,6 @@ module.exports = (client) => {
 
         console.log(`[Trade] Action: ${action}, SessionKey: ${sessionKey}`);
 
-        // Handle invite accept/decline
         if (action === 'accept' || action === 'decline') {
             const pending = pendingInvites.get(sessionKey);
             
@@ -179,12 +169,10 @@ module.exports = (client) => {
                 return;
             }
 
-            // Accept trade
             await handleInviteAccept(client, interaction, pending, pendingInvites);
             return;
         }
 
-        // All other trade actions
         const trade = getTradeSession(sessionKey);
         if (!trade) {
             return interaction.reply({
@@ -193,7 +181,6 @@ module.exports = (client) => {
             }).catch(() => {});
         }
 
-        // Verify user is part of this trade
         if (interaction.user.id !== trade.user1.id && interaction.user.id !== trade.user2.id) {
             return interaction.reply({
                 content: '❌ You are not part of this trade!',
@@ -250,7 +237,6 @@ module.exports = (client) => {
         }
     });
 
-    // Cleanup expired invites every minute
     setInterval(() => {
         const now = Date.now();
         for (const [key, pending] of pendingInvites.entries()) {

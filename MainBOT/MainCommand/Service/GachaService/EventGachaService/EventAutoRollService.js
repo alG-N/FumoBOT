@@ -288,7 +288,6 @@ async function restoreEventAutoRolls(client, options = {}) {
         try {
             const saved = savedStates[userId];
 
-            // Ensure user can roll again
             const data = await getEventUserRollData(userId);
             if (!data?.hasFantasyBook) {
                 console.log(`⚠️ User ${userId} lacks Fantasy Book, skipping restore`);
@@ -297,7 +296,6 @@ async function restoreEventAutoRolls(client, options = {}) {
                 continue;
             }
 
-            // Restart auto-roll
             const result = await startEventAutoRoll(userId, saved.autoSell);
 
             if (result.success) {
@@ -330,20 +328,17 @@ async function restoreEventAutoRolls(client, options = {}) {
 
     console.log(`📊 Event auto-roll restoration complete: ${restored} restored, ${failed} failed`);
 
-    // Resume auto-save
     startEventAutoSave();
 
-    // Send user notifications
     if (notifyUsers && restoredUsers.length > 0) {
         const { notifyUserEventAutoRollRestored } = require('./EventAutoRollNotification');
 
         for (const { userId, state } of restoredUsers) {
-            await new Promise(r => setTimeout(r, 1000)); // avoid rate limiting
+            await new Promise(r => setTimeout(r, 1000)); 
             await notifyUserEventAutoRollRestored(client, userId, state);
         }
     }
 
-    // Send summary to log channel
     if (logChannelId) {
         const { sendEventRestorationSummary } = require('./EventAutoRollNotification');
         await sendEventRestorationSummary(client, { restored, failed }, logChannelId);
@@ -352,20 +347,10 @@ async function restoreEventAutoRolls(client, options = {}) {
     return { restored, failed };
 }
 
-
-/**
- * Gracefully shut down event auto-rolls
- */
 function shutdownEventAutoRolls() {
     console.log('🛑 Shutting down event auto-rolls...');
-
-    // Save current state
     saveEventAutoRollState(eventAutoRollMap);
-
-    // Stop auto-save
     stopEventAutoSave();
-
-    // Clear all timers
     for (const [userId, state] of eventAutoRollMap.entries()) {
         if (state.intervalId) {
             clearTimeout(state.intervalId);
@@ -383,8 +368,6 @@ module.exports = {
     calculateEventAutoRollInterval,
     performEventAutoSell,
     eventAutoRollMap,
-
-    // NEW
     restoreEventAutoRolls,
     shutdownEventAutoRolls,
     startEventAutoSave,

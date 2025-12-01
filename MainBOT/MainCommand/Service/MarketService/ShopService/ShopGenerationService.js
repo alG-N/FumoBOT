@@ -23,11 +23,9 @@ function assignStock(rarity, forceMystery = false) {
         };
     }
 
-    // Special handling for Unknown and Prime - no unlimited stock
     if (rarity === 'Unknown' || rarity === 'Prime') {
         const rand = Math.random();
         
-        // 0.1% chance for 3-5 stock
         if (rand <= 0.001) {
             return {
                 stock: getRandomInt(...STOCK_RANGES.ULTRA_RARE_LUCKY),
@@ -35,9 +33,8 @@ function assignStock(rarity, forceMystery = false) {
             };
         }
         
-        // Normal case: 1-2 stock or out of stock
         const stockRand = Math.random();
-        if (stockRand <= 0.15) { // 15% chance for stock
+        if (stockRand <= 0.15) { 
             return {
                 stock: getRandomInt(...STOCK_RANGES.ULTRA_RARE),
                 message: 'Ultra Rare Stock'
@@ -47,7 +44,6 @@ function assignStock(rarity, forceMystery = false) {
         return { stock: 0, message: 'Out of Stock' };
     }
 
-    // Existing logic for other rarities
     const thresholds = RARITY_THRESHOLDS[rarity] || [];
     if (thresholds.length === 0) {
         return { stock: 0, message: 'Out of Stock' };
@@ -122,7 +118,6 @@ function generateUserShop() {
         shop[def.name] = createItem(def.basePrice, def.currency, def.rarity, forceMystery);
     }
 
-    // CRITICAL FIX: Guarantee at least 3 items have stock
     const itemsWithStock = Object.values(shop).filter(item => item.stock > 0 || item.stock === 'unlimited');
     
     if (itemsWithStock.length < 3) {
@@ -133,7 +128,6 @@ function generateUserShop() {
             return item.stock === 0;
         });
 
-        // Force stock on random items until we have at least 3
         const itemsToFix = Math.min(3 - itemsWithStock.length, itemsWithoutStock.length);
         
         for (let i = 0; i < itemsToFix; i++) {
@@ -141,7 +135,6 @@ function generateUserShop() {
             const itemName = itemsWithoutStock.splice(randomIndex, 1)[0];
             const item = shop[itemName];
             
-            // Find the item definition to get stock ranges
             const def = ITEM_DEFINITIONS.find(d => d.name === itemName);
             if (def) {
                 const stockRange = def.rarity === '???' ? STOCK_RANGES.MYSTERY : STOCK_RANGES.ON_STOCK;

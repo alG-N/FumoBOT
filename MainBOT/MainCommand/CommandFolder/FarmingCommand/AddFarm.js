@@ -1,4 +1,4 @@
-const { ActionRowBuilder, StringSelectMenuBuilder, EmbedBuilder, Colors } = require('discord.js');
+const { ActionRowBuilder, StringSelectMenuBuilder, EmbedBuilder, Colors, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const { checkRestrictions } = require('../../Middleware/restrictions');
 const { checkButtonOwnership } = require('../../Middleware/buttonOwnership');
 const { 
@@ -24,7 +24,6 @@ module.exports = async (client) => {
         const userId = message.author.id;
 
         try {
-            // Show rarity selection menu
             const rarityEmbed = new EmbedBuilder()
                 .setTitle('🌾 Add Fumos to Farm - Step 1/3')
                 .setDescription('**Select a rarity to farm:**\n\nChoose which rarity of Fumos you want to add to your farm.')
@@ -50,7 +49,6 @@ module.exports = async (client) => {
                 components: [rarityMenu]
             });
 
-            // Initialize selection state
             activeSelections.set(userId, {
                 messageId: msg.id,
                 stage: 'RARITY',
@@ -58,7 +56,6 @@ module.exports = async (client) => {
                 trait: null
             });
 
-            // Set timeout to clean up
             setTimeout(() => {
                 if (activeSelections.has(userId)) {
                     activeSelections.delete(userId);
@@ -76,7 +73,6 @@ module.exports = async (client) => {
         }
     });
 
-    // Handle rarity selection
     client.on('interactionCreate', async (interaction) => {
         if (!interaction.isStringSelectMenu()) return;
         if (!interaction.customId.startsWith('addfarm_rarity_')) return;
@@ -100,7 +96,6 @@ module.exports = async (client) => {
             selection.rarity = selectedRarity;
             selection.stage = 'TRAIT';
 
-            // Show trait selection menu
             const traitEmbed = new EmbedBuilder()
                 .setTitle('🌾 Add Fumos to Farm - Step 2/3')
                 .setDescription(
@@ -151,7 +146,6 @@ module.exports = async (client) => {
         }
     });
 
-    // Handle trait selection
     client.on('interactionCreate', async (interaction) => {
         if (!interaction.isStringSelectMenu()) return;
         if (!interaction.customId.startsWith('addfarm_trait_')) return;
@@ -175,7 +169,6 @@ module.exports = async (client) => {
             selection.trait = selectedTrait;
             selection.stage = 'FUMO_LIST';
 
-            // Get available fumos
             const availableFumos = await getAvailableFumosByRarityAndTrait(userId, selection.rarity, selectedTrait);
 
             if (availableFumos.length === 0) {
@@ -186,7 +179,6 @@ module.exports = async (client) => {
                 });
             }
 
-            // Show fumo selection menu
             const fumoListEmbed = new EmbedBuilder()
                 .setTitle('🌾 Add Fumos to Farm - Step 3/3')
                 .setDescription(
@@ -216,7 +208,6 @@ module.exports = async (client) => {
                 components: [fumoSelectMenu]
             });
 
-            // Store available fumos for validation
             selection.availableFumos = availableFumos;
 
         } catch (error) {
@@ -228,7 +219,6 @@ module.exports = async (client) => {
         }
     });
 
-    // Handle fumo selection
     client.on('interactionCreate', async (interaction) => {
         if (!interaction.isStringSelectMenu()) return;
         if (!interaction.customId.startsWith('addfarm_fumo_')) return;
@@ -255,9 +245,6 @@ module.exports = async (client) => {
                     ephemeral: true
                 });
             }
-
-            // Show modal for quantity input
-            const { ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
             
             const modal = new ModalBuilder()
                 .setCustomId(`addfarm_quantity_${userId}_${selectedFumoName}`)
@@ -277,7 +264,6 @@ module.exports = async (client) => {
 
             await interaction.showModal(modal);
 
-            // Store selected fumo info
             selection.selectedFumo = matchingFumo;
 
         } catch (error) {
@@ -289,7 +275,6 @@ module.exports = async (client) => {
         }
     });
 
-    // Handle quantity modal submission
     client.on('interactionCreate', async (interaction) => {
         if (!interaction.isModalSubmit()) return;
         if (!interaction.customId.startsWith('addfarm_quantity_')) return;
@@ -325,7 +310,6 @@ module.exports = async (client) => {
                 });
             }
 
-            // Add fumos to farm
             const result = await addMultipleFumosToFarm(userId, selection.selectedFumo.fullName, quantity);
 
             if (!result.success) {
@@ -348,7 +332,6 @@ module.exports = async (client) => {
 
             activeSelections.delete(userId);
 
-            // Update the original message
             const originalMessage = await interaction.message.fetch();
             await originalMessage.edit({
                 embeds: [createSuccessEmbed(`✅ Added ${quantity}x ${selection.selectedFumo.displayName} to your farm!`)],

@@ -33,7 +33,6 @@ module.exports = async (client) => {
     client.on('messageCreate', async message => {
         if (message.author.bot || (!message.content.startsWith('.usefragment') && !message.content.startsWith('.uf'))) return;
 
-        // Check for maintenance mode or ban
         const banData = isBanned(message.author.id);
         if ((maintenance === "yes" && message.author.id !== developerID) || banData) {
             let description = '';
@@ -82,7 +81,6 @@ module.exports = async (client) => {
         const userId = message.author.id;
         const fragmentName = 'FragmentOf1800s(R)';
 
-        // Parse how many fragments the user wants to use
         const args = message.content.split(' ');
         let amountToUse = 1;
         if (args[1] && !isNaN(args[1])) {
@@ -98,7 +96,6 @@ module.exports = async (client) => {
         }
 
         try {
-            // Get fragment quantity
             const [userRow] = await db.allAsync(
                 `SELECT quantity FROM userInventory WHERE userId = ? AND itemName = ?`,
                 [userId, fragmentName]
@@ -113,7 +110,6 @@ module.exports = async (client) => {
                 });
             }
 
-            // Get current fragmentUses
             const [upgradeRow] = await db.allAsync(
                 `SELECT fragmentUses FROM userUpgrades WHERE userId = ?`,
                 [userId]
@@ -137,7 +133,6 @@ module.exports = async (client) => {
                 });
             }
 
-            // Deduct fragments and update uses
             await db.runAsync(
                 `UPDATE userInventory SET quantity = quantity - ? WHERE userId = ? AND itemName = ?`,
                 [amountToUse, userId, fragmentName]

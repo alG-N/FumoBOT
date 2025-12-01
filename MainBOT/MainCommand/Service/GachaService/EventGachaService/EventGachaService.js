@@ -127,7 +127,6 @@ async function updateEventUserAfterRoll(userId, updates) {
 }
 
 async function selectEventRarity(userId, boosts, rollsSinceLastMythical, rollsSinceLastQuestionMark, totalRolls, luck, rollsLeft) {
-    // Check pity thresholds with the CURRENT pity counter values
     if (rollsSinceLastQuestionMark >= PITY_THRESHOLDS.EVENT_QUESTION) {
         return '???';
     }
@@ -238,7 +237,6 @@ async function performEventSummon(userId, numSummons) {
             rollsSinceLastQuestionMark: currentQuestion
         });
 
-        // FIXED: Correct import path
         await updateQuestsAndAchievements(userId, numSummons);
 
         return {

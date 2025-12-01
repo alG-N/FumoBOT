@@ -7,7 +7,6 @@ module.exports = {
         .setName('othercmd')
         .setDescription('Shows a list of other fun commands.'),
     async execute(interaction) {
-        // Check for maintenance mode or ban
         const banData = isBanned(interaction.user.id);
         if ((maintenance === "yes" && interaction.user.id !== developerID) || banData) {
             let description = '';

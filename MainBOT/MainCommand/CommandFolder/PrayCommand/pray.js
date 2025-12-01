@@ -1,5 +1,3 @@
-const { Client } = require('discord.js');
-const { createClient } = require('../../Configuration/discord');
 const { checkRestrictions } = require('../../Middleware/restrictions');
 const { selectRandomCharacter } = require('../../Configuration/prayConfig');
 const {
@@ -21,15 +19,11 @@ const {
 const { consumeTicket, consumeShards, getUserInventory } = require('../../Service/PrayService/PrayDatabaseService');
 const { checkButtonOwnership } = require('../../Middleware/buttonOwnership');
 
-// Character handlers
 const { handleYuyuko } = require('../../Service/PrayService/CharacterHandlers/YuyukoHandler');
 const { handleYukari } = require('../../Service/PrayService/CharacterHandlers/YukariHandler');
 const { handleReimu } = require('../../Service/PrayService/CharacterHandlers/ReimuHandler');
 const { handleMarisa } = require('../../Service/PrayService/CharacterHandlers/MarisaHandler');
 const { handleSakuya } = require('../../Service/PrayService/CharacterHandlers/SakuyaHandler');
-
-const client = createClient();
-client.setMaxListeners(150);
 
 const BASIC_SHARDS = ['RedShard(L)', 'BlueShard(L)', 'YellowShard(L)', 'WhiteShard(L)', 'DarkShard(L)'];
 const ENHANCED_SHARDS = {
@@ -37,9 +31,8 @@ const ENHANCED_SHARDS = {
     celestialEssence: 'CelestialEssence(D)'
 };
 
-module.exports = async (discordClient) => {
-    discordClient.on('messageCreate', async (message) => {
-        // Command validation
+module.exports = async (client) => {
+    client.on('messageCreate', async (message) => {
         const validCommands = ['.pray', '.p'];
         const isValidCommand = validCommands.some(cmd =>
             message.content === cmd || message.content.startsWith(cmd + ' ')
@@ -50,13 +43,11 @@ module.exports = async (discordClient) => {
         const userId = message.author.id;
 
         try {
-            // Check restrictions (maintenance/ban)
             const restriction = checkRestrictions(userId);
             if (restriction.blocked) {
                 return message.reply({ embeds: [restriction.embed] });
             }
 
-            // Validate pray request (session, ticket, limit)
             const validation = await validatePrayRequest(userId);
             if (!validation.valid) {
                 const errorEmbeds = {
@@ -91,21 +82,18 @@ module.exports = async (discordClient) => {
                 return;
             }
 
-            // Check if user has the required shards for basic pray
             const inventory = await getUserInventory(userId);
             const hasBasicShards = BASIC_SHARDS.every(shard => {
                 const item = inventory.find(i => i.itemName === shard);
                 return item && item.quantity >= 1;
             });
 
-            // Check if user has enhanced shards
             const divineOrb = inventory.find(i => i.itemName === ENHANCED_SHARDS.divineOrb);
             const celestialEssence = inventory.find(i => i.itemName === ENHANCED_SHARDS.celestialEssence);
             const hasEnhancedShards = divineOrb && divineOrb.quantity >= 1 && 
                                      celestialEssence && celestialEssence.quantity >= 5 &&
                                      hasBasicShards;
 
-            // Create and send ritual welcome embed with buttons
             const embed = createRitualWelcomeEmbed(hasBasicShards, hasEnhancedShards);
             const buttons = createPrayButtons(userId, hasBasicShards, hasEnhancedShards);
             const sentMessage = await message.channel.send({ 
@@ -113,10 +101,8 @@ module.exports = async (discordClient) => {
                 components: [buttons] 
             });
 
-            // Mark user as having active session
             addActiveSession(userId);
 
-            // Create collector
             const filter = (interaction) => {
                 const [action] = interaction.customId.split('_');
                 return ['pray'].includes(action);
@@ -128,7 +114,6 @@ module.exports = async (discordClient) => {
             });
 
             collector.on('collect', async (interaction) => {
-                // Verify button ownership
                 const isOwner = await checkButtonOwnership(interaction, null, null, true);
                 if (!isOwner) return;
 
@@ -147,7 +132,6 @@ module.exports = async (discordClient) => {
                 if (action === 'basic' || action === 'enhanced') {
                     await interaction.deferUpdate();
 
-                    // Consume ticket and shards
                     await consumeTicket(userId);
                     await consumeShards(userId, BASIC_SHARDS);
 
@@ -160,13 +144,10 @@ module.exports = async (discordClient) => {
                         enhancedMode = true;
                     }
 
-                    // Track usage
                     trackUsage(userId);
 
-                    // Select random character with enhanced chances if applicable
                     const character = selectRandomCharacter(enhancedMode);
 
-                    // Show character reveal with accept/decline/info buttons
                     const characterEmbed = createCharacterEmbed(character, enhancedMode);
                     const characterButtons = createActionButtons(character.id, userId);
                     
@@ -177,7 +158,6 @@ module.exports = async (discordClient) => {
 
                     collector.stop('summoned');
 
-                    // Create new collector for character interaction
                     const characterFilter = (i) => {
                         const [action] = i.customId.split('_');
                         return action === 'pray';
@@ -221,7 +201,6 @@ module.exports = async (discordClient) => {
 
                             characterCollector.stop('accepted');
 
-                            // Route to appropriate handler
                             try {
                                 switch (character.id) {
                                     case 'yuyuko':

@@ -2,25 +2,18 @@ const db = require('../../../Core/Database/dbSetting');
 const { dbAll, dbRun } = require('../Utilities/dbUtils');
 const { getXpRequired, calculateBoost } = require('../Utilities/petUtils');
 
-// NightOwl Passive Exp System
-// Grants MORE exp/sec to ALL user's pets (passive bonus)
-// Also grants exp to the NightOwl itself every 12 minutes (active gain, faster than Owl)
-
 class NightOwlAbility {
     constructor() {
         this.petType = 'NightOwl';
-        this.passiveInterval = 1000; // 1 second
-        this.activeInterval = 12 * 60 * 1000; // 12 minutes (faster than Owl)
+        this.passiveInterval = 1000;
+        this.activeInterval = 12 * 60 * 1000; 
     }
 
-    // Start the NightOwl ability system
     initialize() {
-        // Passive exp to all pets every second
         setInterval(async () => {
             await this.givePassiveExp();
         }, this.passiveInterval);
 
-        // Active exp to NightOwl itself every 12 minutes
         setInterval(async () => {
             await this.giveActiveExp();
         }, this.activeInterval);
@@ -28,7 +21,6 @@ class NightOwlAbility {
         console.log(`✅ ${this.petType} ability system initialized`);
     }
 
-    // Give passive exp to all pets owned by users with equipped NightOwls
     async givePassiveExp() {
         try {
             const usersWithNightOwl = await dbAll(db, `
@@ -39,7 +31,6 @@ class NightOwlAbility {
             `, [this.petType]);
 
             for (const user of usersWithNightOwl) {
-                // Get all equipped NightOwls for this user
                 const equippedNightOwls = await dbAll(db, `
                     SELECT p.*
                     FROM equippedPets e
@@ -47,7 +38,6 @@ class NightOwlAbility {
                     WHERE e.userId = ? AND p.name = ?
                 `, [user.userId, this.petType]);
 
-                // Calculate total exp/sec from all equipped NightOwls
                 let totalExpPerSec = 0;
                 for (const nightOwl of equippedNightOwls) {
                     let ability = nightOwl.ability;
@@ -67,7 +57,6 @@ class NightOwlAbility {
 
                 if (totalExpPerSec === 0) continue;
 
-                // Give exp to all pets (not eggs) owned by this user
                 const userPets = await dbAll(db, `
                     SELECT * FROM petInventory
                     WHERE userId = ? AND type = 'pet'
@@ -94,7 +83,6 @@ class NightOwlAbility {
                         [pet.age, pet.ageXp, pet.petId]
                     );
 
-                    // Update ability if aged up
                     if (agedUp) {
                         const ability = calculateBoost(pet);
                         if (ability) {
@@ -111,7 +99,6 @@ class NightOwlAbility {
         }
     }
 
-    // Give active exp to equipped NightOwls themselves
     async giveActiveExp() {
         try {
             const usersWithNightOwl = await dbAll(db, `
@@ -131,8 +118,8 @@ class NightOwlAbility {
 
                 for (let nightOwl of equippedNightOwls) {
                     const level = nightOwl.level || 1;
-                    let activeGain = 200 + level * 5; // Higher base than Owl
-                    activeGain = Math.min(activeGain, 1000); // Higher cap than Owl
+                    let activeGain = 200 + level * 5;
+                    activeGain = Math.min(activeGain, 1000);
 
                     nightOwl.ageXp = (nightOwl.ageXp || 0) + activeGain;
                     let agedUp = false;
@@ -154,7 +141,6 @@ class NightOwlAbility {
                         [nightOwl.age, nightOwl.ageXp, nightOwl.petId]
                     );
 
-                    // Update ability if aged up
                     if (agedUp) {
                         const ability = calculateBoost(nightOwl);
                         if (ability) {

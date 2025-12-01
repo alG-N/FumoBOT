@@ -58,7 +58,6 @@ module.exports = async (client) => {
                 } 
                 else if (action === "petequipped") {
                     const equipped = await getEquippedPets(db, userId);
-                    // FIX: Pass equipped pets in the correct parameter position
                     updatedEmbed = generateInventoryEmbed("equipped", interaction.user, [], equipped, [], 0, 1);
                     updatedRow = generateInventoryButtons("equipped", userId);
                     petPage = 0;
@@ -152,7 +151,6 @@ function generateInventoryEmbed(view, user, eggs = [], pets = [], equippedIds = 
                 const equippedTag = isEquipped ? ' 🎯' : '';
                 const alterGoldenTag = hasAlterGoldenBonus(petName) ? ' ✨' : '';
 
-                // Get ability info
                 const abilityInfo = PET_ABILITIES[pet.name];
                 const abilityDesc = abilityInfo ? `💫 **${abilityInfo.abilityName}**: ${abilityInfo.description}` : '❌ No ability';
 
@@ -171,12 +169,10 @@ function generateInventoryEmbed(view, user, eggs = [], pets = [], equippedIds = 
         }
     } 
     else if (view === "equipped") {
-        // FIX: Use 'pets' parameter for equipped pets display
         if (!pets || pets.length === 0) {
             embed.setDescription("You have no equipped pets.\n\nUse `.equippet <petName>` to equip a pet!");
         } else {
             pets.forEach(pet => {
-                // Update hunger only for equipped pets
                 pet = updateHunger(pet, db, true);
 
                 const petName = pet.petName || 'Unnamed';
@@ -189,11 +185,9 @@ function generateInventoryEmbed(view, user, eggs = [], pets = [], equippedIds = 
                 const xpPercent = Math.floor((ageXp / xpRequired) * 100);
                 const alterGoldenTag = hasAlterGoldenBonus(petName) ? ' ✨' : '';
 
-                // Create visual bars
                 const hungerBar = createProgressBar(hungerPercent, 10);
                 const xpBar = createProgressBar(xpPercent, 10);
 
-                // Get ability boost info
                 let abilityDisplay = 'None';
                 if (pet.ability) {
                     try {
@@ -271,7 +265,6 @@ function generateInventoryButtons(current, userId, disabled = false, page = 0, t
     return new ActionRowBuilder().addComponents(buttons);
 }
 
-// Helper function to create visual progress bars
 function createProgressBar(percent, length = 10) {
     const clampedPercent = Math.max(0, Math.min(100, percent));
     const filled = Math.round((clampedPercent / 100) * length);
@@ -279,7 +272,6 @@ function createProgressBar(percent, length = 10) {
     return '█'.repeat(filled) + '░'.repeat(empty);
 }
 
-// Helper function to get rarity emoji
 function getRarityEmoji(rarity) {
     const emojis = {
         'Common': '⚪',

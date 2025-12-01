@@ -31,7 +31,6 @@ module.exports = (client) => {
         return num.toString();
     }
 
-    // Descriptions for coins, gems, crates, streaks
     function getCoinDescription(coins) {
         if (coins >= 1e15) return '👑💰 You are the Emperor of Coins! 💰👑';
         if (coins >= 1e9) return '🌧️💰 Coins rain down around you! 💰🌧️';
@@ -65,7 +64,6 @@ module.exports = (client) => {
         return achievements.length > 0 ? achievements.join(', ') : 'No achievements yet!';
     }
 
-    // New Feature: Allow checking another user's balance by mention or ID
     client.on('messageCreate', async message => {
         const content = message.content.trim();
 
@@ -74,8 +72,6 @@ module.exports = (client) => {
             (content !== '.b' && content !== '.balance')
         ) return;
 
-        // Maintenance mode check
-        // Check for maintenance mode or ban
         const banData = isBanned(message.author.id);
         if ((maintenance === "yes" && message.author.id !== developerID) || banData) {
             let description = '';
@@ -121,21 +117,17 @@ module.exports = (client) => {
             return message.reply({ embeds: [embed] });
         }
 
-        // Parse target user (self, mention, or ID)
         let targetUser = message.author;
         const args = message.content.split(/\s+/);
         if (args.length > 1) {
-            // Try mention
             const mention = message.mentions.users.first();
             if (mention) {
                 targetUser = mention;
             } else if (/^\d{17,19}$/.test(args[1])) {
-                // Try user ID
                 try {
                     const fetched = await message.client.users.fetch(args[1]);
                     if (fetched) targetUser = fetched;
                 } catch (e) {
-                    // Invalid ID, fallback to self
                 }
             }
         }
@@ -153,13 +145,10 @@ module.exports = (client) => {
                 }
             }
 
-            // Defensive: fallback for missing/null fields
             const safe = (v, d = 0) => (typeof v === 'number' && !isNaN(v) ? v : d);
 
-            // Build embed pages
             const embedPages = [];
 
-            // Page 1: Value
             embedPages.push(new EmbedBuilder()
                 .setTitle(`🌟 ${targetUser.username}'s Golden Fumo Profile 🌟\nYour Value:`)
                 .setColor('#ffcc00')
@@ -172,7 +161,6 @@ module.exports = (client) => {
                 .setFooter({ text: 'Page 1/5 - use /boost to check your passive coins and gems per min!' })
             );
 
-            // Page 2: Prayer and Stats
             embedPages.push(new EmbedBuilder()
                 .setTitle(`🌟 ${targetUser.username}'s Golden Fumo Profile 🌟\nPrayer and Stats:`)
                 .setColor('#ffcc00')
@@ -188,7 +176,6 @@ module.exports = (client) => {
                 .setFooter({ text: 'Page 2/5 - Based on the /pray command!' })
             );
 
-            // Page 3: Main Stats
             embedPages.push(new EmbedBuilder()
                 .setTitle(`🌟 ${targetUser.username}'s Golden Fumo Profile 🌟\nMain Stats:`)
                 .setColor('#ffcc00')
@@ -201,7 +188,6 @@ module.exports = (client) => {
                 .setFooter({ text: 'Page 3/5 - Golden`s FumoBOT!' })
             );
 
-            // Page 4: Achievements
             embedPages.push(new EmbedBuilder()
                 .setTitle(`🏆 ${targetUser.username}'s Achievements 🏆`)
                 .setColor('#ffcc00')
@@ -209,7 +195,6 @@ module.exports = (client) => {
                 .setFooter({ text: 'Page 4/5 - Golden`s FumoBOT!' })
             );
 
-            // Page 5: Additional Features
             embedPages.push(new EmbedBuilder()
                 .setTitle(`🌟 ${targetUser.username}'s Golden Fumo Profile 🌟\nAdditional Features:`)
                 .setDescription('More features coming soon!')
@@ -219,7 +204,6 @@ module.exports = (client) => {
 
             let currentPage = 0;
 
-            // Button navigation with timeout and permission check
             const sendEmbedMessage = async () => {
                 const previousButton = new ButtonBuilder()
                     .setCustomId('previous')
@@ -239,7 +223,7 @@ module.exports = (client) => {
 
                 const collector = initialMessage.createMessageComponentCollector({
                     time: 60000,
-                    filter: i => i.user.id === message.author.id // Only allow the command user to interact
+                    filter: i => i.user.id === message.author.id
                 });
 
                 collector.on('collect', async interaction => {
@@ -253,7 +237,6 @@ module.exports = (client) => {
                 });
 
                 collector.on('end', async () => {
-                    // Disable buttons after timeout
                     previousButton.setDisabled(true);
                     nextButton.setDisabled(true);
                     await initialMessage.edit({ components: [row] }).catch(() => { });

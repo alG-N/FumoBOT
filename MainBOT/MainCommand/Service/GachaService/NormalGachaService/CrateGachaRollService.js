@@ -46,7 +46,6 @@ async function getUserRollData(userId) {
 }
 
 async function updateUserAfterRoll(userId, updates) {
-    // FIX: Separate rollsLeft calculation - it should decrement by rollCount if enough exist
     const rollsLeftDeduction = updates.rollCount;
     
     await run(
@@ -77,8 +76,8 @@ async function updateUserAfterRoll(userId, updates) {
             updates.pityInfinite,
             updates.pityCelestial,
             updates.pityAstral,
-            rollsLeftDeduction,  // Check if we have this many rollsLeft
-            rollsLeftDeduction,  // Deduct this many
+            rollsLeftDeduction, 
+            rollsLeftDeduction, 
             userId
         ]
     );

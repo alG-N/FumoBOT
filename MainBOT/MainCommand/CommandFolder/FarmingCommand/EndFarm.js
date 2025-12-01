@@ -1,4 +1,4 @@
-const { ActionRowBuilder, StringSelectMenuBuilder, EmbedBuilder, Colors, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { ActionRowBuilder, StringSelectMenuBuilder, EmbedBuilder, Colors, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle  } = require('discord.js');
 const { checkRestrictions } = require('../../Middleware/restrictions');
 const { checkButtonOwnership } = require('../../Middleware/buttonOwnership');
 const { 
@@ -25,7 +25,6 @@ module.exports = async (client) => {
         const userId = message.author.id;
 
         try {
-            // Check if user wants to remove all
             const input = message.content.replace(/^\.endfarm\s+|^\.ef\s+/i, '').trim();
             if (input.toLowerCase() === 'all') {
                 const confirmEmbed = new EmbedBuilder()
@@ -51,7 +50,6 @@ module.exports = async (client) => {
                 });
             }
 
-            // Show rarity selection menu
             const rarityEmbed = new EmbedBuilder()
                 .setTitle('🛑 Remove Fumos from Farm - Step 1/3')
                 .setDescription('**Select a rarity to remove:**\n\nChoose which rarity of Fumos you want to remove from your farm.')
@@ -77,7 +75,6 @@ module.exports = async (client) => {
                 components: [rarityMenu]
             });
 
-            // Initialize removal state
             activeRemovals.set(userId, {
                 messageId: msg.id,
                 stage: 'RARITY',
@@ -85,7 +82,6 @@ module.exports = async (client) => {
                 trait: null
             });
 
-            // Set timeout to clean up
             setTimeout(() => {
                 if (activeRemovals.has(userId)) {
                     activeRemovals.delete(userId);
@@ -103,7 +99,6 @@ module.exports = async (client) => {
         }
     });
 
-    // Handle confirm remove all
     client.on('interactionCreate', async (interaction) => {
         if (!interaction.isButton()) return;
         if (!interaction.customId.startsWith('endfarm_confirm_all_')) return;
@@ -137,7 +132,6 @@ module.exports = async (client) => {
         }
     });
 
-    // Handle cancel
     client.on('interactionCreate', async (interaction) => {
         if (!interaction.isButton()) return;
         if (!interaction.customId.startsWith('endfarm_cancel_')) return;
@@ -150,7 +144,6 @@ module.exports = async (client) => {
         });
     });
 
-    // Handle rarity selection
     client.on('interactionCreate', async (interaction) => {
         if (!interaction.isStringSelectMenu()) return;
         if (!interaction.customId.startsWith('endfarm_rarity_')) return;
@@ -174,7 +167,6 @@ module.exports = async (client) => {
             removal.rarity = selectedRarity;
             removal.stage = 'TRAIT';
 
-            // Show trait selection menu
             const traitEmbed = new EmbedBuilder()
                 .setTitle('🛑 Remove Fumos from Farm - Step 2/3')
                 .setDescription(
@@ -225,7 +217,6 @@ module.exports = async (client) => {
         }
     });
 
-    // Handle trait selection
     client.on('interactionCreate', async (interaction) => {
         if (!interaction.isStringSelectMenu()) return;
         if (!interaction.customId.startsWith('endfarm_trait_')) return;
@@ -249,7 +240,6 @@ module.exports = async (client) => {
             removal.trait = selectedTrait;
             removal.stage = 'FUMO_LIST';
 
-            // Get farming fumos
             const farmingFumos = await getFarmingFumosByRarityAndTrait(userId, removal.rarity, selectedTrait);
 
             if (farmingFumos.length === 0) {
@@ -260,7 +250,6 @@ module.exports = async (client) => {
                 });
             }
 
-            // Show fumo list
             const fumoListEmbed = new EmbedBuilder()
                 .setTitle('🛑 Remove Fumos from Farm - Step 3/3')
                 .setDescription(
@@ -290,7 +279,6 @@ module.exports = async (client) => {
                 components: [fumoSelectMenu]
             });
 
-            // Store farming fumos for validation
             removal.farmingFumos = farmingFumos;
 
         } catch (error) {
@@ -302,7 +290,6 @@ module.exports = async (client) => {
         }
     });
 
-    // Handle fumo selection
     client.on('interactionCreate', async (interaction) => {
         if (!interaction.isStringSelectMenu()) return;
         if (!interaction.customId.startsWith('endfarm_fumo_')) return;
@@ -329,9 +316,6 @@ module.exports = async (client) => {
                     ephemeral: true
                 });
             }
-
-            // Show modal for quantity input
-            const { ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
             
             const modal = new ModalBuilder()
                 .setCustomId(`endfarm_quantity_${userId}_${selectedFumoName}`)
@@ -351,7 +335,6 @@ module.exports = async (client) => {
 
             await interaction.showModal(modal);
 
-            // Store selected fumo info
             removal.selectedFumo = matchingFumo;
 
         } catch (error) {
@@ -363,7 +346,6 @@ module.exports = async (client) => {
         }
     });
 
-    // Handle quantity modal submission
     client.on('interactionCreate', async (interaction) => {
         if (!interaction.isModalSubmit()) return;
         if (!interaction.customId.startsWith('endfarm_quantity_')) return;
@@ -399,7 +381,6 @@ module.exports = async (client) => {
                 });
             }
 
-            // Remove fumos from farm
             const result = await removeMultipleFumosFromFarm(userId, removal.selectedFumo.fullName, quantity);
 
             if (!result.success) {
@@ -417,7 +398,6 @@ module.exports = async (client) => {
 
             activeRemovals.delete(userId);
 
-            // Update the original message
             const originalMessage = await interaction.message.fetch();
             await originalMessage.edit({
                 embeds: [createSuccessEmbed(`✅ Removed ${quantity}x ${removal.selectedFumo.displayName} from your farm!`)],

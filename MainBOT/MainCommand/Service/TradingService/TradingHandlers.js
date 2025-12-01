@@ -35,9 +35,6 @@ const {
     createCancelledEmbed
 } = require('./TradingUIService');
 
-/**
- * Handle trade invite accept
- */
 async function handleInviteAccept(client, interaction, pending, pendingInvites) {
     const { trade, timeoutId } = pending;
     
@@ -52,7 +49,6 @@ async function handleInviteAccept(client, interaction, pending, pendingInvites) 
         components: []
     }).catch(() => {});
 
-    // Create main trade window
     const tradeMsg = await interaction.channel.send({
         content: `🤝 **Active Trade: ${trade.user1.tag} ↔️ ${trade.user2.tag}**`,
         embeds: [createTradeEmbed(trade, client)],
@@ -62,13 +58,9 @@ async function handleInviteAccept(client, interaction, pending, pendingInvites) 
         ]
     });
 
-    // Start trade session with auto-refresh
     await handleTradeSession(client, tradeMsg, trade);
 }
 
-/**
- * Handle trade invite decline
- */
 async function handleInviteDecline(interaction, pending, pendingInvites) {
     const { trade, timeoutId } = pending;
     
@@ -83,16 +75,12 @@ async function handleInviteDecline(interaction, pending, pendingInvites) {
     }).catch(() => {});
 }
 
-/**
- * Handle trade session with auto-refresh
- */
 async function handleTradeSession(client, message, trade) {
     const collector = message.createMessageComponentCollector({
         time: TRADING_CONFIG.TRADE_SESSION_TIMEOUT
     });
 
     collector.on('collect', async (interaction) => {
-        // Auto-refresh UI after interactions
         if (interaction.customId.startsWith('trade_toggle') || 
             interaction.customId.startsWith('trade_confirm')) {
             const currentTrade = require('./TradingService').getTradeSession(trade.sessionKey);
@@ -125,7 +113,6 @@ async function handleTradeSession(client, message, trade) {
         }
     });
 
-    // Auto-refresh UI every 2 seconds
     const refreshInterval = setInterval(async () => {
         const currentTrade = require('./TradingService').getTradeSession(trade.sessionKey);
         if (!currentTrade || currentTrade.state === TRADING_CONFIG.STATES.COMPLETED || 
@@ -153,9 +140,6 @@ async function handleTradeSession(client, message, trade) {
     }, 2000);
 }
 
-/**
- * Handle toggle accept
- */
 async function handleToggleAccept(interaction, trade) {
     const result = toggleAccept(trade.sessionKey, interaction.user.id);
     
@@ -169,7 +153,6 @@ async function handleToggleAccept(interaction, trade) {
     const userSide = trade.user1.id === interaction.user.id ? trade.user1 : trade.user2;
     const otherSide = trade.user1.id === interaction.user.id ? trade.user2 : trade.user1;
     
-    // Ping the other user when someone accepts
     const message = userSide.accepted 
         ? `✅ You accepted the trade! <@${otherSide.id}> has been notified.`
         : '⏳ You unaccepted the trade.';
@@ -179,7 +162,6 @@ async function handleToggleAccept(interaction, trade) {
         ephemeral: true
     });
     
-    // Send notification to channel if accepted
     if (userSide.accepted) {
         await interaction.channel.send({
             content: `<@${otherSide.id}> **${interaction.user.tag}** has accepted the trade!`
@@ -187,9 +169,6 @@ async function handleToggleAccept(interaction, trade) {
     }
 }
 
-/**
- * Handle final confirmation - requires BOTH users to confirm
- */
 async function handleConfirm(interaction, trade, client) {
     if (trade.state !== TRADING_CONFIG.STATES.BOTH_ACCEPTED) {
         return interaction.reply({
@@ -198,7 +177,6 @@ async function handleConfirm(interaction, trade, client) {
         });
     }
 
-    // Toggle this user's confirmation
     const result = toggleConfirm(trade.sessionKey, interaction.user.id);
     
     if (!result.success) {
@@ -211,11 +189,8 @@ async function handleConfirm(interaction, trade, client) {
     const userSide = trade.user1.id === interaction.user.id ? trade.user1 : trade.user2;
     const otherSide = trade.user1.id === interaction.user.id ? trade.user2 : trade.user1;
 
-    // If this user confirmed
     if (userSide.confirmed) {
-        // Check if both confirmed
         if (otherSide.confirmed) {
-            // Both confirmed - execute trade!
             trade.state = TRADING_CONFIG.STATES.CONFIRMING;
 
             await interaction.update({
@@ -223,7 +198,6 @@ async function handleConfirm(interaction, trade, client) {
                 components: []
             });
 
-            // Wait 3 seconds then execute
             setTimeout(async () => {
                 const executeResult = await executeTrade(trade.sessionKey);
                 
@@ -244,19 +218,16 @@ async function handleConfirm(interaction, trade, client) {
                 cancelTrade(trade.sessionKey);
             }, 3000);
         } else {
-            // Only this user confirmed - ping the other user
             await interaction.reply({
                 content: `✅ You confirmed the trade! <@${otherSide.id}> must also confirm to finalize.`,
                 ephemeral: true
             });
             
-            // Send notification to channel
             await interaction.channel.send({
                 content: `<@${otherSide.id}> **${interaction.user.tag}** has confirmed the trade! Click CONFIRM to finalize.`
             }).catch(() => {});
         }
     } else {
-        // User unconfirmed
         await interaction.reply({
             content: '⏳ You unconfirmed the trade.',
             ephemeral: true
@@ -264,9 +235,6 @@ async function handleConfirm(interaction, trade, client) {
     }
 }
 
-/**
- * Handle cancel
- */
 async function handleCancel(interaction, trade) {
     cancelTrade(trade.sessionKey);
     
@@ -277,9 +245,6 @@ async function handleCancel(interaction, trade) {
     });
 }
 
-/**
- * Handle add item type
- */
 async function handleAddItem(interaction, trade, type) {
     if (type === 'coins' || type === 'gems') {
         const modal = new ModalBuilder()
@@ -328,11 +293,9 @@ async function handleAddItem(interaction, trade, type) {
                 ephemeral: true
             });
         } catch (error) {
-            // Modal timeout
         }
         
     } else if (type === 'items') {
-        // Show item rarity selector (similar to fumos)
         const menu = createItemRarityMenu(trade.sessionKey);
         
         await interaction.reply({
@@ -359,7 +322,6 @@ async function handleAddItem(interaction, trade, type) {
             ephemeral: true
         });
     } else if (type === 'fumos') {
-        // Show fumo type selector
         const menu = createFumoTypeMenu(trade.sessionKey);
         
         await interaction.reply({
@@ -370,16 +332,12 @@ async function handleAddItem(interaction, trade, type) {
     }
 }
 
-/**
- * Handle item rarity selection
- */
 async function handleSelectItemRarity(interaction, trade) {
     if (!interaction.isStringSelectMenu()) return;
     
     const value = interaction.values[0];
     const [sessionKey, rarity] = value.split('|');
     
-    // Get items of this rarity
     const items = await getUserItemsByRarity(interaction.user.id, rarity);
     
     if (items.length === 0) {
@@ -397,9 +355,6 @@ async function handleSelectItemRarity(interaction, trade) {
     });
 }
 
-/**
- * Handle item/pet selection
- */
 async function handleSelectItem(interaction, trade, type) {
     if (!interaction.isStringSelectMenu()) return;
     
@@ -463,7 +418,6 @@ async function handleSelectItem(interaction, trade, type) {
                 ephemeral: true
             });
         } catch (error) {
-            // Modal timeout
         }
         
     } else if (type === 'pet') {
@@ -496,16 +450,12 @@ async function handleSelectItem(interaction, trade, type) {
     }
 }
 
-/**
- * Handle fumo type selection
- */
 async function handleSelectFumoType(interaction, trade) {
     if (!interaction.isStringSelectMenu()) return;
     
     const fumoType = interaction.values[0];
     const [sessionKey, type] = fumoType.split('|');
     
-    // Show rarity selector
     const menu = createFumoRarityMenu(sessionKey, type);
     
     await interaction.update({
@@ -514,16 +464,12 @@ async function handleSelectFumoType(interaction, trade) {
     });
 }
 
-/**
- * Handle fumo rarity selection
- */
 async function handleSelectFumoRarity(interaction, trade) {
     if (!interaction.isStringSelectMenu()) return;
     
     const value = interaction.values[0];
     const [sessionKey, type, rarity] = value.split('|');
     
-    // Get fumos of this type and rarity
     const fumos = await getUserFumos(interaction.user.id, type, rarity);
     
     if (fumos.length === 0) {
@@ -541,9 +487,6 @@ async function handleSelectFumoRarity(interaction, trade) {
     });
 }
 
-/**
- * Handle fumo selection
- */
 async function handleSelectFumo(interaction, trade) {
     if (!interaction.isStringSelectMenu()) return;
     
@@ -557,13 +500,10 @@ async function handleSelectFumo(interaction, trade) {
     
     const [sessionKey, fumoName] = value.split('|');
     
-    // Get max quantity available
     const maxQuantity = await getUserFumoQuantity(interaction.user.id, fumoName);
     
-    // Create a hash of the fumo name to keep customId short
     const fumoHash = Buffer.from(fumoName).toString('base64').substring(0, 20);
     
-    // Show quantity modal - using hash instead of full name
     const modal = new ModalBuilder()
         .setCustomId(`trade_fumo_${sessionKey}_${fumoHash}_${interaction.user.id}`)
         .setTitle(`Trade ${fumoName.slice(0, 45)}`);
@@ -594,7 +534,6 @@ async function handleSelectFumo(interaction, trade) {
             });
         }
 
-        // Auto-cap to max available
         const quantity = Math.min(inputQuantity, maxQuantity);
         const wasCapped = inputQuantity > maxQuantity;
 
@@ -625,7 +564,6 @@ async function handleSelectFumo(interaction, trade) {
             ephemeral: true
         });
     } catch (error) {
-        // Modal timeout or error
         console.error('[Trade] Fumo selection error:', error);
     }
 }

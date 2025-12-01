@@ -9,14 +9,12 @@ module.exports = async (client) => {
         const cmd = content.split(" ")[0];
         
         if (message.author.bot) return;
-        // REMOVED .ue from here to avoid conflict with unequip
         if (![".useegg", ".eggcheck"].includes(cmd)) return;
 
         const userId = message.author.id;
         const args = message.content.split(" ").slice(1);
 
         try {
-            // .eggcheck command
             if (cmd === ".eggcheck") {
                 const [eggs, hatching] = await Promise.all([
                     getUserEggs(db, userId),
@@ -81,7 +79,6 @@ module.exports = async (client) => {
                 return;
             }
 
-            // .useegg command (removed .ue shortcut)
             const eggName = args[0];
             if (!eggName || !EGG_DATA[eggName]) {
                 const available = Object.keys(EGG_DATA).map(e => `\`${e}\``).join(", ");

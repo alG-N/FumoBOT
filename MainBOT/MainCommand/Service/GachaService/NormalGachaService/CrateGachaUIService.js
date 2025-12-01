@@ -73,7 +73,6 @@ function createShopEmbed(userData, boosts, hasFantasyBook, isAutoRollActive) {
     const rarityChances = shownRarityChances.join('\n');
     const unknownChances = shownUnknownChances.join('\n');
 
-    // Build boost status text
     const ancientNoteLines = [];
     if (boosts.ancientLuckMultiplier > 1) {
         ancientNoteLines.push(`🎇 AncientRelic active! Luck boosted by ${boosts.ancientLuckMultiplier}×`);
@@ -95,7 +94,6 @@ function createShopEmbed(userData, boosts, hasFantasyBook, isAutoRollActive) {
     }
     const ancientNote = ancientNoteLines.length > 0 ? ancientNoteLines.join('\n') : 'No luck boost applied...';
 
-    // Pity section
     const pitySection =
         `Each roll charges the mysterious **Boost**. At maximum charge, reality fractures and fate itself is rewritten...\n\n` +
         (boostActive

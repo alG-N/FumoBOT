@@ -2,25 +2,18 @@ const db = require('../../../Core/Database/dbSetting');
 const { dbAll, dbRun } = require('../Utilities/dbUtils');
 const { getXpRequired, calculateBoost } = require('../Utilities/petUtils');
 
-// Owl Passive Exp System
-// Grants exp/sec to ALL user's pets (passive bonus)
-// Also grants exp to the Owl itself every 15 minutes (active gain)
-
 class OwlAbility {
     constructor() {
         this.petType = 'Owl';
-        this.passiveInterval = 1000; // 1 second
-        this.activeInterval = 15 * 60 * 1000; // 15 minutes
+        this.passiveInterval = 1000; 
+        this.activeInterval = 15 * 60 * 1000; 
     }
 
-    // Start the Owl ability system
     initialize() {
-        // Passive exp to all pets every second
         setInterval(async () => {
             await this.givePassiveExp();
         }, this.passiveInterval);
 
-        // Active exp to Owl itself every 15 minutes
         setInterval(async () => {
             await this.giveActiveExp();
         }, this.activeInterval);
@@ -28,7 +21,6 @@ class OwlAbility {
         console.log(`✅ ${this.petType} ability system initialized`);
     }
 
-    // Give passive exp to all pets owned by users with equipped Owls
     async givePassiveExp() {
         try {
             const usersWithOwl = await dbAll(db, `
@@ -39,7 +31,6 @@ class OwlAbility {
             `, [this.petType]);
 
             for (const user of usersWithOwl) {
-                // Get all equipped Owls for this user
                 const equippedOwls = await dbAll(db, `
                     SELECT p.*
                     FROM equippedPets e
@@ -47,7 +38,6 @@ class OwlAbility {
                     WHERE e.userId = ? AND p.name = ?
                 `, [user.userId, this.petType]);
 
-                // Calculate total exp/sec from all equipped Owls
                 let totalExpPerSec = 0;
                 for (const owl of equippedOwls) {
                     let ability = owl.ability;
@@ -67,7 +57,6 @@ class OwlAbility {
 
                 if (totalExpPerSec === 0) continue;
 
-                // Give exp to all pets (not eggs) owned by this user
                 const userPets = await dbAll(db, `
                     SELECT * FROM petInventory
                     WHERE userId = ? AND type = 'pet'
@@ -94,7 +83,6 @@ class OwlAbility {
                         [pet.age, pet.ageXp, pet.petId]
                     );
 
-                    // Update ability if aged up
                     if (agedUp) {
                         const ability = calculateBoost(pet);
                         if (ability) {
@@ -111,7 +99,6 @@ class OwlAbility {
         }
     }
 
-    // Give active exp to equipped Owls themselves
     async giveActiveExp() {
         try {
             const usersWithOwl = await dbAll(db, `
@@ -154,7 +141,6 @@ class OwlAbility {
                         [owl.age, owl.ageXp, owl.petId]
                     );
 
-                    // Update ability if aged up
                     if (agedUp) {
                         const ability = calculateBoost(owl);
                         if (ability) {

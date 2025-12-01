@@ -1,7 +1,6 @@
 const { EmbedBuilder, Events } = require('discord.js');
 const db = require('../../../Core/Database/dbSetting');
 
-// Valid redemption codes
 const validCodes = {
     "Welcome": {
         coins: 10000,
@@ -60,9 +59,6 @@ const validCodes = {
 
 const ADMIN_IDS = ['1128296349566251068', '1362450043939979378'];
 
-/**
- * Format reward display
- */
 function formatReward(reward) {
     let parts = [];
     if (reward.coins) parts.push(`🪙 **${reward.coins.toLocaleString()} coins**`);
@@ -75,16 +71,10 @@ function formatReward(reward) {
     return parts.length ? parts.join('\n') : "*No reward data*";
 }
 
-/**
- * Log code redemption errors
- */
 function logCodeError(context, error) {
     console.error(`[CodeRedemption] ${context}:`, error);
 }
 
-/**
- * Handle .code command (show info)
- */
 async function handleCodeInfo(message) {
     const isAdmin = ADMIN_IDS.includes(message.author.id);
     let codeList = '';
@@ -118,9 +108,6 @@ async function handleCodeInfo(message) {
     return message.channel.send({ embeds: [embed] });
 }
 
-/**
- * Handle code redemption
- */
 async function handleCodeRedemption(message, code) {
     const reward = validCodes[code];
     const userId = message.author.id;
@@ -135,7 +122,6 @@ async function handleCodeRedemption(message, code) {
         return message.channel.send({ embeds: [embed] });
     }
 
-    // Check expiration
     if (reward.expires && new Date() > new Date(reward.expires)) {
         return message.channel.send({
             embeds: [new EmbedBuilder()
@@ -146,7 +132,6 @@ async function handleCodeRedemption(message, code) {
         });
     }
 
-    // Check usage limit (global)
     if (reward.maxUses) {
         try {
             const redeemedCount = await new Promise((resolve, reject) => {
@@ -177,7 +162,6 @@ async function handleCodeRedemption(message, code) {
     }
 
     try {
-        // Check if user already redeemed
         const redeemedRow = await new Promise((resolve, reject) => {
             db.get(`SELECT * FROM redeemedCodes WHERE userId = ? AND code = ?`, [userId, code], (err, row) => {
                 if (err) return reject(err);
@@ -192,10 +176,8 @@ async function handleCodeRedemption(message, code) {
             return message.channel.send({ embeds: [embed] });
         }
 
-        // Transaction: update coins/gems/items atomically
         await new Promise((resolve, reject) => db.run('BEGIN TRANSACTION', err => err ? reject(err) : resolve()));
         try {
-            // Coins/gems
             if (reward.coins || reward.gems) {
                 const coinsRow = await new Promise((resolve, reject) => {
                     db.get(`SELECT * FROM userCoins WHERE userId = ?`, [userId], (err, row) => {
@@ -222,7 +204,6 @@ async function handleCodeRedemption(message, code) {
                 }
             }
 
-            // Items (support multiple items)
             if (reward.items && Array.isArray(reward.items)) {
                 for (const { item, quantity } of reward.items) {
                     const itemRow = await new Promise((resolve, reject) => {
@@ -251,7 +232,6 @@ async function handleCodeRedemption(message, code) {
                 }
             }
 
-            // Record redemption
             await new Promise((resolve, reject) => {
                 db.run(`INSERT INTO redeemedCodes (userId, code) VALUES (?, ?)`, [userId, code], err => {
                     if (err) return reject(err);
@@ -265,7 +245,6 @@ async function handleCodeRedemption(message, code) {
             throw err;
         }
 
-        // Success message
         const rewardMsg = formatReward(reward);
         const successEmbed = new EmbedBuilder()
             .setTitle('✅ Code Redeemed!')
@@ -274,7 +253,6 @@ async function handleCodeRedemption(message, code) {
             .setFooter({ text: 'Enjoy your rewards!' });
         message.channel.send({ embeds: [successEmbed] });
 
-        // DM user a receipt (optional)
         try {
             await message.author.send({
                 embeds: [
@@ -286,7 +264,6 @@ async function handleCodeRedemption(message, code) {
                 ]
             });
         } catch (dmErr) {
-            // Ignore DM errors
         }
 
     } catch (error) {
@@ -299,19 +276,14 @@ async function handleCodeRedemption(message, code) {
     }
 }
 
-/**
- * Register code redemption system
- */
 function registerCodeRedemption(client) {
     client.on(Events.MessageCreate, async message => {
         if (message.author.bot) return;
 
-        // Show code info
         if (message.content === '.code') {
             return handleCodeInfo(message);
         }
 
-        // Redeem code
         if (message.content.startsWith('.code ')) {
             const code = message.content.split(' ')[1]?.trim();
             if (code) {

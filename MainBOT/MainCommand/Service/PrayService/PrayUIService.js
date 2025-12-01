@@ -51,7 +51,6 @@ function getCharacterRarityInfo(enhanced = false) {
 
     let info = '';
     
-    // Sort by rarity weight (descending)
     const sorted = [...characters].sort((a, b) => {
         const weightA = enhanced ? a.enhancedWeight : a.weight;
         const weightB = enhanced ? b.enhancedWeight : b.weight;
@@ -97,7 +96,6 @@ function createCharacterEmbed(character, enhancedMode = false) {
     const rarityEmoji = getRarityEmoji(character.rarity);
     const rarityColor = getRarityColor(character.rarity);
 
-    // Calculate approximate chances for this character
     const characters = Object.values(PRAY_CHARACTERS);
     const totalWeight = characters.reduce((sum, char) => 
         sum + (enhancedMode ? char.enhancedWeight : char.weight), 0

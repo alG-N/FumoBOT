@@ -1,13 +1,8 @@
-// Core & Config
 const { get } = require('../../Core/database');
 const { logUserActivity, logError, logToDiscord } = require('../../Core/logger');
-
-// Middleware
 const { checkRestrictions } = require('../../Middleware/restrictions');
 const { checkAndSetCooldown } = require('../../Middleware/rateLimiter');
 const { verifyButtonOwnership } = require('../../Middleware/buttonOwnership');
-
-// Services
 const { getUserBoosts } = require('../../Service/GachaService/NormalGachaService/BoostService');
 const { performSingleRoll, performMultiRoll } = require('../../Service/GachaService/NormalGachaService/CrateGachaRollService');
 const { startAutoRoll, stopAutoRoll, isAutoRollActive } = require('../../Service/GachaService/NormalGachaService/CrateAutoRollService');
@@ -132,11 +127,9 @@ async function handleAutoRollStart(interaction, client) {
         });
 
         collector.on('collect', async i => {
-            // FIX: Check if interaction is still valid before deferring
             if (!i.isButton()) return;
             
             try {
-                // Only defer if the interaction hasn't been responded to
                 if (!i.deferred && !i.replied) {
                     await i.deferUpdate().catch(err => {
                         console.warn('Failed to defer interaction (likely expired):', err.message);
@@ -144,7 +137,6 @@ async function handleAutoRollStart(interaction, client) {
                 }
             } catch (deferError) {
                 console.warn('Error deferring interaction:', deferError.message);
-                // Continue anyway - we can still process the action
             }
 
             const autoSell = i.customId.startsWith('autoRollAutoSell_');
@@ -153,7 +145,6 @@ async function handleAutoRollStart(interaction, client) {
             const result = await startAutoRoll(userId, crateFumos, autoSell);
 
             if (!result.success) {
-                // Use followUp if deferred, reply if not
                 const responseMethod = i.deferred || i.replied ? 'followUp' : 'reply';
                 
                 return await i[responseMethod]({
@@ -168,7 +159,6 @@ async function handleAutoRollStart(interaction, client) {
                 });
             }
 
-            // Send success message
             const responseMethod = i.deferred || i.replied ? 'followUp' : 'reply';
             
             await i[responseMethod]({
@@ -196,7 +186,6 @@ async function handleAutoRollStart(interaction, client) {
 
         collector.on('end', collected => {
             if (collected.size === 0) {
-                // FIX: Better error handling for timeout
                 interaction.editReply({
                     content: '⏱️ Auto Roll setup timed out.',
                     components: [],
@@ -210,7 +199,6 @@ async function handleAutoRollStart(interaction, client) {
     } catch (err) {
         await logError(client, 'Auto-Roll Start', err, userId);
         
-        // Try to notify the user of the error
         const errorMessage = {
             content: '❌ An error occurred while setting up auto-roll. Please try again.',
             ephemeral: true

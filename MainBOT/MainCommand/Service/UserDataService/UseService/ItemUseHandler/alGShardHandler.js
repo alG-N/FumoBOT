@@ -56,7 +56,6 @@ async function handleAlGShardConfirmation(interaction) {
     const { fumoName, rarity } = additionalData;
 
     try {
-        // Check if user has the shard
         const inventory = await get(
             `SELECT quantity FROM userInventory WHERE userId = ? AND itemName = 'alGShard(P)'`,
             [userId]
@@ -70,7 +69,6 @@ async function handleAlGShardConfirmation(interaction) {
             });
         }
 
-        // NEW: Check if user has the original fumo
         const originalFumo = await get(
             `SELECT quantity FROM userInventory WHERE userId = ? AND itemName = ?`,
             [userId, fumoName]
@@ -84,7 +82,6 @@ async function handleAlGShardConfirmation(interaction) {
             });
         }
 
-        // Consume the shard
         await run(
             `UPDATE userInventory SET quantity = quantity - 1 WHERE userId = ? AND itemName = 'alGShard(P)'`,
             [userId]
@@ -95,7 +92,6 @@ async function handleAlGShardConfirmation(interaction) {
             [userId]
         );
 
-        // NEW: Remove 1 of the original fumo
         await run(
             `UPDATE userInventory SET quantity = quantity - 1 WHERE userId = ? AND itemName = ?`,
             [userId, fumoName]
@@ -106,7 +102,6 @@ async function handleAlGShardConfirmation(interaction) {
             [userId, fumoName]
         );
 
-        // Create the alG version
         const alGFumoName = `${fumoName}[🌟alG]`;
 
         await run(
@@ -140,7 +135,6 @@ async function handleAlGShardConfirmation(interaction) {
 async function handleAlGShardRaritySelection(interaction) {
     const userId = interaction.user.id;
     
-    // Extract rarity from value (format: alg_rarity_RARITY)
     const rarity = interaction.values[0].replace('alg_rarity_', '');
 
     try {
@@ -155,7 +149,6 @@ async function handleAlGShardRaritySelection(interaction) {
             });
         }
 
-        // Limit to 25 options (Discord limit)
         const fumoOptions = fumos.slice(0, 25).map((fumo, index) => ({
             label: fumo.name.replace(/\(.*?\)/, '').trim().slice(0, 100),
             value: `alg_fumo_${index}`,
@@ -198,7 +191,6 @@ async function handleAlGShardRaritySelection(interaction) {
 async function handleAlGShardFumoSelection(interaction) {
     const userId = interaction.user.id;
     
-    // Parse the customId to get additional data
     const { additionalData } = parseCustomId(interaction.customId);
     const rarity = additionalData?.rarity;
     
@@ -210,11 +202,9 @@ async function handleAlGShardFumoSelection(interaction) {
         });
     }
     
-    // Get selected fumo index
     const selectedIndex = parseInt(interaction.values[0].replace('alg_fumo_', ''));
 
     try {
-        // Get fumos again to match the index
         const allFumos = FumoPool.getForCrate();
         const fumos = allFumos.filter(f => f.rarity === rarity);
         const selectedFumo = fumos[selectedIndex];
@@ -293,7 +283,6 @@ async function handleAlGShardConfirmation(interaction) {
     const { fumoName, rarity } = additionalData;
 
     try {
-        // Check if user has the shard
         const inventory = await get(
             `SELECT quantity FROM userInventory WHERE userId = ? AND itemName = 'alGShard(P)'`,
             [userId]
@@ -307,8 +296,6 @@ async function handleAlGShardConfirmation(interaction) {
             });
         }
 
-        // FIXED: Search for original fumo by both fumoName and itemName
-        // This handles cases where the fumo might be stored under different columns
         const originalFumo = await get(
             `SELECT id, fumoName, itemName, quantity FROM userInventory 
              WHERE userId = ? 
@@ -328,7 +315,6 @@ async function handleAlGShardConfirmation(interaction) {
             });
         }
 
-        // Consume the shard
         await run(
             `UPDATE userInventory SET quantity = quantity - 1 WHERE userId = ? AND itemName = 'alGShard(P)'`,
             [userId]
@@ -339,22 +325,18 @@ async function handleAlGShardConfirmation(interaction) {
             [userId]
         );
 
-        // FIXED: Remove 1 of the original fumo using the ID we found
         if (originalFumo.quantity > 1) {
             await run(
                 `UPDATE userInventory SET quantity = quantity - 1 WHERE id = ?`,
                 [originalFumo.id]
             );
         } else {
-            // If quantity is 1, delete the entire row
             await run(
                 `DELETE FROM userInventory WHERE id = ?`,
                 [originalFumo.id]
             );
         }
 
-        // Create the alG version
-        // IMPORTANT: Use the EXACT fumoName from the original for consistency
         const baseFumoName = originalFumo.fumoName;
         const alGFumoName = `${baseFumoName}[🌟alG]`;
 
@@ -399,7 +381,6 @@ async function handleAlGShardCancellation(interaction) {
 async function handleAlGShardBack(interaction) {
     const userId = interaction.user.id;
     
-    // Recreate the initial rarity selection menu
     try {
         const rarities = ['LEGENDARY', 'MYTHICAL', 'EXCLUSIVE', '???', 'ASTRAL', 'CELESTIAL', 'INFINITE', 'ETERNAL', 'TRANSCENDENT'];
         

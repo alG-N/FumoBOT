@@ -9,9 +9,6 @@ const REPORT_CHANNEL_ID = '1362826913088799001';
 let ticketCounter = 0;
 const tickets = new Map();
 
-/**
- * Initialize ticket counter
- */
 function initializeTicketSystem() {
     if (fs.existsSync(TICKET_FILE)) {
         ticketCounter = parseInt(fs.readFileSync(TICKET_FILE, 'utf8'), 10);
@@ -21,18 +18,12 @@ function initializeTicketSystem() {
     console.log(`🎟️ Ticket system initialized. Counter: ${ticketCounter}`);
 }
 
-/**
- * Increment and save ticket counter
- */
 function incrementTicketCounter() {
     ticketCounter++;
     fs.writeFileSync(TICKET_FILE, ticketCounter.toString(), 'utf8');
     return ticketCounter;
 }
 
-/**
- * Handle .report command
- */
 async function handleReportCommand(message, client) {
     if (message.author.bot) return;
     if (!message.content.startsWith('.report')) return;
@@ -83,13 +74,12 @@ async function handleReportCommand(message, client) {
                     "✅ Thank you! We'll look into your issue shortly.\n📩 Please check your DMs so we can reach out to you!"
                 );
 
-                // Set up reply collector for staff responses
                 const replyFilter = response =>
                     response.reference?.messageId === reportMsg.id;
 
                 const replyCollector = reportChannel.createMessageCollector({ 
                     filter: replyFilter, 
-                    time: 7 * 24 * 60 * 60 * 1000 // 7 days
+                    time: 7 * 24 * 60 * 60 * 1000
                 });
 
                 replyCollector.on('collect', async response => {
@@ -146,9 +136,6 @@ async function handleReportCommand(message, client) {
     }
 }
 
-/**
- * Register ticket system
- */
 function registerTicketSystem(client) {
     initializeTicketSystem();
 

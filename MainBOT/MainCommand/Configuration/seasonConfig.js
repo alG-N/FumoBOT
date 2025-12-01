@@ -10,9 +10,9 @@ const SEASONS = {
         name: 'Festival Harvest',
         coinMultiplier: 15,
         gemMultiplier: 15,
-        chance: 0.15, // Buffed from 0.005 to 0.15
-        checkInterval: 1800000, // 30 minutes (buffed from 60 min)
-        duration: 1800000, // 30 minutes
+        chance: 0.15, 
+        checkInterval: 1800000, 
+        duration: 1800000, 
         description: 'Bountiful harvest! Massive farming boost!',
         emoji: '🌾'
     },
@@ -20,9 +20,9 @@ const SEASONS = {
         name: 'Dawn Daylight',
         coinMultiplier: 350,
         gemMultiplier: 350,
-        chance: 0.05, // Buffed from 0.0001 to 0.05
-        checkInterval: 3600000, // 1 hour (buffed from 12 hours)
-        duration: 600000, // 10 minutes
+        chance: 0.05, 
+        checkInterval: 3600000, 
+        duration: 600000,
         description: 'The legendary dawn has arrived!',
         emoji: '🌅'
     },
@@ -30,9 +30,9 @@ const SEASONS = {
         name: 'Stormcharged',
         coinMultiplier: 1/15,
         gemMultiplier: 1/15,
-        chance: 0.08, // Buffed from 0.0005 to 0.08
-        checkInterval: 1800000, // 30 minutes (buffed from 60 min)
-        duration: 900000, // 15 minutes
+        chance: 0.08, 
+        checkInterval: 1800000, 
+        duration: 900000, 
         description: 'Electrical interference reduces farming!',
         emoji: '⚡'
     },
@@ -40,9 +40,9 @@ const SEASONS = {
         name: 'Storm',
         coinMultiplier: 1/5,
         gemMultiplier: 1/5,
-        chance: 0.12, // Buffed from 0.01 to 0.12
-        checkInterval: 1800000, // 30 minutes (buffed from 60 min)
-        duration: 1200000, // 20 minutes
+        chance: 0.12, 
+        checkInterval: 1800000, 
+        duration: 1200000, 
         description: 'Heavy storm reduces farming efficiency!',
         emoji: '🌧️'
     },
@@ -50,20 +50,19 @@ const SEASONS = {
         name: 'Tornado',
         coinMultiplier: 1/30,
         gemMultiplier: 1/30,
-        chance: 0.06, // Buffed from 0.005 to 0.06
-        checkInterval: 1800000, // 30 minutes (buffed from 60 min)
-        duration: 300000, // 5 minutes
+        chance: 0.06, 
+        checkInterval: 1800000, 
+        duration: 300000, 
         description: 'Devastating tornado! Farming severely reduced!',
         emoji: '🌪️'
     },
-    // NEW WEATHER EVENTS
     GOLDEN_HOUR: {
         name: 'Golden Hour',
         coinMultiplier: 50,
         gemMultiplier: 50,
         chance: 0.10,
-        checkInterval: 1800000, // 30 minutes
-        duration: 900000, // 15 minutes
+        checkInterval: 1800000, 
+        duration: 900000,
         description: 'The golden hour shines upon your farm!',
         emoji: '✨'
     },
@@ -72,8 +71,8 @@ const SEASONS = {
         coinMultiplier: 100,
         gemMultiplier: 100,
         chance: 0.05,
-        checkInterval: 2700000, // 45 minutes
-        duration: 600000, // 10 minutes
+        checkInterval: 2700000, 
+        duration: 600000, 
         description: 'Meteors rain down blessings!',
         emoji: '☄️'
     },
@@ -82,8 +81,8 @@ const SEASONS = {
         coinMultiplier: 5,
         gemMultiplier: 25,
         chance: 0.08,
-        checkInterval: 1800000, // 30 minutes
-        duration: 1200000, // 20 minutes
+        checkInterval: 1800000, 
+        duration: 1200000, 
         description: 'The crimson moon empowers gem production!',
         emoji: '🌕'
     },
@@ -92,8 +91,8 @@ const SEASONS = {
         coinMultiplier: 30,
         gemMultiplier: 30,
         chance: 0.07,
-        checkInterval: 2400000, // 40 minutes
-        duration: 900000, // 15 minutes
+        checkInterval: 2400000, 
+        duration: 900000, 
         description: 'The northern lights dance across the sky!',
         emoji: '🌌'
     },
@@ -102,8 +101,8 @@ const SEASONS = {
         coinMultiplier: 75,
         gemMultiplier: 75,
         chance: 0.06,
-        checkInterval: 2100000, // 35 minutes
-        duration: 480000, // 8 minutes
+        checkInterval: 2100000, 
+        duration: 480000, 
         description: 'Intense solar energy supercharges your farm!',
         emoji: '☀️'
     }
@@ -124,7 +123,6 @@ const WEATHER_EVENTS = [
 
 function isWeekend() {
     const day = new Date().getDay();
-    // Weekend includes Friday (5), Saturday (6), Sunday (0)
     return day === 0 || day === 5 || day === 6;
 }
 
@@ -192,7 +190,7 @@ function getWeatherDuration(weatherType) {
 
 function getWeatherCheckInterval(weatherType) {
     const weather = SEASONS[weatherType];
-    return weather?.checkInterval || 1800000; // Default 30 minutes
+    return weather?.checkInterval || 1800000; 
 }
 
 module.exports = {

@@ -24,14 +24,11 @@ module.exports = (client) => {
     client.on("messageCreate", async (message) => {
         if (message.author.bot) return;
 
-        // Command parsing
         const prefixMatch = message.content.match(/^\.b(?:oost|st)(?:\s+details\s+(\w+))?/i);
         if (!prefixMatch) return;
 
         const detailsType = prefixMatch[1]?.toLowerCase();
 
-        // Maintenance mode check
-        // Check for maintenance mode or ban
         const banData = isBanned(message.author.id);
         if ((maintenance === "yes" && message.author.id !== developerID) || banData) {
             let description = '';
@@ -80,7 +77,6 @@ module.exports = (client) => {
         const userId = message.author.id;
         const now = Date.now();
 
-        // --- MysteriousDice boost (per-hour random multiplier) ---
         let mysteriousDiceMultiplier = 1;
         let mysteriousDiceLabel = null;
         try {
@@ -127,7 +123,6 @@ module.exports = (client) => {
                     mysteriousDiceMultiplier = currentHour.multiplier;
                 }
 
-                // Prepare label for display
                 const expiresIn = mysteriousDiceBoost.expiresAt - now;
                 const formatTime = (ms) => {
                     if (!ms || ms === Infinity) return "∞ - Permanent";
@@ -149,9 +144,7 @@ module.exports = (client) => {
             mysteriousDiceMultiplier = 1;
             mysteriousDiceLabel = null;
         }
-        // ---------------------------------------------------------
 
-        // --- TimeClock(L) boost (summon cooldown reduction) ---
         let timeClockCooldownLabel = null;
         try {
             const timeClockBoost = await new Promise(resolve => {
@@ -163,7 +156,6 @@ module.exports = (client) => {
             });
 
             if (timeClockBoost && timeClockBoost.expiresAt > now) {
-                // Summon speed x2 means cooldown is halved (50% reduction)
                 const expiresIn = timeClockBoost.expiresAt - now;
                 const formatTime = (ms) => {
                     if (!ms || ms === Infinity) return "∞ - Permanent";
@@ -184,9 +176,7 @@ module.exports = (client) => {
         } catch (e) {
             timeClockCooldownLabel = null;
         }
-        // -------------------------------------------------------
 
-        // Query boosts for the user
         db.all(
             `SELECT type, source, multiplier, expiresAt, uses
              FROM activeBoosts
@@ -199,7 +189,6 @@ module.exports = (client) => {
                 }
 
                 if (!rows || rows.length === 0) {
-                    // If MysteriousDice or TimeClock(L) is active, show it even if no other boosts
                     if (mysteriousDiceLabel || timeClockCooldownLabel) {
                         const embed = new EmbedBuilder()
                             .setTitle("🚀 Active Boosts")
@@ -214,7 +203,6 @@ module.exports = (client) => {
                     return message.reply("🛑 You have no active boosts at the moment.").catch(() => { });
                 }
 
-                // Group boosts by type
                 const boostsByType = {
                     coin: [],
                     gem: [],
@@ -223,14 +211,12 @@ module.exports = (client) => {
                     cooldown: []
                 };
 
-                // For total calculations
                 const totalBoosts = {
                     coin: 1,
                     gem: 1,
                     luckEvery10: 1,
                 };
 
-                // Helper to format time
                 const formatTime = (ms) => {
                     if (!ms || ms === Infinity) return "∞ - Permanent";
                     const totalSec = Math.floor(ms / 1000);
@@ -246,7 +232,6 @@ module.exports = (client) => {
                     return timeString.trim();
                 };
 
-                // Helper to format total boost
                 const formatTotalBoost = (total) => {
                     const percent = Math.round(total * 100);
                     const sign = percent >= 100 ? "+" : (percent < 100 ? "-" : "");
@@ -254,7 +239,6 @@ module.exports = (client) => {
                     return `${sign}${effective}%`;
                 };
 
-                // Process each boost
                 rows.forEach(({ type, source, multiplier, expiresAt, uses }) => {
                     const timeLeft = expiresAt ? formatTime(expiresAt - now) : "∞ - Permanent";
                     if (type === "coin" || type === "gem") {
@@ -266,7 +250,6 @@ module.exports = (client) => {
                         boostsByType[type].push(label);
                         if (type in totalBoosts) totalBoosts[type] *= multiplier;
                     } else if (type === "luck" || type === "luckEvery10") {
-                        // Skip MysteriousDice here, handled above
                         if (source === "MysteriousDice") return;
                         const prefix = type === "luckEvery10" ? "every 10 rolls" : "total";
                         const label = `• x${multiplier} Luck Boost (${prefix}) from **${source}** (${timeLeft})`;
@@ -284,21 +267,17 @@ module.exports = (client) => {
                         const label = `• -${cooldownReduction}% Summon Cooldown from **${source}** (${timeLeft})`;
                         boostsByType.cooldown.push(label);
                     } else if (type === "summonSpeed" && source === "TimeClock") {
-                        // Already handled above, skip here
                         return;
                     }
                 });
 
-                // Add MysteriousDice boost to luck section if active
                 if (mysteriousDiceLabel) {
                     boostsByType.luck.push(mysteriousDiceLabel);
                 }
-                // Add TimeClock(L) cooldown boost to cooldown section if active
                 if (timeClockCooldownLabel) {
                     boostsByType.cooldown.push(timeClockCooldownLabel);
                 }
 
-                // Feature: Show details for a specific boost type
                 if (detailsType) {
                     const validTypes = {
                         coin: "🪙 Coin Boosts",
@@ -324,7 +303,6 @@ module.exports = (client) => {
                     return message.reply({ embeds: [embed] }).catch(() => { });
                 }
 
-                // Main embed for all boosts
                 const embed = new EmbedBuilder()
                     .setTitle("🚀 Active Boosts")
                     .setColor("#FFD700")

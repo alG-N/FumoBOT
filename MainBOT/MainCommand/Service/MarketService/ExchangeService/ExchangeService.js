@@ -107,7 +107,6 @@ async function handleExchangeCommand(message, args) {
 }
 
 async function handleExchangeInteraction(interaction) {
-    // Parse the custom ID using the helper function
     const parsed = parseCustomId(interaction.customId);
     const { action, userId, additionalData } = parsed;
     
@@ -118,7 +117,6 @@ async function handleExchangeInteraction(interaction) {
         });
     }
 
-    // Extract data from the parsed custom ID
     const { t: type, a: amount, ta: taxedAmount, r: result, tr: taxRate } = additionalData;
     
     if (interaction.user.id !== userId) {

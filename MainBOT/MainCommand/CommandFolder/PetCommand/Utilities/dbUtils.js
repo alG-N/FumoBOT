@@ -25,7 +25,6 @@ const dbRun = (db, sql, params = []) => {
     });
 };
 
-// Specific pet queries
 const getUserEggs = (db, userId) => {
     return dbAll(db, 
         `SELECT name, COUNT(*) as count FROM petInventory 

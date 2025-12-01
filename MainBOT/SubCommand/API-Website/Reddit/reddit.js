@@ -3,14 +3,13 @@ const axios = require('axios');
 const { Buffer } = require('buffer');
 require('dotenv').config({ path: __dirname + '/.env' });
 
-// Reddit API credentials
 const clientId = process.env.CLIENT_ID;
 const secret = process.env.SECRET_KEY;
 
 const userPostsMap = new Map();
-const userGalleryState = new Map(); // Track gallery pagination state
-const userPageState = new Map(); // Track which page user is viewing
-const userSortState = new Map(); // Track sort type for each user
+const userGalleryState = new Map(); 
+const userPageState = new Map(); 
+const userSortState = new Map(); 
 
 async function getAccessToken() {
     const auth = Buffer.from(`${clientId}:${secret}`).toString('base64');
@@ -31,7 +30,6 @@ async function getAccessToken() {
     }
 }
 
-// Live search/autocomplete handler for subreddit names
 async function autocomplete(interaction) {
     console.log('📝 Reddit autocomplete called');
     const focused = interaction.options.getFocused();
@@ -109,11 +107,9 @@ async function fetchRedditData(subreddit, sortBy = 'top', limit = 5) {
             return null;
         }
 
-        // Build the endpoint based on sort type
         let endpoint = `https://oauth.reddit.com/r/${subreddit}/${sortBy}`;
         let params = { limit: limit };
 
-        // Add time parameter for 'top' sort
         if (sortBy === 'top') {
             params.t = 'day';
         }
@@ -160,11 +156,9 @@ async function fetchRedditData(subreddit, sortBy = 'top', limit = 5) {
                 isVideo = true;
             }
 
-            // Get selftext (text content)
             let selftext = postData.selftext || '';
             let selftextHtml = postData.selftext_html || '';
 
-            // Detect content type
             let contentType = 'text';
             if (isVideo) contentType = 'video';
             else if (galleryImages.length > 0) contentType = 'gallery';
@@ -227,7 +221,6 @@ async function sendTopPostsEmbed(interaction, subreddit, posts, sortBy = 'top', 
     const totalPosts = posts.length;
     const totalPages = Math.ceil(totalPosts / POSTS_PER_PAGE);
     
-    // Get posts for current page
     const startIdx = currentPage * POSTS_PER_PAGE;
     const endIdx = Math.min(startIdx + POSTS_PER_PAGE, totalPosts);
     const pagePosts = posts.slice(startIdx, endIdx);
@@ -278,14 +271,11 @@ async function sendTopPostsEmbed(interaction, subreddit, posts, sortBy = 'top', 
 
     embed.addFields(fields);
 
-    // Create action rows
     const actionRows = [];
     
-    // Post selection buttons
     const postButtonRows = createPostButtons(pagePosts.length, startIdx, interaction.user.id);
     actionRows.push(...postButtonRows);
     
-    // Add pagination buttons if more than 5 posts
     if (totalPosts > POSTS_PER_PAGE) {
         const paginationRow = createPaginationButtons(currentPage, totalPages, interaction.user.id);
         actionRows.push(paginationRow);
@@ -398,14 +388,12 @@ async function showPostDetails(interaction, post, postIndex, userId, isUpdate = 
             .setFooter({ text: `r/${post.permalink.split('/')[4]}${post.nsfw ? ' • NSFW' : ''}` })
             .setTimestamp(post.created ? new Date(post.created * 1000) : null);
 
-        // Statistics field
         const statsField = {
             name: '📊 Statistics',
             value: `👍 ${formatNumber(post.upvotes)} upvotes\n💬 ${formatNumber(post.comments)} comments\n🏆 ${post.awards} awards`,
             inline: true
         };
 
-        // Create back button for all post types
         const backButton = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId(`back_to_list_${userId}`)
@@ -414,7 +402,6 @@ async function showPostDetails(interaction, post, postIndex, userId, isUpdate = 
                 .setEmoji('🔙')
         );
 
-        // Handle different content types
         if (post.contentType === 'video' && post.video) {
             console.log('🎹 Processing video post');
             embed.addFields([
@@ -426,7 +413,6 @@ async function showPostDetails(interaction, post, postIndex, userId, isUpdate = 
                 }
             ]);
 
-            // Add text content if available
             if (post.selftext && post.selftext.trim()) {
                 const truncated = truncateText(post.selftext, 1000);
                 embed.addFields({
@@ -436,7 +422,6 @@ async function showPostDetails(interaction, post, postIndex, userId, isUpdate = 
                 });
             }
 
-            // Try to show video thumbnail if available
             if (post.image) {
                 embed.setImage(post.image);
             }
@@ -447,7 +432,6 @@ async function showPostDetails(interaction, post, postIndex, userId, isUpdate = 
 
         } else if (post.contentType === 'gallery' && post.gallery.length > 0) {
             console.log('🖼️ Processing gallery post');
-            // Initialize gallery state
             const stateKey = `${userId}_${postIndex}`;
             if (!userGalleryState.has(stateKey)) {
                 userGalleryState.set(stateKey, 0);
@@ -468,7 +452,6 @@ async function showPostDetails(interaction, post, postIndex, userId, isUpdate = 
                 }
             ]);
 
-            // Add text content if available
             if (post.selftext && post.selftext.trim()) {
                 const truncated = truncateText(post.selftext, 800);
                 embed.addFields({
@@ -489,7 +472,6 @@ async function showPostDetails(interaction, post, postIndex, userId, isUpdate = 
             embed.setImage(post.image);
             embed.addFields([statsField]);
 
-            // Add text content if available
             if (post.selftext && post.selftext.trim()) {
                 const truncated = truncateText(post.selftext, 1500);
                 embed.addFields({
@@ -505,7 +487,6 @@ async function showPostDetails(interaction, post, postIndex, userId, isUpdate = 
 
         } else {
             console.log('📝 Processing text post');
-            // Text post
             embed.addFields([statsField]);
 
             if (post.selftext && post.selftext.trim()) {
@@ -616,8 +597,8 @@ module.exports = {
         }
 
         userPostsMap.set(interaction.user.id, posts);
-        userPageState.set(interaction.user.id, 0); // Initialize to page 0
-        userSortState.set(interaction.user.id, sortBy); // Store sort type
+        userPageState.set(interaction.user.id, 0); 
+        userSortState.set(interaction.user.id, sortBy); 
         await sendTopPostsEmbed(interaction, subreddit, posts, sortBy, 0);
     },
 
@@ -626,7 +607,6 @@ module.exports = {
 
         if (!interaction.isButton()) return;
 
-        // Handle pagination buttons
         const pageMatch = interaction.customId.match(/^page_(prev|next)_(\d+)$/);
         if (pageMatch) {
             const action = pageMatch[1];
@@ -657,10 +637,8 @@ module.exports = {
 
                 userPageState.set(interaction.user.id, currentPage);
 
-                // Extract subreddit from first post
                 const subreddit = userPosts[0].permalink.split('/')[4];
                 
-                // Get sortBy from stored state
                 const sortBy = userSortState.get(interaction.user.id) || 'top';
                 
                 await sendTopPostsEmbed(interaction, subreddit, userPosts, sortBy, currentPage);
@@ -675,7 +653,6 @@ module.exports = {
             return;
         }
 
-        // Handle post detail buttons
         const postMatch = interaction.customId.match(/^show_post_(\d+)_(\d+)$/);
         if (postMatch) {
             const index = parseInt(postMatch[1]);
@@ -708,7 +685,6 @@ module.exports = {
             return;
         }
 
-        // Handle gallery navigation buttons
         const galleryMatch = interaction.customId.match(/^gallery_(prev|next|close)_(\d+)_(\d+)$/);
         if (galleryMatch) {
             const action = galleryMatch[1];
@@ -794,7 +770,6 @@ module.exports = {
             return;
         }
 
-        // Handle back to list button
         const backMatch = interaction.customId.match(/^back_to_list_(\d+)$/);
         if (backMatch) {
             const buttonUserId = backMatch[1];
@@ -807,7 +782,6 @@ module.exports = {
             try {
                 await interaction.deferUpdate();
 
-                // Clear gallery state for all posts of this user
                 const userPosts = userPostsMap.get(interaction.user.id);
                 if (userPosts) {
                     for (let i = 0; i < userPosts.length; i++) {
@@ -816,10 +790,8 @@ module.exports = {
                     }
                 }
 
-                // Get current page state
                 const currentPage = userPageState.get(interaction.user.id) || 0;
 
-                // Rebuild the posts list embed
                 if (userPosts && userPosts.length > 0) {
                     const subreddit = userPosts[0].permalink.split('/')[4];
                     const sortBy = userSortState.get(interaction.user.id) || 'top';

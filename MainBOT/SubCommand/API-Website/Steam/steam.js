@@ -10,7 +10,6 @@ const {
 const { maintenance, developerID } = require("../../../MainCommand/Configuration/maintenanceConfig.js");
 const { isBanned } = require("../../../MainCommand/Administrator/BannedList/BanUtils.js");
 
-// Optional: Add your Steam Web API key here (get it from https://steamcommunity.com/dev/apikey)
 const STEAM_API_KEY = process.env.STEAM_API_KEY || '';
 
 module.exports = {
@@ -38,7 +37,6 @@ module.exports = {
         ),
 
     async execute(interaction) {
-        // Check for bans and maintenance
         const banData = await isBanned(interaction.user.id);
 
         if ((maintenance === "yes" && interaction.user.id !== developerID) || banData) {
@@ -85,7 +83,6 @@ module.exports = {
             return interaction.reply({ embeds: [embed], ephemeral: true });
         }
 
-        // Handle subcommands
         const subcommand = interaction.options.getSubcommand();
 
         if (subcommand === 'sale') {
@@ -94,7 +91,6 @@ module.exports = {
     }
 };
 
-// Fetch game details from SteamSpy
 async function getSteamSpyData(appId) {
     try {
         const response = await fetch(`https://steamspy.com/api.php?request=appdetails&appid=${appId}`);
@@ -107,7 +103,6 @@ async function getSteamSpyData(appId) {
     }
 }
 
-// Fetch USD price details from Steam Store API
 async function getUSDPriceDetails(appId) {
     try {
         const response = await fetch(`https://store.steampowered.com/api/appdetails?appids=${appId}&cc=us&filters=price_overview`);
@@ -130,7 +125,6 @@ async function getUSDPriceDetails(appId) {
     }
 }
 
-// Format owners count from SteamSpy
 function formatOwners(ownersString) {
     if (!ownersString) return 'Unknown';
     const parts = ownersString.split('..');
@@ -158,20 +152,16 @@ async function handleSaleCommand(interaction) {
     try {
         await interaction.editReply({ content: '🔍 Searching Steam store for games on sale...' });
 
-        // Use Steam Search/Browse API to get TONS of games on sale
         let allGames = [];
 
-        // METHOD: Steam search with specials filter (this can return 100s of games)
         try {
-            // Fetch multiple pages of results
-            const maxResults = 300; // Fetch up to 300 games
+            const maxResults = 300; 
             const resultsPerPage = 100;
             const pages = Math.ceil(maxResults / resultsPerPage);
 
             for (let page = 0; page < pages; page++) {
                 const start = page * resultsPerPage;
 
-                // Steam search API with specials filter
                 const searchUrl = `https://store.steampowered.com/search/results/?query&start=${start}&count=${resultsPerPage}&dynamic_data=&sort_by=_ASC&specials=1&snr=1_7_7_151_7&filter=topsellers&infinite=1`;
 
                 const response = await fetch(searchUrl, {
@@ -188,7 +178,6 @@ async function handleSaleCommand(interaction) {
 
                 const html = await response.text();
 
-                // Parse the JSON from the response
                 let data;
                 try {
                     data = JSON.parse(html);
@@ -199,18 +188,15 @@ async function handleSaleCommand(interaction) {
 
                 if (!data.results_html) break;
 
-// DEBUG: Log a sample of the HTML to see the actual structure
                 if (page === 0) {
                     const sampleHTML = data.results_html.substring(0, 3000);
                     console.log(`[DEBUG] Sample HTML structure:\n${sampleHTML}\n`);
                 }
                 
-                // Extract game data from HTML using regex - IMPROVED PATTERNS
                 const gameMatches = [...data.results_html.matchAll(/data-ds-appid="(\d+)"/g)];
                 const nameMatches = [...data.results_html.matchAll(/<span class="title">([^<]+)<\/span>/g)];
                 const discountMatches = [...data.results_html.matchAll(/<div class="discount_pct">-(\d+)%<\/div>/g)];
                 
-                // More flexible price patterns that handle various formats
                 const originalPriceMatches = [...data.results_html.matchAll(/<div class="discount_original_price">([^<]+)<\/div>/g)];
                 const finalPriceMatches = [...data.results_html.matchAll(/<div class="discount_final_price">([^<]+)<\/div>/g)];
                 
@@ -221,7 +207,6 @@ async function handleSaleCommand(interaction) {
                 console.log(`  - Found ${originalPriceMatches.length} original prices`);
                 console.log(`  - Found ${finalPriceMatches.length} final prices`);
                 
-                // DEBUG: Show first few price matches
                 if (page === 0 && originalPriceMatches.length > 0) {
                     console.log(`[DEBUG] First 3 original prices: ${originalPriceMatches.slice(0, 3).map(m => m[1]).join(', ')}`);
                     console.log(`[DEBUG] First 3 final prices: ${finalPriceMatches.slice(0, 3).map(m => m[1]).join(', ')}`);
@@ -232,15 +217,12 @@ async function handleSaleCommand(interaction) {
                     const gameName = nameMatches[i] ? nameMatches[i][1] : `Game ${gameId}`;
                     
                     if (discountMatches[i] && originalPriceMatches[i] && finalPriceMatches[i]) {
-                        // Parse prices - handle different formats
                         let originalPrice = originalPriceMatches[i][1].trim();
                         let finalPrice = finalPriceMatches[i][1].trim();
                         
-                        // Remove currency symbols and extract numbers
                         originalPrice = parseFloat(originalPrice.replace(/[^0-9.]/g, ''));
                         finalPrice = parseFloat(finalPrice.replace(/[^0-9.]/g, ''));
                         
-                        // Handle "Free" games
                         if (isNaN(finalPrice) || finalPrice === 0) {
                             finalPrice = 0;
                         }
@@ -253,14 +235,11 @@ async function handleSaleCommand(interaction) {
                             final_price: finalPrice
                         };
                         
-                        // fix price remember 
-
                         console.log(`  ✓ Game ${i + 1}: [${gameId}] ${gameName} - ${gameData.discount_percent}% off (${gameData.original_price} → ${gameData.final_price})`);
                         allGames.push(gameData);
                     } else {
                         console.log(`  ✗ Game ${i + 1}: [${gameId}] ${gameName} - MISSING DATA (discount: ${!!discountMatches[i]}, orig: ${!!originalPriceMatches[i]}, final: ${!!finalPriceMatches[i]})`);
                         
-                        // DEBUG: Show what we got for this game
                         if (page === 0 && i < 3) {
                             console.log(`     DEBUG - Discount: ${discountMatches[i] ? discountMatches[i][1] : 'NONE'}`);
                             console.log(`     DEBUG - Original: ${originalPriceMatches[i] ? originalPriceMatches[i][1] : 'NONE'}`);
@@ -271,7 +250,6 @@ async function handleSaleCommand(interaction) {
                 
                 console.log(`[Steam Search] Page ${page + 1}: Successfully parsed ${allGames.length - (page * resultsPerPage)} games from this page`);
 
-                // Small delay between pages
                 if (page < pages - 1) {
                     await new Promise(resolve => setTimeout(resolve, 500));
                 }
@@ -280,7 +258,6 @@ async function handleSaleCommand(interaction) {
             console.log('[Steam Search API Error]', error.message);
         }
 
-        // Fallback: If search fails, use featured API
         if (allGames.length === 0) {
             try {
                 const featuredResponse = await fetch('https://store.steampowered.com/api/featuredcategories?cc=us&l=english');
@@ -300,7 +277,6 @@ async function handleSaleCommand(interaction) {
             }
         }
 
-        // Remove duplicates
         const uniqueGames = [];
         const seenIds = new Set();
         for (const game of allGames) {
@@ -320,7 +296,6 @@ async function handleSaleCommand(interaction) {
             });
         }
 
-        // Filter games by discount percentage
         let filteredGames = allGames.filter(game => {
             if (minDiscount === 0) {
                 return game.discount_percent === 100;
@@ -329,7 +304,6 @@ async function handleSaleCommand(interaction) {
             }
         });
 
-        // Sort by discount percentage (highest first)
         filteredGames.sort((a, b) => b.discount_percent - a.discount_percent);
 
         console.log(`[Steam Sale] ${filteredGames.length} games match ${minDiscount}% discount filter`);
@@ -347,8 +321,6 @@ async function handleSaleCommand(interaction) {
             return interaction.editReply({ embeds: [embed] });
         }
 
-        // Since we already have prices from search, we don't need to fetch them again
-        // But we'll verify they're in USD format and structure them properly
         const enrichedGames = filteredGames.map(game => ({
             ...game,
             usdPrice: {
@@ -373,7 +345,6 @@ async function handleSaleCommand(interaction) {
 
         filteredGames = enrichedGames;
 
-        // If detailed mode, fetch SteamSpy data
         if (showDetailed) {
             await interaction.editReply({ content: '📊 Fetching detailed stats from SteamSpy...' });
 
@@ -389,12 +360,10 @@ async function handleSaleCommand(interaction) {
             }
         }
 
-        // Pagination setup
         const ITEMS_PER_PAGE = 5;
         const totalPages = Math.ceil(filteredGames.length / ITEMS_PER_PAGE);
         let currentPage = 0;
 
-        // Function to generate embed for current page
         const generateEmbed = (page) => {
             const start = page * ITEMS_PER_PAGE;
             const end = start + ITEMS_PER_PAGE;
@@ -413,7 +382,6 @@ async function handleSaleCommand(interaction) {
                     text: `Steam Deal Hunter • Prices in USD • Page ${page + 1}/${totalPages}${showDetailed && page === 0 ? ' • Enhanced with SteamSpy' : ''}`
                 });
 
-            // Add fields for games on current page
             gamesOnPage.forEach(game => {
                 const originalPrice = game.usdPrice.initial.toFixed(2);
                 const finalPrice = game.usdPrice.final.toFixed(2);
@@ -428,7 +396,6 @@ async function handleSaleCommand(interaction) {
 
                 let additionalInfo = '';
 
-                // Add SteamSpy data if available
                 if (showDetailed && game.owners) {
                     const totalReviews = (game.positive || 0) + (game.negative || 0);
                     const rating = totalReviews > 0
@@ -452,7 +419,6 @@ async function handleSaleCommand(interaction) {
             return embed;
         };
 
-        // Function to generate buttons
         const generateButtons = (page) => {
             const row = new ActionRowBuilder();
 
@@ -483,7 +449,6 @@ async function handleSaleCommand(interaction) {
             return row;
         };
 
-        // Send initial message with buttons
         const embed = generateEmbed(currentPage);
         const message = totalPages > 1
             ? await interaction.editReply({ content: null, embeds: [embed], components: [generateButtons(currentPage)] })
@@ -491,10 +456,9 @@ async function handleSaleCommand(interaction) {
 
         if (totalPages <= 1) return;
 
-        // Create button collector
         const collector = message.createMessageComponentCollector({
             componentType: ComponentType.Button,
-            time: 300000 // 5 minutes
+            time: 300000 
         });
 
         collector.on('collect', async (buttonInteraction) => {

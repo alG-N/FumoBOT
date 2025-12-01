@@ -20,7 +20,6 @@ const client = new Client({
 client.setMaxListeners(150);
 const { maintenance, developerID } = require("../../../Configuration/maintenanceConfig");
 const { isBanned } = require('../../../Administrator/BannedList/BanUtils');
-// Utility: Async wrapper for db.run and db.get
 const dbRun = (sql, params = []) =>
     new Promise((resolve, reject) => db.run(sql, params, function (err) {
         if (err) reject(err);
@@ -42,8 +41,6 @@ module.exports = (client) => {
         if (message.author.bot) return;
         if (!message.content.startsWith('.sell') && message.content !== '.s' && !message.content.startsWith('.s ')) return;
 
-        // Maintenance check
-        // Check for maintenance mode or ban
         const banData = isBanned(message.author.id);
         if ((maintenance === "yes" && message.author.id !== developerID) || banData) {
             let description = '';
@@ -89,7 +86,6 @@ module.exports = (client) => {
             return message.reply({ embeds: [embed] });
         }
 
-        // --- Constants ---
         const userId = message.author.id;
         const args = message.content.split(' ').slice(1);
         const coinRewards = {
@@ -107,7 +103,6 @@ module.exports = (client) => {
         const shinyTag = '[✨SHINY]';
         const algTag = '[🌟alG]';
 
-        // --- Helpers ---
         const checkRarityFormat = rarity => {
             if (!allRarities.includes(rarity)) {
                 message.reply({
@@ -195,12 +190,9 @@ module.exports = (client) => {
             }
         };
 
-        // --- Command Parsing ---
-        // Regex for .sell <fumoName>(Rarity)[Tag] quantity
         const regexWithTag = /(.+?)\((.+?)\)\s*(\[✨SHINY\]|\[🌟alG\])?\s*(\d+)/i;
         const match = args.join(' ').match(regexWithTag);
 
-        // Bulk: .sell RARITY[Tag]
         let bulkRarity = null, bulkTag = null;
         if (!match && args.length === 1) {
             const bulkMatch = args[0].match(/^([A-Z\?]+)(\[✨SHINY\]|\[🌟alG\])?$/i);
@@ -211,7 +203,6 @@ module.exports = (client) => {
         }
 
         try {
-            // --- Single Fumo sale ---
             if (match) {
                 let fumoBase = match[1].trim();
                 let rarity = match[2].trim();
@@ -220,7 +211,6 @@ module.exports = (client) => {
                 let fumoName = fumoBase + `(${rarity})`;
                 if (tag) fumoName += tag;
 
-                // Prevent selling [✨SHINY] or [🌟alG] unless explicitly specified
                 if ((args.join(' ').toUpperCase().includes(shinyTag.toUpperCase()) || args.join(' ').toUpperCase().includes(algTag.toUpperCase()))
                     && !fumoName.endsWith(shinyTag) && !fumoName.endsWith(algTag)) {
                     return message.reply('To sell a [✨SHINY] or [🌟alG] Fumo, you must specify the tag in your command, e.g. `.sell Reimu(Common)[✨SHINY] 1` or `.sell Common[🌟alG]`.');
@@ -279,7 +269,6 @@ module.exports = (client) => {
                 });
             }
 
-            // --- Bulk sale by rarity (with optional tag) ---
             if (args.length === 1 && bulkRarity) {
                 let rarity = bulkRarity;
                 let tag = bulkTag;
@@ -287,7 +276,6 @@ module.exports = (client) => {
                 if (!checkRarityFormat(rarity)) return;
                 if (unsellableRarities.includes(rarity)) return message.reply(`You cannot sell Fumos of ${rarity} rarity.`);
 
-                // Prevent selling [✨SHINY] or [🌟alG] in bulk unless explicitly specified
                 if ((args[0].toUpperCase().includes(shinyTag.toUpperCase()) || args[0].toUpperCase().includes(algTag.toUpperCase()))
                     && !args[0].endsWith(shinyTag) && !args[0].endsWith(algTag)) {
                     return message.reply('To sell [✨SHINY] or [🌟alG] Fumos, you must specify the tag in your command, e.g. `.sell Common[✨SHINY]` or `.sell Common[🌟alG]`.');
@@ -354,7 +342,6 @@ module.exports = (client) => {
                 });
             }
 
-            // --- Invalid format ---
             return message.reply({
                 embeds: [
                     new EmbedBuilder()
@@ -382,15 +369,4 @@ module.exports = (client) => {
     });
 };
 
-/*
- * Improvements/Features:
- * - Async/await for better readability and error handling.
- * - Uses reactions (✅/❌) for confirmation instead of text, making UX faster and less error-prone.
- * - Handles both coins and gems rewards.
- * - Rolls back DB transaction on error.
- * - Utility functions for DB and repeated logic.
- * - Logs errors with context for easier debugging.
- * - Ignores bot messages.
- * - All user input is trimmed and validated.
- * - Modular helpers for future extension.
- */
+

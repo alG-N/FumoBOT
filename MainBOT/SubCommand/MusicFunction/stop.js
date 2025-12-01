@@ -1,6 +1,6 @@
 const { SlashCommandBuilder } = require("discord.js");
 const { getVoiceConnection } = require("@discordjs/voice");
-const { queues, player } = require("./play"); // assuming you export queues
+const { queues, player } = require("./play"); 
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -11,7 +11,6 @@ module.exports = {
         try {
             const guildId = interaction.guild.id;
 
-            // Always try to destroy the voice connection
             const connection = getVoiceConnection(guildId);
             if (connection) {
                 try {
@@ -22,7 +21,6 @@ module.exports = {
                 }
             }
 
-            // Try to stop the player if it exists
             if (player) {
                 try {
                     player.stop(true);
@@ -33,7 +31,6 @@ module.exports = {
                 }
             }
 
-            // Clear the queue if it exists
             if (queues && queues.has(guildId)) {
                 queues.delete(guildId);
                 console.log("[Stop] Cleared queue.");

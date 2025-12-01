@@ -1,4 +1,3 @@
-// Pet ability definitions - each pet has unique ability scaling
 const PET_ABILITIES = {
     Dog: {
         abilityName: "Loyal Companion",
@@ -114,7 +113,6 @@ const PET_ABILITIES = {
     }
 };
 
-// Egg gacha pools
 const EGG_POOLS = {
     CommonEgg: [
         { name: "Dog", rarity: "Common", chance: 33 },
@@ -137,20 +135,12 @@ const EGG_POOLS = {
     ]
 };
 
-// Egg hatch times
 const EGG_DATA = {
-    // Real data
-    // CommonEgg: { time: 10 * 10 * 1000, emoji: "🥚", rarity: "Common" },
-    // RareEgg: { time: 90 * 60 * 1000, emoji: "🐣", rarity: "Rare" },
-    // DivineEgg: { time: 6 * 60 * 60 * 1000, emoji: "🌟", rarity: "Divine" }
-
-    CommonEgg: { time: 10 * 1000, emoji: "🥚", rarity: "Common" },
-    RareEgg: { time: 10 * 1000, emoji: "🐣", rarity: "Rare" },
-    DivineEgg: { time: 10 * 1000, emoji: "🌟", rarity: "Divine" }
-
+    CommonEgg: { time: 10 * 10 * 1000, emoji: "🥚", rarity: "Common" },
+    RareEgg: { time: 90 * 60 * 1000, emoji: "🐣", rarity: "Rare" },
+    DivineEgg: { time: 6 * 60 * 60 * 1000, emoji: "🌟", rarity: "Divine" }
 };
 
-// Hunger system by rarity
 const HUNGER_CONFIG = {
     Common: { max: 1500, duration: 12 },
     Rare: { max: 1800, duration: 15 },
@@ -160,7 +150,6 @@ const HUNGER_CONFIG = {
     Divine: { max: 4320, duration: 36 }
 };
 
-// Rarity colors for embeds
 const RARITY_COLORS = {
     Common: 0xA0A0A0,
     Rare: 0x3498DB,
@@ -170,7 +159,6 @@ const RARITY_COLORS = {
     Divine: 0xFFD700
 };
 
-// Rarity tiers for calculations
 const RARITY_TIERS = ['Common', 'Rare', 'Epic', 'Legendary', 'Mythical', 'Divine'];
 
 module.exports = {

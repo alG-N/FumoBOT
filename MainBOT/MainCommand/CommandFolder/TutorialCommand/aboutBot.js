@@ -23,7 +23,6 @@ const { isBanned } = require('../../Administrator/BannedList/BanUtils');
 module.exports = (client) => {
     client.on("messageCreate", async (message) => {
         if (message.author.bot || (message.content !== '.credit' && !message.content.startsWith('.credit ') && message.content !== '.cr' && !message.content.startsWith('.cr '))) return;
-        // Check for maintenance mode or ban
         const banData = isBanned(message.author.id);
         if ((maintenance === "yes" && message.author.id !== developerID) || banData) {
             let description = '';

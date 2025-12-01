@@ -11,61 +11,52 @@ const PET_NAMES = [
     'Cookie', 'Mia', 'Emma', 'Honey', 'Gracie', 'Ellie', 'Maya', 'Athena'
 ];
 
-// Generate random pet name (1/1000 chance for alterGolden)
 function generatePetName() {
     const roll = Math.random();
-    if (roll < 0.001) { // 1/1000 chance
+    if (roll < 0.001) {
         return 'alterGolden';
     }
     return PET_NAMES[Math.floor(Math.random() * PET_NAMES.length)];
 }
 
-// Check if pet has alterGolden bonus
 function hasAlterGoldenBonus(petName) {
     return petName === 'alterGolden';
 }
 
-// Apply alterGolden multiplier to stats
 function applyAlterGoldenBonus(pet) {
     if (hasAlterGoldenBonus(pet.petName)) {
         return {
             ...pet,
             weight: pet.weight * 2,
-            quality: Math.min(pet.quality * 2, 5), // Cap at 5
+            quality: Math.min(pet.quality * 2, 5),
             _hasAlterGolden: true
         };
     }
     return pet;
 }
 
-// Calculate XP required to age up
 function getXpRequired(level, age, rarity) {
     const rarityIndex = RARITY_TIERS.indexOf(rarity) + 1 || 1;
     const baseXp = 100;
     return Math.floor(baseXp * Math.pow(age, 1.2) * Math.pow(level, 0.8) * rarityIndex);
 }
 
-// Get max hunger based on rarity
 function getMaxHunger(rarity) {
     return HUNGER_CONFIG[rarity]?.max || HUNGER_CONFIG.Common.max;
 }
 
-// Get hunger duration in hours based on rarity
 function getHungerDuration(rarity) {
     return HUNGER_CONFIG[rarity]?.duration || HUNGER_CONFIG.Common.duration;
 }
 
-// Generate random weight (1.0 to 5.0)
 function getRandomWeight() {
     return parseFloat((Math.random() * 4 + 1).toFixed(2));
 }
 
-// Generate random quality (1.0 to 5.0)
 function getRandomQuality() {
     return parseFloat((Math.random() * 4 + 1).toFixed(2));
 }
 
-// Pick random pet from egg pool
 function pickRandomPet(eggName, eggPools) {
     const pool = eggPools[eggName];
     if (!pool) return null;
@@ -83,14 +74,12 @@ function pickRandomPet(eggName, eggPools) {
     return pool[pool.length - 1];
 }
 
-// Modified calculateBoost with alterGolden bonus
 function calculateBoost(pet) {
     let quality = pet.quality || 1;
     let weight = pet.weight || 1;
     const level = pet.level || 1;
     const age = pet.age || 1;
 
-    // Apply alterGolden bonus
     if (hasAlterGoldenBonus(pet.petName)) {
         quality *= 2;
         weight *= 2;
@@ -101,7 +90,6 @@ function calculateBoost(pet) {
 
     const { stat, base, max, type } = abilityData;
 
-    // Percent or multiplier boosts
     if (type === 'percent' || type === 'multiplier') {
         const factor = ((weight + quality) * Math.log(age + 1) * Math.sqrt(level)) / 20;
         const boost = Math.min(base + factor, max);
@@ -113,7 +101,6 @@ function calculateBoost(pet) {
         };
     }
 
-    // Interval-chance boosts (Bear, PolarBear)
     if (type === 'interval-chance') {
         const chance = Math.min(base + (weight + quality) * Math.sqrt(level), max);
         return {
@@ -124,7 +111,6 @@ function calculateBoost(pet) {
         };
     }
 
-    // Passive boosts (Owl, NightOwl)
     if (type === 'passive') {
         const passive = Math.min(
             base + ((quality + weight) * Math.log(age + 1) * Math.sqrt(level)) / 30, 
@@ -146,9 +132,7 @@ function calculateBoost(pet) {
     return null;
 }
 
-// Update hunger only for EQUIPPED pets
 function updateHunger(pet, db, isEquipped = false) {
-    // Only drain hunger if pet is equipped
     if (!isEquipped) {
         return pet;
     }

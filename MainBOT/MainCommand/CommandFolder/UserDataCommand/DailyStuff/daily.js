@@ -22,14 +22,11 @@ const { maintenance, developerID } = require("../../../Configuration/maintenance
 const { isBanned } = require('../../../Administrator/BannedList/BanUtils');
 module.exports = (client) => {
     client.on('messageCreate', async (message) => {
-        // Ignore bot messages and irrelevant commands
         if (
             message.author.bot ||
             !/^\.d(aily)?(\s|$)/i.test(message.content)
         ) return;
 
-        // Maintenance mode check
-        // Check for maintenance mode or ban
         const banData = isBanned(message.author.id);
         if ((maintenance === "yes" && message.author.id !== developerID) || banData) {
             let description = '';
@@ -103,7 +100,6 @@ module.exports = (client) => {
 
                 let dailyStreak = row.dailyStreak;
 
-                // Reset streak if more than 48 hours have passed
                 if (timeSinceLastBonus > twoDays) {
                     dailyStreak = 1;
                 } else if (timeSinceLastBonus >= oneDay) {
@@ -111,7 +107,6 @@ module.exports = (client) => {
                 }
 
                 if (timeSinceLastBonus >= oneDay) {
-                    // Buffed rewards
                     const rand = Math.random();
                     let bonusCoins = 0,
                         bonusGems = 0,
@@ -152,7 +147,6 @@ module.exports = (client) => {
                         color = '#ff0000';
                     }
 
-                    // Update spiritTokens instead of tickets
                     db.run(
                         `UPDATE userCoins SET coins = coins + ?, gems = gems + ?, lastDailyBonus = ?, dailyStreak = ?, spiritTokens = COALESCE(spiritTokens, 0) + ? WHERE userId = ?`,
                         [bonusCoins, bonusGems, now, dailyStreak, bonusSpiritTokens, message.author.id],
@@ -165,7 +159,6 @@ module.exports = (client) => {
                         }
                     );
 
-                    // Streak Bar
                     const progressBar = '■'.repeat(Math.min(dailyStreak, 7)) + '□'.repeat(Math.max(0, 7 - dailyStreak));
                     const streakText = dailyStreak >= 7 ? `MAX Streak (${dailyStreak} days) 🔥` : `${dailyStreak}/7 days\nKeep going for even better rewards!`;
 
@@ -190,7 +183,6 @@ module.exports = (client) => {
                         console.error("Failed to send daily bonus embed:", err);
                     }
                 } else {
-                    // Calculate remaining time
                     const hours = Math.floor(timeUntilNextBonus / (60 * 60 * 1000));
                     const minutes = Math.floor((timeUntilNextBonus % (60 * 60 * 1000)) / (60 * 1000));
                     const seconds = Math.floor((timeUntilNextBonus % (60 * 1000)) / 1000);

@@ -4,15 +4,11 @@ const { debugLog } = require('../../../Core/logger');
 
 const AUTO_ROLL_STATE_FILE = path.join(__dirname, '../../../Data/autoRollState.json');
 
-/**
- * Save current auto-roll state to file
- * @param {Map} autoRollMap - The current auto-roll map
- */
+
 function saveAutoRollState(normalAutoRollMap, eventAutoRollMap = null) {
     try {
         const stateData = {};
         
-        // Save normal gacha auto-rolls
         for (const [userId, state] of normalAutoRollMap.entries()) {
             if (!stateData[userId]) stateData[userId] = {};
             
@@ -33,7 +29,6 @@ function saveAutoRollState(normalAutoRollMap, eventAutoRollMap = null) {
             };
         }
         
-        // Save event gacha auto-rolls
         if (eventAutoRollMap) {
             for (const [userId, state] of eventAutoRollMap.entries()) {
                 if (!stateData[userId]) stateData[userId] = {};
@@ -76,10 +71,6 @@ function saveAutoRollState(normalAutoRollMap, eventAutoRollMap = null) {
     }
 }
 
-/**
- * Load auto-roll state from file
- * @returns {Object} - Object with userId keys and state values
- */
 function loadAutoRollState() {
     try {
         if (!fs.existsSync(AUTO_ROLL_STATE_FILE)) {
@@ -98,9 +89,6 @@ function loadAutoRollState() {
     }
 }
 
-/**
- * Clear saved auto-roll state file
- */
 function clearAutoRollState() {
     try {
         if (fs.existsSync(AUTO_ROLL_STATE_FILE)) {
@@ -114,10 +102,6 @@ function clearAutoRollState() {
     }
 }
 
-/**
- * Remove a specific user from saved state
- * @param {string} userId - User ID to remove
- */
 function removeUserState(userId) {
     try {
         const stateData = loadAutoRollState();
@@ -142,21 +126,11 @@ function removeUserState(userId) {
     }
 }
 
-/**
- * Get state for a specific user
- * @param {string} userId - User ID
- * @returns {Object|null} - Saved state or null
- */
 function getUserState(userId) {
     const stateData = loadAutoRollState();
     return stateData[userId] || null;
 }
 
-/**
- * Check if a user has saved state
- * @param {string} userId - User ID
- * @returns {boolean}
- */
 function hasUserState(userId) {
     const stateData = loadAutoRollState();
     return !!stateData[userId];

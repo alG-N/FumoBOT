@@ -18,7 +18,6 @@ const db = new sqlite3.Database(dbPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CR
 
   console.log('✅ Connected to the fumos.db database.');
 
-  // Recommended SQLite settings
   db.serialize(() => {
     db.run("PRAGMA busy_timeout = 15000;");
     db.run("PRAGMA journal_mode = WAL;", (err) => {
@@ -28,10 +27,10 @@ const db = new sqlite3.Database(dbPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CR
         console.log("ℹ️ Journal mode set to WAL.");
       }
     });
-    db.run("PRAGMA synchronous = FAST;");            // Fastest writes (less safe) // Normal is alright
+    db.run("PRAGMA synchronous = FAST;");      
     db.run("PRAGMA foreign_keys = ON;");
-    db.run("PRAGMA temp_store = MEMORY;");          // Use RAM for temp data
-    db.run("PRAGMA cache_size = -250000;");         // ~250MB cache in RAM
+    db.run("PRAGMA temp_store = MEMORY;");      
+    db.run("PRAGMA cache_size = -250000;");      
     db.run("PRAGMA wal_checkpoint(FULL);");
   });
 });

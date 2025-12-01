@@ -7,7 +7,6 @@ module.exports = async (client) => {
         try {
             await resumeAllFarmingIntervals();
             
-            // Start the cleanup job
             startCleanupJob();
             
             await logToDiscord(

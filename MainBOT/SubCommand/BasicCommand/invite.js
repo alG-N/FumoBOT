@@ -9,13 +9,11 @@ const { isBanned } = require('../../MainCommand/Administrator/BannedList/BanUtil
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('invite')
-        .setDescription('Invite the bot to your server!'), // ✅ grammar fix
+        .setDescription('Invite the bot to your server!'), 
     async execute(interaction) {
 
-        // ✅ If isBanned() returns a Promise, we need await. (DB? JSON? fs?)
         const banData = await isBanned(interaction.user.id);
 
-        // ✅ Maintenance / ban block
         if ((maintenance === "yes" && interaction.user.id !== developerID) || banData) {
             let description = '';
             let footerText = '';
@@ -27,7 +25,6 @@ module.exports = {
                 description = `You are banned from using this bot.\n\n**Reason:** ${banData.reason || 'No reason provided'}`;
 
                 if (banData.expiresAt) {
-                    // ✅ Ban time formatting — your logic was good
                     const remaining = banData.expiresAt - Date.now();
                     const seconds = Math.floor((remaining / 1000) % 60);
                     const minutes = Math.floor((remaining / (1000 * 60)) % 60);
@@ -61,9 +58,6 @@ module.exports = {
             return interaction.reply({ embeds: [embed], ephemeral: true });
         }
 
-        // ✅ Updated invite URL
-        // ❗ Removed `integration_type=0` — only for App Directory bots
-        // ✅ Added `applications.commands` scope (required for slash commands)
         const inviteURL = `https://discord.com/oauth2/authorize?client_id=1254962096924397569&permissions=182273&scope=bot%20applications.commands`;
 
         let inviteEmbed = new EmbedBuilder()
@@ -74,7 +68,6 @@ module.exports = {
             .setFooter({ text: 'Thank you for choosing FumoBOT!' })
             .setTimestamp();
 
-        // ✅ You used ephemeral — good practice for invite links
         return interaction.reply({ embeds: [inviteEmbed], ephemeral: true });
     }
 };

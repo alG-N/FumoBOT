@@ -90,10 +90,8 @@ module.exports = async (client) => {
 
         const content = message.content.trim().toLowerCase();
 
-        // /itemInfo [itemName]
         if (content.startsWith('.iteminfo') && (content === '.iteminfo' || content.startsWith('.iteminfo '))
             || content.startsWith('.it') && (content === '.it' || content.startsWith('.it '))) {
-            // Check for maintenance mode or ban
             const banData = isBanned(message.author.id);
             if ((maintenance === "yes" && message.author.id !== developerID) || banData) {
                 let description = '';
@@ -182,7 +180,6 @@ module.exports = async (client) => {
             return message.channel.send({ embeds: [embed] });
         }
 
-        // /itemList <rarity>
         if (content.startsWith(".itemlist") || content.startsWith(".il")) {
             const args = message.content.split(/ +/);
             const queryRarity = args[1]?.toLowerCase();
@@ -212,7 +209,6 @@ module.exports = async (client) => {
             return message.channel.send({ embeds: [embed] });
         }
 
-        // /randomItem
         if (content === ".randomitem" || content.startsWith(".ri")) {
             const keys = Object.keys(itemDescriptions);
             const randomKey = keys[Math.floor(Math.random() * keys.length)];

@@ -44,7 +44,6 @@ module.exports = (client) => {
                 )
             ) return;
 
-            // Check for maintenance mode or ban
             const banData = isBanned(message.author.id);
             if ((maintenance === "yes" && message.author.id !== developerID) || banData) {
                 let description = '';
@@ -94,7 +93,6 @@ module.exports = (client) => {
             const itemToCraft = args.join(' ').trim();
             const userId = message.author.id;
 
-            // Helper: fetch user inventory and coins/gems
             const getUserData = async () => {
                 return new Promise((resolve, reject) => {
                     db.all(
@@ -121,7 +119,6 @@ module.exports = (client) => {
                 });
             };
 
-            // Helper: fetch potion craft history
             const getPotionHistory = async () => {
                 return new Promise((resolve) => {
                     db.all(
@@ -138,7 +135,6 @@ module.exports = (client) => {
                 });
             };
 
-            // Helper: add to potion craft history
             const addPotionHistory = async (itemName, amount) => {
                 db.run(
                     `INSERT INTO potionCraftHistory (userId, itemName, amount, craftedAt) VALUES (?, ?, ?, ?)`,
@@ -149,7 +145,6 @@ module.exports = (client) => {
                 );
             };
 
-            // Show crafting menu
             if (!itemToCraft) {
                 try {
                     const { userInventory, userCoins, userGems } = await getUserData();
@@ -277,7 +272,6 @@ module.exports = (client) => {
                             } else if (interaction.customId === 'prev_page') {
                                 currentPage = (currentPage - 1 + pages.length) % pages.length;
                             }
-                            // Refresh history if on history page
                             if (pages[currentPage] === 'Craft History') {
                                 const newHistory = await getPotionHistory();
                                 historyRows.length = 0;
@@ -297,7 +291,6 @@ module.exports = (client) => {
                     message.reply('❌ An error occurred while loading your crafting menu.');
                 }
             } else {
-                // Parse item and amount
                 const itemName = args[0];
                 const craftAmount = Math.max(1, parseInt(args[1]) || 1);
 
@@ -367,7 +360,6 @@ module.exports = (client) => {
                         if (reply === 'yes') {
                             try {
                                 db.serialize(() => {
-                                    // Deduct coins/gems
                                     db.run(
                                         "UPDATE userCoins SET coins = coins - ?, gems = gems - ? WHERE userId = ?",
                                         [totalCoins, totalGems, userId],
@@ -378,7 +370,6 @@ module.exports = (client) => {
                                             }
                                         }
                                     );
-                                    // Deduct required items
                                     for (const [reqItem, reqQty] of Object.entries(recipe.requires)) {
                                         db.run(
                                             `UPDATE userInventory SET quantity = quantity - ? WHERE userId = ? AND itemName = ?`,
@@ -390,7 +381,6 @@ module.exports = (client) => {
                                             }
                                         );
                                     }
-                                    // Add crafted item
                                     db.run(
                                         `INSERT INTO userInventory (userId, itemName, quantity) VALUES (?, ?, ?)
                                          ON CONFLICT(userId, itemName) DO UPDATE SET quantity = quantity + ?`,
@@ -402,7 +392,6 @@ module.exports = (client) => {
                                             }
                                         }
                                     );
-                                    // Log to history
                                     addPotionHistory(itemName, craftAmount);
 
                                     const successEmbed = new EmbedBuilder()

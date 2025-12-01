@@ -77,12 +77,10 @@ module.exports = {
             return interaction.reply({ embeds: [embed], ephemeral: true });
         }
 
-        // Get options
         const targetUser = interaction.options.getUser('user') || interaction.user;
         const avatarSize = interaction.options.getInteger('size') || 512;
         const avatarType = interaction.options.getString('type') || 'dynamic';
 
-        // Build avatar URL
         const avatarURL = avatarType === 'static'
             ? targetUser.displayAvatarURL({ extension: 'png', size: avatarSize })
             : targetUser.displayAvatarURL({ dynamic: true, size: avatarSize });

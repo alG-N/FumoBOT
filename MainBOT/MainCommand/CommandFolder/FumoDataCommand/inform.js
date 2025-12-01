@@ -19,7 +19,6 @@ module.exports = (client) => {
         try {
             if (!/^\.(inform|in)(\s|$)/.test(message.content)) return;
 
-            // Check for maintenance mode or ban
             const banData = isBanned(message.author.id);
             if ((maintenance === "yes" && message.author.id !== developerID) || banData) {
                 let description = '';
@@ -269,12 +268,10 @@ module.exports = (client) => {
                 { name: 'ImSorryOfficerFumo(???)', picture: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ12E41aug7Gz4o2480KbQh0VMuqeILVCzCbA&usqp=CAU', currency: 'coins', price: 54150000, origin: '', fact: '' },
                 { name: 'TheOwner(TRANSCENDENT)', picture: 'https://media.discordapp.net/attachments/1372426801472737280/1372439224485150750/raw.png?ex=6826c721&is=682575a1&hm=a72a009e12f63be9b10c5dba154451bc7704a54c1e68ef997c83bb2d9f9ee092&=&format=webp&quality=lossless&width=930&height=930', currency: 'coins', price: 777777777, origin: 'alterGolden or golden_exist', fact: 'I love fixing bug' },
             ];
-            // Assign summonPlace for each fumo
             [...Reimu, ...market].forEach(fumo => fumo.summonPlace = fumo.summonPlace || (market.includes(fumo) ? 'Market' : 'Reimus Prayer'));
             coinFumos.forEach(fumo => fumo.summonPlace = 'Coins Banner');
             gemFumos.forEach(fumo => fumo.summonPlace = 'Gems Banner');
 
-            // --- Variant Detection ---
             let normalizedFumoName = fumoName
                 .replace(/\[✨SHINY\]$/i, '')
                 .replace(/\[🌟alG\]$/i, '')
@@ -283,7 +280,6 @@ module.exports = (client) => {
                 .replace(/\s+/g, ' ')
                 .trim();
 
-            // --- Fumo Lookup ---
             const fumos = [...gemFumos, ...coinFumos, ...Reimu, ...market];
             const fumo = fumos.find(f => f.name.toLowerCase() === normalizedFumoName.toLowerCase());
 
@@ -293,7 +289,6 @@ module.exports = (client) => {
                 });
             }
 
-            // --- Create Variant Selection Buttons ---
             const variantButtons = new ActionRowBuilder()
                 .addComponents(
                     new ButtonBuilder()
@@ -321,13 +316,11 @@ module.exports = (client) => {
                 components: [variantButtons]
             });
 
-            // --- Button Interaction Collector ---
             const collector = variantMessage.createMessageComponentCollector({
-                time: 60000 // 60 seconds timeout
+                time: 60000
             });
 
             collector.on('collect', async interaction => {
-                // Check if the button clicker is the command author
                 if (interaction.user.id !== message.author.id) {
                     return interaction.reply({
                         content: 'These buttons are not for you!',
@@ -353,7 +346,6 @@ module.exports = (client) => {
 
                 const fullFumoName = fumo.name + variantTag;
 
-                // --- Database Queries ---
                 db.get('SELECT COUNT(*) as totalCount FROM userInventory WHERE fumoName = ?', [fullFumoName], (err, totalRow) => {
                     if (err) {
                         console.error(`[inform] DB error (totalCount):`, err);
@@ -369,7 +361,6 @@ module.exports = (client) => {
                         let firstFumoDate = rows.length > 0 && rows[0].dateObtained ? format(new Date(rows[0].dateObtained), 'PPPppp') : 'N/A';
                         let titleSuffix = isShiny ? ' - [✨SHINY] Variant' : isAlg ? ' - [🌟alG] Variant' : '';
 
-                        // --- Embed Construction ---
                         const embed = new EmbedBuilder()
                             .setTitle(`Fumo Information: ${fumo.name}${titleSuffix}`)
                             .setColor('#0099ff')
@@ -387,7 +378,6 @@ module.exports = (client) => {
                         description += `🌐 Currently, there are ${formatNumber(totalRow.totalCount)} of this fumo in existence.`;
                         if (rows.length > 0) description += `\n📅 You welcomed your first fumo on ${firstFumoDate}.`;
 
-                        // Summon source
                         if (fumo.summonPlace === 'Market') {
                             description += `\n🛍️ This fumo can be acquired at the ${fumo.summonPlace} for a mere ${formatNumber(fumo.price)} coins.`;
                         } else if (fumo.summonPlace === 'Code') {
@@ -417,7 +407,6 @@ module.exports = (client) => {
                             description += `\n🌟 This is an **Extremely Rare alG** variant with a 0.001% base summon chance.`;
                         }
 
-                        // --- Show how many unique users own this fumo ---
                         db.get('SELECT COUNT(DISTINCT userId) as userCount FROM userInventory WHERE fumoName = ?', [fullFumoName], (err, userRow) => {
                             if (!err && userRow) {
                                 description += `\n👥 Owned by ${formatNumber(userRow.userCount)} unique users.`;

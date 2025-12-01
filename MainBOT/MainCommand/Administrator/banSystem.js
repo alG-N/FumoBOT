@@ -2,10 +2,8 @@ const { EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 
-// Updated to use the existing Banned.json in BannedList directory
 const BAN_FILE_PATH = path.join(__dirname, 'BannedList/Banned.json');
 
-// Ensure the ban file exists
 if (!fs.existsSync(BAN_FILE_PATH)) {
     const dir = path.dirname(BAN_FILE_PATH);
     if (!fs.existsSync(dir)) {
@@ -14,11 +12,6 @@ if (!fs.existsSync(BAN_FILE_PATH)) {
     fs.writeFileSync(BAN_FILE_PATH, JSON.stringify([], null, 2));
 }
 
-/**
- * Parse duration string (e.g., "7d", "1h", "30m")
- * @param {string} durationStr - Duration string
- * @returns {number|null} - Duration in milliseconds or null if invalid
- */
 function parseDuration(durationStr) {
     const regex = /^(\d+)([smhdwy])$/i;
     const match = durationStr.match(regex);
@@ -39,12 +32,6 @@ function parseDuration(durationStr) {
     return num * multipliers[unit];
 }
 
-/**
- * Ban a user
- * @param {string} userId - User ID to ban
- * @param {string} reason - Reason for ban
- * @param {number|null} durationMs - Duration in milliseconds (null for permanent)
- */
 function banUser(userId, reason, durationMs = null) {
     const banList = JSON.parse(fs.readFileSync(BAN_FILE_PATH, 'utf8'));
     const expiresAt = durationMs ? Date.now() + durationMs : null;
@@ -59,28 +46,18 @@ function banUser(userId, reason, durationMs = null) {
     fs.writeFileSync(BAN_FILE_PATH, JSON.stringify(banList, null, 2));
 }
 
-/**
- * Unban a user
- * @param {string} userId - User ID to unban
- */
 function unbanUser(userId) {
     const banList = JSON.parse(fs.readFileSync(BAN_FILE_PATH, 'utf8'));
     const newList = banList.filter(ban => ban.userId !== userId);
     fs.writeFileSync(BAN_FILE_PATH, JSON.stringify(newList, null, 2));
 }
 
-/**
- * Check if a user is banned
- * @param {string} userId - User ID to check
- * @returns {object|null} - Ban object if banned, null otherwise
- */
 function isUserBanned(userId) {
     const banList = JSON.parse(fs.readFileSync(BAN_FILE_PATH, 'utf8'));
     const ban = banList.find(b => b.userId === userId);
     
     if (!ban) return null;
     
-    // Check if temporary ban has expired
     if (ban.expiresAt && Date.now() > ban.expiresAt) {
         unbanUser(userId);
         return null;
@@ -89,9 +66,6 @@ function isUserBanned(userId) {
     return ban;
 }
 
-/**
- * Handle .ban command
- */
 async function handleBanCommand(message, args, developerID) {
     if (message.author.id !== developerID) {
         const embed = new EmbedBuilder()
@@ -147,9 +121,6 @@ async function handleBanCommand(message, args, developerID) {
     return message.reply({ embeds: [embed] });
 }
 
-/**
- * Handle .unban command
- */
 async function handleUnbanCommand(message, args, developerID) {
     if (message.author.id !== developerID) {
         const embed = new EmbedBuilder()
@@ -178,9 +149,6 @@ async function handleUnbanCommand(message, args, developerID) {
     return message.reply({ embeds: [embed] });
 }
 
-/**
- * Register ban system commands
- */
 function registerBanSystem(client, developerID) {
     client.on('messageCreate', async (message) => {
         if (message.author.bot) return;
