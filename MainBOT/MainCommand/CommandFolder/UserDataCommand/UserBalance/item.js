@@ -26,12 +26,6 @@ module.exports = (client) => {
         try {
             const inventoryData = await getUserInventoryPaginated(userId, ITEMS_PER_PAGE);
             
-            console.log(`[ITEMS] Inventory data retrieved:`, {
-                hasItems: inventoryData.hasItems,
-                totalPages: inventoryData.pages?.length || 0,
-                totalItems: inventoryData.totalItems
-            });
-
             if (!inventoryData.hasItems) {
                 return message.reply('🤷‍♂️ It appears you do not have any items at the moment.');
             }

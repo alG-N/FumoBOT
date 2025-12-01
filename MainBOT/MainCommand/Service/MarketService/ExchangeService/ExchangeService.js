@@ -1,5 +1,6 @@
 const { get, run } = require('../../../Core/database');
 const { parseAmount } = require('../../../Ultility/formatting');
+const { parseCustomId } = require('../../../Middleware/buttonOwnership');
 const { 
     validateExchangeRequest, 
     checkDailyLimit 
@@ -106,22 +107,19 @@ async function handleExchangeCommand(message, args) {
 }
 
 async function handleExchangeInteraction(interaction) {
-    const parts = interaction.customId.split('_');
+    // Parse the custom ID using the helper function
+    const parsed = parseCustomId(interaction.customId);
+    const { action, userId, additionalData } = parsed;
     
-    if (parts.length < 8) {
+    if (!additionalData) {
         return interaction.reply({ 
             content: '❌ Invalid or expired exchange.', 
             ephemeral: true 
         });
     }
 
-    const action = parts[1];
-    const userId = parts[2];
-    const type = parts[3];
-    const amount = parseInt(parts[4], 10);
-    const taxedAmount = parseInt(parts[5], 10);
-    const result = parseInt(parts[6], 10);
-    const taxRate = parseFloat(parts[7]);
+    // Extract data from the parsed custom ID
+    const { t: type, a: amount, ta: taxedAmount, r: result, tr: taxRate } = additionalData;
     
     if (interaction.user.id !== userId) {
         return interaction.reply({ 
@@ -130,7 +128,7 @@ async function handleExchangeInteraction(interaction) {
         });
     }
 
-    if (action === 'cancel') {
+    if (action === 'exchange_cancel') {
         const embed = await createExchangeEmbed(userId, type, amount, result, taxRate, 'cancel', taxedAmount);
         await interaction.update({ 
             embeds: [embed.embed], 
@@ -139,7 +137,7 @@ async function handleExchangeInteraction(interaction) {
         return;
     }
 
-    if (action === 'confirm') {
+    if (action === 'exchange_confirm') {
         const limitCheck = await checkDailyLimit(userId);
         if (!limitCheck.canExchange) {
             return interaction.reply({ 

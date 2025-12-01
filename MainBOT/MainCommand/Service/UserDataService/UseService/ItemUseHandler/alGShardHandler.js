@@ -39,6 +39,104 @@ async function handleAlGShard(message, itemName, quantity, userId) {
     }
 }
 
+async function handleAlGShardConfirmation(interaction) {
+    const userId = interaction.user.id;
+    
+    const { parseCustomId } = require('../../../../Middleware/buttonOwnership');
+    const { additionalData } = parseCustomId(interaction.customId);
+    
+    if (!additionalData?.fumoName || !additionalData?.rarity) {
+        return interaction.update({
+            content: '❌ Invalid confirmation data.',
+            embeds: [],
+            components: []
+        });
+    }
+    
+    const { fumoName, rarity } = additionalData;
+
+    try {
+        // Check if user has the shard
+        const inventory = await get(
+            `SELECT quantity FROM userInventory WHERE userId = ? AND itemName = 'alGShard(P)'`,
+            [userId]
+        );
+
+        if (!inventory || inventory.quantity < 1) {
+            return interaction.update({
+                content: '❌ You no longer have an alGShard(P).',
+                embeds: [],
+                components: []
+            });
+        }
+
+        // NEW: Check if user has the original fumo
+        const originalFumo = await get(
+            `SELECT quantity FROM userInventory WHERE userId = ? AND itemName = ?`,
+            [userId, fumoName]
+        );
+
+        if (!originalFumo || originalFumo.quantity < 1) {
+            return interaction.update({
+                content: `❌ You don't have **${fumoName}** to transform!`,
+                embeds: [],
+                components: []
+            });
+        }
+
+        // Consume the shard
+        await run(
+            `UPDATE userInventory SET quantity = quantity - 1 WHERE userId = ? AND itemName = 'alGShard(P)'`,
+            [userId]
+        );
+
+        await run(
+            `DELETE FROM userInventory WHERE userId = ? AND itemName = 'alGShard(P)' AND quantity <= 0`,
+            [userId]
+        );
+
+        // NEW: Remove 1 of the original fumo
+        await run(
+            `UPDATE userInventory SET quantity = quantity - 1 WHERE userId = ? AND itemName = ?`,
+            [userId, fumoName]
+        );
+
+        await run(
+            `DELETE FROM userInventory WHERE userId = ? AND itemName = ? AND quantity <= 0`,
+            [userId, fumoName]
+        );
+
+        // Create the alG version
+        const alGFumoName = `${fumoName}[🌟alG]`;
+
+        await run(
+            `INSERT INTO userInventory (userId, fumoName, itemName, rarity, quantity, type, dateObtained)
+             VALUES (?, ?, ?, ?, 1, 'fumo', datetime('now'))
+             ON CONFLICT(userId, itemName) DO UPDATE SET quantity = quantity + 1`,
+            [userId, alGFumoName, alGFumoName, rarity]
+        );
+
+        const embed = new EmbedBuilder()
+            .setColor(0xFFD700)
+            .setTitle('🌟 alGShard(P) Used Successfully!')
+            .setDescription(
+                `**Transformed:** ${fumoName} → ${alGFumoName}\n\n` +
+                `Your alG fumo has been added to your inventory!`
+            )
+            .setTimestamp();
+
+        await interaction.update({ embeds: [embed], components: [] });
+
+    } catch (error) {
+        console.error('[ALG_SHARD] Confirmation error:', error);
+        interaction.update({
+            content: '❌ Failed to create alG fumo.',
+            embeds: [],
+            components: []
+        });
+    }
+}
+
 async function handleAlGShardRaritySelection(interaction) {
     const userId = interaction.user.id;
     
