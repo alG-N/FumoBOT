@@ -10,7 +10,7 @@ const BUILDING_TYPES = {
             coins: 500000,
             gems: 10000
         },
-        costMultiplier: 2.5 
+        costMultiplier: 1.5 
     },
     GEM_BOOST: {
         id: 'gem_boost',
@@ -23,7 +23,7 @@ const BUILDING_TYPES = {
             coins: 250000,
             gems: 5000
         },
-        costMultiplier: 2.5
+        costMultiplier: 1.5
     },
     CRITICAL_FARMING: {
         id: 'critical_farming',
