@@ -19,9 +19,9 @@ const RARITY_THRESHOLDS = {
     Legendary: [0.005, 0.015, 0.05, 0.15],
     Mythical: [0.005, 0.01, 0.03, 0.1],
     Divine: [0.003, 0.008, 0.02, 0.08],
-    "???": [0.005],
-    Unknown: [0.00005],
-    Prime: [0.000001]
+    "???": [0.0001],
+    Unknown: [0.00001],
+    Prime: [0.00000001]
 };
 
 const STOCK_RANGES = {

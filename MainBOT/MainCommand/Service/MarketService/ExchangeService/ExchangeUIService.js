@@ -3,18 +3,26 @@ const { formatNumber } = require('../../../Ultility/formatting');
 const { getResetTimeText } = require('./ExchangeValidationService');
 const { MAX_EXCHANGES_PER_DAY } = require('./ExchangeValidationService');
 const { get } = require('../../../Core/database');
+const { buildSecureCustomId } = require('../../../Middleware/buttonOwnership');
 
 function createExchangeButtons(userId, type, amount, taxedAmount, result, taxRate, disabled = false) {
-    const data = `${userId}_${type}_${amount}_${taxedAmount}_${result}_${taxRate}`;
+    // Use buildSecureCustomId to handle large numbers efficiently
+    const data = {
+        t: type,
+        a: amount,
+        ta: taxedAmount,
+        r: result,
+        tr: taxRate
+    };
     
     return new ActionRowBuilder().addComponents(
         new ButtonBuilder()
-            .setCustomId(`exchange_confirm_${data}`)
+            .setCustomId(buildSecureCustomId('exchange_confirm', userId, data))
             .setLabel('Confirm Exchange')
             .setStyle(ButtonStyle.Success)
             .setDisabled(disabled),
         new ButtonBuilder()
-            .setCustomId(`exchange_cancel_${data}`)
+            .setCustomId(buildSecureCustomId('exchange_cancel', userId, data))
             .setLabel('Cancel')
             .setStyle(ButtonStyle.Danger)
             .setDisabled(disabled)
@@ -120,3 +128,9 @@ module.exports = {
     createExchangeEmbed,
     createHistoryEmbed
 };
+
+// Note: Update ExchangeService.js to use parseCustomId instead of manual parsing:
+// const { parseCustomId } = require('../../../Middleware/buttonOwnership');
+// const parsed = parseCustomId(interaction.customId);
+// const { action, userId, additionalData } = parsed;
+// const { t: type, a: amount, ta: taxedAmount, r: result, tr: taxRate } = additionalData;

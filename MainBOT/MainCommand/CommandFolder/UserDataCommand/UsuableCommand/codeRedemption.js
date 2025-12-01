@@ -10,12 +10,12 @@ const validCodes = {
         maxUses: null,
         description: "A warm welcome gift for new users!"
     },
-    "UpdatedServer": {
+    "alterGoldenSoGood:D": {
         items: [
-            { item: "PetFoob(C)", quantity: 15 },
+            { item: "PetFoob(C)", quantity: 1500 },
             { item: "Dice(C)", quantity: 10 },
-            { item: "10RollsTicket(M)", quantity: 1 },
-            { item: "MysteriousTicket(E)", quantity: 1 }
+            { item: "alGShard(P)", quantity: 1 },
+            { item: "ShinyShard(?)", quantity: 10 }
         ],
         expires: "2025-12-31T23:59:59Z",
         maxUses: null,
