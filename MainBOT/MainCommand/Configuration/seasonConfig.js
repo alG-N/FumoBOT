@@ -3,7 +3,7 @@ const SEASONS = {
         name: 'Weekend Season',
         coinMultiplier: 2,
         gemMultiplier: 2,
-        description: '🎉 Double rewards for the weekend!',
+        description: 'Double rewards for the weekend!',
         emoji: '🎊'
     },
     FESTIVAL_HARVEST: {
@@ -13,7 +13,7 @@ const SEASONS = {
         chance: 0.15, // Buffed from 0.005 to 0.15
         checkInterval: 1800000, // 30 minutes (buffed from 60 min)
         duration: 1800000, // 30 minutes
-        description: '🌾 Bountiful harvest! Massive farming boost!',
+        description: 'Bountiful harvest! Massive farming boost!',
         emoji: '🌾'
     },
     DAWN_DAYLIGHT: {
@@ -23,7 +23,7 @@ const SEASONS = {
         chance: 0.05, // Buffed from 0.0001 to 0.05
         checkInterval: 3600000, // 1 hour (buffed from 12 hours)
         duration: 600000, // 10 minutes
-        description: '🌅 The legendary dawn has arrived!',
+        description: 'The legendary dawn has arrived!',
         emoji: '🌅'
     },
     STORMCHARGED: {
@@ -33,7 +33,7 @@ const SEASONS = {
         chance: 0.08, // Buffed from 0.0005 to 0.08
         checkInterval: 1800000, // 30 minutes (buffed from 60 min)
         duration: 900000, // 15 minutes
-        description: '⚡ Electrical interference reduces farming!',
+        description: 'Electrical interference reduces farming!',
         emoji: '⚡'
     },
     STORM: {
@@ -43,7 +43,7 @@ const SEASONS = {
         chance: 0.12, // Buffed from 0.01 to 0.12
         checkInterval: 1800000, // 30 minutes (buffed from 60 min)
         duration: 1200000, // 20 minutes
-        description: '🌧️ Heavy storm reduces farming efficiency!',
+        description: 'Heavy storm reduces farming efficiency!',
         emoji: '🌧️'
     },
     TORNADO: {
@@ -53,7 +53,7 @@ const SEASONS = {
         chance: 0.06, // Buffed from 0.005 to 0.06
         checkInterval: 1800000, // 30 minutes (buffed from 60 min)
         duration: 300000, // 5 minutes
-        description: '🌪️ Devastating tornado! Farming severely reduced!',
+        description: 'Devastating tornado! Farming severely reduced!',
         emoji: '🌪️'
     },
     // NEW WEATHER EVENTS
@@ -64,7 +64,7 @@ const SEASONS = {
         chance: 0.10,
         checkInterval: 1800000, // 30 minutes
         duration: 900000, // 15 minutes
-        description: '✨ The golden hour shines upon your farm!',
+        description: 'The golden hour shines upon your farm!',
         emoji: '✨'
     },
     METEOR_SHOWER: {
@@ -74,7 +74,7 @@ const SEASONS = {
         chance: 0.05,
         checkInterval: 2700000, // 45 minutes
         duration: 600000, // 10 minutes
-        description: '☄️ Meteors rain down blessings!',
+        description: 'Meteors rain down blessings!',
         emoji: '☄️'
     },
     BLOOD_MOON: {
@@ -84,7 +84,7 @@ const SEASONS = {
         chance: 0.08,
         checkInterval: 1800000, // 30 minutes
         duration: 1200000, // 20 minutes
-        description: '🌕 The crimson moon empowers gem production!',
+        description: 'The crimson moon empowers gem production!',
         emoji: '🌕'
     },
     AURORA_BOREALIS: {
@@ -94,7 +94,7 @@ const SEASONS = {
         chance: 0.07,
         checkInterval: 2400000, // 40 minutes
         duration: 900000, // 15 minutes
-        description: '🌌 The northern lights dance across the sky!',
+        description: 'The northern lights dance across the sky!',
         emoji: '🌌'
     },
     SOLAR_FLARE: {
@@ -104,7 +104,7 @@ const SEASONS = {
         chance: 0.06,
         checkInterval: 2100000, // 35 minutes
         duration: 480000, // 8 minutes
-        description: '☀️ Intense solar energy supercharges your farm!',
+        description: 'Intense solar energy supercharges your farm!',
         emoji: '☀️'
     }
 };
@@ -124,7 +124,7 @@ const WEATHER_EVENTS = [
 
 function isWeekend() {
     const day = new Date().getDay();
-    // Weekend includes Friday (5), Saturday (6), Sunday (0), and Monday (1)
+    // Weekend includes Friday (5), Saturday (6), Sunday (0)
     return day === 0 || day === 5 || day === 6;
 }
 
