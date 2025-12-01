@@ -49,6 +49,14 @@ function createTradeEmbed(trade, client) {
         .map(([name, qty]) => `• ${name} x${qty}`)
         .join('\n') || 'None';
     
+    const user1Fumos = Array.from(user1.fumos.entries())
+        .map(([name, qty]) => `• ${name} x${qty}`)
+        .join('\n') || 'None';
+    
+    const user2Fumos = Array.from(user2.fumos.entries())
+        .map(([name, qty]) => `• ${name} x${qty}`)
+        .join('\n') || 'None';
+    
     const user1Pets = Array.from(user1.pets.values())
         .map(p => `• ${p.petName || p.name} (${p.rarity})`)
         .join('\n') || 'None';
@@ -60,6 +68,9 @@ function createTradeEmbed(trade, client) {
     const statusEmoji1 = user1.accepted ? '✅' : '⏳';
     const statusEmoji2 = user2.accepted ? '✅' : '⏳';
     
+    const confirmEmoji1 = user1.confirmed ? '🎯' : '⬜';
+    const confirmEmoji2 = user2.confirmed ? '🎯' : '⬜';
+    
     let color = TRADING_CONFIG.COLORS.ACTIVE;
     if (state === TRADING_CONFIG.STATES.BOTH_ACCEPTED) {
         color = TRADING_CONFIG.COLORS.ACCEPTED;
@@ -67,55 +78,66 @@ function createTradeEmbed(trade, client) {
         color = TRADING_CONFIG.COLORS.CONFIRMING;
     }
     
+    let description = 'Add items to the trade and click Accept when ready.';
+    if (state === TRADING_CONFIG.STATES.BOTH_ACCEPTED) {
+        if (user1.confirmed && user2.confirmed) {
+            description = '⚠️ **Both players confirmed! Finalizing trade...**';
+        } else {
+            description = '⚠️ **Both players ready! Each player must click CONFIRM to finalize.**';
+        }
+    } else if (state === TRADING_CONFIG.STATES.CONFIRMING) {
+        description = '⏰ **Final confirmation in progress...**';
+    }
+    
     return new EmbedBuilder()
         .setTitle('🤝 Active Trade')
-        .setDescription(
-            state === TRADING_CONFIG.STATES.BOTH_ACCEPTED 
-                ? '⚠️ **Both players ready! Click CONFIRM to finalize the trade.**'
-                : state === TRADING_CONFIG.STATES.CONFIRMING
-                    ? '⏰ **Final confirmation in progress...**'
-                    : 'Add items to the trade and click Accept when ready.'
-        )
+        .setDescription(description)
         .addFields(
             {
-                name: `${statusEmoji1} ${user1.tag}'s Offer`,
+                name: `${statusEmoji1}${confirmEmoji1} ${user1.tag}'s Offer`,
                 value: 
                     `💰 Coins: **${formatNumber(user1.coins)}**\n` +
                     `💎 Gems: **${formatNumber(user1.gems)}**\n` +
                     `📦 Items:\n${user1Items}\n` +
+                    `🎭 Fumos:\n${user1Fumos}\n` +
                     `🐾 Pets:\n${user1Pets}`,
                 inline: true
             },
             {
-                name: `${statusEmoji2} ${user2.tag}'s Offer`,
+                name: `${statusEmoji2}${confirmEmoji2} ${user2.tag}'s Offer`,
                 value: 
                     `💰 Coins: **${formatNumber(user2.coins)}**\n` +
                     `💎 Gems: **${formatNumber(user2.gems)}**\n` +
                     `📦 Items:\n${user2Items}\n` +
+                    `🎭 Fumos:\n${user2Fumos}\n` +
                     `🐾 Pets:\n${user2Pets}`,
                 inline: true
             }
         )
         .setColor(color)
-        .setFooter({ text: 'Trade will timeout after 5 minutes of inactivity' })
+        .setFooter({ 
+            text: state === TRADING_CONFIG.STATES.BOTH_ACCEPTED 
+                ? '✅ = Accepted | 🎯 = Confirmed | Both must confirm!'
+                : 'Trade will timeout after 5 minutes of inactivity' 
+        })
         .setTimestamp();
 }
 
 /**
- * Create trade action buttons (Accept/Decline)
+ * Create trade action buttons
  */
-function createTradeActionButtons(sessionKey, bothAccepted = false) {
+function createTradeActionButtons(sessionKey, bothAccepted = false, bothConfirmed = false) {
     const buttons = [];
     
-    if (bothAccepted) {
+    if (bothAccepted && !bothConfirmed) {
         buttons.push(
             new ButtonBuilder()
                 .setCustomId(`trade_confirm_${sessionKey}`)
                 .setLabel('CONFIRM TRADE')
                 .setStyle(ButtonStyle.Success)
-                .setEmoji('✅')
+                .setEmoji('🎯')
         );
-    } else {
+    } else if (!bothAccepted) {
         buttons.push(
             new ButtonBuilder()
                 .setCustomId(`trade_toggle_accept_${sessionKey}`)
@@ -156,6 +178,11 @@ function createItemTypeButtons(sessionKey) {
             .setLabel('Items')
             .setStyle(ButtonStyle.Secondary)
             .setEmoji('📦'),
+        new ButtonBuilder()
+            .setCustomId(`trade_add_fumos_${sessionKey}`)
+            .setLabel('Fumos')
+            .setStyle(ButtonStyle.Secondary)
+            .setEmoji('🎭'),
         new ButtonBuilder()
             .setCustomId(`trade_add_pets_${sessionKey}`)
             .setLabel('Pets')
@@ -223,14 +250,83 @@ function createPetSelectMenu(sessionKey, pets) {
 }
 
 /**
+ * Create fumo type selection menu (NEW)
+ */
+function createFumoTypeMenu(sessionKey) {
+    return new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+            .setCustomId(`trade_select_fumo_type_${sessionKey}`)
+            .setPlaceholder('Select fumo type')
+            .addOptions([
+                {
+                    label: 'Normal Fumos',
+                    description: 'Regular fumos without special variants',
+                    value: `${sessionKey}|normal`,
+                    emoji: '🎭'
+                },
+                {
+                    label: 'Shiny Fumos',
+                    description: 'Fumos with [✨SHINY] tag',
+                    value: `${sessionKey}|shiny`,
+                    emoji: '✨'
+                },
+                {
+                    label: 'alG Fumos',
+                    description: 'Fumos with [🌟alG] tag',
+                    value: `${sessionKey}|alg`,
+                    emoji: '🌟'
+                }
+            ])
+    );
+}
+
+/**
+ * Create fumo selection menu (NEW)
+ */
+function createFumoSelectMenu(sessionKey, fumos, type) {
+    const typeEmoji = {
+        normal: '🎭',
+        shiny: '✨',
+        alg: '🌟'
+    };
+    
+    const options = fumos.slice(0, 25).map(fumo => {
+        const cleanName = fumo.fumoName.replace(/\[.*?\]/g, '').trim();
+        return {
+            label: cleanName,
+            description: `Available: ${fumo.quantity}`,
+            value: `${sessionKey}|${fumo.fumoName}`,
+            emoji: typeEmoji[type] || '🎭'
+        };
+    });
+    
+    if (options.length === 0) {
+        options.push({
+            label: 'No fumos available',
+            description: `You have no ${type} fumos`,
+            value: 'none',
+            emoji: '❌'
+        });
+    }
+    
+    return new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+            .setCustomId(`trade_select_fumo_${sessionKey}`)
+            .setPlaceholder(`Select a ${type} fumo to trade`)
+            .addOptions(options)
+            .setDisabled(options[0].value === 'none')
+    );
+}
+
+/**
  * Create final confirmation embed
  */
 function createConfirmationEmbed(trade) {
     return new EmbedBuilder()
-        .setTitle('⚠️ FINAL CONFIRMATION')
+        .setTitle('⚠️ FINALIZING TRADE')
         .setDescription(
-            '**This trade is about to be finalized!**\n\n' +
-            'You have **5 seconds** to review and confirm.\n\n' +
+            '**Both players have confirmed!**\n\n' +
+            'Trade will be executed in **3 seconds**...\n\n' +
             '⚠️ **This action cannot be undone!**'
         )
         .addFields(
@@ -240,6 +336,7 @@ function createConfirmationEmbed(trade) {
                     `💰 ${formatNumber(trade.user1.coins)} coins\n` +
                     `💎 ${formatNumber(trade.user1.gems)} gems\n` +
                     `📦 ${trade.user1.items.size} items\n` +
+                    `🎭 ${trade.user1.fumos.size} fumos\n` +
                     `🐾 ${trade.user1.pets.size} pets`,
                 inline: true
             },
@@ -249,12 +346,13 @@ function createConfirmationEmbed(trade) {
                     `💰 ${formatNumber(trade.user2.coins)} coins\n` +
                     `💎 ${formatNumber(trade.user2.gems)} gems\n` +
                     `📦 ${trade.user2.items.size} items\n` +
+                    `🎭 ${trade.user2.fumos.size} fumos\n` +
                     `🐾 ${trade.user2.pets.size} pets`,
                 inline: true
             }
         )
         .setColor(TRADING_CONFIG.COLORS.CONFIRMING)
-        .setFooter({ text: 'Trade will auto-confirm in 5 seconds' })
+        .setFooter({ text: 'Trade executing...' })
         .setTimestamp();
 }
 
@@ -275,7 +373,7 @@ function createCompleteEmbed(trade) {
 function createCancelledEmbed(cancelledBy) {
     return new EmbedBuilder()
         .setTitle('❌ Trade Cancelled')
-        .setDescription(`The trade was cancelled by **${cancelledBy}**.`)
+        .setDescription(`The trade was cancelled${cancelledBy !== 'timeout' ? ` by **${cancelledBy}**` : ' due to timeout'}.`)
         .setColor(TRADING_CONFIG.COLORS.CANCELLED)
         .setTimestamp();
 }
@@ -288,6 +386,8 @@ module.exports = {
     createItemTypeButtons,
     createItemSelectMenu,
     createPetSelectMenu,
+    createFumoTypeMenu,
+    createFumoSelectMenu,
     createConfirmationEmbed,
     createCompleteEmbed,
     createCancelledEmbed
