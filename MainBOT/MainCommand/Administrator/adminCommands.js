@@ -60,7 +60,9 @@ async function handleAddItem(message) {
         { label: 'Legendary (L)', value: 'L' },
         { label: 'Mythical (M)', value: 'M' },
         { label: 'Divine (D)', value: 'D' },
-        { label: 'Secret (?)', value: '?' }
+        { label: 'Secret (?)', value: '?' },
+        { label: 'Unknown (Un)', value: 'Un'},
+        { label: 'Prime (P)', value: 'P'}
     ];
 
     const rarityMenu = new ActionRowBuilder().addComponents(

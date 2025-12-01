@@ -12,7 +12,7 @@ async function handleAlGShard(message, itemName, quantity, userId) {
         
         const rarityOptions = rarities.map(rarity => ({
             label: rarity,
-            value: `alg_rarity_${rarity}_${userId}`,
+            value: `alg_rarity_${rarity}`,
             description: `Select a ${rarity} fumo`,
             emoji: getRarityEmoji(rarity)
         }));
@@ -40,7 +40,9 @@ async function handleAlGShard(message, itemName, quantity, userId) {
 
 async function handleAlGShardRaritySelection(interaction) {
     const userId = interaction.user.id;
-    const rarity = interaction.values[0].split('_')[2];
+    
+    // Extract rarity from value (format: alg_rarity_RARITY)
+    const rarity = interaction.values[0].replace('alg_rarity_', '');
 
     try {
         const allFumos = FumoPool.getForCrate();
@@ -54,15 +56,16 @@ async function handleAlGShardRaritySelection(interaction) {
             });
         }
 
-        const fumoOptions = fumos.slice(0, 25).map(fumo => ({
-            label: fumo.name.replace(/\(.*?\)/, '').trim(),
-            value: `alg_fumo_${fumo.name}_${userId}`,
-            description: `Create alG version`,
+        // Limit to 25 options (Discord limit)
+        const fumoOptions = fumos.slice(0, 25).map((fumo, index) => ({
+            label: fumo.name.replace(/\(.*?\)/, '').trim().slice(0, 100),
+            value: `alg_fumo_${index}`,
+            description: `Create alG version`.slice(0, 100),
             emoji: '🌟'
         }));
 
         const selectMenu = new StringSelectMenuBuilder()
-            .setCustomId(`alg_fumo_select_${userId}`)
+            .setCustomId(`alg_fumo_select_${userId}_${rarity}`)
             .setPlaceholder('Select a fumo')
             .addOptions(fumoOptions);
 
@@ -77,7 +80,8 @@ async function handleAlGShardRaritySelection(interaction) {
         const embed = new EmbedBuilder()
             .setColor(0xFFD700)
             .setTitle(`🌟 alGShard(P) - Select ${rarity} Fumo`)
-            .setDescription(`Choose a fumo to create its **alG** version.\n\nShowing ${fumos.length} available fumos.`)
+            .setDescription(`Choose a fumo to create its **alG** version.\n\nShowing ${Math.min(fumos.length, 25)} available fumos.`)
+            .setFooter({ text: `Rarity: ${rarity} | Total: ${fumos.length}` })
             .setTimestamp();
 
         await interaction.update({ embeds: [embed], components: [row1, row2] });
@@ -94,10 +98,31 @@ async function handleAlGShardRaritySelection(interaction) {
 
 async function handleAlGShardFumoSelection(interaction) {
     const userId = interaction.user.id;
-    const selectedValue = interaction.values[0];
-    const fumoName = selectedValue.replace(`alg_fumo_`, '').replace(`_${userId}`, '');
+    const customId = interaction.customId;
+    
+    // Extract rarity from customId (format: alg_fumo_select_USERID_RARITY)
+    const parts = customId.split('_');
+    const rarity = parts[parts.length - 1];
+    
+    // Get selected fumo index
+    const selectedIndex = parseInt(interaction.values[0].replace('alg_fumo_', ''));
 
     try {
+        // Get fumos again to match the index
+        const allFumos = FumoPool.getForCrate();
+        const fumos = allFumos.filter(f => f.rarity === rarity);
+        const selectedFumo = fumos[selectedIndex];
+
+        if (!selectedFumo) {
+            return interaction.update({
+                content: '❌ Invalid fumo selection.',
+                embeds: [],
+                components: []
+            });
+        }
+
+        const fumoName = selectedFumo.name;
+
         const inventory = await get(
             `SELECT quantity FROM userInventory WHERE userId = ? AND itemName = 'alGShard(P)'`,
             [userId]
@@ -111,8 +136,11 @@ async function handleAlGShardFumoSelection(interaction) {
             });
         }
 
+        // Store selection in customId using base64 encoding to avoid length issues
+        const selectionData = Buffer.from(JSON.stringify({ fumoName, rarity })).toString('base64');
+
         const confirmButton = new ButtonBuilder()
-            .setCustomId(`alg_confirm_${fumoName}_${userId}`)
+            .setCustomId(`alg_confirm_${userId}_${selectionData}`)
             .setLabel('Confirm')
             .setStyle(ButtonStyle.Success);
 
@@ -147,10 +175,15 @@ async function handleAlGShardFumoSelection(interaction) {
 
 async function handleAlGShardConfirmation(interaction) {
     const userId = interaction.user.id;
-    const parts = interaction.customId.split('_');
-    const fumoName = parts.slice(2, -1).join('_');
-
+    const customId = interaction.customId;
+    
+    // Extract encoded data from customId
+    const parts = customId.split('_');
+    const encodedData = parts[parts.length - 1];
+    
     try {
+        const { fumoName, rarity } = JSON.parse(Buffer.from(encodedData, 'base64').toString());
+
         const inventory = await get(
             `SELECT quantity FROM userInventory WHERE userId = ? AND itemName = 'alGShard(P)'`,
             [userId]
@@ -169,13 +202,19 @@ async function handleAlGShardConfirmation(interaction) {
             [userId]
         );
 
+        // Delete if quantity becomes 0
+        await run(
+            `DELETE FROM userInventory WHERE userId = ? AND itemName = 'alGShard(P)' AND quantity <= 0`,
+            [userId]
+        );
+
         const alGFumoName = `${fumoName}[🌟alG]`;
 
         await run(
             `INSERT INTO userInventory (userId, fumoName, itemName, rarity, quantity, type, dateObtained)
              VALUES (?, ?, ?, ?, 1, 'fumo', datetime('now'))
              ON CONFLICT(userId, itemName) DO UPDATE SET quantity = quantity + 1`,
-            [userId, alGFumoName, alGFumoName, fumoName.match(/\((.*?)\)/)?.[1] || 'Common']
+            [userId, alGFumoName, alGFumoName, rarity]
         );
 
         const embed = new EmbedBuilder()
@@ -209,6 +248,44 @@ async function handleAlGShardCancellation(interaction) {
     await interaction.update({ embeds: [embed], components: [] });
 }
 
+async function handleAlGShardBack(interaction) {
+    const userId = interaction.user.id;
+    
+    // Recreate the initial rarity selection menu
+    try {
+        const rarities = ['LEGENDARY', 'MYTHICAL', 'EXCLUSIVE', '???', 'ASTRAL', 'CELESTIAL', 'INFINITE', 'ETERNAL', 'TRANSCENDENT'];
+        
+        const rarityOptions = rarities.map(rarity => ({
+            label: rarity,
+            value: `alg_rarity_${rarity}`,
+            description: `Select a ${rarity} fumo`,
+            emoji: getRarityEmoji(rarity)
+        }));
+
+        const selectMenu = new StringSelectMenuBuilder()
+            .setCustomId(`alg_rarity_select_${userId}`)
+            .setPlaceholder('Select a rarity (LEGENDARY+)')
+            .addOptions(rarityOptions);
+
+        const row = new ActionRowBuilder().addComponents(selectMenu);
+
+        const embed = new EmbedBuilder()
+            .setColor(0xFFD700)
+            .setTitle('🌟 alGShard(P) - Select Rarity')
+            .setDescription('Choose a rarity to see available fumos.\n\nThis will create an **alG** version of your selected fumo.\n\n**Note:** Only LEGENDARY rarity and above are available.')
+            .setTimestamp();
+
+        await interaction.update({ embeds: [embed], components: [row] });
+    } catch (error) {
+        console.error('[ALG_SHARD] Back error:', error);
+        interaction.update({
+            content: '❌ Failed to go back.',
+            embeds: [],
+            components: []
+        });
+    }
+}
+
 function getRarityEmoji(rarity) {
     const emojis = {
         'LEGENDARY': '🟠',
@@ -229,5 +306,6 @@ module.exports = {
     handleAlGShardRaritySelection,
     handleAlGShardFumoSelection,
     handleAlGShardConfirmation,
-    handleAlGShardCancellation
+    handleAlGShardCancellation,
+    handleAlGShardBack
 };
