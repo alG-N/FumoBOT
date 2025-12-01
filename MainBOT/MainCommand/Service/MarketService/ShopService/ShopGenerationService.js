@@ -23,6 +23,31 @@ function assignStock(rarity, forceMystery = false) {
         };
     }
 
+    // Special handling for Unknown and Prime - no unlimited stock
+    if (rarity === 'Unknown' || rarity === 'Prime') {
+        const rand = Math.random();
+        
+        // 0.1% chance for 3-5 stock
+        if (rand <= 0.001) {
+            return {
+                stock: getRandomInt(...STOCK_RANGES.ULTRA_RARE_LUCKY),
+                message: 'MIRACULOUS Stock!'
+            };
+        }
+        
+        // Normal case: 1-2 stock or out of stock
+        const stockRand = Math.random();
+        if (stockRand <= 0.15) { // 15% chance for stock
+            return {
+                stock: getRandomInt(...STOCK_RANGES.ULTRA_RARE),
+                message: 'Ultra Rare Stock'
+            };
+        }
+        
+        return { stock: 0, message: 'Out of Stock' };
+    }
+
+    // Existing logic for other rarities
     const thresholds = RARITY_THRESHOLDS[rarity] || [];
     if (thresholds.length === 0) {
         return { stock: 0, message: 'Out of Stock' };
