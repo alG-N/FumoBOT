@@ -1,15 +1,13 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { get, run } = require('../../../Core/database');
 const { logToDiscord, LogLevel } = require('../../../Core/logger');
+const { 
+    getRequirementForUser, 
+    clearRequirementForUser,
+    validateUserHasFumos 
+} = require('./LimitBreakRequirement');
 
-const LIMIT_BREAK_FUMO_POOL = [
-    'Reimu(Common)', 'Marisa(Common)', 'Cirno(Common)', 'Sanae(Common)',
-    'Sakuya(UNCOMMON)', 'Meiling(UNCOMMON)', 'Patchouli(UNCOMMON)',
-    'Remilia(RARE)', 'Youmu(RARE)',
-    'Ran(EPIC)', 'Satori(EPIC)', 'Kasen(EPIC)'
-];
-
-const MAX_LIMIT_BREAKS = 100;
+const MAX_LIMIT_BREAKS = 150;
 
 async function handleLimitBreakerInteraction(interaction, userId, message, client) {
     const { customId } = interaction;
@@ -51,24 +49,27 @@ async function getLimitBreakerData(userId) {
     const currentBreaks = userRow?.limitBreaks || 0;
     const fragmentUses = userRow?.fragmentUses || 0;
 
-    const requiredFumo = getRandomRequiredFumo();
+    // Get requirements based on current stage
+    const requirementData = getRequirementForUser(userId, currentBreaks + 1);
     const requirements = calculateRequirements(currentBreaks);
 
-    const [fragmentRow, nullifiedRow, fumoRow] = await Promise.all([
+    // Validate user has required fumos
+    const fumoValidation = await validateUserHasFumos(userId, requirementData.requirements.fumos);
+
+    const [fragmentRow, nullifiedRow] = await Promise.all([
         get(`SELECT quantity FROM userInventory WHERE userId = ? AND itemName = ?`, [userId, 'FragmentOf1800s(R)']),
-        get(`SELECT quantity FROM userInventory WHERE userId = ? AND itemName = ?`, [userId, 'Nullified(?)']),
-        get(`SELECT COUNT(*) as count FROM userInventory WHERE userId = ? AND fumoName = ?`, [userId, requiredFumo])
+        get(`SELECT quantity FROM userInventory WHERE userId = ? AND itemName = ?`, [userId, 'Nullified(?)'])
     ]);
 
     return {
         currentBreaks,
         fragmentUses,
-        requiredFumo,
         requirements,
+        requiredFumos: requirementData.requirements.fumos,
+        fumoValidation,
         inventory: {
             fragments: fragmentRow?.quantity || 0,
-            nullified: nullifiedRow?.quantity || 0,
-            hasFumo: (fumoRow?.count || 0) > 0
+            nullified: nullifiedRow?.quantity || 0
         }
     };
 }
@@ -77,7 +78,6 @@ async function handleLimitBreakConfirm(interaction, userId, message, client) {
     await interaction.deferUpdate();
 
     try {
-        const fumoToConsume = extractFumoFromCustomId(interaction.customId);
         const checkRow = await get(`SELECT limitBreaks, fragmentUses FROM userUpgrades WHERE userId = ?`, [userId]);
         const breaks = checkRow?.limitBreaks || 0;
 
@@ -88,8 +88,12 @@ async function handleLimitBreakConfirm(interaction, userId, message, client) {
             });
         }
 
+        // Get current requirements
+        const requirementData = getRequirementForUser(userId, breaks + 1);
         const reqs = calculateRequirements(breaks);
-        const validation = await validateResources(userId, reqs, fumoToConsume);
+        
+        // Validate resources
+        const validation = await validateResources(userId, reqs, requirementData.requirements.fumos);
 
         if (!validation.valid) {
             return interaction.followUp({
@@ -99,7 +103,7 @@ async function handleLimitBreakConfirm(interaction, userId, message, client) {
         }
 
         // Consume resources
-        await consumeResources(userId, reqs, validation.fumoId);
+        await consumeResources(userId, reqs, validation.fumoIds);
         
         // Increment limit breaks
         if (checkRow) {
@@ -108,12 +112,15 @@ async function handleLimitBreakConfirm(interaction, userId, message, client) {
             await run(`INSERT INTO userUpgrades (userId, limitBreaks, fragmentUses) VALUES (?, 1, 0)`, [userId]);
         }
 
+        // Clear the used requirement
+        clearRequirementForUser(userId);
+
         const newBreaks = breaks + 1;
         const totalLimit = 5 + (checkRow?.fragmentUses || 0) + newBreaks;
 
         await logToDiscord(client, `User ${message.author.username} performed Limit Break #${newBreaks}`, null, LogLevel.ACTIVITY);
 
-        const successEmbed = createSuccessEmbed(newBreaks, totalLimit, reqs, fumoToConsume);
+        const successEmbed = createSuccessEmbed(newBreaks, totalLimit, reqs, requirementData.requirements.fumos);
         await interaction.editReply({ embeds: [successEmbed], components: [] });
 
     } catch (error) {
@@ -125,11 +132,10 @@ async function handleLimitBreakConfirm(interaction, userId, message, client) {
     }
 }
 
-async function validateResources(userId, reqs, fumoToConsume) {
-    const [fragCheck, nullCheck, fumoCheck] = await Promise.all([
+async function validateResources(userId, reqs, requiredFumos) {
+    const [fragCheck, nullCheck] = await Promise.all([
         get(`SELECT quantity FROM userInventory WHERE userId = ? AND itemName = ?`, [userId, 'FragmentOf1800s(R)']),
-        get(`SELECT quantity FROM userInventory WHERE userId = ? AND itemName = ?`, [userId, 'Nullified(?)']),
-        get(`SELECT id FROM userInventory WHERE userId = ? AND fumoName = ? LIMIT 1`, [userId, fumoToConsume])
+        get(`SELECT quantity FROM userInventory WHERE userId = ? AND itemName = ?`, [userId, 'Nullified(?)'])
     ]);
 
     const frags = fragCheck?.quantity || 0;
@@ -141,21 +147,34 @@ async function validateResources(userId, reqs, fumoToConsume) {
     if (nulls < reqs.nullified) {
         return { valid: false, error: `❌ You need ${reqs.nullified} Nullified(?) but only have ${nulls}!` };
     }
-    if (!fumoCheck) {
-        return { valid: false, error: `❌ You don't have ${fumoToConsume} in your inventory!` };
+
+    // Validate user has all required fumos
+    const fumoValidation = await validateUserHasFumos(userId, requiredFumos);
+    const missingFumos = fumoValidation.filter(v => !v.found);
+
+    if (missingFumos.length > 0) {
+        const missingList = missingFumos.map(m => m.required).join(', ');
+        return { valid: false, error: `❌ You're missing required Fumos: ${missingList}` };
     }
 
-    return { valid: true, fumoId: fumoCheck.id };
+    return { 
+        valid: true, 
+        fumoIds: fumoValidation.map(v => v.id)
+    };
 }
 
-async function consumeResources(userId, reqs, fumoId) {
+async function consumeResources(userId, reqs, fumoIds) {
     await Promise.all([
         run(`UPDATE userInventory SET quantity = quantity - ? WHERE userId = ? AND itemName = ?`, 
             [reqs.fragments, userId, 'FragmentOf1800s(R)']),
         run(`UPDATE userInventory SET quantity = quantity - ? WHERE userId = ? AND itemName = ?`, 
-            [reqs.nullified, userId, 'Nullified(?)']),
-        run(`DELETE FROM userInventory WHERE id = ?`, [fumoId])
+            [reqs.nullified, userId, 'Nullified(?)'])
     ]);
+
+    // Delete required fumos
+    for (const fumoId of fumoIds) {
+        await run(`DELETE FROM userInventory WHERE id = ?`, [fumoId]);
+    }
 }
 
 function calculateRequirements(currentBreaks) {
@@ -170,17 +189,8 @@ function calculateRequirements(currentBreaks) {
     };
 }
 
-function getRandomRequiredFumo() {
-    return LIMIT_BREAK_FUMO_POOL[Math.floor(Math.random() * LIMIT_BREAK_FUMO_POOL.length)];
-}
-
-function extractFumoFromCustomId(customId) {
-    const parts = customId.split('_');
-    return parts.slice(3).join('_');
-}
-
 function createLimitBreakerEmbed(data) {
-    const { currentBreaks, fragmentUses, requiredFumo, requirements, inventory } = data;
+    const { currentBreaks, fragmentUses, requirements, requiredFumos, fumoValidation, inventory } = data;
     const nextBreakNumber = currentBreaks + 1;
     const canBreak = currentBreaks < MAX_LIMIT_BREAKS;
 
@@ -196,13 +206,28 @@ function createLimitBreakerEmbed(data) {
     if (canBreak) {
         const hasFragments = inventory.fragments >= requirements.fragments;
         const hasNullified = inventory.nullified >= requirements.nullified;
-        const hasFumo = inventory.hasFumo;
+
+        // Build fumo requirement text
+        let fumoRequirementText = '';
+        for (let i = 0; i < requiredFumos.length; i++) {
+            const req = requiredFumos[i];
+            const validation = fumoValidation[i];
+            const status = validation.found ? '✅' : '❌';
+            
+            let displayName = req.name;
+            if (req.allowAnyTrait) {
+                displayName = req.name.replace(/\[.*?\]/g, '') + ' (any variant)';
+            }
+            
+            fumoRequirementText += `${status} **1x** ${displayName}\n`;
+        }
 
         embed.addFields(
             {
                 name: '📊 Limit Break Status',
                 value: `Current Breaks: **${currentBreaks} / ${MAX_LIMIT_BREAKS}**\n` +
-                       `Total Farm Limit: **${5 + fragmentUses + currentBreaks}**`,
+                       `Total Farm Limit: **${5 + fragmentUses + currentBreaks}**\n` +
+                       `Next Stage: **${getStageDescription(nextBreakNumber)}**`,
                 inline: false
             },
             {
@@ -210,15 +235,14 @@ function createLimitBreakerEmbed(data) {
                 value: 
                     `${hasFragments ? '✅' : '❌'} **${requirements.fragments}x** FragmentOf1800s(R)\n` +
                     `${hasNullified ? '✅' : '❌'} **${requirements.nullified}x** Nullified(?)\n` +
-                    `${hasFumo ? '✅' : '❌'} **1x** ${requiredFumo}`,
+                    fumoRequirementText,
                 inline: false
             },
             {
                 name: '📦 Your Inventory',
                 value: 
                     `Fragments: **${inventory.fragments}**\n` +
-                    `Nullified: **${inventory.nullified}**\n` +
-                    `${requiredFumo}: **${hasFumo ? '✓' : 'None'}**`,
+                    `Nullified: **${inventory.nullified}**`,
                 inline: false
             }
         );
@@ -237,20 +261,28 @@ function createLimitBreakerEmbed(data) {
     return embed;
 }
 
+function getStageDescription(stage) {
+    if (stage <= 25) return 'Easy (1 Fumo, any variant)';
+    if (stage <= 50) return 'Medium (2 Fumos, any variant)';
+    if (stage <= 75) return 'Hard (2 Fumos with traits)';
+    return 'Impossible (3 Fumos with traits)';
+}
+
 function createLimitBreakerButtons(userId, data) {
-    const { currentBreaks, requiredFumo, requirements, inventory } = data;
+    const { currentBreaks, requirements, fumoValidation, inventory } = data;
     
-    const canBreak = currentBreaks < MAX_LIMIT_BREAKS &&
-                   inventory.fragments >= requirements.fragments &&
-                   inventory.nullified >= requirements.nullified &&
-                   inventory.hasFumo;
+    const hasFragments = inventory.fragments >= requirements.fragments;
+    const hasNullified = inventory.nullified >= requirements.nullified;
+    const hasFumos = fumoValidation.every(v => v.found);
+    
+    const canBreak = currentBreaks < MAX_LIMIT_BREAKS && hasFragments && hasNullified && hasFumos;
 
     const row = new ActionRowBuilder();
     
     if (currentBreaks < MAX_LIMIT_BREAKS) {
         row.addComponents(
             new ButtonBuilder()
-                .setCustomId(`limitbreak_confirm_${userId}_${requiredFumo}`)
+                .setCustomId(`limitbreak_confirm_${userId}`)
                 .setLabel('⚡ Perform Limit Break')
                 .setStyle(ButtonStyle.Danger)
                 .setDisabled(!canBreak)
@@ -267,18 +299,21 @@ function createLimitBreakerButtons(userId, data) {
     return [row];
 }
 
-function createSuccessEmbed(newBreaks, totalLimit, reqs, fumoToConsume) {
+function createSuccessEmbed(newBreaks, totalLimit, reqs, requiredFumos) {
+    const fumoList = requiredFumos.map(f => `• 1x ${f.name}`).join('\n');
+    
     return new EmbedBuilder()
         .setTitle('⚡ LIMIT BREAK SUCCESSFUL!')
         .setColor(0x00FF00)
         .setDescription(
             `**Congratulations!** You've broken through your limits!\n\n` +
             `**Limit Break:** #${newBreaks}\n` +
-            `**New Farm Limit:** ${totalLimit} slots\n\n` +
+            `**New Farm Limit:** ${totalLimit} slots\n` +
+            `**Stage:** ${getStageDescription(newBreaks)}\n\n` +
             `**Items Consumed:**\n` +
             `• ${reqs.fragments}x FragmentOf1800s(R)\n` +
             `• ${reqs.nullified}x Nullified(?)\n` +
-            `• 1x ${fumoToConsume}`
+            fumoList
         )
         .setFooter({ text: `Progress: ${newBreaks} / ${MAX_LIMIT_BREAKS}` })
         .setTimestamp();

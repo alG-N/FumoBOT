@@ -19,7 +19,7 @@ const LIMIT_BREAK_FUMO_POOL = [
     'Kasen(EPIC)'
 ];
 
-const MAX_LIMIT_BREAKS = 100;
+const MAX_LIMIT_BREAKS = 150;
 function calculateRequirements(currentBreaks) {
     const baseFragments = 15;
     const baseNullified = 1;
