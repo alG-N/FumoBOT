@@ -1,16 +1,16 @@
 {
   "1128296349566251068": {
-    "rollCount": 21,
+    "rollCount": 5,
     "autoSell": true,
     "startTime": 1764565602681,
     "bestFumo": {
-      "name": "Mostima(CELESTIAL)",
-      "rarity": "CELESTIAL",
-      "picture": "https://media.discordapp.net/attachments/1372426801472737280/1372427631877685389/mostima-fumo-mostimo-v0-httirpx8ghhb1.png?ex=6826bc55&is=68256ad5&hm=e9511d6de0f908e22eedeb4ab965753e76446ed39a3bdb9ac4af7ef099c62dd6&=&format=webp&quality=lossless&width=1429&height=800"
+      "name": "Arisu(TRANSCENDENT)",
+      "rarity": "TRANSCENDENT",
+      "picture": "https://www.picclickimg.com/I70AAOSwPVJmW9NO/Blue-Archive-Tendou-Arisu-Fumo-Fumo-Plushie-Plush.webp"
     },
-    "bestFumoAt": "12/1/2025, 12:26:40 PM",
-    "bestFumoRoll": 18,
-    "specialFumoCount": 8,
+    "bestFumoAt": "12/1/2025, 1:01:41 PM",
+    "bestFumoRoll": 53,
+    "specialFumoCount": 23,
     "specialFumoFirstAt": "12/1/2025, 12:11:39 PM",
     "specialFumoFirstRoll": 3,
     "lowerSpecialFumos": [
@@ -37,21 +37,105 @@
         "rarity": "???",
         "roll": 16,
         "time": "12/1/2025, 12:24:40 PM"
+      },
+      {
+        "name": "BlueReimu(EXCLUSIVE)",
+        "rarity": "EXCLUSIVE",
+        "roll": 25,
+        "time": "12/1/2025, 12:33:40 PM"
+      },
+      {
+        "name": "CirnoSitting(EXCLUSIVE)",
+        "rarity": "EXCLUSIVE",
+        "roll": 26,
+        "time": "12/1/2025, 12:34:40 PM"
+      },
+      {
+        "name": "CirnoSitting(EXCLUSIVE)",
+        "rarity": "EXCLUSIVE",
+        "roll": 28,
+        "time": "12/1/2025, 12:36:40 PM"
+      },
+      {
+        "name": "Cheshire(ASTRAL)",
+        "rarity": "ASTRAL",
+        "roll": 29,
+        "time": "12/1/2025, 12:37:40 PM"
+      },
+      {
+        "name": "BlueReimu(EXCLUSIVE)",
+        "rarity": "EXCLUSIVE",
+        "roll": 30,
+        "time": "12/1/2025, 12:38:40 PM"
+      },
+      {
+        "name": "BlueReimu(EXCLUSIVE)",
+        "rarity": "EXCLUSIVE",
+        "roll": 33,
+        "time": "12/1/2025, 12:41:40 PM"
+      },
+      {
+        "name": "RedMarisa(EXCLUSIVE)",
+        "rarity": "EXCLUSIVE",
+        "roll": 37,
+        "time": "12/1/2025, 12:45:40 PM"
+      },
+      {
+        "name": "SkibidiToilet(???)",
+        "rarity": "???",
+        "roll": 40,
+        "time": "12/1/2025, 12:48:40 PM"
+      },
+      {
+        "name": "BlueReimu(EXCLUSIVE)",
+        "rarity": "EXCLUSIVE",
+        "roll": 41,
+        "time": "12/1/2025, 12:49:40 PM"
+      },
+      {
+        "name": "BlueReimu(EXCLUSIVE)",
+        "rarity": "EXCLUSIVE",
+        "roll": 42,
+        "time": "12/1/2025, 12:50:40 PM"
+      },
+      {
+        "name": "BlueReimu(EXCLUSIVE)",
+        "rarity": "EXCLUSIVE",
+        "roll": 44,
+        "time": "12/1/2025, 12:52:40 PM"
+      },
+      {
+        "name": "BlueReimu(EXCLUSIVE)",
+        "rarity": "EXCLUSIVE",
+        "roll": 46,
+        "time": "12/1/2025, 12:54:40 PM"
+      },
+      {
+        "name": "HyperSakuya(EXCLUSIVE)",
+        "rarity": "EXCLUSIVE",
+        "roll": 48,
+        "time": "12/1/2025, 12:56:40 PM"
+      },
+      {
+        "name": "Mostima(CELESTIAL)",
+        "rarity": "CELESTIAL",
+        "roll": 1,
+        "time": "12/1/2025, 1:02:38 PM"
       }
     ]
   },
   "1421544451897299024": {
-    "rollCount": 19,
+    "rollCount": 5,
     "autoSell": true,
     "startTime": 1764565872028,
     "bestFumo": {
-      "name": "UltraKillV2(ETERNAL)",
-      "rarity": "ETERNAL",
-      "picture": "https://th.bing.com/th/id/OIP.0rsVamUgjh_eW_1Ep5NDfAAAAA?cb=iwp2&rs=1&pid=ImgDetMain"
+      "name": "Rinnosuke(TRANSCENDENT)",
+      "rarity": "TRANSCENDENT",
+      "picture": "https://img1.picmix.com/output/stamp/normal/6/1/0/7/2577016_a2c58.png"
     },
-    "bestFumoAt": "12/1/2025, 12:13:12 PM",
-    "bestFumoRoll": 3,
-    "specialFumoCount": 9,
+    "bestFumoAt": "12/1/2025, 12:52:12 PM",
+    "bestFumoRoll": 42,
+    "specialFumoCount": 20,
     "specialFumoFirstAt": "12/1/2025, 12:12:12 PM",
     "specialFumoFirstRoll": 2,
     "lowerSpecialFumos": [
@@ -96,7 +180,83 @@
         "rarity": "???",
         "roll": 19,
         "time": "12/1/2025, 12:29:12 PM"
+      },
+      {
+        "name": "DarkYoumu(EXCLUSIVE)",
+        "rarity": "EXCLUSIVE",
+        "roll": 27,
+        "time": "12/1/2025, 12:37:12 PM"
+      },
+      {
+        "name": "RedMarisa(EXCLUSIVE)",
+        "rarity": "EXCLUSIVE",
+        "roll": 28,
+        "time": "12/1/2025, 12:38:12 PM"
+      },
+      {
+        "name": "Mostima(CELESTIAL)",
+        "rarity": "CELESTIAL",
+        "roll": 29,
+        "time": "12/1/2025, 12:39:12 PM"
+      },
+      {
+        "name": "Cheshire(ASTRAL)",
+        "rarity": "ASTRAL",
+        "roll": 30,
+        "time": "12/1/2025, 12:40:12 PM"
+      },
+      {
+        "name": "BlueReimu(EXCLUSIVE)",
+        "rarity": "EXCLUSIVE",
+        "roll": 34,
+        "time": "12/1/2025, 12:44:12 PM"
+      },
+      {
+        "name": "Athena(ASTRAL)",
+        "rarity": "ASTRAL",
+        "roll": 40,
+        "time": "12/1/2025, 12:50:12 PM"
+      },
+      {
+        "name": "SkibidiToilet(???)",
+        "rarity": "???",
+        "roll": 41,
+        "time": "12/1/2025, 12:51:12 PM"
+      },
+      {
+        "name": "SkibidiToilet(???)",
+        "rarity": "???",
+        "roll": 1,
+        "time": "12/1/2025, 1:02:38 PM"
+      },
+      {
+        "name": "GawrGura(???)",
+        "rarity": "???",
+        "roll": 2,
+        "time": "12/1/2025, 1:03:38 PM"
+      },
+      {
+        "name": "UltraKillV2(ETERNAL)",
+        "rarity": "ETERNAL",
+        "roll": 3,
+        "time": "12/1/2025, 1:04:39 PM"
       }
     ]
+  },
+  "845274868697661440": {
+    "rollCount": 5,
+    "autoSell": true,
+    "startTime": 1764568206020,
+    "bestFumo": {
+      "name": "Grani(CELESTIAL)",
+      "rarity": "CELESTIAL",
+      "picture": "https://media.discordapp.net/attachments/1372426801472737280/1372427631877685389/mostima-fumo-mostimo-v0-httirpx8ghhb1.png?ex=6826bc55&is=68256ad5&hm=e9511d6de0f908e22eedeb4ab965753e76446ed39a3bdb9ac4af7ef099c62dd6&=&format=webp&quality=lossless&width=1429&height=800"
+    },
+    "bestFumoAt": "12/1/2025, 1:01:06 PM",
+    "bestFumoRoll": 12,
+    "specialFumoCount": 3,
+    "specialFumoFirstAt": "12/1/2025, 12:50:06 PM",
+    "specialFumoFirstRoll": 1,
+    "lowerSpecialFumos": []
   }
 }
