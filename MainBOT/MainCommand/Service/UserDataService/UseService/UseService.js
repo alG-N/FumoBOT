@@ -3,9 +3,7 @@ const { checkRestrictions } = require('../../../Middleware/restrictions');
 const { validateItemUse, canUseItem } = require('./UseValidationService');
 const { getUserInventory, updateInventory } = require('./UseDatabaseService');
 const { sendErrorEmbed } = require('./UseUIService');
-const ItemHandlers = require('./ItemUseHandler/SpecialItemhandler');
-
-const client = createClient();
+const ItemHandlers = require('./ItemUseHandler/SpecialItemHandler');
 
 const UNUSABLE_ITEMS = new Set([
     'UniqueRock(C)', 'Books(C)', 'Wool(C)', 'Wood(C)', 'Dice(C)',
