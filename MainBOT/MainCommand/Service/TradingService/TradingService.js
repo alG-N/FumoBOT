@@ -453,6 +453,32 @@ async function getUserItems(userId) {
 }
 
 /**
+ * Get user's items by rarity
+ */
+async function getUserItemsByRarity(userId, rarity) {
+    const rarityMap = {
+        'Basic': '(B)',
+        'Common': '(C)',
+        'Rare': '(R)',
+        'Epic': '(E)',
+        'Legendary': '(L)',
+        'Mythical': '(M)',
+        'Divine': '(D)',
+        'Secret': '(?)'
+    };
+    
+    const suffix = rarityMap[rarity];
+    if (!suffix) return [];
+    
+    return await all(
+        `SELECT itemName, quantity FROM userInventory 
+         WHERE userId = ? AND quantity > 0 AND itemName LIKE ? AND type = 'item'
+         ORDER BY itemName`,
+        [userId, `%${suffix}`]
+    );
+}
+
+/**
  * Get user's available pets for trading
  */
 async function getUserPets(userId) {
@@ -522,6 +548,7 @@ module.exports = {
     executeTrade,
     cancelTrade,
     getUserItems,
+    getUserItemsByRarity,
     getUserPets,
     getUserFumos,
     getUserFumoQuantity,

@@ -14,6 +14,7 @@ const {
     executeTrade,
     cancelTrade,
     getUserItems,
+    getUserItemsByRarity,
     getUserPets,
     getUserFumos,
     getUserFumoQuantity
@@ -23,6 +24,7 @@ const {
     createTradeEmbed,
     createTradeActionButtons,
     createItemTypeButtons,
+    createItemRarityMenu,
     createItemSelectMenu,
     createPetSelectMenu,
     createFumoTypeMenu,
@@ -165,11 +167,24 @@ async function handleToggleAccept(interaction, trade) {
     }
 
     const userSide = trade.user1.id === interaction.user.id ? trade.user1 : trade.user2;
+    const otherSide = trade.user1.id === interaction.user.id ? trade.user2 : trade.user1;
+    
+    // Ping the other user when someone accepts
+    const message = userSide.accepted 
+        ? `✅ You accepted the trade! <@${otherSide.id}> has been notified.`
+        : '⏳ You unaccepted the trade.';
     
     await interaction.reply({
-        content: userSide.accepted ? '✅ You accepted the trade!' : '⏳ You unaccepted the trade.',
+        content: message,
         ephemeral: true
     });
+    
+    // Send notification to channel if accepted
+    if (userSide.accepted) {
+        await interaction.channel.send({
+            content: `<@${otherSide.id}> **${interaction.user.tag}** has accepted the trade!`
+        }).catch(() => {});
+    }
 }
 
 /**
@@ -229,11 +244,16 @@ async function handleConfirm(interaction, trade, client) {
                 cancelTrade(trade.sessionKey);
             }, 3000);
         } else {
-            // Only this user confirmed
+            // Only this user confirmed - ping the other user
             await interaction.reply({
-                content: `✅ You confirmed the trade! Waiting for **${otherSide.tag}** to confirm...`,
+                content: `✅ You confirmed the trade! <@${otherSide.id}> must also confirm to finalize.`,
                 ephemeral: true
             });
+            
+            // Send notification to channel
+            await interaction.channel.send({
+                content: `<@${otherSide.id}> **${interaction.user.tag}** has confirmed the trade! Click CONFIRM to finalize.`
+            }).catch(() => {});
         }
     } else {
         // User unconfirmed
@@ -312,19 +332,11 @@ async function handleAddItem(interaction, trade, type) {
         }
         
     } else if (type === 'items') {
-        const items = await getUserItems(interaction.user.id);
-        
-        if (items.length === 0) {
-            return interaction.reply({
-                content: '❌ You have no items to trade!',
-                ephemeral: true
-            });
-        }
-        
-        const menu = createItemSelectMenu(trade.sessionKey, items);
+        // Show item rarity selector (similar to fumos)
+        const menu = createItemRarityMenu(trade.sessionKey);
         
         await interaction.reply({
-            content: 'Select an item to trade:',
+            content: 'Select the rarity of items you want to trade:',
             components: [menu],
             ephemeral: true
         });
@@ -356,6 +368,33 @@ async function handleAddItem(interaction, trade, type) {
             ephemeral: true
         });
     }
+}
+
+/**
+ * Handle item rarity selection
+ */
+async function handleSelectItemRarity(interaction, trade) {
+    if (!interaction.isStringSelectMenu()) return;
+    
+    const value = interaction.values[0];
+    const [sessionKey, rarity] = value.split('|');
+    
+    // Get items of this rarity
+    const items = await getUserItemsByRarity(interaction.user.id, rarity);
+    
+    if (items.length === 0) {
+        return interaction.update({
+            content: `❌ You have no ${rarity} items to trade!`,
+            components: []
+        });
+    }
+    
+    const menu = createItemSelectMenu(sessionKey, items, rarity);
+    
+    await interaction.update({
+        content: `Select a ${rarity} item to trade:`,
+        components: [menu]
+    });
 }
 
 /**
@@ -476,7 +515,7 @@ async function handleSelectFumoType(interaction, trade) {
 }
 
 /**
- * Handle fumo rarity selection (NEW)
+ * Handle fumo rarity selection
  */
 async function handleSelectFumoRarity(interaction, trade) {
     if (!interaction.isStringSelectMenu()) return;
@@ -494,19 +533,7 @@ async function handleSelectFumoRarity(interaction, trade) {
         });
     }
     
-    // Group fumos by name and sum quantities to avoid duplicates
-    const groupedFumos = fumos.reduce((acc, fumo) => {
-        if (acc.has(fumo.fumoName)) {
-            acc.get(fumo.fumoName).quantity += fumo.quantity;
-        } else {
-            acc.set(fumo.fumoName, { fumoName: fumo.fumoName, quantity: fumo.quantity });
-        }
-        return acc;
-    }, new Map());
-    
-    const uniqueFumos = Array.from(groupedFumos.values());
-    
-    const menu = createFumoSelectMenu(sessionKey, uniqueFumos, type, rarity);
+    const menu = createFumoSelectMenu(sessionKey, fumos, type, rarity);
     
     await interaction.update({
         content: `Select a ${rarity} ${type} fumo to trade:`,
@@ -609,6 +636,7 @@ module.exports = {
     handleCancel,
     handleAddItem,
     handleSelectItem,
+    handleSelectItemRarity,
     handleSelectFumoType,
     handleSelectFumoRarity,
     handleSelectFumo

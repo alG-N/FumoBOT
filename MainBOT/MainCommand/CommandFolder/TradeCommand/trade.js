@@ -38,6 +38,7 @@ const {
     handleCancel,
     handleAddItem,
     handleSelectItem,
+    handleSelectItemRarity,
     handleSelectFumoType,
     handleSelectFumoRarity,
     handleSelectFumo
@@ -223,6 +224,9 @@ module.exports = (client) => {
                 case 'select_pet':
                     const selectType = action.split('_')[1];
                     await handleSelectItem(interaction, trade, selectType);
+                    break;
+                case 'select_item_rarity':
+                    await handleSelectItemRarity(interaction, trade);
                     break;
                 case 'select_fumo_type':
                     await handleSelectFumoType(interaction, trade);
