@@ -1,8 +1,16 @@
+const { ActionRowBuilder, StringSelectMenuBuilder, EmbedBuilder, Colors, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { checkRestrictions } = require('../../Middleware/restrictions');
-const { parseEndFarmCommand } = require('../../Service/FarmingService/FarmingParserService');
-const { removeAll, removeByRarity, removeByName } = require('../../Service/FarmingService/FarmingActionService');
+const { checkButtonOwnership } = require('../../Middleware/buttonOwnership');
+const { 
+    removeMultipleFumosFromFarm,
+    getFarmingFumosByRarityAndTrait,
+    removeAll
+} = require('../../Service/FarmingService/FarmingActionService');
 const { createSuccessEmbed, createErrorEmbed } = require('../../Service/FarmingService/FarmingUIService');
 const { logToDiscord, LogLevel } = require('../../Core/logger');
+const { VALID_RARITIES, VALID_TRAITS } = require('../../Service/FarmingService/FarmingParserService');
+
+const activeRemovals = new Map();
 
 module.exports = async (client) => {
     client.on('messageCreate', async (message) => {
@@ -14,103 +22,419 @@ module.exports = async (client) => {
             return message.reply({ embeds: [restriction.embed] });
         }
 
-        const input = message.content.replace(/^\.endfarm\s+|^\.ef\s+/i, '').trim();
-
-        if (!input) {
-            return message.reply({
-                embeds: [createErrorEmbed(
-                    'Please specify what to remove.\n\n' +
-                    '• `.endfarm all` — Remove all Fumos\n' +
-                    '• `.endfarm <Name>(<Rarity>)` — Remove specific Fumo\n' +
-                    '• `.endfarm <Rarity>` — Remove all of a rarity'
-                )]
-            });
-        }
-
-        const parsed = parseEndFarmCommand(input);
-
-        if (!parsed.valid) {
-            const errorMessages = {
-                EMPTY_INPUT: 'Please provide a fumo name or rarity.',
-                INVALID_FORMAT: 'Invalid format. Use `.endfarm <Name>(<Rarity>)` or `.endfarm <Rarity>`',
-                INVALID_QUANTITY: 'Please provide a valid quantity.'
-            };
-
-            return message.reply({
-                embeds: [createErrorEmbed(errorMessages[parsed.error] || 'Invalid input.')]
-            });
-        }
+        const userId = message.author.id;
 
         try {
-            let result;
+            // Check if user wants to remove all
+            const input = message.content.replace(/^\.endfarm\s+|^\.ef\s+/i, '').trim();
+            if (input.toLowerCase() === 'all') {
+                const confirmEmbed = new EmbedBuilder()
+                    .setTitle('⚠️ Confirm Remove All')
+                    .setDescription('Are you sure you want to remove **ALL** Fumos from your farm?')
+                    .setColor(Colors.Orange);
 
-            if (parsed.type === 'ALL') {
-                result = await removeAll(message.author.id);
-
-                await logToDiscord(
-                    client,
-                    `User ${message.author.tag} removed all Fumos from farm`,
-                    null,
-                    LogLevel.ACTIVITY
-                );
-
-                return message.reply({
-                    embeds: [createSuccessEmbed('Successfully removed all Fumos from the farm.')]
-                });
-
-            } else if (parsed.type === 'RARITY') {
-                result = await removeByRarity(message.author.id, parsed.rarity);
-
-                if (!result.success) {
-                    return message.reply({
-                        embeds: [createErrorEmbed(`No Fumos of rarity ${parsed.rarity} found in your farm.`)]
-                    });
-                }
-
-                await logToDiscord(
-                    client,
-                    `User ${message.author.tag} removed all ${result.rarity} Fumos (${result.count} total)`,
-                    null,
-                    LogLevel.ACTIVITY
-                );
+                const confirmRow = new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId(`endfarm_confirm_all_${userId}`)
+                            .setLabel('✅ Yes, Remove All')
+                            .setStyle(ButtonStyle.Danger),
+                        new ButtonBuilder()
+                            .setCustomId(`endfarm_cancel_${userId}`)
+                            .setLabel('❌ Cancel')
+                            .setStyle(ButtonStyle.Secondary)
+                    );
 
                 return message.reply({
-                    embeds: [createSuccessEmbed(`Successfully removed ${result.count} ${result.rarity} Fumo(s) from the farm.`)]
-                });
-
-            } else {
-                result = await removeByName(message.author.id, parsed.fumoName, parsed.quantity);
-
-                if (!result.success) {
-                    const errorMessages = {
-                        NOT_IN_FARM: `No ${parsed.fumoName} variants found in your farm.`,
-                        REMOVE_FAILED: `Failed to remove ${parsed.fumoName} from farm.`
-                    };
-
-                    return message.reply({
-                        embeds: [createErrorEmbed(errorMessages[result.error] || 'Failed to remove fumo.')]
-                    });
-                }
-
-                await logToDiscord(
-                    client,
-                    `User ${message.author.tag} removed ${result.quantity}x ${result.fumoName}`,
-                    null,
-                    LogLevel.ACTIVITY
-                );
-
-                return message.reply({
-                    embeds: [createSuccessEmbed(`Successfully removed ${result.quantity} ${result.fumoName}(s) from the farm.`)]
+                    embeds: [confirmEmbed],
+                    components: [confirmRow]
                 });
             }
+
+            // Show rarity selection menu
+            const rarityEmbed = new EmbedBuilder()
+                .setTitle('🛑 Remove Fumos from Farm - Step 1/3')
+                .setDescription('**Select a rarity to remove:**\n\nChoose which rarity of Fumos you want to remove from your farm.')
+                .setColor(Colors.Red)
+                .setFooter({ text: 'You have 60 seconds to make a selection' });
+
+            const rarityMenu = new ActionRowBuilder()
+                .addComponents(
+                    new StringSelectMenuBuilder()
+                        .setCustomId(`endfarm_rarity_${userId}`)
+                        .setPlaceholder('Choose a rarity...')
+                        .addOptions(
+                            VALID_RARITIES.map(rarity => ({
+                                label: rarity,
+                                value: rarity,
+                                description: `Remove ${rarity} Fumos from farm`
+                            }))
+                        )
+                );
+
+            const msg = await message.reply({
+                embeds: [rarityEmbed],
+                components: [rarityMenu]
+            });
+
+            // Initialize removal state
+            activeRemovals.set(userId, {
+                messageId: msg.id,
+                stage: 'RARITY',
+                rarity: null,
+                trait: null
+            });
+
+            // Set timeout to clean up
+            setTimeout(() => {
+                if (activeRemovals.has(userId)) {
+                    activeRemovals.delete(userId);
+                    msg.edit({ components: [] }).catch(() => {});
+                }
+            }, 60000);
 
         } catch (error) {
             console.error('Error in .endfarm:', error);
             await logToDiscord(client, `Error in .endfarm for ${message.author.tag}`, error, LogLevel.ERROR);
 
             return message.reply({
-                embeds: [createErrorEmbed('⚠️ Unexpected error occurred. Try again later.')]
+                embeds: [createErrorEmbed('⚠️ Something went wrong.')]
             });
+        }
+    });
+
+    // Handle confirm remove all
+    client.on('interactionCreate', async (interaction) => {
+        if (!interaction.isButton()) return;
+        if (!interaction.customId.startsWith('endfarm_confirm_all_')) return;
+
+        if (!await checkButtonOwnership(interaction)) return;
+
+        try {
+            await interaction.deferUpdate();
+
+            const userId = interaction.user.id;
+            await removeAll(userId);
+
+            await logToDiscord(
+                client,
+                `User ${interaction.user.tag} removed all Fumos from farm`,
+                null,
+                LogLevel.ACTIVITY
+            );
+
+            await interaction.editReply({
+                embeds: [createSuccessEmbed('✅ Successfully removed all Fumos from the farm.')],
+                components: []
+            });
+
+        } catch (error) {
+            console.error('Error removing all fumos:', error);
+            await interaction.reply({
+                content: '❌ An error occurred.',
+                ephemeral: true
+            }).catch(() => {});
+        }
+    });
+
+    // Handle cancel
+    client.on('interactionCreate', async (interaction) => {
+        if (!interaction.isButton()) return;
+        if (!interaction.customId.startsWith('endfarm_cancel_')) return;
+
+        if (!await checkButtonOwnership(interaction)) return;
+
+        await interaction.update({
+            embeds: [createErrorEmbed('❌ Cancelled.')],
+            components: []
+        });
+    });
+
+    // Handle rarity selection
+    client.on('interactionCreate', async (interaction) => {
+        if (!interaction.isStringSelectMenu()) return;
+        if (!interaction.customId.startsWith('endfarm_rarity_')) return;
+
+        const userId = interaction.user.id;
+        const removal = activeRemovals.get(userId);
+
+        if (!removal) {
+            return interaction.reply({
+                content: '❌ This selection has expired. Please run the command again.',
+                ephemeral: true
+            });
+        }
+
+        if (!await checkButtonOwnership(interaction)) return;
+
+        try {
+            await interaction.deferUpdate();
+
+            const selectedRarity = interaction.values[0];
+            removal.rarity = selectedRarity;
+            removal.stage = 'TRAIT';
+
+            // Show trait selection menu
+            const traitEmbed = new EmbedBuilder()
+                .setTitle('🛑 Remove Fumos from Farm - Step 2/3')
+                .setDescription(
+                    `**Selected Rarity:** ${selectedRarity}\n\n` +
+                    `**Select trait type:**\n` +
+                    `• **Base** - Regular Fumos (no trait)\n` +
+                    `• **SHINY** - ✨ Shiny variants\n` +
+                    `• **alG** - 🌟 AlterGolden variants`
+                )
+                .setColor(Colors.Red)
+                .setFooter({ text: 'You have 60 seconds to make a selection' });
+
+            const traitMenu = new ActionRowBuilder()
+                .addComponents(
+                    new StringSelectMenuBuilder()
+                        .setCustomId(`endfarm_trait_${userId}`)
+                        .setPlaceholder('Choose a trait type...')
+                        .addOptions([
+                            {
+                                label: 'Base (No Trait)',
+                                value: 'Base',
+                                description: 'Regular Fumos without special traits'
+                            },
+                            {
+                                label: '✨ SHINY',
+                                value: 'SHINY',
+                                description: 'Shiny variants'
+                            },
+                            {
+                                label: '🌟 alG',
+                                value: 'alG',
+                                description: 'AlterGolden variants'
+                            }
+                        ])
+                );
+
+            await interaction.editReply({
+                embeds: [traitEmbed],
+                components: [traitMenu]
+            });
+
+        } catch (error) {
+            console.error('Error handling rarity selection:', error);
+            await interaction.reply({
+                content: '❌ An error occurred while processing your selection.',
+                ephemeral: true
+            }).catch(() => {});
+        }
+    });
+
+    // Handle trait selection
+    client.on('interactionCreate', async (interaction) => {
+        if (!interaction.isStringSelectMenu()) return;
+        if (!interaction.customId.startsWith('endfarm_trait_')) return;
+
+        const userId = interaction.user.id;
+        const removal = activeRemovals.get(userId);
+
+        if (!removal || removal.stage !== 'TRAIT') {
+            return interaction.reply({
+                content: '❌ This selection has expired. Please run the command again.',
+                ephemeral: true
+            });
+        }
+
+        if (!await checkButtonOwnership(interaction)) return;
+
+        try {
+            await interaction.deferUpdate();
+
+            const selectedTrait = interaction.values[0];
+            removal.trait = selectedTrait;
+            removal.stage = 'FUMO_LIST';
+
+            // Get farming fumos
+            const farmingFumos = await getFarmingFumosByRarityAndTrait(userId, removal.rarity, selectedTrait);
+
+            if (farmingFumos.length === 0) {
+                activeRemovals.delete(userId);
+                return interaction.editReply({
+                    embeds: [createErrorEmbed(`🔍 No ${selectedTrait === 'Base' ? '' : selectedTrait + ' '}${removal.rarity} Fumos found in your farm.`)],
+                    components: []
+                });
+            }
+
+            // Show fumo list
+            const fumoListEmbed = new EmbedBuilder()
+                .setTitle('🛑 Remove Fumos from Farm - Step 3/3')
+                .setDescription(
+                    `**Selected Rarity:** ${removal.rarity}\n` +
+                    `**Selected Trait:** ${selectedTrait === 'Base' ? 'No Trait' : selectedTrait}\n\n` +
+                    `**Select which Fumo to remove:**`
+                )
+                .setColor(Colors.Red)
+                .setFooter({ text: 'Select a Fumo from the dropdown menu' });
+
+            const fumoSelectMenu = new ActionRowBuilder()
+                .addComponents(
+                    new StringSelectMenuBuilder()
+                        .setCustomId(`endfarm_fumo_${userId}`)
+                        .setPlaceholder('Choose a Fumo to remove...')
+                        .addOptions(
+                            farmingFumos.slice(0, 25).map(f => ({
+                                label: f.baseName,
+                                value: f.fullName,
+                                description: `${f.quantity} currently farming`
+                            }))
+                        )
+                );
+
+            await interaction.editReply({
+                embeds: [fumoListEmbed],
+                components: [fumoSelectMenu]
+            });
+
+            // Store farming fumos for validation
+            removal.farmingFumos = farmingFumos;
+
+        } catch (error) {
+            console.error('Error handling trait selection:', error);
+            await interaction.reply({
+                content: '❌ An error occurred while processing your selection.',
+                ephemeral: true
+            }).catch(() => {});
+        }
+    });
+
+    // Handle fumo selection
+    client.on('interactionCreate', async (interaction) => {
+        if (!interaction.isStringSelectMenu()) return;
+        if (!interaction.customId.startsWith('endfarm_fumo_')) return;
+
+        const userId = interaction.user.id;
+        const removal = activeRemovals.get(userId);
+
+        if (!removal || removal.stage !== 'FUMO_LIST') {
+            return interaction.reply({
+                content: '❌ This selection has expired. Please run the command again.',
+                ephemeral: true
+            });
+        }
+
+        if (!await checkButtonOwnership(interaction)) return;
+
+        try {
+            const selectedFumoName = interaction.values[0];
+            const matchingFumo = removal.farmingFumos.find(f => f.fullName === selectedFumoName);
+
+            if (!matchingFumo) {
+                return interaction.reply({
+                    content: '❌ Fumo not found in farm.',
+                    ephemeral: true
+                });
+            }
+
+            // Show modal for quantity input
+            const { ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+            
+            const modal = new ModalBuilder()
+                .setCustomId(`endfarm_quantity_${userId}_${selectedFumoName}`)
+                .setTitle('Enter Quantity to Remove');
+
+            const quantityInput = new TextInputBuilder()
+                .setCustomId('quantity')
+                .setLabel(`How many ${matchingFumo.baseName} to remove?`)
+                .setStyle(TextInputStyle.Short)
+                .setPlaceholder(`Max: ${matchingFumo.quantity} (or type "all")`)
+                .setRequired(true)
+                .setMinLength(1)
+                .setMaxLength(10);
+
+            const row = new ActionRowBuilder().addComponents(quantityInput);
+            modal.addComponents(row);
+
+            await interaction.showModal(modal);
+
+            // Store selected fumo info
+            removal.selectedFumo = matchingFumo;
+
+        } catch (error) {
+            console.error('Error handling fumo selection:', error);
+            await interaction.reply({
+                content: '❌ An error occurred.',
+                ephemeral: true
+            }).catch(() => {});
+        }
+    });
+
+    // Handle quantity modal submission
+    client.on('interactionCreate', async (interaction) => {
+        if (!interaction.isModalSubmit()) return;
+        if (!interaction.customId.startsWith('endfarm_quantity_')) return;
+
+        const parts = interaction.customId.split('_');
+        const userId = parts[2];
+        const fumoName = parts.slice(3).join('_');
+
+        const removal = activeRemovals.get(userId);
+
+        if (!removal) {
+            return interaction.reply({
+                content: '❌ This selection has expired. Please run the command again.',
+                ephemeral: true
+            });
+        }
+
+        try {
+            await interaction.deferReply({ ephemeral: true });
+
+            const quantityStr = interaction.fields.getTextInputValue('quantity').trim().toLowerCase();
+            const quantity = quantityStr === 'all' ? removal.selectedFumo.quantity : parseInt(quantityStr, 10);
+
+            if (quantityStr !== 'all' && (isNaN(quantity) || quantity <= 0)) {
+                return interaction.editReply({
+                    content: '❌ Please enter a valid number greater than 0 or "all".'
+                });
+            }
+
+            if (quantity > removal.selectedFumo.quantity) {
+                return interaction.editReply({
+                    content: `❌ You only have ${removal.selectedFumo.quantity} ${removal.selectedFumo.displayName} in farm but tried to remove ${quantity}.`
+                });
+            }
+
+            // Remove fumos from farm
+            const result = await removeMultipleFumosFromFarm(userId, removal.selectedFumo.fullName, quantity);
+
+            if (!result.success) {
+                return interaction.editReply({
+                    content: 'Failed to remove fumos.'
+                });
+            }
+
+            await logToDiscord(
+                client,
+                `User ${interaction.user.tag} removed ${quantity}x ${removal.selectedFumo.fullName} from farm`,
+                null,
+                LogLevel.ACTIVITY
+            );
+
+            activeRemovals.delete(userId);
+
+            // Update the original message
+            const originalMessage = await interaction.message.fetch();
+            await originalMessage.edit({
+                embeds: [createSuccessEmbed(`✅ Removed ${quantity}x ${removal.selectedFumo.displayName} from your farm!`)],
+                components: []
+            });
+
+            await interaction.editReply({
+                content: `✅ Successfully removed ${quantity}x ${removal.selectedFumo.displayName} from your farm!`
+            });
+
+        } catch (error) {
+            console.error('Error removing fumos from farm:', error);
+            await logToDiscord(client, `Error in fumo removal for ${interaction.user.tag}`, error, LogLevel.ERROR);
+
+            await interaction.editReply({
+                content: '⚠️ Something went wrong.'
+            }).catch(() => {});
         }
     });
 };

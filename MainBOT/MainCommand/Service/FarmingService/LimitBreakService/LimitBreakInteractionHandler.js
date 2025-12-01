@@ -180,8 +180,9 @@ async function consumeResources(userId, reqs, fumoIds) {
 function calculateRequirements(currentBreaks) {
     const baseFragments = 15;
     const baseNullified = 1;
-    const fragmentIncrease = Math.floor(currentBreaks / 10) * 5;
-    const nullifiedIncrease = Math.floor(currentBreaks / 20);
+    
+    const fragmentIncrease = Math.floor(currentBreaks / 5) * 5; 
+    const nullifiedIncrease = Math.floor(currentBreaks / 10); 
     
     return {
         fragments: baseFragments + fragmentIncrease,

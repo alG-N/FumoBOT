@@ -16,15 +16,16 @@ async function getUserFarmingFumos(userId) {
     );
 }
 
-async function addFumoToFarm(userId, fumoName, coinsPerMin, gemsPerMin) {
+// UPDATED: Support quantity parameter
+async function addFumoToFarm(userId, fumoName, coinsPerMin, gemsPerMin, quantity = 1) {
     await run(
         `INSERT INTO farmingFumos (userId, fumoName, coinsPerMin, gemsPerMin, quantity)
-         VALUES (?, ?, ?, ?, 1)
-         ON CONFLICT(userId, fumoName) DO UPDATE SET quantity = quantity + 1`,
-        [userId, fumoName, coinsPerMin, gemsPerMin]
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(userId, fumoName) DO UPDATE SET quantity = quantity + ?`,
+        [userId, fumoName, coinsPerMin, gemsPerMin, quantity, quantity]
     );
     
-    debugLog('FARMING', `Added ${fumoName} to farm for user ${userId}`);
+    debugLog('FARMING', `Added ${quantity}x ${fumoName} to farm for user ${userId}`);
 }
 
 async function removeFumoFromFarm(userId, fumoName, quantity = 1) {
@@ -72,6 +73,46 @@ async function getUserInventoryByRarity(userId, rarity) {
     );
 }
 
+// NEW: Get inventory by rarity and trait
+async function getUserInventoryByRarityAndTrait(userId, rarity, trait) {
+    let traitPattern;
+    
+    if (trait === 'Base') {
+        // No trait - exclude SHINY and alG
+        return await all(
+            `SELECT fumoName, COUNT(*) as count FROM userInventory 
+             WHERE userId = ? 
+             AND fumoName LIKE ?
+             AND fumoName NOT LIKE '%[✨SHINY]%'
+             AND fumoName NOT LIKE '%[🌟alG]%'
+             GROUP BY fumoName`,
+            [userId, `%(${rarity})%`]
+        );
+    } else if (trait === 'SHINY') {
+        traitPattern = '%[✨SHINY]%';
+    } else if (trait === 'alG') {
+        traitPattern = '%[🌟alG]%';
+    }
+    
+    return await all(
+        `SELECT fumoName, COUNT(*) as count FROM userInventory 
+         WHERE userId = ? 
+         AND fumoName LIKE ?
+         AND fumoName LIKE ?
+         GROUP BY fumoName`,
+        [userId, `%(${rarity})%`, traitPattern]
+    );
+}
+
+// NEW: Get exact inventory count for a specific fumo
+async function getInventoryCountForFumo(userId, fumoName) {
+    const row = await get(
+        `SELECT COUNT(*) as count FROM userInventory WHERE userId = ? AND fumoName = ?`,
+        [userId, fumoName]
+    );
+    return row?.count || 0;
+}
+
 async function getAllUserInventory(userId) {
     return await all(
         `SELECT fumoName, COUNT(*) as count FROM userInventory 
@@ -92,11 +133,13 @@ async function checkFumoInFarm(userId, fumoName) {
 async function replaceFarm(userId, fumoList) {
     await clearAllFarming(userId);
     
-    for (const { fumoName, coinsPerMin, gemsPerMin } of fumoList) {
-        await addFumoToFarm(userId, fumoName, coinsPerMin, gemsPerMin);
+    for (const fumo of fumoList) {
+        const quantity = fumo.quantity || 1;
+        await addFumoToFarm(userId, fumo.fumoName, fumo.coinsPerMin, fumo.gemsPerMin, quantity);
     }
     
-    debugLog('FARMING', `Replaced farm for user ${userId} with ${fumoList.length} fumos`);
+    const totalFumos = fumoList.reduce((sum, f) => sum + (f.quantity || 1), 0);
+    debugLog('FARMING', `Replaced farm for user ${userId} with ${totalFumos} fumos (${fumoList.length} unique types)`);
 }
 
 async function updateFarmingIncome(userId, coinsAwarded, gemsAwarded) {
@@ -129,5 +172,8 @@ module.exports = {
     checkFumoInFarm,
     replaceFarm,
     updateFarmingIncome,
-    updateDailyQuest
+    updateDailyQuest,
+    // NEW EXPORTS
+    getUserInventoryByRarityAndTrait,
+    getInventoryCountForFumo
 };

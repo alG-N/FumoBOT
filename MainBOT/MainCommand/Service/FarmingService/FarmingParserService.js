@@ -4,6 +4,8 @@ const VALID_RARITIES = [
     'INFINITE', 'ETERNAL', 'TRANSCENDENT'
 ];
 
+const VALID_TRAITS = ['Base', 'SHINY', 'alG'];
+
 function parseAddFarmCommand(input) {
     if (!input || typeof input !== 'string') {
         return { valid: false, error: 'EMPTY_INPUT' };
@@ -11,6 +13,7 @@ function parseAddFarmCommand(input) {
 
     const trimmed = input.trim();
 
+    // Check if it's just a rarity selection
     if (VALID_RARITIES.some(r => r.toLowerCase() === trimmed.toLowerCase())) {
         return {
             valid: true,
@@ -19,7 +22,17 @@ function parseAddFarmCommand(input) {
         };
     }
 
-    const match = trimmed.match(/^([a-zA-Z0-9]+)(?:\(([a-zA-Z]+)\))?(?:\s*\[([^\]]+)\])?\s*(\d+)?$/);
+    // Check if it's a trait selection
+    if (VALID_TRAITS.some(t => t.toLowerCase() === trimmed.toLowerCase())) {
+        return {
+            valid: true,
+            type: 'TRAIT',
+            trait: VALID_TRAITS.find(t => t.toLowerCase() === trimmed.toLowerCase())
+        };
+    }
+
+    // Parse full fumo name with quantity
+    const match = trimmed.match(/^([a-zA-Z0-9]+)(?:\(([a-zA-Z?]+)\))?(?:\[([^\]]+)\])?\s*(\d+)?$/);
     
     if (!match) {
         return { valid: false, error: 'INVALID_FORMAT' };
@@ -53,6 +66,7 @@ function parseEndFarmCommand(input) {
         return { valid: true, type: 'ALL' };
     }
 
+    // Check if it's a rarity selection
     if (VALID_RARITIES.some(r => r.toLowerCase() === trimmed.toLowerCase())) {
         return {
             valid: true,
@@ -61,7 +75,17 @@ function parseEndFarmCommand(input) {
         };
     }
 
-    const match = trimmed.match(/^([a-zA-Z0-9]+)(?:\(([a-zA-Z]+)\))?(?:\s*\[([^\]]+)\])?\s*(\d+)?$/);
+    // Check if it's a trait selection
+    if (VALID_TRAITS.some(t => t.toLowerCase() === trimmed.toLowerCase())) {
+        return {
+            valid: true,
+            type: 'TRAIT',
+            trait: VALID_TRAITS.find(t => t.toLowerCase() === trimmed.toLowerCase())
+        };
+    }
+
+    // Parse full fumo name with quantity
+    const match = trimmed.match(/^([a-zA-Z0-9]+)(?:\(([a-zA-Z?]+)\))?(?:\[([^\]]+)\])?\s*(\d+)?$/);
     
     if (!match) {
         return { valid: false, error: 'INVALID_FORMAT' };
@@ -98,11 +122,24 @@ function createRegexForFumo(name, rarity) {
     return new RegExp(`^${escapedName}\\(${escapedRarity}\\)(\\[.*\\])?$`);
 }
 
+function parseTraitFromFumoName(fumoName) {
+    if (fumoName.includes('[🌟alG]')) return 'alG';
+    if (fumoName.includes('[✨SHINY]')) return 'SHINY';
+    return 'Base';
+}
+
+function stripTraitFromFumoName(fumoName) {
+    return fumoName.replace(/\[✨SHINY\]/g, '').replace(/\[🌟alG\]/g, '');
+}
+
 module.exports = {
     VALID_RARITIES,
+    VALID_TRAITS,
     parseAddFarmCommand,
     parseEndFarmCommand,
     buildFumoKey,
     escapeRegex,
-    createRegexForFumo
+    createRegexForFumo,
+    parseTraitFromFumoName,
+    stripTraitFromFumoName
 };

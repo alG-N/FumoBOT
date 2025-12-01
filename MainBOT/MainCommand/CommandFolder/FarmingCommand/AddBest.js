@@ -24,13 +24,18 @@ module.exports = async (client) => {
 
             await logToDiscord(
                 client,
-                `User ${message.author.tag} optimized farm with ${result.count} Fumos`,
+                `User ${message.author.tag} optimized farm: ${result.count} total Fumos (${result.uniqueFumos} unique types)`,
                 null,
                 LogLevel.ACTIVITY
             );
 
             return message.reply({
-                embeds: [createSuccessEmbed(`🌾 Optimized your farm with the ${result.count} best Fumo(s).`)]
+                embeds: [createSuccessEmbed(
+                    `🌾 **Farm Optimized!**\n\n` +
+                    `✅ **Total Fumos Farming:** ${result.count}\n` +
+                    `📦 **Unique Types:** ${result.uniqueFumos}\n\n` +
+                    `Your farm now has the best earning Fumos with maximum quantities!`
+                )]
             });
 
         } catch (error) {
