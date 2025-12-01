@@ -560,9 +560,12 @@ async function handleSelectFumo(interaction, trade) {
     // Get max quantity available
     const maxQuantity = await getUserFumoQuantity(interaction.user.id, fumoName);
     
-    // Show quantity modal
+    // Create a hash of the fumo name to keep customId short
+    const fumoHash = Buffer.from(fumoName).toString('base64').substring(0, 20);
+    
+    // Show quantity modal - using hash instead of full name
     const modal = new ModalBuilder()
-        .setCustomId(`trade_fumo_qty_${sessionKey}_${fumoName}_${interaction.user.id}`)
+        .setCustomId(`trade_fumo_${sessionKey}_${fumoHash}_${interaction.user.id}`)
         .setTitle(`Trade ${fumoName.slice(0, 45)}`);
 
     const input = new TextInputBuilder()
@@ -578,7 +581,7 @@ async function handleSelectFumo(interaction, trade) {
     
     try {
         const submitted = await interaction.awaitModalSubmit({
-            filter: i => i.customId.startsWith(`trade_fumo_qty_${sessionKey}_${fumoName}`),
+            filter: i => i.customId.startsWith(`trade_fumo_${sessionKey}_${fumoHash}`),
             time: 60000
         });
 

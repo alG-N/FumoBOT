@@ -527,8 +527,16 @@ async function getUserFumos(userId, type, rarity = null) {
     }
 
     // Add rarity filter if specified
+    // For shiny/alg, we need to check for the rarity BEFORE the special tag
     if (rarity) {
-        filter += ` AND fumoName LIKE '%(${rarity})'`;
+        if (type === 'shiny') {
+            filter += ` AND fumoName LIKE '%(${rarity})[✨SHINY]'`;
+        } else if (type === 'alg') {
+            filter += ` AND fumoName LIKE '%(${rarity})[🌟alG]'`;
+        } else {
+            // Normal fumos just have the rarity at the end
+            filter += ` AND fumoName LIKE '%(${rarity})'`;
+        }
     }
 
     // Group by fumoName and sum quantities to handle duplicates
