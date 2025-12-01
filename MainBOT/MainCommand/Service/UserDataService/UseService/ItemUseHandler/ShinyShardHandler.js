@@ -12,7 +12,7 @@ async function handleShinyShard(message, itemName, quantity, userId) {
         
         const rarityOptions = rarities.map(rarity => ({
             label: rarity,
-            value: `shiny_rarity_${rarity}_${userId}`,
+            value: `shiny_rarity_${rarity}`,
             description: `Select a ${rarity} fumo`,
             emoji: getRarityEmoji(rarity)
         }));
@@ -40,7 +40,9 @@ async function handleShinyShard(message, itemName, quantity, userId) {
 
 async function handleShinyShardRaritySelection(interaction) {
     const userId = interaction.user.id;
-    const rarity = interaction.values[0].split('_')[2];
+    
+    // Extract rarity from value (format: shiny_rarity_RARITY)
+    const rarity = interaction.values[0].replace('shiny_rarity_', '');
 
     try {
         const allFumos = FumoPool.getForCrate();
@@ -54,15 +56,16 @@ async function handleShinyShardRaritySelection(interaction) {
             });
         }
 
-        const fumoOptions = fumos.slice(0, 25).map(fumo => ({
-            label: fumo.name.replace(/\(.*?\)/, '').trim(),
-            value: `shiny_fumo_${fumo.name}_${userId}`,
-            description: `Create shiny version`,
+        // Limit to 25 options (Discord limit)
+        const fumoOptions = fumos.slice(0, 25).map((fumo, index) => ({
+            label: fumo.name.replace(/\(.*?\)/, '').trim().slice(0, 100),
+            value: `shiny_fumo_${index}`,
+            description: `Create shiny version`.slice(0, 100),
             emoji: '✨'
         }));
 
         const selectMenu = new StringSelectMenuBuilder()
-            .setCustomId(`shiny_fumo_select_${userId}`)
+            .setCustomId(`shiny_fumo_select_${userId}_${rarity}`)
             .setPlaceholder('Select a fumo')
             .addOptions(fumoOptions);
 
@@ -77,7 +80,8 @@ async function handleShinyShardRaritySelection(interaction) {
         const embed = new EmbedBuilder()
             .setColor(0xFFD700)
             .setTitle(`✨ ShinyShard(?) - Select ${rarity} Fumo`)
-            .setDescription(`Choose a fumo to create its **SHINY** version.\n\nShowing ${fumos.length} available fumos.`)
+            .setDescription(`Choose a fumo to create its **SHINY** version.\n\nShowing ${Math.min(fumos.length, 25)} available fumos.`)
+            .setFooter({ text: `Rarity: ${rarity} | Total: ${fumos.length}` })
             .setTimestamp();
 
         await interaction.update({ embeds: [embed], components: [row1, row2] });
@@ -94,10 +98,31 @@ async function handleShinyShardRaritySelection(interaction) {
 
 async function handleShinyShardFumoSelection(interaction) {
     const userId = interaction.user.id;
-    const selectedValue = interaction.values[0];
-    const fumoName = selectedValue.replace(`shiny_fumo_`, '').replace(`_${userId}`, '');
+    const customId = interaction.customId;
+    
+    // Extract rarity from customId (format: shiny_fumo_select_USERID_RARITY)
+    const parts = customId.split('_');
+    const rarity = parts[parts.length - 1];
+    
+    // Get selected fumo index
+    const selectedIndex = parseInt(interaction.values[0].replace('shiny_fumo_', ''));
 
     try {
+        // Get fumos again to match the index
+        const allFumos = FumoPool.getForCrate();
+        const fumos = allFumos.filter(f => f.rarity === rarity);
+        const selectedFumo = fumos[selectedIndex];
+
+        if (!selectedFumo) {
+            return interaction.update({
+                content: '❌ Invalid fumo selection.',
+                embeds: [],
+                components: []
+            });
+        }
+
+        const fumoName = selectedFumo.name;
+
         const inventory = await get(
             `SELECT quantity FROM userInventory WHERE userId = ? AND itemName = 'ShinyShard(?)'`,
             [userId]
@@ -111,8 +136,11 @@ async function handleShinyShardFumoSelection(interaction) {
             });
         }
 
+        // Store selection in customId using base64 encoding to avoid length issues
+        const selectionData = Buffer.from(JSON.stringify({ fumoName, rarity })).toString('base64');
+
         const confirmButton = new ButtonBuilder()
-            .setCustomId(`shiny_confirm_${fumoName}_${userId}`)
+            .setCustomId(`shiny_confirm_${userId}_${selectionData}`)
             .setLabel('Confirm')
             .setStyle(ButtonStyle.Success);
 
@@ -147,10 +175,15 @@ async function handleShinyShardFumoSelection(interaction) {
 
 async function handleShinyShardConfirmation(interaction) {
     const userId = interaction.user.id;
-    const parts = interaction.customId.split('_');
-    const fumoName = parts.slice(2, -1).join('_');
-
+    const customId = interaction.customId;
+    
+    // Extract encoded data from customId
+    const parts = customId.split('_');
+    const encodedData = parts[parts.length - 1];
+    
     try {
+        const { fumoName, rarity } = JSON.parse(Buffer.from(encodedData, 'base64').toString());
+
         const inventory = await get(
             `SELECT quantity FROM userInventory WHERE userId = ? AND itemName = 'ShinyShard(?)'`,
             [userId]
@@ -169,13 +202,19 @@ async function handleShinyShardConfirmation(interaction) {
             [userId]
         );
 
+        // Delete if quantity becomes 0
+        await run(
+            `DELETE FROM userInventory WHERE userId = ? AND itemName = 'ShinyShard(?)' AND quantity <= 0`,
+            [userId]
+        );
+
         const shinyFumoName = `${fumoName}[✨SHINY]`;
 
         await run(
             `INSERT INTO userInventory (userId, fumoName, itemName, rarity, quantity, type, dateObtained)
              VALUES (?, ?, ?, ?, 1, 'fumo', datetime('now'))
              ON CONFLICT(userId, itemName) DO UPDATE SET quantity = quantity + 1`,
-            [userId, shinyFumoName, shinyFumoName, fumoName.match(/\((.*?)\)/)?.[1] || 'Common']
+            [userId, shinyFumoName, shinyFumoName, rarity]
         );
 
         const embed = new EmbedBuilder()
@@ -209,6 +248,44 @@ async function handleShinyShardCancellation(interaction) {
     await interaction.update({ embeds: [embed], components: [] });
 }
 
+async function handleShinyShardBack(interaction) {
+    const userId = interaction.user.id;
+    
+    // Recreate the initial rarity selection menu
+    try {
+        const rarities = ['UNCOMMON', 'RARE', 'EPIC', 'OTHERWORLDLY', 'LEGENDARY', 'MYTHICAL', 'EXCLUSIVE', '???', 'ASTRAL', 'CELESTIAL', 'INFINITE', 'ETERNAL', 'TRANSCENDENT'];
+        
+        const rarityOptions = rarities.map(rarity => ({
+            label: rarity,
+            value: `shiny_rarity_${rarity}`,
+            description: `Select a ${rarity} fumo`,
+            emoji: getRarityEmoji(rarity)
+        }));
+
+        const selectMenu = new StringSelectMenuBuilder()
+            .setCustomId(`shiny_rarity_select_${userId}`)
+            .setPlaceholder('Select a rarity')
+            .addOptions(rarityOptions);
+
+        const row = new ActionRowBuilder().addComponents(selectMenu);
+
+        const embed = new EmbedBuilder()
+            .setColor(0xFFD700)
+            .setTitle('✨ ShinyShard(?) - Select Rarity')
+            .setDescription('Choose a rarity to see available fumos.\n\nThis will create a **SHINY** version of your selected fumo.')
+            .setTimestamp();
+
+        await interaction.update({ embeds: [embed], components: [row] });
+    } catch (error) {
+        console.error('[SHINY_SHARD] Back error:', error);
+        interaction.update({
+            content: '❌ Failed to go back.',
+            embeds: [],
+            components: []
+        });
+    }
+}
+
 function getRarityEmoji(rarity) {
     const emojis = {
         'Common': '⚪',
@@ -234,5 +311,6 @@ module.exports = {
     handleShinyShardRaritySelection,
     handleShinyShardFumoSelection,
     handleShinyShardConfirmation,
-    handleShinyShardCancellation
+    handleShinyShardCancellation,
+    handleShinyShardBack
 };
