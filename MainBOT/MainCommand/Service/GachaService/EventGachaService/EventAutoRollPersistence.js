@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { debugLog } = require('../../../Core/logger');
 
-const EVENT_AUTO_ROLL_STATE_FILE = path.join(__dirname, '../../../Data/eventAutoRollState.json');
+const EVENT_AUTO_ROLL_STATE_FILE = path.join(__dirname, '../../../Data/autoRollState.json');
 
 function saveEventAutoRollState(eventAutoRollMap) {
     try {
