@@ -1,5 +1,5 @@
 const { EmbedBuilder } = require('discord.js');
-const { run, get } = require('../../../../Core/database');
+const { applyMultipleBoosts } = require('../UseBoostService');
 
 async function handleAncientRelic(message, itemName, quantity, userId) {
     const source = 'AncientRelic';
@@ -36,4 +36,4 @@ async function handleAncientRelic(message, itemName, quantity, userId) {
     }
 }
 
-module.exports = { handleFantasyBook };
+module.exports = { handleAncientRelic };
