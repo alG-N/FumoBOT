@@ -160,20 +160,90 @@ client.once('ready', async () => {
     try {
         console.log('🔄 Checking for auto-rolls to restore...');
         const crateFumos = FumoPool.getForCrate();
-        const result = await restoreAutoRolls(client, crateFumos, {
-            notifyUsers: true,      // Send DMs to users
-            logChannelId: LOG_CHANNEL_ID  // Send summary to log channel
+        const eventFumos = FumoPool.getForEvent();
+
+        // Import unified notification system
+        const {
+            notifyUserUnifiedAutoRoll,
+            sendUnifiedRestorationSummary,
+            handleDetailsButtonInteraction
+        } = require('./MainCommand/Service/GachaService/UnifiedAutoRollNotification');
+
+        const { restoreAutoRolls: restoreNormalAutoRolls } = require('./MainCommand/Service/GachaService/NormalGachaService/CrateAutoRollService');
+        const { restoreAutoRolls: restoreEventAutoRolls } = require('./MainCommand/Service/GachaService/EventGachaService/EventAutoRollService');
+
+        // Load saved states
+        const { loadAutoRollState } = require('./MainCommand/Service/GachaService/NormalGachaService/AutoRollPersistence');
+        const savedStates = loadAutoRollState();
+
+        const results = {
+            normal: { restored: 0, failed: 0 },
+            event: { restored: 0, failed: 0 }
+        };
+
+        const normalStates = new Map();
+        const eventStates = new Map();
+
+        // Restore each user's auto-rolls
+        for (const [userId, states] of Object.entries(savedStates)) {
+            // Restore normal gacha
+            if (states.normal) {
+                const normalResult = await restoreNormalAutoRolls(
+                    client,
+                    crateFumos,
+                    { userId, savedState: states.normal, notifyUsers: false }
+                );
+
+                if (normalResult.success) {
+                    results.normal.restored++;
+                    normalStates.set(userId, states.normal);
+                } else {
+                    results.normal.failed++;
+                }
+            }
+
+            // Restore event gacha
+            if (states.event) {
+                const eventResult = await restoreEventAutoRolls(
+                    client,
+                    eventFumos,
+                    { userId, savedState: states.event, notifyUsers: false }
+                );
+
+                if (eventResult.success) {
+                    results.event.restored++;
+                    eventStates.set(userId, states.event);
+                } else {
+                    results.event.failed++;
+                }
+            }
+
+            // Send unified notification to user
+            if (normalStates.has(userId) || eventStates.has(userId)) {
+                await notifyUserUnifiedAutoRoll(
+                    client,
+                    userId,
+                    normalStates.get(userId),
+                    eventStates.get(userId)
+                );
+            }
+        }
+
+        // Send summary to log channel
+        await sendUnifiedRestorationSummary(client, results, LOG_CHANNEL_ID);
+
+        // Register button handler for details viewing
+        client.on('interactionCreate', async interaction => {
+            if (!interaction.isButton()) return;
+
+            if (interaction.customId.startsWith('viewNormalAutoRoll_') ||
+                interaction.customId.startsWith('viewEventAutoRoll_')) {
+                await handleDetailsButtonInteraction(interaction, normalStates, eventStates);
+            }
         });
-        
-        if (result.restored > 0) {
-            console.log(`🎉 Successfully restored ${result.restored} auto-roll(s)`);
-        } else if (result.failed === 0 && result.restored === 0) {
-            console.log('ℹ️ No auto-rolls to restore');
-        }
-        
-        if (result.failed > 0) {
-            console.warn(`⚠️ Failed to restore ${result.failed} auto-roll(s)`);
-        }
+
+        console.log(`📊 Restoration complete: Normal(${results.normal.restored}/${results.normal.failed}), Event(${results.event.restored}/${results.event.failed})`);
+
     } catch (error) {
         console.error('❌ Error during auto-roll restoration:', error);
     }
@@ -345,17 +415,17 @@ process.on('uncaughtException', handleCrash);
 
 async function handleShutdown(signal) {
     console.log(`\n🛑 Received ${signal || 'shutdown'} signal, saving state...`);
-    
+
     try {
         // Save all active auto-rolls
         shutdownAutoRolls();
-        
+
         console.log('✅ Auto-roll state saved successfully');
         console.log('👋 Shutting down gracefully...');
-        
+
         // Give some time for cleanup
         await new Promise(resolve => setTimeout(resolve, 1000));
-        
+
         process.exit(0);
     } catch (error) {
         console.error('❌ Error during shutdown:', error);
@@ -365,7 +435,7 @@ async function handleShutdown(signal) {
 
 function handleCrash(error) {
     console.error('❌ CRITICAL: Uncaught Exception:', error);
-    
+
     try {
         // Emergency save before crash
         console.log('💾 Emergency saving auto-roll state...');
@@ -374,7 +444,7 @@ function handleCrash(error) {
     } catch (saveError) {
         console.error('❌ Failed to save state during crash:', saveError);
     }
-    
+
     process.exit(1);
 }
 
