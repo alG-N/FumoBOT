@@ -32,6 +32,9 @@ const { registerTicketSystem } = require('./MainCommand/Administrator/ticketSyst
 // USER DATA MODULES
 const { registerCodeRedemption } = require('./MainCommand/CommandFolder/UserDataCommand/UsuableCommand/codeRedemption');
 
+// INITIALIZE SHARD
+const initializeShardHandler = require('./MainCommand/Service/UserDataService/UseService/ShardInteractionHandler');
+
 // MAINTENANCE CONFIG
 const { maintenance, developerID } = require("./MainCommand/Configuration/maintenanceConfig");
 console.log(`Maintenance mode is currently: ${maintenance}`);
@@ -148,6 +151,8 @@ client.once('ready', async () => {
     initializeSeasonSystem(client);
 
     initializeShop();
+
+    initializeShardHandler(client);
 
     // ============================================
     // RESTORE AUTO-ROLLS FROM PREVIOUS SESSION

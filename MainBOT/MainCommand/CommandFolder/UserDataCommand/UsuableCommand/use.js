@@ -111,8 +111,8 @@ async function handleUseCommand(message, args) {
 }
 
 
-module.exports = async (discordClient) => {
-    discordClient.on('messageCreate', async (message) => {
+module.exports = (client) => {
+    client.on('messageCreate', async (message) => {
         try {
             if (message.author.bot) return;
             if (!message.content.match(/^\.u(se)?(\s|$)/i)) return;
