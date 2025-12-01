@@ -80,6 +80,54 @@ function getValidatedUserId(interaction) {
     return interaction.user.id;
 }
 
+// Helper function to shorten data keys for compact custom IDs
+function shortenDataKeys(data) {
+    const keyMap = {
+        'fumoName': 'f',
+        'rarity': 'r',
+        'fumoId': 'id',
+        'userId': 'u',
+        'itemName': 'i',
+        'quantity': 'q',
+        'page': 'p',
+        'type': 't'
+    };
+    
+    const shortened = {};
+    for (const [key, value] of Object.entries(data)) {
+        const shortKey = keyMap[key] || key;
+        shortened[shortKey] = value;
+    }
+    
+    return shortened;
+}
+
+// Helper to expand shortened keys back
+function expandDataKeys(data) {
+    if (typeof data !== 'object' || data === null) {
+        return data;
+    }
+    
+    const keyMap = {
+        'f': 'fumoName',
+        'r': 'rarity',
+        'id': 'fumoId',
+        'u': 'userId',
+        'i': 'itemName',
+        'q': 'quantity',
+        'p': 'page',
+        't': 'type'
+    };
+    
+    const expanded = {};
+    for (const [key, value] of Object.entries(data)) {
+        const fullKey = keyMap[key] || key;
+        expanded[fullKey] = value;
+    }
+    
+    return expanded;
+}
+
 function buildSecureCustomId(action, userId, additionalData = null) {
     const sanitizedAction = action.replace(/[^a-zA-Z0-9_-]/g, '');
     const sanitizedUserId = userId.replace(/[^0-9]/g, '');
@@ -87,12 +135,39 @@ function buildSecureCustomId(action, userId, additionalData = null) {
     let customId = `${sanitizedAction}_${sanitizedUserId}`;
     
     if (additionalData) {
-        const encoded = Buffer.from(JSON.stringify(additionalData)).toString('base64');
-        customId += `_${encoded}`;
+        // Shorten the data keys first
+        const shortened = shortenDataKeys(additionalData);
+        const compactData = JSON.stringify(shortened);
+        
+        // Calculate remaining space (Discord limit is 100 chars)
+        const maxLength = 100;
+        const currentLength = customId.length + 1; // +1 for underscore
+        const availableSpace = maxLength - currentLength;
+        
+        if (compactData.length <= availableSpace) {
+            // Data fits without encoding, use plain JSON
+            customId += `_${compactData}`;
+        } else {
+            // Try base64 encoding
+            const encoded = Buffer.from(compactData).toString('base64');
+            
+            if (currentLength + encoded.length <= maxLength) {
+                customId += `_${encoded}`;
+            } else {
+                // Data is too large even with base64
+                console.warn(`[CUSTOM_ID] Data too large for customId (needs ${currentLength + encoded.length}, max ${maxLength})`);
+                
+                // Take only what fits
+                const maxDataLength = availableSpace;
+                const finalData = encoded.substring(0, maxDataLength);
+                customId += `_${finalData}`;
+            }
+        }
     }
     
+    // Final safety check
     if (customId.length > 100) {
-        console.warn(`Custom ID too long (${customId.length} chars), truncating...`);
+        console.warn(`Custom ID still too long (${customId.length} chars), hard truncating...`);
         customId = customId.substring(0, 100);
     }
     
@@ -136,10 +211,18 @@ function parseCustomId(customId) {
         
         // Try to parse as base64 JSON first
         try {
-            additionalData = JSON.parse(Buffer.from(remaining, 'base64').toString('utf8'));
+            const decoded = Buffer.from(remaining, 'base64').toString('utf8');
+            const parsed = JSON.parse(decoded);
+            additionalData = expandDataKeys(parsed);
         } catch (error) {
-            // If that fails, treat it as plain text
-            additionalData = remaining;
+            // Try parsing as plain JSON
+            try {
+                const parsed = JSON.parse(remaining);
+                additionalData = expandDataKeys(parsed);
+            } catch (error2) {
+                // If both fail, treat as plain text
+                additionalData = remaining;
+            }
         }
     }
     
