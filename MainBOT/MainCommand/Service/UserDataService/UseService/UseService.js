@@ -8,7 +8,7 @@ const ItemHandlers = require('./ItemUseHandler/SpecialItemhandler');
 const client = createClient();
 
 const UNUSABLE_ITEMS = new Set([
-    'UniqueRock(C)', 'Books(C)', 'Wool(C)', 'Wood(C)',
+    'UniqueRock(C)', 'Books(C)', 'Wool(C)', 'Wood(C)', 'Dice(C)',
     'FragmentOf1800s(R)',
     'EnhancedScroll(E)', 'RustedCore(E)',
     'RedShard(L)', 'BlueShard(L)', 'YellowShard(L)', 'WhiteShard(L)', 'DarkShard(L)',
@@ -49,7 +49,7 @@ async function handleUseCommand(message, args) {
         await ItemHandlers.handleItem(message, itemName, quantity);
     } catch (error) {
         console.error('[USE] Error processing item use:', error);
-        return sendErrorEmbed(message, 'PROCESSING_ERROR', 'Failed to use item');
+        return sendErrorEmbed(message, '❌ Error', 'Failed to use item');
     }
 }
 
