@@ -41,7 +41,7 @@ module.exports = async (client) => {
     ];
 
     function getCurrentDate() {
-        return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+        return new Date().toISOString().slice(0, 10);
     }
 
     function getQuestProgress(table, userId, quests, periodField, periodValue) {
@@ -97,8 +97,8 @@ module.exports = async (client) => {
     function getTimeUntilNextDailyReset() {
         const now = new Date();
         const nextReset = new Date();
-        nextReset.setUTCHours(0, 0, 0, 0); // midnight UTC
-        nextReset.setUTCDate(now.getUTCDate() + 1); // next day
+        nextReset.setUTCHours(0, 0, 0, 0);
+        nextReset.setUTCDate(now.getUTCDate() + 1); 
         const diffMs = nextReset - now;
         const hours = Math.floor(diffMs / 3600000);
         const minutes = Math.floor((diffMs % 3600000) / 60000);
@@ -107,12 +107,12 @@ module.exports = async (client) => {
 
     function getTimeUntilNextWeeklyReset() {
         const now = new Date();
-        const day = now.getUTCDay(); // 0 = Sunday, 1 = Monday, ...
+        const day = now.getUTCDay(); 
         const daysUntilMonday = (8 - day) % 7 || 7;
 
         const nextReset = new Date(now);
         nextReset.setUTCDate(now.getUTCDate() + daysUntilMonday);
-        nextReset.setUTCHours(0, 0, 0, 0); // Set to Monday 00:00 UTC
+        nextReset.setUTCHours(0, 0, 0, 0); 
 
         const diffMs = nextReset - now;
         const totalMinutes = Math.floor(diffMs / 60000);
@@ -123,15 +123,12 @@ module.exports = async (client) => {
         return `${days}d ${hours}h ${minutes}m remaining`;
     }
 
-    // Event listener for messages
     client.on("messageCreate", async (message) => {
         if (message.author.bot) return;
         const userId = message.author.id;
         const currentDate = getCurrentDate();
         const currentWeek = getWeekIdentifier();
-        // Handle .quest command
         if (message.content === ".quest" || message.content === ".qu") {
-            // Check for maintenance mode or ban
             const banData = isBanned(message.author.id);
             if ((maintenance === "yes" && message.author.id !== developerID) || banData) {
                 let description = '';
@@ -176,7 +173,6 @@ module.exports = async (client) => {
 
                 return message.reply({ embeds: [embed] });
             }
-            // Clean up outdated quest progress (fire-and-forget, but log errors)
             db.run(`DELETE FROM dailyQuestProgress WHERE date != ?`, [currentDate], err => {
                 if (err) console.error("Failed to clean dailyQuestProgress:", err);
             });
@@ -184,7 +180,6 @@ module.exports = async (client) => {
                 if (err) console.error("Failed to clean weeklyQuestProgress:", err);
             });
 
-            // Button row builder
             const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId("daily_quests").setLabel("🗓️ Daily").setStyle(ButtonStyle.Primary),
                 new ButtonBuilder().setCustomId("weekly_quests").setLabel("📅 Weekly").setStyle(ButtonStyle.Secondary),
@@ -336,7 +331,6 @@ module.exports = async (client) => {
 
                         interaction.message.edit({ embeds: [embed], components: [row] }).catch(() => { });
                     } else if (interaction.customId === "quest_help") {
-                        // New feature: Help/FAQ for quests
                         const embed = new EmbedBuilder()
                             .setColor("#3498DB")
                             .setTitle("❓ Quest Help")
@@ -376,9 +370,7 @@ module.exports = async (client) => {
             });
         }
 
-        // Handle .claim command
         if (message.content === ".claim" || message.content === ".cl") {
-            // Check for maintenance mode or ban
             const banData = isBanned(message.author.id);
             if ((maintenance === "yes" && message.author.id !== developerID) || banData) {
                 let description = '';
@@ -423,7 +415,6 @@ module.exports = async (client) => {
 
                 return message.reply({ embeds: [embed] });
             }
-            // Clean up outdated quest progress
             db.run(`DELETE FROM dailyQuestProgress WHERE date != ?`, [currentDate], err => {
                 if (err) console.error("Failed to clean dailyQuestProgress:", err);
             });
@@ -438,11 +429,9 @@ module.exports = async (client) => {
             let errorOccurred = false;
 
             try {
-                // Claim daily quests
                 const dailyProgress = await getQuestProgress("dailyQuestProgress", userId, dailyQuests, "date", currentDate);
                 const dailyCompleted = Object.values(dailyProgress).filter(q => q.completed).length;
                 if (dailyCompleted === dailyQuests.length) {
-                    // Use achievementProgress as claim tracker for daily
                     const dailyClaimKey = `daily_${currentDate}`;
                     const alreadyClaimed = await new Promise((resolve, reject) => {
                         db.get(
@@ -457,7 +446,7 @@ module.exports = async (client) => {
                         const prayTickets = 5;
                         const fumoTraits = 15;
                         const bonusChance = Math.random();
-                        const bonusQty = Math.floor(Math.random() * 6) + 3; // 3 to 8
+                        const bonusQty = Math.floor(Math.random() * 6) + 3;
 
                         await updateUserCoins(userId, dailyCoins, dailyGems);
                         for (let i = 0; i < prayTickets; i++) await addItemToInventory(userId, "PrayTicket(R)");
@@ -476,14 +465,12 @@ module.exports = async (client) => {
                         totalGems += dailyGems;
                         itemsClaimed.push(`PrayTicket(R) ×${prayTickets}`, `FumoTrait(R) ×${fumoTraits}`, "DailyTicket(C)");
 
-                        // Mark daily claimed in achievementProgress
                         db.run(
                             `INSERT INTO achievementProgress (userId, achievementId, claimed) VALUES (?, ?, 1)
                      ON CONFLICT(userId, achievementId) DO UPDATE SET claimed = 1`,
                             [userId, dailyClaimKey]
                         );
 
-                        // Weekly quest progress increment for "complete_dailies"
                         db.run(
                             `INSERT INTO weeklyQuestProgress (userId, week, questId, progress, completed)
                     VALUES (?, ?, 'complete_dailies', 1, 0)
@@ -496,11 +483,9 @@ module.exports = async (client) => {
                     }
                 }
 
-                // Claim weekly quests
                 const weeklyProgress = await getQuestProgress("weeklyQuestProgress", userId, weeklyQuests, "week", currentWeek);
                 const weeklyCompleted = Object.values(weeklyProgress).filter(q => q.completed).length;
                 if (weeklyCompleted === weeklyQuests.length) {
-                    // Use achievementProgress as claim tracker for weekly
                     const weeklyClaimKey = `weekly_${currentWeek}`;
                     const alreadyClaimed = await new Promise((resolve, reject) => {
                         db.get(
@@ -529,14 +514,12 @@ module.exports = async (client) => {
                             `FumoTrait(R) ×${fumoTraits}`
                         );
 
-                        // Mark weekly claimed in achievementProgress
                         db.run(
                             `INSERT INTO achievementProgress (userId, achievementId, claimed) VALUES (?, ?, 1)
                      ON CONFLICT(userId, achievementId) DO UPDATE SET claimed = 1`,
                             [userId, weeklyClaimKey]
                         );
 
-                        // Check if user qualifies for 7-week streak achievement (extension feature)
                         const streakRow = await new Promise((resolve, reject) =>
                             db.all(
                                 `SELECT achievementId FROM achievementProgress WHERE userId = ? AND achievementId LIKE 'weekly_%' AND claimed = 1`,
@@ -552,7 +535,6 @@ module.exports = async (client) => {
                     }
                 }
 
-                // Claim achievements (support multiple now)
                 const achievements = [
                     {
                         id: "total_rolls",
@@ -618,7 +600,6 @@ module.exports = async (client) => {
                     }
                 }
 
-                // New feature: Show next available claim time if nothing to claim
                 if (!claimedSomething) {
                     let nextDaily = getTimeUntilNextDailyReset();
                     let nextWeekly = getTimeUntilNextWeeklyReset();
@@ -637,7 +618,6 @@ module.exports = async (client) => {
                     });
                 }
 
-                // Build result embed
                 const rewardEmbed = new EmbedBuilder()
                     .setColor("#00FFAB")
                     .setTitle("🎁 Rewards Claimed!")

@@ -27,7 +27,7 @@ function formatNumber(num) {
     return num.toString();
 }
 const { maintenance, developerID } = require("../../Configuration/maintenanceConfig");
-const { incrementDailyCraft } = require('../../Ultility/weekly'); // adjust path
+const { incrementDailyCraft } = require('../../Ultility/weekly');
 const { isBanned } = require('../../Administrator/BannedList/BanUtils');
 module.exports = (client) => {
     client.on('messageCreate', async (message) => {
@@ -42,7 +42,6 @@ module.exports = (client) => {
                 )
             ) return;
 
-            // Check for maintenance mode or ban
             const banData = isBanned(message.author.id);
             if ((maintenance === "yes" && message.author.id !== developerID) || banData) {
                 let description = '';
@@ -92,12 +91,10 @@ module.exports = (client) => {
             const itemToCraft = args.join(' ').trim();
             const userId = message.author.id;
 
-            // Helper for logging
             const logError = (msg, err) => {
                 console.error(`[itemCraft] ${msg}`, err);
             };
 
-            // Helper for formatting requirements
             function formatRequirements(requires, userInventory, craftAmount = 1) {
                 return Object.entries(requires).map(([reqItem, reqQty]) => {
                     const owned = userInventory[reqItem] || 0;
@@ -106,14 +103,12 @@ module.exports = (client) => {
                 }).join('\n');
             }
 
-            // Helper for formatting resources
             function formatResources(resources, userCoins, userGems, craftAmount = 1) {
                 const coins = resources.coins * craftAmount;
                 const gems = resources.gems * craftAmount;
                 return `💰 Coins: ${formatNumber(coins)} *(You have ${formatNumber(userCoins)})*\n💎 Gems: ${formatNumber(gems)} *(You have ${formatNumber(userGems)})*`;
             }
 
-            // New Feature: Show user's craft history (last 5 crafts)
             async function showCraftHistory(userId, message) {
                 db.all(
                     `SELECT itemName, amount, craftedAt FROM userCraftHistory WHERE userId = ? ORDER BY craftedAt DESC LIMIT 5`,
@@ -140,7 +135,6 @@ module.exports = (client) => {
                 );
             }
 
-            // Show craft history if user types .itemCraft history
             if (itemToCraft.toLowerCase() === 'history') {
                 return showCraftHistory(userId, message);
             }
@@ -275,10 +269,8 @@ module.exports = (client) => {
                     }
                 );
             } else {
-                // Parse item name and amount robustly
                 let craftAmount = 1;
                 let itemName = itemToCraft;
-                // Support ".itemCraft <item> <amount>" or ".itemCraft <amount> <item>"
                 if (args.length > 1) {
                     if (!isNaN(args[args.length - 1])) {
                         craftAmount = parseInt(args[args.length - 1]);
@@ -353,7 +345,6 @@ module.exports = (client) => {
                                     return message.reply({ embeds: [missingEmbed] });
                                 }
 
-                                // Confirm embed with improved UI
                                 const confirmEmbed = new EmbedBuilder()
                                     .setTitle(`⚒️ Craft **${craftAmount}x ${itemName}**?`)
                                     .setColor(0x00AE86)
@@ -393,7 +384,6 @@ module.exports = (client) => {
                                                 addStmt.run(userId, itemName, craftAmount, craftAmount);
                                                 addStmt.finalize();
 
-                                                // New Feature: Save craft history
                                                 const histStmt = db.prepare("INSERT INTO userCraftHistory (userId, itemName, amount, craftedAt) VALUES (?, ?, ?, ?)");
                                                 histStmt.run(userId, itemName, craftAmount, Date.now());
                                                 histStmt.finalize();
@@ -435,7 +425,7 @@ module.exports = (client) => {
 
 const recipes = {
     // Tier 1
-    "ForgottenBook(C)": { //undone
+    "ForgottenBook(C)": {
         category: "Tier 1",
         requires: {
             "Books(C)": 1,
@@ -523,7 +513,7 @@ const recipes = {
     },
 
     // Tier 6
-    "S!gil?(?)": { //undone
+    "S!gil?(?)": {
         category: "Tier 6(MAX)",
         requires: {
             "Nullified(?)": 15,

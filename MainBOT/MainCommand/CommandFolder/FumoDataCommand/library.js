@@ -28,7 +28,6 @@ module.exports = (client) => {
         'EXCLUSIVE', '???', 'ASTRAL', 'CELESTIAL', 'INFINITE', 'ETERNAL', 'TRANSCENDENT'
     ];
 
-    // Utility: Progress bar
     function progressBar(discovered, totalFumos) {
         const safeTotal = Math.max(1, totalFumos);
         const safeDiscovered = Math.max(0, Math.min(discovered, safeTotal));
@@ -39,7 +38,6 @@ module.exports = (client) => {
         return `${'█'.repeat(filledLength)}${'░'.repeat(emptyLength)} ${percentage}%`;
     }
 
-    // Utility: Discovery description
     function getDiscoveryDescription(percentage) {
         if (percentage < 10) return "✨ Just hugged your first fumo! The softest journey has begun.";
         if (percentage < 20) return "🧵 You’re stitching together your fumo collection! So fluffy, so good.";
@@ -143,7 +141,6 @@ module.exports = (client) => {
                     if (row.fumoName.includes('[🌟alG]')) discoveredFumos[baseName].alg = true;
                 });
 
-                // Prepare categories
                 const categories = {};
                 CATEGORIES.forEach(category => categories[category] = []);
                 libraryFumos.forEach(fumo => {
@@ -167,7 +164,6 @@ module.exports = (client) => {
                     if (hasAlg) algFound++;
                 });
 
-                // New feature: Show all categories in one embed, paginated by category
                 const pages = Object.keys(categories).filter(cat => categories[cat].length > 0);
                 let currentPage = 0;
 
@@ -175,7 +171,6 @@ module.exports = (client) => {
                     const discoveredCount = Object.values(discoveredFumos).filter(f => f.base).length;
                     const percentage = Math.round((discoveredCount / libraryFumos.length) * 100);
 
-                    // Calculate shiny/alG progress based on total fumos
                     const shinyProgress = progressBar(shinyFound, libraryFumos.length);
                     const algProgress = progressBar(algFound, libraryFumos.length);
 
@@ -190,9 +185,8 @@ module.exports = (client) => {
                         .setColor('#0099ff');
 
                     const rarity = pages[pageIndex];
-                    // Paginate category entries if too long (Discord field limit: 1024 chars)
                     const lines = categories[rarity];
-                    const chunked = chunkArray(lines, 20); // 20 lines per field
+                    const chunked = chunkArray(lines, 20);
                     chunked.forEach((chunk, idx) => {
                         embed.addFields({
                             name: idx === 0 ? rarity : `${rarity} (cont.)`,

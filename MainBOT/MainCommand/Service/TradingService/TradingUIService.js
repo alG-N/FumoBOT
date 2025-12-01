@@ -3,9 +3,6 @@ const TRADING_CONFIG = require('../../Configuration/tradingConfig');
 const { RARITY_PRIORITY } = require('../../Configuration/rarity');
 const { formatNumber } = require('../../Ultility/formatting');
 
-/**
- * Create trade invite embed
- */
 function createInviteEmbed(requester, target) {
     return new EmbedBuilder()
         .setTitle('🤝 Trade Request')
@@ -18,9 +15,6 @@ function createInviteEmbed(requester, target) {
         .setTimestamp();
 }
 
-/**
- * Create invite buttons
- */
 function createInviteButtons(sessionKey) {
     return new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -36,9 +30,6 @@ function createInviteButtons(sessionKey) {
     );
 }
 
-/**
- * Create main trade UI embed
- */
 function createTradeEmbed(trade, client) {
     const { user1, user2, state } = trade;
     
@@ -124,9 +115,6 @@ function createTradeEmbed(trade, client) {
         .setTimestamp();
 }
 
-/**
- * Create trade action buttons
- */
 function createTradeActionButtons(sessionKey, bothAccepted = false, bothConfirmed = false) {
     const buttons = [];
     
@@ -159,9 +147,6 @@ function createTradeActionButtons(sessionKey, bothAccepted = false, bothConfirme
     return new ActionRowBuilder().addComponents(buttons);
 }
 
-/**
- * Create item type selection buttons
- */
 function createItemTypeButtons(sessionKey) {
     return new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -192,9 +177,6 @@ function createItemTypeButtons(sessionKey) {
     );
 }
 
-/**
- * Create item rarity selection menu
- */
 function createItemRarityMenu(sessionKey) {
     const rarityEmojis = {
         'Basic': '⚪',
@@ -224,9 +206,6 @@ function createItemRarityMenu(sessionKey) {
     );
 }
 
-/**
- * Create item selection menu
- */
 function createItemSelectMenu(sessionKey, items, rarity = '') {
     const options = items.slice(0, 25).map(item => ({
         label: item.itemName,
@@ -253,9 +232,6 @@ function createItemSelectMenu(sessionKey, items, rarity = '') {
     );
 }
 
-/**
- * Create pet selection menu
- */
 function createPetSelectMenu(sessionKey, pets) {
     const options = pets.slice(0, 25).map(pet => ({
         label: `${pet.petName || pet.name} (${pet.rarity})`,
@@ -282,9 +258,6 @@ function createPetSelectMenu(sessionKey, pets) {
     );
 }
 
-/**
- * Create fumo type selection menu
- */
 function createFumoTypeMenu(sessionKey) {
     return new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
@@ -313,9 +286,6 @@ function createFumoTypeMenu(sessionKey) {
     );
 }
 
-/**
- * Create fumo rarity selection menu
- */
 function createFumoRarityMenu(sessionKey, type) {
     const rarityEmojis = {
         'Common': '⚪',
@@ -349,9 +319,6 @@ function createFumoRarityMenu(sessionKey, type) {
     );
 }
 
-/**
- * Create fumo selection menu
- */
 function createFumoSelectMenu(sessionKey, fumos, type, rarity) {
     const typeEmoji = {
         normal: '🎭',
@@ -359,14 +326,12 @@ function createFumoSelectMenu(sessionKey, fumos, type, rarity) {
         alg: '🌟'
     };
     
-    // Remove duplicates by using a Map with fumoName as key
     const uniqueFumosMap = new Map();
     fumos.forEach(fumo => {
         const key = fumo.fumoName;
         if (!uniqueFumosMap.has(key)) {
             uniqueFumosMap.set(key, fumo);
         } else {
-            // If duplicate found, sum the quantities
             const existing = uniqueFumosMap.get(key);
             existing.quantity += fumo.quantity;
         }
@@ -402,9 +367,6 @@ function createFumoSelectMenu(sessionKey, fumos, type, rarity) {
     );
 }
 
-/**
- * Create final confirmation embed
- */
 function createConfirmationEmbed(trade) {
     return new EmbedBuilder()
         .setTitle('⚠️ FINALIZING TRADE')
@@ -440,9 +402,6 @@ function createConfirmationEmbed(trade) {
         .setTimestamp();
 }
 
-/**
- * Create trade complete embed
- */
 function createCompleteEmbed(trade) {
     return new EmbedBuilder()
         .setTitle('✅ Trade Completed!')
@@ -451,9 +410,6 @@ function createCompleteEmbed(trade) {
         .setTimestamp();
 }
 
-/**
- * Create trade cancelled embed
- */
 function createCancelledEmbed(cancelledBy) {
     return new EmbedBuilder()
         .setTitle('❌ Trade Cancelled')

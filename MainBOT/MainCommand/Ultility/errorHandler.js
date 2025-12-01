@@ -3,9 +3,6 @@ const { EmbedBuilder } = require('discord.js');
 const ERROR_CHANNEL_ID = '1367886953286205530';
 let errorCount = 0;
 
-/**
- * Format error for display
- */
 function formatError(error) {
     if (error instanceof Error) {
         const stackLines = error.stack?.split('\n') || [];
@@ -25,9 +22,6 @@ function formatError(error) {
     }
 }
 
-/**
- * Format uptime for display
- */
 function formatUptime(ms) {
     const seconds = Math.floor(ms / 1000) % 60;
     const minutes = Math.floor(ms / (1000 * 60)) % 60;
@@ -36,17 +30,11 @@ function formatUptime(ms) {
     return `${days}d ${hours}h ${minutes}m ${seconds}s`;
 }
 
-/**
- * Log error to console
- */
 function logToConsole(prefix, error) {
     const formatted = formatError(error);
     console.error(`🟥 [${new Date().toISOString()}] ${prefix}:\n${formatted}`);
 }
 
-/**
- * Send error embed to Discord channel
- */
 async function sendErrorEmbed(client, prefix, error) {
     try {
         if (!client?.channels?.fetch) return;
@@ -77,30 +65,18 @@ async function sendErrorEmbed(client, prefix, error) {
     }
 }
 
-/**
- * Increment error counter
- */
 function incrementErrorCount() {
     errorCount++;
 }
 
-/**
- * Get current error count
- */
 function getErrorCount() {
     return errorCount;
 }
 
-/**
- * Reset error count
- */
 function resetErrorCount() {
     errorCount = 0;
 }
 
-/**
- * Handle .errorstats command
- */
 async function handleErrorStats(message) {
     const ADMIN_IDS = ['1128296349566251068', '1362450043939979378'];
     
@@ -115,25 +91,19 @@ async function handleErrorStats(message) {
     await message.reply({ embeds: [embed] });
 }
 
-/**
- * Initialize global error handlers
- */
 function initializeErrorHandlers(client) {
-    // Handle unhandled promise rejections
     process.on('unhandledRejection', async (reason, promise) => {
         incrementErrorCount();
         logToConsole('Unhandled Promise Rejection', reason);
         await sendErrorEmbed(client, 'Unhandled Promise Rejection', reason);
     });
 
-    // Handle uncaught exceptions
     process.on('uncaughtException', async (error) => {
         incrementErrorCount();
         logToConsole('Uncaught Exception', error);
         await sendErrorEmbed(client, 'Uncaught Exception', error);
     });
 
-    // Handle .errorstats command
     client.on('messageCreate', async (message) => {
         if (message.content.trim() === '.errorstats') {
             await handleErrorStats(message);
@@ -143,9 +113,6 @@ function initializeErrorHandlers(client) {
     console.log('✅ Error handlers initialized');
 }
 
-/**
- * Manually log an error
- */
 async function logError(client, context, error) {
     incrementErrorCount();
     logToConsole(context, error);

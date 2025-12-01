@@ -97,24 +97,19 @@ const StatusType = {
 };
 
 module.exports = {
-    // Client creation
     createClient,
     createMinimalClient,
     createAdminClient,
     
-    // Configuration exports
     DEFAULT_INTENTS,
     DEFAULT_PARTIALS,
     CLIENT_OPTIONS,
     
-    // Helper functions
     setPresence,
     
-    // Enums
     ActivityType,
     StatusType,
     
-    // Re-export Discord.js for convenience
     Client,
     GatewayIntentBits,
     Partials

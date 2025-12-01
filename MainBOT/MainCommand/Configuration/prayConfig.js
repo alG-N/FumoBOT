@@ -3,8 +3,8 @@ const PRAY_CHARACTERS = {
         id: 'yuyuko',
         name: 'Yuyuko',
         rarity: 'Legendary',
-        weight: 7,  // Base weight
-        enhancedWeight: 12,  // Enhanced weight
+        weight: 7, 
+        enhancedWeight: 12, 
         picture: 'https://th.bing.com/th/id/R.0b8e747c85c844e21285070088e39298?rik=Gdm12AsVV%2fAH9A&pid=ImgRaw&r=0',
         description: 'The Princess of the Netherworld offers ghostly blessings... or curses.',
         color: 0xFF69B4,

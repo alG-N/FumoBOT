@@ -24,7 +24,6 @@ module.exports = (client) => {
     client.on('messageCreate', async (message) => {
         if (!message.content.startsWith('.starter')) return;
 
-        // Check for maintenance mode or ban
         const banData = isBanned(message.author.id);
         if ((maintenance === "yes" && message.author.id !== developerID) || banData) {
             let description = '';
@@ -120,7 +119,7 @@ module.exports = (client) => {
 
             const reply = await message.reply({ embeds: [resultEmbed], ephemeral: true }).catch(console.error);
 
-            setTimeout(() => message.delete().catch(console.error), 30000); // Delete message after 30 seconds
+            setTimeout(() => message.delete().catch(console.error), 30000);
         });
     });
 }

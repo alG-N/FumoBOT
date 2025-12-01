@@ -20,25 +20,14 @@ const client = new Client({
 client.setMaxListeners(150);
 const { maintenance, developerID } = require("../../../Configuration/maintenanceConfig");
 const { isBanned } = require('../../../Administrator/BannedList/BanUtils');
-/**
- * Inventory command module for FumoBOT.
- * Improvements:
- * 1. Fixed: Cleaned up async/await usage, error handling, and ephemeral logic.
- * 2. Optimized: Reduced unnecessary object mutation, improved embed/page logic, and DRYed up code.
- * 3. Naming/readability: Improved function/variable names, added comments, and clarified logic.
- * 4. Feature: Added a "Sort By" toggle button (sort by rarity or quantity).
- * 5. Error handling: Added more robust DB error handling and edge case checks.
- */
 
 module.exports = (client) => {
-    // Rarity order for sorting and display
     const RARITY_ORDER = [
         'Common', 'UNCOMMON', 'RARE', 'EPIC', 'OTHERWORLDLY',
         'LEGENDARY', 'MYTHICAL', 'EXCLUSIVE', '???', 'ASTRAL',
         'CELESTIAL', 'INFINITE', 'ETERNAL', 'TRANSCENDENT'
     ];
 
-    // Helper to determine rarity from fumoName
     function getRarity(fumoName) {
         if (!fumoName) return 'Common';
         if (fumoName.includes('TRANSCENDENT')) return 'TRANSCENDENT';
@@ -57,12 +46,10 @@ module.exports = (client) => {
         return 'Common';
     }
 
-    // Helper to clean fumo name
     function cleanFumoName(name) {
         return name.replace(/\s*\(.*?\)\s*/g, '').trim();
     }
 
-    // Helper to fetch user inventory from DB
     async function fetchUserInventory(userId) {
         return new Promise((resolve, reject) => {
             db.all(
@@ -73,7 +60,6 @@ module.exports = (client) => {
         });
     }
 
-    // Helper to fetch user coin data (FantasyBook)
     async function fetchUserCoinData(userId) {
         return new Promise((resolve, reject) => {
             db.get(
@@ -84,12 +70,9 @@ module.exports = (client) => {
         });
     }
 
-    // Main command handler
     client.on('messageCreate', async (message) => {
         if (!['.storage', '.st'].includes(message.content) || message.author.bot) return;
 
-        // Maintenance check
-        // Check for maintenance mode or ban
         const banData = isBanned(message.author.id);
         if ((maintenance === "yes" && message.author.id !== developerID) || banData) {
             let description = '';
@@ -135,7 +118,6 @@ module.exports = (client) => {
             return message.reply({ embeds: [embed] });
         }
 
-        // Fetch user data
         let userData, inventoryRows;
         try {
             [userData, inventoryRows] = await Promise.all([
@@ -153,13 +135,10 @@ module.exports = (client) => {
             return message.reply({ content: '🛑 Your inventory is empty! Start collecting some fumos!', ephemeral: true });
         }
 
-        // Feature: Add sort toggle (by rarity or by quantity)
         let showShinyPlus = false;
-        let sortBy = 'rarity'; // or 'quantity'
+        let sortBy = 'rarity';
 
-        // Build inventory data for embed
         function buildInventoryData() {
-            // Map rarity to array of {name, count}
             const categories = {};
             RARITY_ORDER.forEach(r => categories[r] = []);
             let totalFumos = 0, totalShinyPlus = 0;
@@ -173,7 +152,6 @@ module.exports = (client) => {
                 const isAstralPlus = ['ASTRAL', 'CELESTIAL', 'INFINITE', 'ETERNAL', 'TRANSCENDENT'].includes(rarity);
                 const isOtherworldly = rarity === 'OTHERWORLDLY';
 
-                // Filter for shiny+ toggle
                 if (showShinyPlus && !isShinyPlus) continue;
                 if (!showShinyPlus && isShinyPlus) continue;
                 if (!showShinyPlus && (isAstralPlus || isOtherworldly) && !hasFantasyBook) continue;
@@ -184,14 +162,12 @@ module.exports = (client) => {
                 if (isShinyPlus) totalShinyPlus += row.count;
             }
 
-            // Filter out empty categories and apply sort
             let visibleRarities = RARITY_ORDER.filter(rarity => {
                 if (!categories[rarity].length) return false;
                 if (!showShinyPlus && !hasFantasyBook && ['ASTRAL', 'CELESTIAL', 'INFINITE', 'ETERNAL', 'TRANSCENDENT', 'OTHERWORLDLY'].includes(rarity)) return false;
                 return true;
             });
 
-            // Sort each category by chosen sort
             for (const rarity of visibleRarities) {
                 categories[rarity].sort((a, b) => {
                     if (sortBy === 'quantity') return b.count - a.count || a.name.localeCompare(b.name);
@@ -202,14 +178,11 @@ module.exports = (client) => {
             return { categories, visibleRarities, totalFumos, totalShinyPlus };
         }
 
-        // Pagination state
         let currentPage = 0;
 
-        // Call buildInventoryData to get initial data
         let { categories, visibleRarities, totalFumos, totalShinyPlus } = buildInventoryData();
         let maxPage = Math.max(0, Math.ceil(visibleRarities.length / 3) - 1);
 
-        // Helper to build embed for current page
         function buildEmbed({ categories, visibleRarities, totalFumos, totalShinyPlus }) {
             const embed = new EmbedBuilder()
                 .setColor('#FFD700')
@@ -220,7 +193,6 @@ module.exports = (client) => {
                     : `🧸 **Total Fumos:** ${totalFumos}`
                 );
 
-            // 3 rarities per page
             const start = currentPage * 3;
             const end = Math.min(start + 3, visibleRarities.length);
             for (let i = start; i < end; i++) {
@@ -242,7 +214,6 @@ module.exports = (client) => {
                         : `📦 Sorted by ${sortBy === 'rarity' ? 'rarity/name' : 'quantity'} • Keep up the hunt for rare fumos!`
             });
 
-            // Fix: Remove undefined fields for thread_name, applied_tags, poll
             if (embed.data && embed.data.fields) {
                 embed.data.fields = embed.data.fields.filter(
                     f => f.name !== undefined && f.value !== undefined
@@ -252,9 +223,7 @@ module.exports = (client) => {
             return embed;
         }
 
-        // Helper to build action row with buttons
         function buildButtons(maxPage) {
-            // Only 5 buttons per ActionRow allowed, so split into two rows if needed
             const row1 = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId('first').setLabel('⏮ First').setStyle(ButtonStyle.Primary).setDisabled(currentPage === 0),
                 new ButtonBuilder().setCustomId('prev').setLabel('◀ Previous').setStyle(ButtonStyle.Secondary).setDisabled(currentPage === 0),
@@ -286,7 +255,6 @@ module.exports = (client) => {
             return;
         }
 
-        // Collector for button interactions
         const collector = sentMessage.createMessageComponentCollector({ time: 180000 });
 
         collector.on('collect', async interaction => {
@@ -296,7 +264,6 @@ module.exports = (client) => {
                         await interaction.reply({ content: '❌ This is not your inventory!', ephemeral: true });
                     }
                 } catch (err) {
-                    // Ignore unknown interaction errors
                 }
                 return;
             }
@@ -329,7 +296,6 @@ module.exports = (client) => {
             }
 
             if (dataChanged) {
-                // Rebuild data and update embed/buttons
                 ({ categories, visibleRarities, totalFumos, totalShinyPlus } = buildInventoryData());
                 maxPage = Math.max(0, Math.ceil(visibleRarities.length / 3) - 1);
                 try {
@@ -340,7 +306,6 @@ module.exports = (client) => {
                         });
                     }
                 } catch (err) {
-                    // Ignore unknown interaction errors (likely expired)
                 }
             }
         });
@@ -349,7 +314,6 @@ module.exports = (client) => {
             try {
                 await sentMessage.edit({ components: [] });
             } catch (err) {
-                // Ignore errors if message already deleted or edited
             }
         });
     });

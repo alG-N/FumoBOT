@@ -15,7 +15,6 @@ const { handleAlGShard } = require('./alGShardHandler');
 const { handleAncientRelic } = require('./AncientRelicHandler');
 
 const ITEM_HANDLERS = {
-    // Potions
     'CoinPotionT1(R)': handleCoinPotion,
     'CoinPotionT2(R)': handleCoinPotion,
     'CoinPotionT3(R)': handleCoinPotion,
@@ -34,7 +33,6 @@ const ITEM_HANDLERS = {
     'BoostPotionT4(M)': handleBoostPotion,
     'BoostPotionT5(M)': handleBoostPotion,
     
-    // Special Items
     'WeirdGrass(R)': handleWeirdGrass,
     'GoldenSigil(?)': handleGoldenSigil,
     'HakureiTicket(L)': handleHakureiTicket,
@@ -78,8 +76,6 @@ module.exports = {
     handleItem,
     isUsableItem,
     getItemHandler,
-    
-    // Export individual handlers for direct access
     handleCoinPotion,
     handleGemPotion,
     handleBoostPotion,
@@ -97,8 +93,6 @@ module.exports = {
     handleShinyShard,
     handleAlGShard,
     handleAncientRelic,
-    
-    // Helper functions
     isCoinPotion,
     isGemPotion,
     isBoostPotion

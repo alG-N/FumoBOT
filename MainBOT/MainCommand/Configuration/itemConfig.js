@@ -13,7 +13,6 @@ const RARITY_SUFFIX_MAP = {
     '(P)': 'Prime'
 };
 
-// Create reverse mapping: Rarity -> Suffix
 const RARITY_TO_SUFFIX = Object.fromEntries(
     Object.entries(RARITY_SUFFIX_MAP).map(([suffix, rarity]) => [rarity, suffix])
 );
@@ -27,8 +26,8 @@ const RARITY_COLORS = {
     'Mythical': 0xFF0000,
     'Divine': 0xFFFF66,
     'Secret': 0xFF00FF,
-    'Unknown': 0x8B008B,     // Dark magenta
-    'Prime': 0xFFD700        // Gold
+    'Unknown': 0x8B008B,   
+    'Prime': 0xFFD700
 };
 
 const RARITY_EMOJI = {

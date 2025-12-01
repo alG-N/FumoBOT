@@ -10,7 +10,6 @@ module.exports = async (client) => {
         const userId = message.author.id;
         const content = message.content.trim().toLowerCase();
 
-        // Equip pet(s)
         if (content.startsWith('.equippet') || content.startsWith('.ep') ||
             content.startsWith('.equipbest') || content.startsWith('.eb')) {
 
@@ -48,21 +47,18 @@ module.exports = async (client) => {
                         return message.reply("❌ No unequipped pets available to equip as best.");
                     }
                 } else {
-                    // Find all pets matching the name
                     const matched = pets.filter(p => p.petName.toLowerCase() === petName.toLowerCase());
 
                     if (matched.length === 0) {
                         return message.reply("❌ You don't own a pet with that name.");
                     }
 
-                    // Filter out already equipped pets
                     const availablePets = matched.filter(p => !equippedIds.includes(p.petId));
 
                     if (availablePets.length === 0) {
                         return message.reply(`❌ All your pets named **${petName}** are already equipped.`);
                     }
 
-                    // If multiple pets with same name, show selection menu
                     if (availablePets.length > 1) {
                         return await handleMultiplePetSelection(message, userId, availablePets, equippedIds);
                     }
@@ -74,12 +70,10 @@ module.exports = async (client) => {
                     petsToEquip = [availablePets[0]];
                 }
 
-                // Clear all equipped if equipping best
                 if (isEquipBest || petName === 'best') {
                     await dbRun(db, `DELETE FROM equippedPets WHERE userId = ?`, [userId]);
                 }
 
-                // Equip pets and calculate abilities
                 for (const pet of petsToEquip) {
                     await dbRun(db, `INSERT INTO equippedPets (userId, petId) VALUES (?, ?)`, [userId, pet.petId]);
 
@@ -104,7 +98,6 @@ module.exports = async (client) => {
             }
         }
 
-        // Unequip pet(s)
         else if (content.startsWith('.unequip') || content.startsWith('.ue') ||
             content.startsWith('.unequipall') || content.startsWith('.uea')) {
 
@@ -139,7 +132,6 @@ module.exports = async (client) => {
                         return message.reply("❌ No equipped pet found with that name.");
                     }
 
-                    // If multiple pets with same name are equipped
                     if (pets.length > 1) {
                         return await handleMultiplePetUnequip(message, userId, pets);
                     }
@@ -165,7 +157,6 @@ module.exports = async (client) => {
         }
     });
 
-    // Auto-refresh pet boosts every 10 seconds
     setInterval(async () => {
         try {
             const users = await dbAll(db, `SELECT DISTINCT userId FROM equippedPets`, []);
@@ -180,7 +171,6 @@ module.exports = async (client) => {
     }, 10000);
 };
 
-// Handle multiple pets with same name - equip selection
 async function handleMultiplePetSelection(message, userId, availablePets, equippedIds) {
     const options = availablePets.slice(0, 25).map((pet, index) => ({
         label: `${pet.name} "${pet.petName}" #${index + 1}`,
@@ -246,7 +236,6 @@ async function handleMultiplePetSelection(message, userId, availablePets, equipp
     }
 }
 
-// Handle multiple pets with same name - unequip selection
 async function handleMultiplePetUnequip(message, userId, equippedPets) {
     const options = equippedPets.slice(0, 25).map((pet, index) => ({
         label: `${pet.name} "${pet.petName}" #${index + 1}`,
@@ -306,7 +295,6 @@ async function handleMultiplePetUnequip(message, userId, equippedPets) {
     }
 }
 
-// Apply boosts based on equipped pets' abilities
 async function applyPetBoosts(userId, equippedPets = null) {
     if (!equippedPets) {
         equippedPets = await dbAll(db, `
@@ -341,7 +329,6 @@ async function applyPetBoosts(userId, equippedPets = null) {
         boostMap[key].pets.push({ petId: pet.petId, name: pet.name });
     }
 
-    // Insert boosts into activeBoosts table
     for (const [type, { boostType, values, pets }] of Object.entries(boostMap)) {
         const petNames = pets.map(p => p.name).join(', ');
         let multiplier = 1;
@@ -367,7 +354,6 @@ async function applyPetBoosts(userId, equippedPets = null) {
     }
 }
 
-// Clear pet-related boosts
 async function clearPetBoosts(userId) {
     try {
         const rows = await dbAll(db, `SELECT name FROM petInventory WHERE userId = ?`, [userId]);

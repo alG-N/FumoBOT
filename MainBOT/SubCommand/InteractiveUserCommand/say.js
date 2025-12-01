@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
 const OWNER_ID = "1128296349566251068";
-const LOG_CHANNEL_ID = "1411386693499486429"; // Logging channel ID
+const LOG_CHANNEL_ID = "1411386693499486429";
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -46,7 +46,6 @@ module.exports = {
         const showCredit = interaction.options.getBoolean('credit');
         const type = interaction.options.getString('type') || 'normal';
 
-        // Validate channel
         if (!channel.isTextBased()) {
             return interaction.reply({
                 content: '❌ That channel is not a text-based channel!',
@@ -54,7 +53,6 @@ module.exports = {
             });
         }
 
-        // Message type colors
         const typeColors = {
             normal: 0x2f3136,
             info: 0x3498db,
@@ -63,12 +61,10 @@ module.exports = {
             success: 0x2ecc71
         };
 
-        // Sanitize message
         const safeMessage = message
             .replace(/@everyone/g, '[everyone]')
             .replace(/@here/g, '[here]');
 
-        // Credit logic
         let creditText = '';
         if (interaction.user.id === OWNER_ID) {
             if (showCredit) {
@@ -78,7 +74,6 @@ module.exports = {
             creditText = `Requested by ${interaction.user.tag}`;
         }
 
-        // Build message
         let contentToSend;
         if (useEmbed) {
             const embed = new EmbedBuilder()

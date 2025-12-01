@@ -5,10 +5,9 @@ const { getUserShopTimeLeft } = require('./ShopCacheService');
 const { getRerollData, getRerollCooldownRemaining, formatTimeRemaining, getPaidRerollCost, canUseGemReroll } = require('./ShopRerollService');
 const { isDoubleLuckDay, isGuaranteedMysteryBlock } = require('./ShopGenerationService');
 
-// Define rarity pages for pagination
 const RARITY_PAGES = [
-    ['Basic', 'Common', 'Rare', 'Epic', 'Legendary'],  // Page 1: Common to Legendary
-    ['Mythical', 'Divine', '???', 'Unknown', 'Prime']   // Page 2: Mythical to Prime
+    ['Basic', 'Common', 'Rare', 'Epic', 'Legendary'],  
+    ['Mythical', 'Divine', '???', 'Unknown', 'Prime']   
 ];
 
 function formatStockText(stock, stockMessage) {

@@ -60,7 +60,6 @@ async function sendInvitation(channel, challenger, opponent, currency, amount) {
 
     const message = await channel.send({ embeds: [embed], components: [row] });
 
-    // Wait for response
     const filter = i => i.user.id === opponent.id && i.customId.includes('gamble');
     
     try {

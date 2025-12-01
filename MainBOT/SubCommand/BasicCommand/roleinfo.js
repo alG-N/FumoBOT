@@ -12,7 +12,6 @@ module.exports = {
                 .setRequired(true)
         ),
     async execute(interaction) {
-        // Maintenance or ban check
         const banData = isBanned(interaction.user.id);
         if ((maintenance === "yes" && interaction.user.id !== developerID) || banData) {
             let description = '';

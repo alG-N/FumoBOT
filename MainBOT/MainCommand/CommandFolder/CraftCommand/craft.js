@@ -36,7 +36,6 @@ module.exports = (client) => {
     client.on('messageCreate', async (message) => {
         if (message.author.bot || (message.content !== '.craft' && !message.content.startsWith('.craft ') && message.content !== '.c' && !message.content.startsWith('.c '))) return;
 
-        // Check for maintenance mode or ban
         const banData = isBanned(message.author.id);
         if ((maintenance === "yes" && message.author.id !== developerID) || banData) {
             let description = '';

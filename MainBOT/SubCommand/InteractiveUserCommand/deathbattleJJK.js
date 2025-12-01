@@ -38,7 +38,6 @@ module.exports = {
                 .setRequired(false)),
     async execute(interaction) {
         try {
-            // Maintenance & ban check
             const banData = isBanned(interaction.user.id);
             if ((maintenance === "yes" && interaction.user.id !== developerID) || banData) {
                 let description = '';
@@ -97,7 +96,6 @@ module.exports = {
                 user2: { shrine: 0, speech: 1, speechTurns: 0, binding: false, beam: 0, burn: 0, slow: 0, lightning: 0 }
             };
 
-            // JJK powers array (same as before)
             const jjkPowers = [
                 { name: 'hollow purple', char: 'Gojo', type: 'damage', scale: 0.22, desc: 'Hollow Purple' },
                 { name: 'infinity', char: 'Gojo', type: 'stun', scale: 0.10, desc: 'Infinity' },

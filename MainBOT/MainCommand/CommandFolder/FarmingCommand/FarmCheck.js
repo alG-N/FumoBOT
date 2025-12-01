@@ -85,7 +85,6 @@ function setupInteractionCollector(msg, userId, message, client) {
             console.error('CustomId:', interaction.customId);
             console.error('Stack:', error.stack);
             
-            // Try to send error message to user
             try {
                 if (!interaction.replied && !interaction.deferred) {
                     await interaction.reply({
@@ -108,7 +107,6 @@ function setupInteractionCollector(msg, userId, message, client) {
         try {
             await msg.edit({ components: [] });
         } catch (error) {
-            // Message might be deleted
         }
     });
 }

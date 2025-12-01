@@ -76,7 +76,6 @@ async function getTopPlayersByGames(limit = 10) {
 async function getUserRank(userId, category = 'coins') {
     debugLog('FLIP_LEADERBOARD', `Getting rank for user ${userId} in ${category}`);
     
-    // First check if user exists and has the required data
     const userCheck = await get(
         `SELECT userId, coins, gems, wins, losses FROM userCoins WHERE userId = ?`,
         [userId]
@@ -92,7 +91,6 @@ async function getUserRank(userId, category = 'coins') {
     switch (category) {
         case 'coins':
         case 'gems':
-            // Check if user has any of this currency
             if (userCheck[category] <= 0) {
                 return null;
             }
@@ -108,7 +106,6 @@ async function getUserRank(userId, category = 'coins') {
             break;
             
         case 'wins':
-            // Check if user has any wins
             if (userCheck.wins <= 0) {
                 return null;
             }
@@ -124,7 +121,6 @@ async function getUserRank(userId, category = 'coins') {
             break;
             
         case 'winrate':
-            // Check if user has enough games
             const totalGamesWinrate = userCheck.wins + userCheck.losses;
             if (totalGamesWinrate < 50) {
                 return null;
@@ -144,7 +140,6 @@ async function getUserRank(userId, category = 'coins') {
             break;
             
         case 'games':
-            // Check if user has any games
             const totalGamesPlayed = userCheck.wins + userCheck.losses;
             if (totalGamesPlayed <= 0) {
                 return null;

@@ -79,12 +79,11 @@ module.exports = async (client) => {
                 const chosen = pickRandomPet(egg.eggName, EGG_POOLS);
                 const weight = getRandomWeight();
                 const quality = getRandomQuality();
-                const petName = generatePetName(); // Generate random name
+                const petName = generatePetName();
                 const timestamp = Date.now();
                 const petId = uuidv4();
                 const maxHunger = getMaxHunger(chosen.rarity);
 
-                // Apply alterGolden bonus if applicable
                 let finalWeight = weight;
                 let finalQuality = quality;
                 
@@ -129,7 +128,6 @@ module.exports = async (client) => {
                 try {
                     await reply.edit({ components: disabledRows });
                 } catch (e) {
-                    // Message deleted or already edited
                 }
             });
 

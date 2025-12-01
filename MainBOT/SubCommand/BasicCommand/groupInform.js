@@ -10,7 +10,6 @@ module.exports = {
         .setName('groupinform')
         .setDescription('Shows information about the server.'),
     async execute(interaction) {
-        // Check for maintenance mode or ban
         const banData = isBanned(interaction.user.id);
         if ((maintenance === "yes" && interaction.user.id !== developerID) || banData) {
             let description = '';

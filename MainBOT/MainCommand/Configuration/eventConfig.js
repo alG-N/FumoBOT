@@ -1,27 +1,17 @@
-/**
- * Event Gacha Configuration
- * All event-specific constants and settings
- */
-
-// Event timing
 const EVENT_START_TIME = new Date();
-const EVENT_DURATION = 11 * 24 * 60 * 60 * 1000; // 11 days
+const EVENT_DURATION = 11 * 24 * 60 * 60 * 1000;
 const EVENT_END_TIME = new Date(EVENT_START_TIME.getTime() + EVENT_DURATION);
 
-// Roll limits
 const EVENT_ROLL_LIMIT = 50000;
-const EVENT_WINDOW_DURATION = 30 * 60 * 1000; // 30 minutes
+const EVENT_WINDOW_DURATION = 30 * 60 * 1000;
 
-// Costs
-const EVENT_COST_PER_ROLL = 100; // gems
+const EVENT_COST_PER_ROLL = 100;
 
-// Cooldowns
-const EVENT_COOLDOWN_BASE = 3000; // 3 seconds
+const EVENT_COOLDOWN_BASE = 3000;
 
-// Auto-roll settings - NEW
-const EVENT_AUTO_ROLL_INTERVAL = 30000; // 30 seconds
-const EVENT_AUTO_ROLL_INTERVAL_BOOSTED = 15000; // 15 seconds with boost
-const EVENT_AUTO_ROLL_BATCH_SIZE = 100; // Roll 100 at a time
+const EVENT_AUTO_ROLL_INTERVAL = 30000; 
+const EVENT_AUTO_ROLL_INTERVAL_BOOSTED = 15000; 
+const EVENT_AUTO_ROLL_BATCH_SIZE = 100; 
 
 function isEventActive() {
     return Date.now() < EVENT_END_TIME.getTime();

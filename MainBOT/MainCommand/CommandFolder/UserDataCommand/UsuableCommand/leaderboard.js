@@ -91,7 +91,6 @@ module.exports = (client) => {
     client.on('messageCreate', async message => {
         if (!message.content.startsWith('.leaderboard') && !message.content.startsWith('.le')) return;
 
-        // Check for maintenance mode or ban
         const banData = isBanned(message.author.id);
         if ((maintenance === "yes" && message.author.id !== developerID) || banData) {
             let description = '';
@@ -167,7 +166,6 @@ module.exports = (client) => {
                 .setTimestamp();
 
             leaderboardEmbed.addFields(
-                // Row 1
                 {
                     name: '💰 Top Coins',
                     value: await formatSimpleLeaderboard(coinRows),
@@ -179,12 +177,10 @@ module.exports = (client) => {
                     inline: true
                 },
                 {
-                    name: '\u200B', // empty column to balance
+                    name: '\u200B',
                     value: '\u200B',
                     inline: true
                 },
-
-                // Row 2
                 {
                     name: '🧸 Top Fumos',
                     value: await formatSimpleLeaderboard(fumoRows),
@@ -196,7 +192,7 @@ module.exports = (client) => {
                     inline: true
                 },
                 {
-                    name: '\u200B', // empty column to balance
+                    name: '\u200B',
                     value: '\u200B',
                     inline: true
                 }

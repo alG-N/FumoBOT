@@ -42,7 +42,6 @@ async function handleShinyShard(message, itemName, quantity, userId) {
 async function handleShinyShardRaritySelection(interaction) {
     const userId = interaction.user.id;
     
-    // Extract rarity from value (format: shiny_rarity_RARITY)
     const rarity = interaction.values[0].replace('shiny_rarity_', '');
 
     try {
@@ -57,7 +56,6 @@ async function handleShinyShardRaritySelection(interaction) {
             });
         }
 
-        // Limit to 25 options (Discord limit)
         const fumoOptions = fumos.slice(0, 25).map((fumo, index) => ({
             label: fumo.name.replace(/\(.*?\)/, '').trim().slice(0, 100),
             value: `shiny_fumo_${index}`,
@@ -101,7 +99,6 @@ async function handleShinyShardFumoSelection(interaction) {
     const userId = interaction.user.id;
     const customId = interaction.customId;
     
-    // Parse the customId to get additional data
     const { parseCustomId } = require('../../../../Middleware/buttonOwnership');
     const { additionalData } = parseCustomId(customId);
     const rarity = additionalData?.rarity;
@@ -114,11 +111,9 @@ async function handleShinyShardFumoSelection(interaction) {
         });
     }
     
-    // Get selected fumo index
     const selectedIndex = parseInt(interaction.values[0].replace('shiny_fumo_', ''));
 
     try {
-        // Get fumos again to match the index
         const allFumos = FumoPool.getForCrate();
         const fumos = allFumos.filter(f => f.rarity === rarity);
         const selectedFumo = fumos[selectedIndex];
@@ -197,7 +192,6 @@ async function handleShinyShardConfirmation(interaction) {
     const { fumoName, rarity } = additionalData;
 
     try {
-        // Check if user has the shard
         const inventory = await get(
             `SELECT quantity FROM userInventory WHERE userId = ? AND itemName = 'ShinyShard(?)'`,
             [userId]
@@ -211,8 +205,6 @@ async function handleShinyShardConfirmation(interaction) {
             });
         }
 
-        // FIXED: Search for original fumo by both fumoName and itemName
-        // This handles cases where the fumo might be stored under different columns
         const originalFumo = await get(
             `SELECT id, fumoName, itemName, quantity FROM userInventory 
              WHERE userId = ? 
@@ -232,7 +224,6 @@ async function handleShinyShardConfirmation(interaction) {
             });
         }
 
-        // Consume the shard
         await run(
             `UPDATE userInventory SET quantity = quantity - 1 WHERE userId = ? AND itemName = 'ShinyShard(?)'`,
             [userId]
@@ -243,22 +234,18 @@ async function handleShinyShardConfirmation(interaction) {
             [userId]
         );
 
-        // FIXED: Remove 1 of the original fumo using the ID we found
         if (originalFumo.quantity > 1) {
             await run(
                 `UPDATE userInventory SET quantity = quantity - 1 WHERE id = ?`,
                 [originalFumo.id]
             );
         } else {
-            // If quantity is 1, delete the entire row
             await run(
                 `DELETE FROM userInventory WHERE id = ?`,
                 [originalFumo.id]
             );
         }
 
-        // Create the shiny version
-        // IMPORTANT: Use the EXACT fumoName from the original for consistency
         const baseFumoName = originalFumo.fumoName;
         const shinyFumoName = `${baseFumoName}[✨SHINY]`;
 
@@ -303,7 +290,6 @@ async function handleShinyShardCancellation(interaction) {
 async function handleShinyShardBack(interaction) {
     const userId = interaction.user.id;
     
-    // Recreate the initial rarity selection menu
     try {
         const rarities = ['UNCOMMON', 'RARE', 'EPIC', 'OTHERWORLDLY', 'LEGENDARY', 'MYTHICAL', 'EXCLUSIVE', '???', 'ASTRAL', 'CELESTIAL', 'INFINITE', 'ETERNAL', 'TRANSCENDENT'];
         

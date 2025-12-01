@@ -206,9 +206,6 @@ async function getAutocompleteSuggestions(query) {
             return [];
         }
 
-        // console.log("Pixiv autocomplete result:", data);
-        // console.log("Pixiv candidates:", data.candidates);
-
         return data.candidates.map(tag => tag.tag_name).filter(Boolean);
 
     } catch (err) {
@@ -257,12 +254,10 @@ async function getProxyImageUrl(item, mangaPageIndex = 0) {
         'i.pximg.net',     
     ];
 
-    // Try each proxy
     for (const proxy of proxies) {
         try {
             const proxyUrl = imageUrl.replace('i.pximg.net', proxy);
             
-            // Quick validation check
             const response = await fetch(proxyUrl, { 
                 method: 'HEAD',
                 timeout: 3000 
@@ -491,14 +486,12 @@ module.exports = {
 
             const focused = interaction.options.getFocused(true);
 
-            // Only run autocomplete for the 'query' option
             if (focused.name !== "query") {
                 return interaction.respond([]);
             }
 
             const focusedValue = focused.value;
 
-            // If empty input, show helpful message
             if (!focusedValue || focusedValue.trim() === '') {
                 return interaction.respond([
                     { name: '💡 Type in English or Japanese...', value: ' ' }
@@ -515,17 +508,12 @@ module.exports = {
             let choices = [];
             const isEnglish = isEnglishText(focusedValue);
 
-            // If English input, translate to Japanese and search
             if (isEnglish) {
                 try {
                     const translated = await translateToJapanese(focusedValue);
-                    // console.log(`Translated "${focusedValue}" → "${translated}"`);
-
-                    // Search with translated term
                     const suggestions = await getAutocompleteSuggestions(translated);
 
                     if (suggestions && suggestions.length > 0) {
-                        // Translate each Japanese tag to English
                         const translationPromises = suggestions.slice(0, 23).map(async (keyword) => {
                             const englishTranslation = await translateToEnglish(keyword);
                             const displayName = englishTranslation
@@ -541,7 +529,6 @@ module.exports = {
                         choices = await Promise.all(translationPromises);
                     }
 
-                    // Add the translated term as an option
                     const englishBack = await translateToEnglish(translated);
                     choices.unshift({
                         name: `🌐 ${translated}${englishBack ? ` - ${englishBack}` : ''}`,
@@ -551,7 +538,6 @@ module.exports = {
                     console.error("Translation failed:", err);
                 }
             } else {
-                // Japanese input - search directly and translate to English
                 const suggestions = await getAutocompleteSuggestions(focusedValue);
 
                 if (suggestions && suggestions.length > 0) {
@@ -571,14 +557,12 @@ module.exports = {
                 }
             }
 
-            // Always add the user's original input as a search option
             const userInput = focusedValue.slice(0, 100);
             choices.unshift({
                 name: `🔍 Search: "${focusedValue.length > 85 ? focusedValue.slice(0, 82) + "..." : focusedValue}"`,
                 value: userInput
             });
 
-            // Limit to 25 total choices (Discord's limit)
             choices = choices.slice(0, 25);
 
             searchCache.set(cacheKey, {

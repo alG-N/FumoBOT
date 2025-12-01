@@ -15,28 +15,15 @@ const CONFIG = {
     BACKUP_SCHEDULE: '0 */12 * * *'
 };
 
-/**
- * Format file size in a human-readable way
- * @param {number} bytes - File size in bytes
- * @returns {string} Formatted size string (e.g., "2.45 MB")
- */
 function formatSize(bytes) {
     const megabytes = bytes / 1024 / 1024;
     return `${megabytes.toFixed(2)} MB`;
 }
 
-/**
- * Generate timestamp string for backup filenames
- * @returns {string} ISO timestamp with special chars removed
- */
 function generateTimestamp() {
     return new Date().toISOString().replace(/[:.]/g, '-');
 }
 
-/**
- * Ensure a directory exists, creating it if necessary
- * @param {string} dirPath - Directory path to ensure exists
- */
 function ensureDirectoryExists(dirPath) {
     if (!fs.existsSync(dirPath)) {
         fs.mkdirSync(dirPath, { recursive: true });
@@ -44,11 +31,6 @@ function ensureDirectoryExists(dirPath) {
     }
 }
 
-/**
- * Copy database files to temporary directory
- * @param {string} tempDir - Temporary directory to copy files to
- * @returns {Array<string>} Array of successfully copied filenames
- */
 function copyDatabaseFiles(tempDir) {
     const copiedFiles = [];
 
@@ -72,11 +54,6 @@ function copyDatabaseFiles(tempDir) {
     return copiedFiles;
 }
 
-/**
- * Create a ZIP archive from a directory
- * @param {string} sourceDir - Directory to compress
- * @param {string} zipPath - Output ZIP file path
- */
 function createZipArchive(sourceDir, zipPath) {
     const zip = new AdmZip();
     zip.addLocalFolder(sourceDir);
@@ -84,11 +61,6 @@ function createZipArchive(sourceDir, zipPath) {
     console.log(`🗜️ Created archive: ${path.basename(zipPath)}`);
 }
 
-/**
- * Get file statistics for display in embed
- * @param {Array<string>} filenames - Array of filenames to get stats for
- * @returns {Array<string>} Array of formatted file stat strings
- */
 function getFileStats(filenames) {
     return filenames.map(filename => {
         const filePath = path.join(CONFIG.DB_DIR, filename);
@@ -100,10 +72,6 @@ function getFileStats(filenames) {
     });
 }
 
-/**
- * Clean up old backup files, keeping only the most recent ones
- * @param {number} keepCount - Number of backups to keep
- */
 function cleanOldBackups(keepCount) {
     try {
         const zipFiles = fs.readdirSync(CONFIG.BACKUP_DIR)
@@ -131,14 +99,6 @@ function cleanOldBackups(keepCount) {
     }
 }
 
-/**
- * Create success embed for backup notification
- * @param {Array<string>} copiedFiles - Files that were backed up
- * @param {string} zipFilename - Name of the backup ZIP file
- * @param {number} zipSizeBytes - Size of ZIP file in bytes
- * @param {boolean} canUpload - Whether file can be uploaded to Discord
- * @returns {EmbedBuilder}
- */
 function createSuccessEmbed(copiedFiles, zipFilename, zipSizeBytes, canUpload) {
     const fileStats = getFileStats(copiedFiles);
     const sizeMB = formatSize(zipSizeBytes);
@@ -169,11 +129,6 @@ function createSuccessEmbed(copiedFiles, zipFilename, zipSizeBytes, canUpload) {
     return embed;
 }
 
-/**
- * Create error embed for backup failure
- * @param {Error} error - The error that occurred
- * @returns {EmbedBuilder}
- */
 function createErrorEmbed(error) {
     return new EmbedBuilder()
         .setTitle('❌ Backup Failed')
@@ -186,12 +141,6 @@ function createErrorEmbed(error) {
         .setTimestamp();
 }
 
-/**
- * Send backup notification to Discord channel
- * @param {Client} client - Discord client instance
- * @param {EmbedBuilder} embed - Embed to send
- * @param {string|null} filePath - Optional file to attach
- */
 async function sendDiscordNotification(client, embed, filePath = null) {
     try {
         const channel = await client.channels.fetch(CONFIG.BACKUP_CHANNEL_ID).catch(() => null);
@@ -216,10 +165,6 @@ async function sendDiscordNotification(client, embed, filePath = null) {
     }
 }
 
-/**
- * Perform database backup and send to Discord channel
- * @param {Client} client - Discord client instance
- */
 async function backupAndSendDB(client) {
     const timestamp = generateTimestamp();
     const tempDir = path.join(CONFIG.BACKUP_DIR, `temp_${timestamp}`);
@@ -275,10 +220,6 @@ async function backupAndSendDB(client) {
     }
 }
 
-/**
- * Schedule automatic backups using cron
- * @param {Client} client - Discord client instance
- */
 function scheduleBackups(client) {
     cron.schedule(CONFIG.BACKUP_SCHEDULE, () => {
         console.log('⏰ Running scheduled backup...');

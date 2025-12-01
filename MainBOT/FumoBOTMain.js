@@ -127,31 +127,15 @@ if (steam && steam.data && steam.data.name) {
 
 // BOT READY EVENT
 client.once('ready', async () => {
-    console.log(`✅ Logged in as ${client.user.tag}`);
-
-    // Initialize database
+    console.log(`✅ Logged in as ${client.user.tag}, status set to: Playing .help and .starter`);
     initializeDatabase();
-
-    // Start income system
     startIncomeSystem();
-
-    // Schedule backups
     scheduleBackups(client);
-
-    // Initialize error handlers
     initializeErrorHandlers(client);
-
-    // Set bot status using the config helper
     setPresence(client, 'online', '.help and .starter', ActivityType.PLAYING);
-    console.log('✅ Status set to: Playing .help and .starter');
-
-    // Set pet exp gaining and aging systems
     initializePetSystems();
-
     initializeSeasonSystem(client);
-
     initializeShop();
-
     initializeShardHandler(client);
 
     try {
@@ -159,7 +143,6 @@ client.once('ready', async () => {
         const crateFumos = FumoPool.getForCrate();
         const eventFumos = FumoPool.getForEvent();
 
-        // Import unified notification system
         const {
             notifyUserUnifiedAutoRoll,
             sendUnifiedRestorationSummary,
@@ -169,14 +152,12 @@ client.once('ready', async () => {
         const { restoreAutoRolls: restoreNormalAutoRolls } = require('./MainCommand/Service/GachaService/NormalGachaService/CrateAutoRollService');
         const { restoreEventAutoRolls } = require('./MainCommand/Service/GachaService/EventGachaService/EventAutoRollService');
 
-        // Load saved states (using normal gacha's loader which handles both)
         const { loadAutoRollState } = require('./MainCommand/Service/GachaService/NormalGachaService/AutoRollPersistence');
         const { loadEventAutoRollState } = require('./MainCommand/Service/GachaService/EventGachaService/EventAutoRollPersistence');
         
         const normalSavedStates = loadAutoRollState();
         const eventSavedStates = loadEventAutoRollState();
 
-        // Merge user IDs from both states
         const allUserIds = new Set([
             ...Object.keys(normalSavedStates),
             ...Object.keys(eventSavedStates)
@@ -190,9 +171,7 @@ client.once('ready', async () => {
         const normalStates = new Map();
         const eventStates = new Map();
 
-        // Restore each user's auto-rolls
         for (const userId of allUserIds) {
-            // Restore normal gacha if exists
             if (normalSavedStates[userId]) {
                 const normalResult = await restoreNormalAutoRolls(
                     client,
@@ -208,7 +187,6 @@ client.once('ready', async () => {
                 }
             }
 
-            // Restore event gacha if exists
             if (eventSavedStates[userId]) {
                 const eventResult = await restoreEventAutoRolls(
                     client,
@@ -224,7 +202,6 @@ client.once('ready', async () => {
                 }
             }
 
-            // Send unified notification to user if they have any restored auto-rolls
             if (normalStates.has(userId) || eventStates.has(userId)) {
                 await notifyUserUnifiedAutoRoll(
                     client,
@@ -235,10 +212,8 @@ client.once('ready', async () => {
             }
         }
 
-        // Send summary to log channel
         await sendUnifiedRestorationSummary(client, results, LOG_CHANNEL_ID);
 
-        // Register button handler for details viewing
         client.on('interactionCreate', async interaction => {
             if (!interaction.isButton()) return;
 
@@ -308,11 +283,8 @@ registerCodeRedemption(client);
 
 // INTERACTION HANDLER
 client.on('interactionCreate', async interaction => {
-    // Handle BUTTONS
     if (interaction.isButton()) {
         console.log('🔘 Button interaction received:', interaction.customId);
-
-        // Reddit button handler
         if (interaction.customId.startsWith('show_post_') ||
             interaction.customId.startsWith('gallery_') ||
             interaction.customId.startsWith('back_to_list_') ||
@@ -338,7 +310,6 @@ client.on('interactionCreate', async interaction => {
             return;
         }
 
-        // Pixiv button handler
         if (interaction.customId.startsWith('pixiv_')) {
             const pixivCommand = client.commands.get('pixiv');
             if (pixivCommand && pixivCommand.handleButton) {
@@ -363,7 +334,6 @@ client.on('interactionCreate', async interaction => {
         return;
     }
 
-    // Handle SLASH COMMANDS
     if (interaction.isChatInputCommand()) {
         const command = client.commands.get(interaction.commandName);
         if (!command) return;
@@ -385,7 +355,6 @@ client.on('interactionCreate', async interaction => {
         return;
     }
 
-    // Handle AUTOCOMPLETE
     if (interaction.isAutocomplete()) {
         const command = client.commands.get(interaction.commandName);
 
@@ -412,26 +381,18 @@ client.on('messageCreate', message => {
 // MUSIC COMMANDS
 musicCommands(client);
 
-// ============================================
 // GRACEFUL SHUTDOWN HANDLERS
-// ============================================
 process.on('SIGINT', handleShutdown);
 process.on('SIGTERM', handleShutdown);
 process.on('uncaughtException', handleCrash);
 
 async function handleShutdown(signal) {
     console.log(`\n🛑 Received ${signal || 'shutdown'} signal, saving state...`);
-
     try {
-        // Save all active auto-rolls
         shutdownAutoRolls();
-
         console.log('✅ Auto-roll state saved successfully');
         console.log('👋 Shutting down gracefully...');
-
-        // Give some time for cleanup
         await new Promise(resolve => setTimeout(resolve, 1000));
-
         process.exit(0);
     } catch (error) {
         console.error('❌ Error during shutdown:', error);
@@ -443,7 +404,6 @@ function handleCrash(error) {
     console.error('❌ CRITICAL: Uncaught Exception:', error);
 
     try {
-        // Emergency save before crash
         console.log('💾 Emergency saving auto-roll state...');
         shutdownAutoRolls();
         console.log('✅ Emergency save complete');

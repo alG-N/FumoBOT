@@ -465,10 +465,6 @@ function createTables() {
     });
 }
 
-/**
- * Ensures all required columns exist in tables
- * Adds missing columns without breaking existing data
- */
 function ensureColumnsExist() {
     return new Promise((resolve) => {
         const addColumnIfNotExists = (table, column, columnType) => {
@@ -491,7 +487,6 @@ function ensureColumnsExist() {
 
             const existingColumns = rows.map(row => row.name);
 
-            // Check if limitBreaks column exists
             if (!existingColumns.includes('limitBreaks')) {
                 await addColumnIfNotExists('userUpgrades', 'limitBreaks', 'INTEGER DEFAULT 0');
                 console.log('✅ Added limitBreaks column to userUpgrades table');
@@ -500,7 +495,6 @@ function ensureColumnsExist() {
             resolve();
         });
 
-        // Check userCoins table columns
         db.all(`PRAGMA table_info(userCoins)`, [], async (err, rows) => {
             if (err) {
                 console.error('Error fetching userCoins table info:', err.message);
@@ -527,7 +521,6 @@ function ensureColumnsExist() {
                 }
             }
 
-            // Check userInventory table columns
             db.all(`PRAGMA table_info(userInventory)`, [], async (err2, rows2) => {
                 if (err2) {
                     console.error('Error fetching userInventory table info:', err2.message);
@@ -555,16 +548,9 @@ function ensureColumnsExist() {
 
 async function initializeDatabase() {
     console.log('🚀 Initializing database schema...');
-
-    // Create tables first (returns a promise)
     await createTables();
-
-    // Then ensure columns exist
     await ensureColumnsExist();
-
-    // Finally create indexes
     await createIndexes();
-
     console.log('✅ Database initialization complete');
 }
 

@@ -12,7 +12,6 @@ const aniClient = new GraphQLClient('https://graphql.anilist.co');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
-// SQLite DB setup
 const db = new sqlite3.Database(path.join(__dirname, 'animebot.db'));
 db.serialize(() => {
     db.run(`CREATE TABLE IF NOT EXISTS favourites (
@@ -29,7 +28,6 @@ db.serialize(() => {
     )`);
 });
 
-// Helper to format watch time
 function formatDuration(minutes) {
     if (!minutes) return "N/A";
     const hours = Math.floor(minutes / 60);
@@ -88,7 +86,6 @@ query ($search: String) {
 }
 `;
 
-// Get user's favourite list
 function getUserFavourites(userId) {
     return new Promise((resolve, reject) => {
         db.all(`SELECT anime_title FROM favourites WHERE user_id = ?`, [userId], (err, rows) => {
@@ -98,7 +95,6 @@ function getUserFavourites(userId) {
     });
 }
 
-// Check if anime is favourited
 function isFavourited(userId, animeId) {
     return new Promise((resolve) => {
         db.get(`SELECT 1 FROM favourites WHERE user_id = ? AND anime_id = ?`, [userId, animeId], (err, row) => {
@@ -107,7 +103,6 @@ function isFavourited(userId, animeId) {
     });
 }
 
-// Check if notify is enabled
 function isNotifyEnabled(userId, animeId) {
     return new Promise((resolve) => {
         db.get(`SELECT notify FROM notifications WHERE user_id = ? AND anime_id = ?`, [userId, animeId], (err, row) => {
@@ -116,23 +111,19 @@ function isNotifyEnabled(userId, animeId) {
     });
 }
 
-// Add favourite
 function addFavourite(userId, animeId, animeTitle) {
     db.run(`INSERT OR IGNORE INTO favourites (user_id, anime_id, anime_title) VALUES (?, ?, ?)`, [userId, animeId, animeTitle]);
 }
 
-// Remove favourite
 function removeFavourite(userId, animeId) {
     db.run(`DELETE FROM favourites WHERE user_id = ? AND anime_id = ?`, [userId, animeId]);
     db.run(`DELETE FROM notifications WHERE user_id = ? AND anime_id = ?`, [userId, animeId]);
 }
 
-// Enable notify
 function enableNotify(userId, animeId) {
     db.run(`INSERT OR REPLACE INTO notifications (user_id, anime_id, notify) VALUES (?, ?, 1)`, [userId, animeId]);
 }
 
-// Disable notify
 function disableNotify(userId, animeId) {
     db.run(`INSERT OR REPLACE INTO notifications (user_id, anime_id, notify) VALUES (?, ?, 0)`, [userId, animeId]);
 }
@@ -164,10 +155,8 @@ async function findNextOngoingSeason(animeId) {
 
         if (!media) return null;
 
-        // if ongoing, stop
         if (media.status === "RELEASING") return media;
 
-        // look for sequel
         const sequel = media.relations.edges.find(e => e.relationType === "SEQUEL");
         if (!sequel) return null;
 
@@ -175,8 +164,6 @@ async function findNextOngoingSeason(animeId) {
     }
 }
 
-// Core handler: builds embed + buttons
-// Change: Enhanced button persistence, user-only interaction, detailed favourite list, notify prompt, and more features.
 async function handleAnimeSearch(context, animeName, isSlash = true) {
     try {
         const data = await aniClient.request(query, { search: animeName });
@@ -248,11 +235,9 @@ async function handleAnimeSearch(context, animeName, isSlash = true) {
             }
         }
 
-        // Get favourite status and notify status
         let favourited = await isFavourited(userId, anime.id);
         let notifyEnabled = await isNotifyEnabled(userId, anime.id);
 
-        // Button builder
         function buildRow(favourited, notifyEnabled) {
             return new ActionRowBuilder()
                 .addComponents(
@@ -279,7 +264,6 @@ async function handleAnimeSearch(context, animeName, isSlash = true) {
 
         let row = buildRow(favourited, notifyEnabled);
 
-        // Embed
         const embed = new EmbedBuilder()
             .setTitle(`${title} (${anime.format || "Unknown"})`)
             .setURL(anime.siteUrl)
@@ -311,7 +295,6 @@ async function handleAnimeSearch(context, animeName, isSlash = true) {
             msg = await context.reply({ embeds: [embed], components: [row] });
         }
 
-        // Collector for button interactions
         const collector = msg.createMessageComponentCollector({
             componentType: ComponentType.Button,
             time: 60 * 1000,
@@ -319,7 +302,6 @@ async function handleAnimeSearch(context, animeName, isSlash = true) {
         });
 
         collector.on('collect', async i => {
-            // Always re-check state before updating
             favourited = await isFavourited(userId, anime.id);
             notifyEnabled = await isNotifyEnabled(userId, anime.id);
             row = buildRow(favourited, notifyEnabled);
@@ -357,7 +339,6 @@ async function handleAnimeSearch(context, animeName, isSlash = true) {
                         components: [row]
                     });
 
-                    // Movie prompt
                     if (anime.format === "MOVIE") {
                         const movieRow = new ActionRowBuilder().addComponents(
                             new ButtonBuilder()
@@ -423,7 +404,6 @@ async function handleAnimeSearch(context, animeName, isSlash = true) {
                             });
                         }
                     } else {
-                        // Notify prompt for series
                         const notifyRow = new ActionRowBuilder().addComponents(
                             new ButtonBuilder()
                                 .setCustomId(`notify_yes_${userId}_${anime.id}`)
@@ -567,7 +547,6 @@ async function handleAnimeSearch(context, animeName, isSlash = true) {
         });
 
         collector.on('end', async () => {
-            // Optionally disable buttons after collector ends
             try {
                 await msg.edit({ components: [] });
             } catch {}
@@ -612,13 +591,10 @@ async function notifyUsers(client, db) {
                 let message = null;
 
                 if (delta < 3600 && delta > 0) {
-                    // Less than 1 hour before next episode
                     message = `⏰ A new episode of **${anime.title.romaji}** (Ep ${anime.nextAiringEpisode.episode}) airs in less than 1 hour!`;
                 } else if (anime.nextAiringEpisode.episode === anime.episodes && delta > 0 && delta < 86400) {
-                    // Final episode soon (< 24 hours)
                     message = `🔥 The **final episode** of **${anime.title.romaji}** (Ep ${anime.nextAiringEpisode.episode}) airs within 24 hours!`;
                 } else if (delta < 0) {
-                    // Delayed
                     message = `⚠️ Episode **${anime.nextAiringEpisode.episode}** of **${anime.title.romaji}** seems delayed.`;
                 }
 

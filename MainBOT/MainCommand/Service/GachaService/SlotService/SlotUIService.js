@@ -57,7 +57,6 @@ function createAnimationEmbed(spinResult, step) {
 function createResultEmbed(result) {
     const { spinResult, winInfo, totalWin, totalBet, netProfit, spinsCompleted, currency } = result;
 
-    // Show auto-spin summary if multiple spins
     let description = `🎰 | ${spinResult.join(' - ')}\n\n${winInfo.message}`;
     
     if (spinsCompleted > 1) {

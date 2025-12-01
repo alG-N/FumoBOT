@@ -294,21 +294,15 @@ module.exports = {
     sellFumo,
     sellMultipleFumos,
     transferFumo,
-    
-    // Currency operations
     deductCoins,
     addCoins,
     addGems,
     getUserBalance,
-    
-    // Inventory queries
     getUserInventory,
     getFumoByName,
     getFumosByRarity,
     getTotalFumoCount,
     hasFumo,
-    
-    // Item operations
     addItem,
     removeItem,
     getItemQuantity
