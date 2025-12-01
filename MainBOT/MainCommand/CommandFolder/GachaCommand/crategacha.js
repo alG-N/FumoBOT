@@ -132,24 +132,46 @@ async function handleAutoRollStart(interaction, client) {
         });
 
         collector.on('collect', async i => {
-            await i.deferUpdate();
+            // FIX: Check if interaction is still valid before deferring
+            if (!i.isButton()) return;
+            
+            try {
+                // Only defer if the interaction hasn't been responded to
+                if (!i.deferred && !i.replied) {
+                    await i.deferUpdate().catch(err => {
+                        console.warn('Failed to defer interaction (likely expired):', err.message);
+                    });
+                }
+            } catch (deferError) {
+                console.warn('Error deferring interaction:', deferError.message);
+                // Continue anyway - we can still process the action
+            }
+
             const autoSell = i.customId.startsWith('autoRollAutoSell_');
 
             const crateFumos = FumoPool.getForCrate();
             const result = await startAutoRoll(userId, crateFumos, autoSell);
 
             if (!result.success) {
-                return await i.followUp({
+                // Use followUp if deferred, reply if not
+                const responseMethod = i.deferred || i.replied ? 'followUp' : 'reply';
+                
+                return await i[responseMethod]({
                     embeds: [{
                         title: '⏳ Auto Roll Already Running',
                         description: 'You already have Auto Roll active!',
                         color: 0xffcc00
                     }],
                     ephemeral: true
+                }).catch(err => {
+                    console.warn('Failed to send error response:', err.message);
                 });
             }
 
-            await i.followUp({
+            // Send success message
+            const responseMethod = i.deferred || i.replied ? 'followUp' : 'reply';
+            
+            await i[responseMethod]({
                 embeds: [{
                     title: autoSell ? '🤖 Auto Roll + AutoSell Started!' : '🎰 Auto Roll Started!',
                     description: autoSell
@@ -159,6 +181,8 @@ async function handleAutoRollStart(interaction, client) {
                     footer: { text: 'This will continue until you stop it manually.' }
                 }],
                 ephemeral: true
+            }).catch(err => {
+                console.warn('Failed to send success response:', err.message);
             });
 
             await logUserActivity(
@@ -172,16 +196,31 @@ async function handleAutoRollStart(interaction, client) {
 
         collector.on('end', collected => {
             if (collected.size === 0) {
+                // FIX: Better error handling for timeout
                 interaction.editReply({
                     content: '⏱️ Auto Roll setup timed out.',
                     components: [],
                     embeds: []
-                }).catch(() => { });
+                }).catch(err => {
+                    console.warn('Failed to edit reply on timeout:', err.message);
+                });
             }
         });
 
     } catch (err) {
         await logError(client, 'Auto-Roll Start', err, userId);
+        
+        // Try to notify the user of the error
+        const errorMessage = {
+            content: '❌ An error occurred while setting up auto-roll. Please try again.',
+            ephemeral: true
+        };
+        
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply(errorMessage).catch(() => {});
+        } else {
+            await interaction.followUp(errorMessage).catch(() => {});
+        }
     }
 }
 

@@ -1,0 +1,102 @@
+{
+  "1128296349566251068": {
+    "rollCount": 21,
+    "autoSell": true,
+    "startTime": 1764565602681,
+    "bestFumo": {
+      "name": "Mostima(CELESTIAL)",
+      "rarity": "CELESTIAL",
+      "picture": "https://media.discordapp.net/attachments/1372426801472737280/1372427631877685389/mostima-fumo-mostimo-v0-httirpx8ghhb1.png?ex=6826bc55&is=68256ad5&hm=e9511d6de0f908e22eedeb4ab965753e76446ed39a3bdb9ac4af7ef099c62dd6&=&format=webp&quality=lossless&width=1429&height=800"
+    },
+    "bestFumoAt": "12/1/2025, 12:26:40 PM",
+    "bestFumoRoll": 18,
+    "specialFumoCount": 8,
+    "specialFumoFirstAt": "12/1/2025, 12:11:39 PM",
+    "specialFumoFirstRoll": 3,
+    "lowerSpecialFumos": [
+      {
+        "name": "DarkYoumu(EXCLUSIVE)",
+        "rarity": "EXCLUSIVE",
+        "roll": 5,
+        "time": "12/1/2025, 12:13:39 PM"
+      },
+      {
+        "name": "GawrGura(???)",
+        "rarity": "???",
+        "roll": 7,
+        "time": "12/1/2025, 12:15:39 PM"
+      },
+      {
+        "name": "DarkYoumu(EXCLUSIVE)",
+        "rarity": "EXCLUSIVE",
+        "roll": 9,
+        "time": "12/1/2025, 12:17:40 PM"
+      },
+      {
+        "name": "GawrGura(???)",
+        "rarity": "???",
+        "roll": 16,
+        "time": "12/1/2025, 12:24:40 PM"
+      }
+    ]
+  },
+  "1421544451897299024": {
+    "rollCount": 19,
+    "autoSell": true,
+    "startTime": 1764565872028,
+    "bestFumo": {
+      "name": "UltraKillV2(ETERNAL)",
+      "rarity": "ETERNAL",
+      "picture": "https://th.bing.com/th/id/OIP.0rsVamUgjh_eW_1Ep5NDfAAAAA?cb=iwp2&rs=1&pid=ImgDetMain"
+    },
+    "bestFumoAt": "12/1/2025, 12:13:12 PM",
+    "bestFumoRoll": 3,
+    "specialFumoCount": 9,
+    "specialFumoFirstAt": "12/1/2025, 12:12:12 PM",
+    "specialFumoFirstRoll": 2,
+    "lowerSpecialFumos": [
+      {
+        "name": "Mostima(CELESTIAL)",
+        "rarity": "CELESTIAL",
+        "roll": 4,
+        "time": "12/1/2025, 12:14:12 PM"
+      },
+      {
+        "name": "CirnoSitting(EXCLUSIVE)",
+        "rarity": "EXCLUSIVE",
+        "roll": 5,
+        "time": "12/1/2025, 12:15:12 PM"
+      },
+      {
+        "name": "CirnoSitting(EXCLUSIVE)",
+        "rarity": "EXCLUSIVE",
+        "roll": 8,
+        "time": "12/1/2025, 12:18:12 PM"
+      },
+      {
+        "name": "SkibidiToilet(???)",
+        "rarity": "???",
+        "roll": 15,
+        "time": "12/1/2025, 12:25:12 PM"
+      },
+      {
+        "name": "Cheshire(ASTRAL)",
+        "rarity": "ASTRAL",
+        "roll": 16,
+        "time": "12/1/2025, 12:26:12 PM"
+      },
+      {
+        "name": "Grani(CELESTIAL)",
+        "rarity": "CELESTIAL",
+        "roll": 17,
+        "time": "12/1/2025, 12:27:12 PM"
+      },
+      {
+        "name": "GawrGura(???)",
+        "rarity": "???",
+        "roll": 19,
+        "time": "12/1/2025, 12:29:12 PM"
+      }
+    ]
+  }
+}
