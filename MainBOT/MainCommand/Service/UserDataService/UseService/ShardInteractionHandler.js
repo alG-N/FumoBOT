@@ -104,7 +104,7 @@ async function handleShardInteractions(interaction) {
 /**
  * Initialize the shard interaction handler with the Discord client
  */
-module.exports = (discordClient) => {
+function initializeShardHandler(discordClient) {
     discordClient.on('interactionCreate', async (interaction) => {
         try {
             await handleShardInteractions(interaction);
@@ -114,7 +114,8 @@ module.exports = (discordClient) => {
     });
 
     console.log('✅ Shard interaction handler initialized');
-};
+}
 
-// Export the handler function for use in other modules
+// Export both the initialization function and the handler
+module.exports = initializeShardHandler;
 module.exports.handleShardInteractions = handleShardInteractions;
