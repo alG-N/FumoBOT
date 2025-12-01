@@ -8,7 +8,6 @@ const {
     getUserData,
     deductUserCurrency,
     updateReimuData,
-    addToInventory,
     addSpiritTokens,
     incrementDailyPray
 } = require('../PrayDatabaseService');
@@ -82,12 +81,14 @@ async function handleGiftPhase(userId, channel, user, config, interactionUserId)
         await incrementWeeklyShiny(interactionUserId);
     }
 
-    // Use pickedRarity instead of fumo.rarity
-    if (giftConfig.ultraRares.includes(pickedRarity)) {
+    if (giftConfig.ultraRares.includes(fumo.rarity)) {
         await incrementWeeklyAstral(interactionUserId);
     }
 
-    await addToInventory(userId, pickedRarity, fumoName, 1);
+    await run(
+        `INSERT INTO userInventory (userId, items, fumoName, rarity) VALUES (?, ?, ?, ?)`,
+        [userId, fumo.rarity, fumoName, fumo.rarity]
+    );
 
     const variantNote = isAlterGolden
         ? " It's a **divine, golden anomaly**—a truly miraculous find!"
@@ -99,7 +100,7 @@ async function handleGiftPhase(userId, channel, user, config, interactionUserId)
         embeds: [new EmbedBuilder()
             .setTitle(`🎁 A Gift from Reimu! 🎁`)
             .setImage(fumo.picture)
-            .setDescription(`She gives you a **${pickedRarity}** Fumo: **${fumoName}**.${variantNote}`)
+            .setDescription(`She gives you a **${fumo.rarity}** Fumo: **${fumoName}**.${variantNote}`)
             .setColor('#0099ff')
             .setTimestamp()]
     });
@@ -116,8 +117,7 @@ async function handleGiftPhase(userId, channel, user, config, interactionUserId)
         });
     }
 
-    // Use pickedRarity instead of fumo.rarity
-    const resetPity = giftConfig.ultraRares.includes(pickedRarity) ? 0 : pityCount + 1;
+    const resetPity = giftConfig.ultraRares.includes(fumo.rarity) ? 0 : pityCount + 1;
 
     await updateReimuData(userId, {
         reimuStatus: 0,
