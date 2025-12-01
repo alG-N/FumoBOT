@@ -66,10 +66,6 @@ async function sendOwnershipError(interaction, customMessage = null) {
     }
 }
 
-/**
- * Check button ownership without automatically sending error messages
- * Use this for collectors where you want to handle the response yourself
- */
 async function checkButtonOwnership(interaction, expectedAction = null, customErrorMessage = null, autoReply = true) {
     const isValid = verifyButtonOwnership(interaction, expectedAction);
     

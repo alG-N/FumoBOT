@@ -1,5 +1,6 @@
 const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { get, run } = require('../../../../Core/database');
+const { buildSecureCustomId } = require('../../../../Middleware/buttonOwnership');
 const FumoPool = require('../../../../Data/FumoPool');
 
 async function handleShinyShard(message, itemName, quantity, userId) {
@@ -18,7 +19,7 @@ async function handleShinyShard(message, itemName, quantity, userId) {
         }));
 
         const selectMenu = new StringSelectMenuBuilder()
-            .setCustomId(`shiny_rarity_select_${userId}`)
+            .setCustomId(buildSecureCustomId('shiny_rarity_select', userId))
             .setPlaceholder('Select a rarity')
             .addOptions(rarityOptions);
 
@@ -65,12 +66,12 @@ async function handleShinyShardRaritySelection(interaction) {
         }));
 
         const selectMenu = new StringSelectMenuBuilder()
-            .setCustomId(`shiny_fumo_select_${userId}_${rarity}`)
+            .setCustomId(buildSecureCustomId('shiny_fumo_select', userId, { rarity }))
             .setPlaceholder('Select a fumo')
             .addOptions(fumoOptions);
 
         const backButton = new ButtonBuilder()
-            .setCustomId(`shiny_back_${userId}`)
+            .setCustomId(buildSecureCustomId('shiny_back', userId))
             .setLabel('Back')
             .setStyle(ButtonStyle.Secondary);
 
@@ -100,9 +101,18 @@ async function handleShinyShardFumoSelection(interaction) {
     const userId = interaction.user.id;
     const customId = interaction.customId;
     
-    // Extract rarity from customId (format: shiny_fumo_select_USERID_RARITY)
-    const parts = customId.split('_');
-    const rarity = parts[parts.length - 1];
+    // Parse the customId to get additional data
+    const { parseCustomId } = require('../../../../Middleware/buttonOwnership');
+    const { additionalData } = parseCustomId(customId);
+    const rarity = additionalData?.rarity;
+    
+    if (!rarity) {
+        return interaction.update({
+            content: '❌ Invalid interaction data.',
+            embeds: [],
+            components: []
+        });
+    }
     
     // Get selected fumo index
     const selectedIndex = parseInt(interaction.values[0].replace('shiny_fumo_', ''));
@@ -136,16 +146,13 @@ async function handleShinyShardFumoSelection(interaction) {
             });
         }
 
-        // Store selection in customId using base64 encoding to avoid length issues
-        const selectionData = Buffer.from(JSON.stringify({ fumoName, rarity })).toString('base64');
-
         const confirmButton = new ButtonBuilder()
-            .setCustomId(`shiny_confirm_${userId}_${selectionData}`)
+            .setCustomId(buildSecureCustomId('shiny_confirm', userId, { fumoName, rarity }))
             .setLabel('Confirm')
             .setStyle(ButtonStyle.Success);
 
         const cancelButton = new ButtonBuilder()
-            .setCustomId(`shiny_cancel_${userId}`)
+            .setCustomId(buildSecureCustomId('shiny_cancel', userId))
             .setLabel('Cancel')
             .setStyle(ButtonStyle.Danger);
 
@@ -175,15 +182,22 @@ async function handleShinyShardFumoSelection(interaction) {
 
 async function handleShinyShardConfirmation(interaction) {
     const userId = interaction.user.id;
-    const customId = interaction.customId;
     
-    // Extract encoded data from customId
-    const parts = customId.split('_');
-    const encodedData = parts[parts.length - 1];
+    // Parse customId to get data
+    const { parseCustomId } = require('../../../../Middleware/buttonOwnership');
+    const { additionalData } = parseCustomId(interaction.customId);
     
-    try {
-        const { fumoName, rarity } = JSON.parse(Buffer.from(encodedData, 'base64').toString());
+    if (!additionalData?.fumoName || !additionalData?.rarity) {
+        return interaction.update({
+            content: '❌ Invalid confirmation data.',
+            embeds: [],
+            components: []
+        });
+    }
+    
+    const { fumoName, rarity } = additionalData;
 
+    try {
         const inventory = await get(
             `SELECT quantity FROM userInventory WHERE userId = ? AND itemName = 'ShinyShard(?)'`,
             [userId]
@@ -263,7 +277,7 @@ async function handleShinyShardBack(interaction) {
         }));
 
         const selectMenu = new StringSelectMenuBuilder()
-            .setCustomId(`shiny_rarity_select_${userId}`)
+            .setCustomId(buildSecureCustomId('shiny_rarity_select', userId))
             .setPlaceholder('Select a rarity')
             .addOptions(rarityOptions);
 
