@@ -1,10 +1,3 @@
-const { 
-    ModalBuilder, 
-    TextInputBuilder, 
-    TextInputStyle, 
-    ActionRowBuilder,
-    ComponentType 
-} = require('discord.js');
 const { checkRestrictions } = require('../../Middleware/restrictions');
 const TRADING_CONFIG = require('../../Configuration/tradingConfig');
 
@@ -14,10 +7,12 @@ const {
     getTradeSession,
     updateTradeItem,
     toggleAccept,
+    toggleConfirm,
     executeTrade,
     cancelTrade,
     getUserItems,
-    getUserPets
+    getUserPets,
+    getUserFumos
 } = require('../../Service/TradingService/TradingService');
 
 const {
@@ -28,10 +23,24 @@ const {
     createItemTypeButtons,
     createItemSelectMenu,
     createPetSelectMenu,
+    createFumoTypeMenu,
+    createFumoSelectMenu,
     createConfirmationEmbed,
     createCompleteEmbed,
     createCancelledEmbed
 } = require('../../Service/TradingService/TradingUIService');
+
+const {
+    handleInviteAccept,
+    handleInviteDecline,
+    handleToggleAccept,
+    handleConfirm,
+    handleCancel,
+    handleAddItem,
+    handleSelectItem,
+    handleSelectFumoType,
+    handleSelectFumo
+} = require('../../Service/TradingService/TradingHandlers');
 
 // Store pending trade invites
 const pendingInvites = new Map();
@@ -92,7 +101,7 @@ module.exports = (client) => {
             components: [inviteButtons]
         });
 
-        // Store pending invite
+        // Store pending invite with timeout
         const timeoutId = setTimeout(() => {
             const pending = pendingInvites.get(trade.sessionKey);
             if (pending) {
@@ -113,7 +122,7 @@ module.exports = (client) => {
             requesterId: message.author.id,
             targetId: mentionedUser.id,
             createdAt: Date.now(),
-            timeoutId  // Store timeout ID so we can clear it
+            timeoutId
         });
     });
 
@@ -121,12 +130,9 @@ module.exports = (client) => {
     client.on('interactionCreate', async (interaction) => {
         if (!interaction.customId?.startsWith('trade_')) return;
 
-        // Parse customId to extract action and sessionKey
-        // Format: trade_{action}_{sessionKey}
-        // SessionKey contains two user IDs separated by underscore (always 17-19 digits each)
         const parts = interaction.customId.split('_');
         
-        // Find where the sessionKey starts (look for two consecutive parts that are user IDs)
+        // Find where the sessionKey starts
         let sessionKeyStartIndex = -1;
         for (let i = 0; i < parts.length - 1; i++) {
             if (/^\d{17,19}$/.test(parts[i]) && /^\d{17,19}$/.test(parts[i + 1])) {
@@ -137,28 +143,20 @@ module.exports = (client) => {
         
         let action, sessionKey;
         if (sessionKeyStartIndex !== -1) {
-            // Extract action (everything between 'trade' and the sessionKey)
             action = parts.slice(1, sessionKeyStartIndex).join('_');
-            // Extract sessionKey (two user IDs)
             sessionKey = parts.slice(sessionKeyStartIndex, sessionKeyStartIndex + 2).join('_');
         } else {
-            // Fallback for malformed customIds
             action = parts[1];
             sessionKey = parts.slice(2).join('_');
         }
 
-        console.log(`[Trade] Interaction received: ${interaction.customId}`);
         console.log(`[Trade] Action: ${action}, SessionKey: ${sessionKey}`);
-        console.log(`[Trade] Pending invites:`, Array.from(pendingInvites.keys()));
 
         // Handle invite accept/decline
         if (action === 'accept' || action === 'decline') {
             const pending = pendingInvites.get(sessionKey);
             
-            console.log(`[Trade] Pending data found:`, pending ? 'YES' : 'NO');
-            
             if (!pending) {
-                console.log(`[Trade] ERROR: No pending invite found for ${sessionKey}`);
                 return interaction.reply({
                     content: '❌ This trade invitation has expired.',
                     ephemeral: true
@@ -166,69 +164,21 @@ module.exports = (client) => {
             }
 
             if (interaction.user.id !== pending.targetId) {
-                console.log(`[Trade] ERROR: Wrong user ${interaction.user.id} vs ${pending.targetId}`);
                 return interaction.reply({
                     content: '❌ This trade invitation is not for you!',
                     ephemeral: true
                 }).catch(() => {});
             }
 
-            console.log(`[Trade] Processing ${action} for session ${sessionKey}`);
-
-            // Defer the update immediately to prevent expiration
-            await interaction.deferUpdate().catch((err) => {
-                console.log(`[Trade] Defer failed:`, err.message);
-            });
+            await interaction.deferUpdate().catch(() => {});
 
             if (action === 'decline') {
-                const { timeoutId } = pending;
-                
-                // Clear the timeout
-                if (timeoutId) {
-                    clearTimeout(timeoutId);
-                }
-                
-                pendingInvites.delete(sessionKey);
-                cancelTrade(sessionKey);
-                
-                await interaction.editReply({
-                    content: `❌ **${interaction.user.tag}** declined the trade.`,
-                    embeds: [createCancelledEmbed(interaction.user.tag)],
-                    components: []
-                }).catch(() => {});
+                await handleInviteDecline(interaction, pending, pendingInvites);
                 return;
             }
 
             // Accept trade
-            const { trade, timeoutId } = pending;
-            
-            // Clear the timeout since trade is being accepted
-            if (timeoutId) {
-                clearTimeout(timeoutId);
-            }
-            
-            pendingInvites.delete(sessionKey);
-            trade.state = TRADING_CONFIG.STATES.ACTIVE;
-
-            // Update invite message
-            await interaction.editReply({
-                content: `✅ Trade accepted by **${interaction.user.tag}**!`,
-                embeds: [],
-                components: []
-            }).catch(() => {});
-
-            // Create main trade window
-            const tradeMsg = await interaction.channel.send({
-                content: `🤝 **Active Trade: ${trade.user1.tag} ↔️ ${trade.user2.tag}**`,
-                embeds: [createTradeEmbed(trade, client)],
-                components: [
-                    createTradeActionButtons(trade.sessionKey),
-                    createItemTypeButtons(trade.sessionKey)
-                ]
-            });
-
-            // Start trade session
-            await handleTradeSession(client, tradeMsg, trade);
+            await handleInviteAccept(client, interaction, pending, pendingInvites);
             return;
         }
 
@@ -264,13 +214,20 @@ module.exports = (client) => {
                 case 'add_gems':
                 case 'add_items':
                 case 'add_pets':
-                    const itemType = action.split('_')[1]; // Extract 'coins', 'gems', 'items', or 'pets'
+                case 'add_fumos':
+                    const itemType = action.split('_')[1];
                     await handleAddItem(interaction, trade, itemType);
                     break;
                 case 'select_item':
                 case 'select_pet':
-                    const selectType = action.split('_')[1]; // Extract 'item' or 'pet'
+                    const selectType = action.split('_')[1];
                     await handleSelectItem(interaction, trade, selectType);
+                    break;
+                case 'select_fumo_type':
+                    await handleSelectFumoType(interaction, trade);
+                    break;
+                case 'select_fumo':
+                    await handleSelectFumo(interaction, trade);
                     break;
                 default:
                     console.log(`[Trade] Unknown action: ${action}`);
@@ -296,335 +253,3 @@ module.exports = (client) => {
         }
     }, 60000);
 };
-
-/**
- * Handle trade session
- */
-async function handleTradeSession(client, message, trade) {
-    const collector = message.createMessageComponentCollector({
-        time: TRADING_CONFIG.TRADE_SESSION_TIMEOUT
-    });
-
-    collector.on('collect', async (interaction) => {
-        // Update UI after toggle accept or item selection
-        if (interaction.customId.startsWith('trade_toggle')) {
-            const currentTrade = getTradeSession(trade.sessionKey);
-            if (currentTrade) {
-                await message.edit({
-                    embeds: [createTradeEmbed(currentTrade, client)],
-                    components: [
-                        createTradeActionButtons(trade.sessionKey, currentTrade.state === TRADING_CONFIG.STATES.BOTH_ACCEPTED),
-                        createItemTypeButtons(trade.sessionKey)
-                    ]
-                }).catch(() => {});
-            }
-        }
-    });
-
-    collector.on('end', () => {
-        const currentTrade = getTradeSession(trade.sessionKey);
-        if (currentTrade && currentTrade.state !== TRADING_CONFIG.STATES.COMPLETED) {
-            cancelTrade(trade.sessionKey);
-            message.edit({
-                content: '⏰ Trade session timed out.',
-                embeds: [createCancelledEmbed('timeout')],
-                components: []
-            }).catch(() => {});
-        }
-    });
-
-    // Auto-refresh UI every 2 seconds while active
-    const refreshInterval = setInterval(async () => {
-        const currentTrade = getTradeSession(trade.sessionKey);
-        if (!currentTrade || currentTrade.state === TRADING_CONFIG.STATES.COMPLETED || 
-            currentTrade.state === TRADING_CONFIG.STATES.CANCELLED) {
-            clearInterval(refreshInterval);
-            return;
-        }
-
-        try {
-            await message.edit({
-                embeds: [createTradeEmbed(currentTrade, client)],
-                components: [
-                    createTradeActionButtons(trade.sessionKey, currentTrade.state === TRADING_CONFIG.STATES.BOTH_ACCEPTED),
-                    createItemTypeButtons(trade.sessionKey)
-                ]
-            });
-        } catch (error) {
-            clearInterval(refreshInterval);
-        }
-    }, 2000);
-}
-
-/**
- * Handle toggle accept
- */
-async function handleToggleAccept(interaction, trade) {
-    const result = toggleAccept(trade.sessionKey, interaction.user.id);
-    
-    if (!result.success) {
-        return interaction.reply({
-            content: '❌ Failed to update accept status.',
-            ephemeral: true
-        });
-    }
-
-    const userSide = trade.user1.id === interaction.user.id ? trade.user1 : trade.user2;
-    
-    await interaction.reply({
-        content: userSide.accepted ? '✅ You accepted the trade!' : '⏳ You unaccepted the trade.',
-        ephemeral: true
-    });
-}
-
-/**
- * Handle final confirmation
- */
-async function handleConfirm(interaction, trade, client) {
-    if (trade.state !== TRADING_CONFIG.STATES.BOTH_ACCEPTED) {
-        return interaction.reply({
-            content: '❌ Both users must accept before confirming!',
-            ephemeral: true
-        });
-    }
-
-    trade.state = TRADING_CONFIG.STATES.CONFIRMING;
-
-    await interaction.update({
-        embeds: [createConfirmationEmbed(trade)],
-        components: []
-    });
-
-    // Wait 5 seconds then execute
-    setTimeout(async () => {
-        const result = await executeTrade(trade.sessionKey);
-        
-        if (result.success) {
-            await interaction.editReply({
-                content: '✅ **Trade Completed Successfully!**',
-                embeds: [createCompleteEmbed(trade)],
-                components: []
-            });
-        } else {
-            await interaction.editReply({
-                content: `❌ **Trade Failed:** ${result.error}`,
-                embeds: [],
-                components: []
-            });
-        }
-        
-        cancelTrade(trade.sessionKey);
-    }, TRADING_CONFIG.CONFIRM_TIMEOUT);
-}
-
-/**
- * Handle cancel
- */
-async function handleCancel(interaction, trade) {
-    cancelTrade(trade.sessionKey);
-    
-    await interaction.update({
-        content: `❌ Trade cancelled by **${interaction.user.tag}**.`,
-        embeds: [createCancelledEmbed(interaction.user.tag)],
-        components: []
-    });
-}
-
-/**
- * Handle add item type
- */
-async function handleAddItem(interaction, trade, type) {
-    if (type === 'coins' || type === 'gems') {
-        // Show modal for amount input
-        const modal = new ModalBuilder()
-            .setCustomId(`trade_modal_${type}_${trade.sessionKey}_${interaction.user.id}`)
-            .setTitle(`Add ${type === 'coins' ? 'Coins' : 'Gems'}`);
-
-        const input = new TextInputBuilder()
-            .setCustomId('amount')
-            .setLabel(`How many ${type}? (0 to remove)`)
-            .setStyle(TextInputStyle.Short)
-            .setPlaceholder('Enter amount...')
-            .setRequired(true);
-
-        modal.addComponents(new ActionRowBuilder().addComponents(input));
-        
-        await interaction.showModal(modal);
-        
-        // Handle modal submit
-        try {
-            const submitted = await interaction.awaitModalSubmit({
-                filter: i => i.customId === modal.data.custom_id,
-                time: 60000
-            });
-
-            const amount = parseInt(submitted.fields.getTextInputValue('amount').replace(/,/g, ''));
-            
-            if (isNaN(amount) || amount < 0) {
-                return submitted.reply({
-                    content: '❌ Invalid amount!',
-                    ephemeral: true
-                });
-            }
-
-            const result = updateTradeItem(trade.sessionKey, interaction.user.id, type, { amount });
-            
-            if (!result.success) {
-                return submitted.reply({
-                    content: `❌ ${result.error}`,
-                    ephemeral: true
-                });
-            }
-
-            await submitted.reply({
-                content: amount === 0 
-                    ? `✅ Removed ${type} from trade`
-                    : `✅ Set ${type} to ${amount.toLocaleString()}`,
-                ephemeral: true
-            });
-
-        } catch (error) {
-            // Modal timeout
-        }
-        
-    } else if (type === 'items') {
-        // Show item selector
-        const items = await getUserItems(interaction.user.id);
-        
-        if (items.length === 0) {
-            return interaction.reply({
-                content: '❌ You have no items to trade!',
-                ephemeral: true
-            });
-        }
-        
-        const menu = createItemSelectMenu(trade.sessionKey, items);
-        
-        await interaction.reply({
-            content: 'Select an item to trade:',
-            components: [menu],
-            ephemeral: true
-        });
-        
-    } else if (type === 'pets') {
-        // Show pet selector
-        const pets = await getUserPets(interaction.user.id);
-        
-        if (pets.length === 0) {
-            return interaction.reply({
-                content: '❌ You have no pets to trade!',
-                ephemeral: true
-            });
-        }
-        
-        const menu = createPetSelectMenu(trade.sessionKey, pets);
-        
-        await interaction.reply({
-            content: 'Select a pet to trade:',
-            components: [menu],
-            ephemeral: true
-        });
-    }
-}
-
-/**
- * Handle item/pet selection
- */
-async function handleSelectItem(interaction, trade, type) {
-    if (!interaction.isStringSelectMenu()) return;
-    
-    const value = interaction.values[0];
-    if (value === 'none') {
-        return interaction.update({
-            content: '❌ No items available.',
-            components: []
-        });
-    }
-    
-    const [sessionKey, identifier] = value.split('|');
-    
-    if (type === 'item') {
-        // Show quantity modal
-        const modal = new ModalBuilder()
-            .setCustomId(`trade_item_qty_${sessionKey}_${interaction.user.id}`)
-            .setTitle(`Trade ${identifier}`);
-
-        const input = new TextInputBuilder()
-            .setCustomId('quantity')
-            .setLabel('How many? (0 to remove)')
-            .setStyle(TextInputStyle.Short)
-            .setPlaceholder('Enter quantity...')
-            .setRequired(true);
-
-        modal.addComponents(new ActionRowBuilder().addComponents(input));
-        
-        await interaction.showModal(modal);
-        
-        try {
-            const submitted = await interaction.awaitModalSubmit({
-                filter: i => i.customId === modal.data.custom_id,
-                time: 60000
-            });
-
-            const quantity = parseInt(submitted.fields.getTextInputValue('quantity'));
-            
-            if (isNaN(quantity) || quantity < 0) {
-                return submitted.reply({
-                    content: '❌ Invalid quantity!',
-                    ephemeral: true
-                });
-            }
-
-            const result = updateTradeItem(trade.sessionKey, interaction.user.id, 'item', {
-                itemName: identifier,
-                quantity
-            });
-            
-            if (!result.success) {
-                return submitted.reply({
-                    content: `❌ ${result.error}`,
-                    ephemeral: true
-                });
-            }
-
-            await submitted.reply({
-                content: quantity === 0 
-                    ? `✅ Removed ${identifier} from trade`
-                    : `✅ Added ${quantity}x ${identifier}`,
-                ephemeral: true
-            });
-
-        } catch (error) {
-            // Modal timeout
-        }
-        
-    } else if (type === 'pet') {
-        // Add pet directly
-        const pets = await getUserPets(interaction.user.id);
-        const pet = pets.find(p => p.petId === identifier);
-        
-        if (!pet) {
-            return interaction.update({
-                content: '❌ Pet not found!',
-                components: []
-            });
-        }
-
-        const result = updateTradeItem(trade.sessionKey, interaction.user.id, 'pet', {
-            petId: identifier,
-            ...pet
-        });
-        
-        if (!result.success) {
-            return interaction.update({
-                content: `❌ ${result.error}`,
-                components: []
-            });
-        }
-
-        await interaction.update({
-            content: `✅ Added pet: ${pet.petName || pet.name}`,
-            components: []
-        });
-    }
-}

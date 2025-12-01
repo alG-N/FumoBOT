@@ -1,7 +1,7 @@
 const { get, all, run, transaction } = require('../../Core/database');
 const TRADING_CONFIG = require('../../Configuration/tradingConfig');
 
-// Active trade sessions: Map<sessionKey, tradeData>
+// Active trade sessions
 const activeTrades = new Map();
 
 /**
@@ -37,9 +37,11 @@ function createTradeSession(user1, user2) {
             tag: user1.tag,
             coins: 0,
             gems: 0,
-            items: new Map(), // itemName -> quantity
-            pets: new Map(),  // petId -> petData
-            accepted: false
+            items: new Map(),
+            pets: new Map(),
+            fumos: new Map(), // fumoName -> quantity
+            accepted: false,
+            confirmed: false // NEW: for two-step confirmation
         },
         user2: {
             id: user2.id,
@@ -48,7 +50,9 @@ function createTradeSession(user1, user2) {
             gems: 0,
             items: new Map(),
             pets: new Map(),
-            accepted: false
+            fumos: new Map(),
+            accepted: false,
+            confirmed: false // NEW: for two-step confirmation
         },
         createdAt: Date.now(),
         lastUpdate: Date.now()
@@ -75,9 +79,11 @@ function updateTradeItem(sessionKey, userId, type, data) {
     const userSide = trade.user1.id === userId ? 'user1' : 'user2';
     const user = trade[userSide];
     
-    // Reset both accepts when trade changes
+    // Reset both accepts AND confirms when trade changes
     trade.user1.accepted = false;
     trade.user2.accepted = false;
+    trade.user1.confirmed = false;
+    trade.user2.confirmed = false;
     
     switch (type) {
         case 'coins':
@@ -115,6 +121,17 @@ function updateTradeItem(sessionKey, userId, type, data) {
                 user.pets.set(data.petId, data);
             }
             break;
+            
+        case 'fumo':
+            if (user.fumos.size >= TRADING_CONFIG.MAX_FUMOS_PER_TRADE && !user.fumos.has(data.fumoName)) {
+                return { success: false, error: 'MAX_FUMOS_REACHED' };
+            }
+            if (data.quantity <= 0) {
+                user.fumos.delete(data.fumoName);
+            } else {
+                user.fumos.set(data.fumoName, data.quantity);
+            }
+            break;
     }
     
     trade.lastUpdate = Date.now();
@@ -131,6 +148,10 @@ function toggleAccept(sessionKey, userId) {
     const userSide = trade.user1.id === userId ? 'user1' : 'user2';
     trade[userSide].accepted = !trade[userSide].accepted;
     
+    // Reset confirms when accept status changes
+    trade.user1.confirmed = false;
+    trade.user2.confirmed = false;
+    
     // Check if both accepted
     if (trade.user1.accepted && trade.user2.accepted) {
         trade.state = TRADING_CONFIG.STATES.BOTH_ACCEPTED;
@@ -143,9 +164,32 @@ function toggleAccept(sessionKey, userId) {
 }
 
 /**
+ * Toggle user confirm status (NEW FUNCTION)
+ */
+function toggleConfirm(sessionKey, userId) {
+    const trade = activeTrades.get(sessionKey);
+    if (!trade) return { success: false, error: 'TRADE_NOT_FOUND' };
+    
+    // Must be in BOTH_ACCEPTED state
+    if (trade.state !== TRADING_CONFIG.STATES.BOTH_ACCEPTED) {
+        return { success: false, error: 'NOT_BOTH_ACCEPTED' };
+    }
+    
+    const userSide = trade.user1.id === userId ? 'user1' : 'user2';
+    trade[userSide].confirmed = !trade[userSide].confirmed;
+    
+    trade.lastUpdate = Date.now();
+    return { 
+        success: true, 
+        trade, 
+        bothConfirmed: trade.user1.confirmed && trade.user2.confirmed 
+    };
+}
+
+/**
  * Validate user has resources
  */
-async function validateUserResources(userId, coins, gems, items, pets) {
+async function validateUserResources(userId, coins, gems, items, pets, fumos) {
     const user = await get(`SELECT coins, gems FROM userCoins WHERE userId = ?`, [userId]);
     
     if (!user) return { valid: false, error: 'USER_NOT_FOUND' };
@@ -164,13 +208,24 @@ async function validateUserResources(userId, coins, gems, items, pets) {
     }
     
     // Check pets
-    for (const [petId, petData] of pets) {
+    for (const [petId] of pets) {
         const pet = await get(
             `SELECT * FROM petInventory WHERE userId = ? AND petId = ?`,
             [userId, petId]
         );
         if (!pet) {
             return { valid: false, error: 'PET_NOT_FOUND', petId };
+        }
+    }
+    
+    // Check fumos
+    for (const [fumoName, quantity] of fumos) {
+        const fumo = await get(
+            `SELECT quantity FROM userInventory WHERE userId = ? AND fumoName = ?`,
+            [userId, fumoName]
+        );
+        if (!fumo || fumo.quantity < quantity) {
+            return { valid: false, error: 'INSUFFICIENT_FUMOS', fumoName };
         }
     }
     
@@ -187,10 +242,14 @@ async function executeTrade(sessionKey) {
     const { user1, user2 } = trade;
     
     // Validate both users have resources
-    const validate1 = await validateUserResources(user1.id, user1.coins, user1.gems, user1.items, user1.pets);
+    const validate1 = await validateUserResources(
+        user1.id, user1.coins, user1.gems, user1.items, user1.pets, user1.fumos
+    );
     if (!validate1.valid) return validate1;
     
-    const validate2 = await validateUserResources(user2.id, user2.coins, user2.gems, user2.items, user2.pets);
+    const validate2 = await validateUserResources(
+        user2.id, user2.coins, user2.gems, user2.items, user2.pets, user2.fumos
+    );
     if (!validate2.valid) return validate2;
     
     // Build transaction operations
@@ -244,6 +303,31 @@ async function executeTrade(sessionKey) {
         });
     }
     
+    // Transfer fumos
+    for (const [fumoName, quantity] of user1.fumos) {
+        operations.push({
+            sql: `UPDATE userInventory SET quantity = quantity - ? WHERE userId = ? AND fumoName = ?`,
+            params: [quantity, user1.id, fumoName]
+        });
+        operations.push({
+            sql: `INSERT INTO userInventory (userId, fumoName, quantity) VALUES (?, ?, ?)
+                  ON CONFLICT(userId, fumoName) DO UPDATE SET quantity = quantity + ?`,
+            params: [user2.id, fumoName, quantity, quantity]
+        });
+    }
+    
+    for (const [fumoName, quantity] of user2.fumos) {
+        operations.push({
+            sql: `UPDATE userInventory SET quantity = quantity - ? WHERE userId = ? AND fumoName = ?`,
+            params: [quantity, user2.id, fumoName]
+        });
+        operations.push({
+            sql: `INSERT INTO userInventory (userId, fumoName, quantity) VALUES (?, ?, ?)
+                  ON CONFLICT(userId, fumoName) DO UPDATE SET quantity = quantity + ?`,
+            params: [user1.id, fumoName, quantity, quantity]
+        });
+    }
+    
     // Transfer pets
     for (const [petId] of user1.pets) {
         operations.push({
@@ -287,7 +371,7 @@ function cancelTrade(sessionKey) {
 async function getUserItems(userId) {
     return await all(
         `SELECT itemName, quantity FROM userInventory 
-         WHERE userId = ? AND quantity > 0 AND itemName NOT LIKE '%fumo%'
+         WHERE userId = ? AND quantity > 0 AND itemName NOT LIKE '%(%' AND type = 'item'
          ORDER BY itemName`,
         [userId]
     );
@@ -299,8 +383,37 @@ async function getUserItems(userId) {
 async function getUserPets(userId) {
     return await all(
         `SELECT petId, name, petName, rarity, level, age FROM petInventory 
-         WHERE userId = ? AND type = 'pet'
+         WHERE userId = ?
          ORDER BY rarity DESC, name`,
+        [userId]
+    );
+}
+
+/**
+ * Get user's fumos by type (normal, shiny, alG)
+ */
+async function getUserFumos(userId, type) {
+    let filter;
+    
+    switch(type) {
+        case 'normal':
+            // Fumos without [✨SHINY] or [🌟alG]
+            filter = `AND fumoName NOT LIKE '%[✨SHINY]%' AND fumoName NOT LIKE '%[🌟alG]%'`;
+            break;
+        case 'shiny':
+            filter = `AND fumoName LIKE '%[✨SHINY]%'`;
+            break;
+        case 'alg':
+            filter = `AND fumoName LIKE '%[🌟alG]%'`;
+            break;
+        default:
+            filter = '';
+    }
+    
+    return await all(
+        `SELECT fumoName, quantity FROM userInventory 
+         WHERE userId = ? AND quantity > 0 AND fumoName LIKE '%(%' ${filter}
+         ORDER BY fumoName`,
         [userId]
     );
 }
@@ -312,10 +425,12 @@ module.exports = {
     getTradeSession,
     updateTradeItem,
     toggleAccept,
+    toggleConfirm,
     validateUserResources,
     executeTrade,
     cancelTrade,
     getUserItems,
     getUserPets,
+    getUserFumos,
     activeTrades
 };

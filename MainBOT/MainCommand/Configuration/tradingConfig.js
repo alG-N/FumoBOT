@@ -6,13 +6,14 @@ const TRADING_CONFIG = {
     // Timeouts
     INVITE_TIMEOUT: 60000,        // 60 seconds to accept trade invite
     TRADE_SESSION_TIMEOUT: 300000, // 5 minutes for entire trade session
-    CONFIRM_TIMEOUT: 5000,         // 5 seconds final confirmation warning
+    CONFIRM_TIMEOUT: 3000,         // 3 seconds final confirmation warning
     
     // Limits
-    MAX_COIN_TRADE: 1000000000,    // 1 billion coins max
-    MAX_GEM_TRADE: 100000000,      // 100 million gems max
+    MAX_COIN_TRADE: 1000000000000000, // Max 1 Qa coins
+    MAX_GEM_TRADE: 1000000000000000, // Max 1 Qa gems
     MAX_ITEMS_PER_TRADE: 10,       // Max 10 different items
     MAX_PETS_PER_TRADE: 5,         // Max 5 pets
+    MAX_FUMOS_PER_TRADE: 15,       // Max 15 different fumo types
     
     // UI Settings
     UPDATE_DEBOUNCE: 500,          // 500ms debounce for UI updates
