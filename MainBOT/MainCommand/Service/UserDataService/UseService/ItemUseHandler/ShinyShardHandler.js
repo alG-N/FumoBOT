@@ -211,15 +211,22 @@ async function handleShinyShardConfirmation(interaction) {
             });
         }
 
-        // NEW: Check if user has the original fumo
+        // FIXED: Search for original fumo by both fumoName and itemName
+        // This handles cases where the fumo might be stored under different columns
         const originalFumo = await get(
-            `SELECT quantity FROM userInventory WHERE userId = ? AND itemName = ?`,
-            [userId, fumoName]
+            `SELECT id, fumoName, itemName, quantity FROM userInventory 
+             WHERE userId = ? 
+             AND (fumoName = ? OR itemName = ?)
+             AND fumoName NOT LIKE '%[✨SHINY]%'
+             AND fumoName NOT LIKE '%[🌟alG]%'
+             LIMIT 1`,
+            [userId, fumoName, fumoName]
         );
 
         if (!originalFumo || originalFumo.quantity < 1) {
             return interaction.update({
-                content: `❌ You don't have **${fumoName}** to transform!`,
+                content: `❌ You don't have **${fumoName}** to transform!\n\n` +
+                         `Make sure you have the base version (without traits) in your inventory.`,
                 embeds: [],
                 components: []
             });
@@ -236,19 +243,24 @@ async function handleShinyShardConfirmation(interaction) {
             [userId]
         );
 
-        // NEW: Remove 1 of the original fumo
-        await run(
-            `UPDATE userInventory SET quantity = quantity - 1 WHERE userId = ? AND itemName = ?`,
-            [userId, fumoName]
-        );
-
-        await run(
-            `DELETE FROM userInventory WHERE userId = ? AND itemName = ? AND quantity <= 0`,
-            [userId, fumoName]
-        );
+        // FIXED: Remove 1 of the original fumo using the ID we found
+        if (originalFumo.quantity > 1) {
+            await run(
+                `UPDATE userInventory SET quantity = quantity - 1 WHERE id = ?`,
+                [originalFumo.id]
+            );
+        } else {
+            // If quantity is 1, delete the entire row
+            await run(
+                `DELETE FROM userInventory WHERE id = ?`,
+                [originalFumo.id]
+            );
+        }
 
         // Create the shiny version
-        const shinyFumoName = `${fumoName}[✨SHINY]`;
+        // IMPORTANT: Use the EXACT fumoName from the original for consistency
+        const baseFumoName = originalFumo.fumoName;
+        const shinyFumoName = `${baseFumoName}[✨SHINY]`;
 
         await run(
             `INSERT INTO userInventory (userId, fumoName, itemName, rarity, quantity, type, dateObtained)
@@ -261,7 +273,7 @@ async function handleShinyShardConfirmation(interaction) {
             .setColor(0xFFD700)
             .setTitle('✨ ShinyShard(?) Used Successfully!')
             .setDescription(
-                `**Transformed:** ${fumoName} → ${shinyFumoName}\n\n` +
+                `**Transformed:** ${baseFumoName} → ${shinyFumoName}\n\n` +
                 `Your shiny fumo has been added to your inventory!`
             )
             .setTimestamp();
@@ -271,7 +283,7 @@ async function handleShinyShardConfirmation(interaction) {
     } catch (error) {
         console.error('[SHINY_SHARD] Confirmation error:', error);
         interaction.update({
-            content: '❌ Failed to create shiny fumo.',
+            content: '❌ Failed to create shiny fumo. Error: ' + error.message,
             embeds: [],
             components: []
         });

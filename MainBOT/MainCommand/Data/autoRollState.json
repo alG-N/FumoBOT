@@ -1,14 +1,31 @@
 {
   "1421544451897299024": {
-    "rollCount": 0,
+    "rollCount": 2,
     "autoSell": true,
     "startTime": 1764606249981,
-    "bestFumo": null,
-    "bestFumoAt": null,
-    "bestFumoRoll": null,
-    "specialFumoCount": 0,
-    "specialFumoFirstAt": null,
-    "specialFumoFirstRoll": null,
-    "lowerSpecialFumos": []
+    "bestFumo": {
+      "name": "UltraKillV2(ETERNAL)",
+      "rarity": "ETERNAL",
+      "picture": "https://th.bing.com/th/id/OIP.0rsVamUgjh_eW_1Ep5NDfAAAAA?cb=iwp2&rs=1&pid=ImgDetMain"
+    },
+    "bestFumoAt": "12/1/2025, 11:25:10 PM",
+    "bestFumoRoll": 2,
+    "specialFumoCount": 4,
+    "specialFumoFirstAt": "12/1/2025, 11:24:10 PM",
+    "specialFumoFirstRoll": 1,
+    "lowerSpecialFumos": [
+      {
+        "name": "SkibidiToilet(???)",
+        "rarity": "???",
+        "roll": 3,
+        "time": "12/1/2025, 11:26:10 PM"
+      },
+      {
+        "name": "HyperSakuya(EXCLUSIVE)",
+        "rarity": "EXCLUSIVE",
+        "roll": 2,
+        "time": "12/1/2025, 11:31:34 PM"
+      }
+    ]
   }
 }
