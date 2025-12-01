@@ -54,26 +54,59 @@ module.exports = async (client) => {
     });
 
     async function handlePagination(interaction) {
+        // Check if interaction is still valid
+        if (!interaction.isButton() || interaction.replied || interaction.deferred) {
+            console.log('[SHOP] Interaction already handled or expired');
+            return;
+        }
+
         const parts = interaction.customId.split('_');
         const action = parts[1]; // 'prev' or 'next'
         const userId = parts[2];
         const currentPage = parseInt(parts[3]);
 
+        // Verify button ownership
         if (!await checkButtonOwnership(interaction, `shop_${action}`, null, false)) {
             return;
         }
 
-        const newPage = action === 'next' ? currentPage + 1 : currentPage - 1;
-        const userShop = getUserShop(userId);
-        const rerollData = getRerollData(userId);
+        try {
+            const newPage = action === 'next' ? currentPage + 1 : currentPage - 1;
+            const userShop = getUserShop(userId);
+            const rerollData = getRerollData(userId);
 
-        const shopEmbed = createShopEmbed(userId, userShop, newPage);
-        const buttons = createShopButtons(userId, rerollData.count, newPage);
+            const shopEmbed = createShopEmbed(userId, userShop, newPage);
+            const buttons = createShopButtons(userId, rerollData.count, newPage);
 
-        await interaction.update({
-            embeds: [shopEmbed],
-            components: buttons
-        });
+            // Add timeout check and error handling
+            await Promise.race([
+                interaction.update({
+                    embeds: [shopEmbed],
+                    components: buttons
+                }),
+                new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Update timeout')), 2500)
+                )
+            ]);
+
+        } catch (error) {
+            console.error('[SHOP] Pagination error:', error.message);
+
+            // If the interaction failed, try to send an ephemeral message instead
+            if (error.code === 10062 || error.message === 'Update timeout') {
+                try {
+                    // Check if we can still reply
+                    if (!interaction.replied && !interaction.deferred) {
+                        await interaction.reply({
+                            content: '⚠️ This button has expired. Please run `.shop` again.',
+                            ephemeral: true
+                        });
+                    }
+                } catch (replyError) {
+                    console.error('[SHOP] Could not send error message:', replyError.message);
+                }
+            }
+        }
     }
 
     async function handleReroll(interaction) {
