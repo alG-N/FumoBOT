@@ -10,9 +10,9 @@ const SEASONS = {
         name: 'Festival Harvest',
         coinMultiplier: 15,
         gemMultiplier: 15,
-        chance: 0.005,
-        checkInterval: 3600000, 
-        duration: 1800000,
+        chance: 0.15, // Buffed from 0.005 to 0.15
+        checkInterval: 1800000, // 30 minutes (buffed from 60 min)
+        duration: 1800000, // 30 minutes
         description: '🌾 Bountiful harvest! Massive farming boost!',
         emoji: '🌾'
     },
@@ -20,9 +20,9 @@ const SEASONS = {
         name: 'Dawn Daylight',
         coinMultiplier: 350,
         gemMultiplier: 350,
-        chance: 0.0001,
-        checkInterval: 43200000, 
-        duration: 600000, 
+        chance: 0.05, // Buffed from 0.0001 to 0.05
+        checkInterval: 3600000, // 1 hour (buffed from 12 hours)
+        duration: 600000, // 10 minutes
         description: '🌅 The legendary dawn has arrived!',
         emoji: '🌅'
     },
@@ -30,9 +30,9 @@ const SEASONS = {
         name: 'Stormcharged',
         coinMultiplier: 1/15,
         gemMultiplier: 1/15,
-        chance: 0.0005,
-        checkInterval: 3600000, 
-        duration: 900000,
+        chance: 0.08, // Buffed from 0.0005 to 0.08
+        checkInterval: 1800000, // 30 minutes (buffed from 60 min)
+        duration: 900000, // 15 minutes
         description: '⚡ Electrical interference reduces farming!',
         emoji: '⚡'
     },
@@ -40,9 +40,9 @@ const SEASONS = {
         name: 'Storm',
         coinMultiplier: 1/5,
         gemMultiplier: 1/5,
-        chance: 0.01,
-        checkInterval: 3600000, 
-        duration: 1200000,
+        chance: 0.12, // Buffed from 0.01 to 0.12
+        checkInterval: 1800000, // 30 minutes (buffed from 60 min)
+        duration: 1200000, // 20 minutes
         description: '🌧️ Heavy storm reduces farming efficiency!',
         emoji: '🌧️'
     },
@@ -50,11 +50,62 @@ const SEASONS = {
         name: 'Tornado',
         coinMultiplier: 1/30,
         gemMultiplier: 1/30,
-        chance: 0.005,
-        checkInterval: 3600000, 
-        duration: 300000,
+        chance: 0.06, // Buffed from 0.005 to 0.06
+        checkInterval: 1800000, // 30 minutes (buffed from 60 min)
+        duration: 300000, // 5 minutes
         description: '🌪️ Devastating tornado! Farming severely reduced!',
         emoji: '🌪️'
+    },
+    // NEW WEATHER EVENTS
+    GOLDEN_HOUR: {
+        name: 'Golden Hour',
+        coinMultiplier: 50,
+        gemMultiplier: 50,
+        chance: 0.10,
+        checkInterval: 1800000, // 30 minutes
+        duration: 900000, // 15 minutes
+        description: '✨ The golden hour shines upon your farm!',
+        emoji: '✨'
+    },
+    METEOR_SHOWER: {
+        name: 'Meteor Shower',
+        coinMultiplier: 100,
+        gemMultiplier: 100,
+        chance: 0.05,
+        checkInterval: 2700000, // 45 minutes
+        duration: 600000, // 10 minutes
+        description: '☄️ Meteors rain down blessings!',
+        emoji: '☄️'
+    },
+    BLOOD_MOON: {
+        name: 'Blood Moon',
+        coinMultiplier: 5,
+        gemMultiplier: 25,
+        chance: 0.08,
+        checkInterval: 1800000, // 30 minutes
+        duration: 1200000, // 20 minutes
+        description: '🌕 The crimson moon empowers gem production!',
+        emoji: '🌕'
+    },
+    AURORA_BOREALIS: {
+        name: 'Aurora Borealis',
+        coinMultiplier: 30,
+        gemMultiplier: 30,
+        chance: 0.07,
+        checkInterval: 2400000, // 40 minutes
+        duration: 900000, // 15 minutes
+        description: '🌌 The northern lights dance across the sky!',
+        emoji: '🌌'
+    },
+    SOLAR_FLARE: {
+        name: 'Solar Flare',
+        coinMultiplier: 75,
+        gemMultiplier: 75,
+        chance: 0.06,
+        checkInterval: 2100000, // 35 minutes
+        duration: 480000, // 8 minutes
+        description: '☀️ Intense solar energy supercharges your farm!',
+        emoji: '☀️'
     }
 };
 
@@ -63,12 +114,18 @@ const WEATHER_EVENTS = [
     'DAWN_DAYLIGHT',
     'STORMCHARGED',
     'STORM',
-    'TORNADO'
+    'TORNADO',
+    'GOLDEN_HOUR',
+    'METEOR_SHOWER',
+    'BLOOD_MOON',
+    'AURORA_BOREALIS',
+    'SOLAR_FLARE'
 ];
 
 function isWeekend() {
     const day = new Date().getDay();
-    return day === 0 || day === 6;
+    // Weekend includes Friday (5), Saturday (6), Sunday (0), and Monday (1)
+    return day === 0 || day === 5 || day === 6;
 }
 
 function getBaseSeasonMultiplier() {
@@ -135,7 +192,7 @@ function getWeatherDuration(weatherType) {
 
 function getWeatherCheckInterval(weatherType) {
     const weather = SEASONS[weatherType];
-    return weather?.checkInterval || 3600000;
+    return weather?.checkInterval || 1800000; // Default 30 minutes
 }
 
 module.exports = {
