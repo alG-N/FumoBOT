@@ -121,9 +121,31 @@ module.exports = (client) => {
     client.on('interactionCreate', async (interaction) => {
         if (!interaction.customId?.startsWith('trade_')) return;
 
+        // Parse customId to extract action and sessionKey
+        // Format: trade_{action}_{sessionKey}
+        // SessionKey contains two user IDs separated by underscore (always 17-19 digits each)
         const parts = interaction.customId.split('_');
-        const action = parts[1];
-        const sessionKey = parts[parts.length - 1];
+        
+        // Find where the sessionKey starts (look for two consecutive parts that are user IDs)
+        let sessionKeyStartIndex = -1;
+        for (let i = 0; i < parts.length - 1; i++) {
+            if (/^\d{17,19}$/.test(parts[i]) && /^\d{17,19}$/.test(parts[i + 1])) {
+                sessionKeyStartIndex = i;
+                break;
+            }
+        }
+        
+        let action, sessionKey;
+        if (sessionKeyStartIndex !== -1) {
+            // Extract action (everything between 'trade' and the sessionKey)
+            action = parts.slice(1, sessionKeyStartIndex).join('_');
+            // Extract sessionKey (two user IDs)
+            sessionKey = parts.slice(sessionKeyStartIndex, sessionKeyStartIndex + 2).join('_');
+        } else {
+            // Fallback for malformed customIds
+            action = parts[1];
+            sessionKey = parts.slice(2).join('_');
+        }
 
         console.log(`[Trade] Interaction received: ${interaction.customId}`);
         console.log(`[Trade] Action: ${action}, SessionKey: ${sessionKey}`);
@@ -229,7 +251,7 @@ module.exports = (client) => {
 
         try {
             switch (action) {
-                case 'toggle':
+                case 'toggle_accept':
                     await handleToggleAccept(interaction, trade);
                     break;
                 case 'confirm':
@@ -238,11 +260,20 @@ module.exports = (client) => {
                 case 'cancel':
                     await handleCancel(interaction, trade);
                     break;
-                case 'add':
-                    await handleAddItem(interaction, trade, parts[2]);
+                case 'add_coins':
+                case 'add_gems':
+                case 'add_items':
+                case 'add_pets':
+                    const itemType = action.split('_')[1]; // Extract 'coins', 'gems', 'items', or 'pets'
+                    await handleAddItem(interaction, trade, itemType);
                     break;
-                case 'select':
-                    await handleSelectItem(interaction, trade, parts[2]);
+                case 'select_item':
+                case 'select_pet':
+                    const selectType = action.split('_')[1]; // Extract 'item' or 'pet'
+                    await handleSelectItem(interaction, trade, selectType);
+                    break;
+                default:
+                    console.log(`[Trade] Unknown action: ${action}`);
                     break;
             }
         } catch (error) {
