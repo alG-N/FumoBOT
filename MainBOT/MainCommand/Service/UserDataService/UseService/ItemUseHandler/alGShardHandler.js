@@ -1,5 +1,6 @@
 const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { get, run } = require('../../../../Core/database');
+const { buildSecureCustomId, parseCustomId } = require('../../../../Middleware/buttonOwnership');
 const FumoPool = require('../../../../Data/FumoPool');
 
 async function handleAlGShard(message, itemName, quantity, userId) {
@@ -18,7 +19,7 @@ async function handleAlGShard(message, itemName, quantity, userId) {
         }));
 
         const selectMenu = new StringSelectMenuBuilder()
-            .setCustomId(`alg_rarity_select_${userId}`)
+            .setCustomId(buildSecureCustomId('alg_rarity_select', userId))
             .setPlaceholder('Select a rarity (LEGENDARY+)')
             .addOptions(rarityOptions);
 
@@ -65,12 +66,12 @@ async function handleAlGShardRaritySelection(interaction) {
         }));
 
         const selectMenu = new StringSelectMenuBuilder()
-            .setCustomId(`alg_fumo_select_${userId}_${rarity}`)
+            .setCustomId(buildSecureCustomId('alg_fumo_select', userId, { rarity }))
             .setPlaceholder('Select a fumo')
             .addOptions(fumoOptions);
 
         const backButton = new ButtonBuilder()
-            .setCustomId(`alg_back_${userId}`)
+            .setCustomId(buildSecureCustomId('alg_back', userId))
             .setLabel('Back')
             .setStyle(ButtonStyle.Secondary);
 
@@ -98,11 +99,18 @@ async function handleAlGShardRaritySelection(interaction) {
 
 async function handleAlGShardFumoSelection(interaction) {
     const userId = interaction.user.id;
-    const customId = interaction.customId;
     
-    // Extract rarity from customId (format: alg_fumo_select_USERID_RARITY)
-    const parts = customId.split('_');
-    const rarity = parts[parts.length - 1];
+    // Parse the customId to get additional data
+    const { additionalData } = parseCustomId(interaction.customId);
+    const rarity = additionalData?.rarity;
+    
+    if (!rarity) {
+        return interaction.update({
+            content: '❌ Invalid interaction data.',
+            embeds: [],
+            components: []
+        });
+    }
     
     // Get selected fumo index
     const selectedIndex = parseInt(interaction.values[0].replace('alg_fumo_', ''));
@@ -136,16 +144,13 @@ async function handleAlGShardFumoSelection(interaction) {
             });
         }
 
-        // Store selection in customId using base64 encoding to avoid length issues
-        const selectionData = Buffer.from(JSON.stringify({ fumoName, rarity })).toString('base64');
-
         const confirmButton = new ButtonBuilder()
-            .setCustomId(`alg_confirm_${userId}_${selectionData}`)
+            .setCustomId(buildSecureCustomId('alg_confirm', userId, { fumoName, rarity }))
             .setLabel('Confirm')
             .setStyle(ButtonStyle.Success);
 
         const cancelButton = new ButtonBuilder()
-            .setCustomId(`alg_cancel_${userId}`)
+            .setCustomId(buildSecureCustomId('alg_cancel', userId))
             .setLabel('Cancel')
             .setStyle(ButtonStyle.Danger);
 
@@ -175,15 +180,21 @@ async function handleAlGShardFumoSelection(interaction) {
 
 async function handleAlGShardConfirmation(interaction) {
     const userId = interaction.user.id;
-    const customId = interaction.customId;
     
-    // Extract encoded data from customId
-    const parts = customId.split('_');
-    const encodedData = parts[parts.length - 1];
+    // Parse customId to get data
+    const { additionalData } = parseCustomId(interaction.customId);
     
-    try {
-        const { fumoName, rarity } = JSON.parse(Buffer.from(encodedData, 'base64').toString());
+    if (!additionalData?.fumoName || !additionalData?.rarity) {
+        return interaction.update({
+            content: '❌ Invalid confirmation data.',
+            embeds: [],
+            components: []
+        });
+    }
+    
+    const { fumoName, rarity } = additionalData;
 
+    try {
         const inventory = await get(
             `SELECT quantity FROM userInventory WHERE userId = ? AND itemName = 'alGShard(P)'`,
             [userId]
@@ -263,7 +274,7 @@ async function handleAlGShardBack(interaction) {
         }));
 
         const selectMenu = new StringSelectMenuBuilder()
-            .setCustomId(`alg_rarity_select_${userId}`)
+            .setCustomId(buildSecureCustomId('alg_rarity_select', userId))
             .setPlaceholder('Select a rarity (LEGENDARY+)')
             .addOptions(rarityOptions);
 
