@@ -445,8 +445,16 @@ function cancelTrade(sessionKey) {
  */
 async function getUserItems(userId) {
     return await all(
-        `SELECT itemName, quantity FROM userInventory 
-         WHERE userId = ? AND quantity > 0 AND itemName NOT LIKE '%(%' AND type = 'item'
+        `SELECT 
+            COALESCE(itemName, fumoName) as itemName,
+            quantity 
+         FROM userInventory 
+         WHERE userId = ? 
+         AND quantity > 0 
+         AND COALESCE(itemName, fumoName) LIKE '%(%'
+         AND COALESCE(itemName, fumoName) NOT LIKE '%[✨SHINY]%'
+         AND COALESCE(itemName, fumoName) NOT LIKE '%[🌟alG]%'
+         AND (type IS NULL OR type != 'fumo')
          ORDER BY itemName`,
         [userId]
     );
@@ -470,9 +478,19 @@ async function getUserItemsByRarity(userId, rarity) {
     const suffix = rarityMap[rarity];
     if (!suffix) return [];
     
+    // FIXED: Remove type = 'item' filter and exclude fumos instead
+    // Also handle both itemName and fumoName columns
     return await all(
-        `SELECT itemName, quantity FROM userInventory 
-         WHERE userId = ? AND quantity > 0 AND itemName LIKE ? AND type = 'item'
+        `SELECT 
+            COALESCE(itemName, fumoName) as itemName,
+            quantity 
+         FROM userInventory 
+         WHERE userId = ? 
+         AND quantity > 0 
+         AND COALESCE(itemName, fumoName) LIKE ?
+         AND COALESCE(itemName, fumoName) NOT LIKE '%[✨SHINY]%'
+         AND COALESCE(itemName, fumoName) NOT LIKE '%[🌟alG]%'
+         AND (type IS NULL OR type != 'fumo')
          ORDER BY itemName`,
         [userId, `%${suffix}`]
     );
