@@ -154,9 +154,6 @@ client.once('ready', async () => {
 
     initializeShardHandler(client);
 
-    // ============================================
-    // RESTORE AUTO-ROLLS FROM PREVIOUS SESSION
-    // ============================================
     try {
         console.log('🔄 Checking for auto-rolls to restore...');
         const crateFumos = FumoPool.getForCrate();
@@ -170,11 +167,20 @@ client.once('ready', async () => {
         } = require('./MainCommand/Service/GachaService/UnifiedAutoRollNotification');
 
         const { restoreAutoRolls: restoreNormalAutoRolls } = require('./MainCommand/Service/GachaService/NormalGachaService/CrateAutoRollService');
-        const { restoreAutoRolls: restoreEventAutoRolls } = require('./MainCommand/Service/GachaService/EventGachaService/EventAutoRollService');
+        const { restoreEventAutoRolls } = require('./MainCommand/Service/GachaService/EventGachaService/EventAutoRollService');
 
-        // Load saved states
+        // Load saved states (using normal gacha's loader which handles both)
         const { loadAutoRollState } = require('./MainCommand/Service/GachaService/NormalGachaService/AutoRollPersistence');
-        const savedStates = loadAutoRollState();
+        const { loadEventAutoRollState } = require('./MainCommand/Service/GachaService/EventGachaService/EventAutoRollPersistence');
+        
+        const normalSavedStates = loadAutoRollState();
+        const eventSavedStates = loadEventAutoRollState();
+
+        // Merge user IDs from both states
+        const allUserIds = new Set([
+            ...Object.keys(normalSavedStates),
+            ...Object.keys(eventSavedStates)
+        ]);
 
         const results = {
             normal: { restored: 0, failed: 0 },
@@ -185,40 +191,40 @@ client.once('ready', async () => {
         const eventStates = new Map();
 
         // Restore each user's auto-rolls
-        for (const [userId, states] of Object.entries(savedStates)) {
-            // Restore normal gacha
-            if (states.normal) {
+        for (const userId of allUserIds) {
+            // Restore normal gacha if exists
+            if (normalSavedStates[userId]) {
                 const normalResult = await restoreNormalAutoRolls(
                     client,
                     crateFumos,
-                    { userId, savedState: states.normal, notifyUsers: false }
+                    { userId, savedState: normalSavedStates[userId], notifyUsers: false }
                 );
 
                 if (normalResult.success) {
                     results.normal.restored++;
-                    normalStates.set(userId, states.normal);
+                    normalStates.set(userId, normalSavedStates[userId]);
                 } else {
                     results.normal.failed++;
                 }
             }
 
-            // Restore event gacha
-            if (states.event) {
+            // Restore event gacha if exists
+            if (eventSavedStates[userId]) {
                 const eventResult = await restoreEventAutoRolls(
                     client,
                     eventFumos,
-                    { userId, savedState: states.event, notifyUsers: false }
+                    { userId, savedState: eventSavedStates[userId], notifyUsers: false }
                 );
 
                 if (eventResult.success) {
                     results.event.restored++;
-                    eventStates.set(userId, states.event);
+                    eventStates.set(userId, eventSavedStates[userId]);
                 } else {
                     results.event.failed++;
                 }
             }
 
-            // Send unified notification to user
+            // Send unified notification to user if they have any restored auto-rolls
             if (normalStates.has(userId) || eventStates.has(userId)) {
                 await notifyUserUnifiedAutoRoll(
                     client,
