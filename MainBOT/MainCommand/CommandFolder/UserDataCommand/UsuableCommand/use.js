@@ -312,7 +312,9 @@ function handleSpecialItems(message, itemName, quantity, row, userId) {
         "MysteriousDice(M)": handleMysteriousDice,
         "TimeClock(L)": handleTimeClock,
         "S!gil?(?)": handleSgil,
-        "PetFoob(B)": handlePetFoob
+        "PetFoob(B)": handlePetFoob,
+        "alGShard(P)": handleAlGShardUsage,
+        "ShinyShard(?)": handleShinyShardUsage
     };
 
     const handler = specialHandlers[itemName];
@@ -322,6 +324,17 @@ function handleSpecialItems(message, itemName, quantity, row, userId) {
 
     // Default: generic response
     message.reply(`✅ You used **${itemName}** x${quantity}!`);
+}
+
+// Add these handler functions
+function handleAlGShardUsage(message, itemName, quantity, userId) {
+    const { handleAlGShard } = require('./shardHandler');
+    return handleAlGShard(message, itemName, quantity, userId);
+}
+
+function handleShinyShardUsage(message, itemName, quantity, userId) {
+    const { handleShinyShard } = require('./shardHandler');
+    return handleShinyShard(message, itemName, quantity, userId);
 }
 
 function handleWeirdGrass(message, itemName, quantity, userId) {
@@ -760,7 +773,7 @@ function handleMysteriousDice(message, itemName, quantity, userId) {
             }
 
             const getRandomMultiplier = () => parseFloat((0.0001 + Math.random() * 10.9999).toFixed(4));
-            
+
             const now = Date.now();
             const hourAligned = now - (now % (60 * 60 * 1000));
             const initialMultiplier = getRandomMultiplier();
@@ -822,7 +835,7 @@ function handleTimeClock(message, itemName, quantity, userId) {
 
             const now = Date.now();
             const lastUsed = userRow?.timeclockLastUsed || 0;
-            
+
             if (lastUsed && now - lastUsed < cooldown) {
                 return message.reply(`⏳ **TimeClock(L)** is on cooldown!\nYou can use it again <t:${Math.floor((lastUsed + cooldown) / 1000)}:R>.`);
             }
@@ -933,7 +946,7 @@ function handleSgil(message, itemName, quantity, userId) {
                             const baseQuery = `INSERT INTO activeBoosts (userId, type, source, multiplier${config.expiresAt !== undefined ? ', expiresAt' : ''}${config.uses ? ', uses' : ''}${config.extra ? ', extra' : ''})
                                                VALUES (?, ?, ?, ?${config.expiresAt !== undefined ? ', ?' : ''}${config.uses ? ', ?' : ''}${config.extra ? ', ?' : ''})
                                                ON CONFLICT(userId, type, source) DO UPDATE SET multiplier = excluded.multiplier${config.expiresAt !== undefined ? ', expiresAt = excluded.expiresAt' : ''}${config.uses ? ', uses = excluded.uses' : ''}${config.extra ? ', extra = excluded.extra' : ''}`;
-                            
+
                             const params = [userId, config.type, source, config.multiplier];
                             if (config.expiresAt !== undefined) params.push(config.expiresAt);
                             if (config.uses) params.push(config.uses);
@@ -1004,7 +1017,7 @@ function handlePetFoob(message, itemName, quantity, userId) {
             console.log(`🾠Feeding pet with ID: ${petRow.petId}, Name: ${petRow.name}, Hunger: ${petRow.hunger}`);
 
             const maxHunger = getMaxHunger(petRow.rarity || 'Common');
-            
+
             db.run(
                 `UPDATE petInventory SET hunger = ?, lastHungerUpdate = ? WHERE petId = ?`,
                 [maxHunger, Math.floor(Date.now() / 1000), petRow.petId],
@@ -1019,4 +1032,35 @@ function handlePetFoob(message, itemName, quantity, userId) {
             );
         }
     );
+    
+    const {
+        handleShardRaritySelection,
+        handleShardFumoSelection,
+        handleShardConfirmation,
+        handleShardCancellation
+    } = require('./shardHandler');
+
+    client.on('interactionCreate', async (interaction) => {
+        if (!interaction.isStringSelectMenu() && !interaction.isButton()) return;
+
+        // Handle shard rarity selections
+        if (interaction.customId.startsWith('alg_rarity_') || interaction.customId.startsWith('shiny_rarity_')) {
+            await handleShardRaritySelection(interaction);
+        }
+
+        // Handle fumo selections
+        else if (interaction.customId.startsWith('alg_fumo_') || interaction.customId.startsWith('shiny_fumo_')) {
+            await handleShardFumoSelection(interaction);
+        }
+
+        // Handle confirmations
+        else if (interaction.customId.startsWith('alg_confirm_') || interaction.customId.startsWith('shiny_confirm_')) {
+            await handleShardConfirmation(interaction);
+        }
+
+        // Handle cancellations
+        else if (interaction.customId.startsWith('alg_cancel_') || interaction.customId.startsWith('shiny_cancel_')) {
+            await handleShardCancellation(interaction);
+        }
+    });
 }

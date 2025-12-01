@@ -1,4 +1,4 @@
-const RARITY_ORDER = ['Basic', 'Common', 'Rare', 'Epic', 'Legendary', 'Mythical', 'Divine', 'Secret'];
+const RARITY_ORDER = ['Basic', 'Common', 'Rare', 'Epic', 'Legendary', 'Mythical', 'Divine', 'Secret', 'Unknown', 'Prime'];
 
 const RARITY_SUFFIX_MAP = {
     '(B)': 'Basic',
@@ -8,35 +8,41 @@ const RARITY_SUFFIX_MAP = {
     '(L)': 'Legendary',
     '(M)': 'Mythical',
     '(D)': 'Divine',
-    '(?)': 'Secret'
+    '(?)': 'Secret',
+    '(Un)': 'Unknown',
+    '(P)': 'Prime'
 };
 
+// Create reverse mapping: Rarity -> Suffix
 const RARITY_TO_SUFFIX = Object.fromEntries(
     Object.entries(RARITY_SUFFIX_MAP).map(([suffix, rarity]) => [rarity, suffix])
 );
 
 const RARITY_COLORS = {
-    'Basic': 0xC0C0C0,      // NEW
+    'Basic': 0xC0C0C0,
     'Common': 0x808080,
     'Rare': 0x0099FF,
     'Epic': 0x9933FF,
     'Legendary': 0xFFAA00,
     'Mythical': 0xFF0000,
-    'Divine': 0xFFFF66,     // NEW
-    'Secret': 0xFF00FF
+    'Divine': 0xFFFF66,
+    'Secret': 0xFF00FF,
+    'Unknown': 0x8B008B,     // Dark magenta
+    'Prime': 0xFFD700        // Gold
 };
 
 const RARITY_EMOJI = {
-    'Basic': '⚫',           // NEW
+    'Basic': '⚫',
     'Common': '⚪',
     'Rare': '🔵',
     'Epic': '🟣',
     'Legendary': '🟠',
     'Mythical': '🔴',
-    'Divine': '✨',          // NEW
-    'Secret': '❓'
+    'Divine': '✨',
+    'Secret': '❓',
+    'Unknown': '🌀',
+    'Prime': '👑'
 };
-
 
 const PAGINATION = {
     ITEMS_PER_PAGE: 2,      
