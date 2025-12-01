@@ -30,20 +30,51 @@ module.exports = async (client) => {
     client.on('interactionCreate', async (interaction) => {
         if (!interaction.isButton()) return;
 
-        if (interaction.customId.startsWith('free_reroll_') || interaction.customId.startsWith('paid_reroll_')) {
+        // Handle pagination buttons
+        if (interaction.customId.startsWith('shop_prev_') || interaction.customId.startsWith('shop_next_')) {
+            await handlePagination(interaction);
+        }
+        // Handle reroll buttons
+        else if (interaction.customId.startsWith('free_reroll_') || interaction.customId.startsWith('paid_reroll_')) {
             const restriction = checkRestrictions(interaction.user.id);
             if (restriction.blocked) {
                 return interaction.reply({ embeds: [restriction.embed], ephemeral: true });
             }
 
             await handleReroll(interaction);
-        } else if (interaction.customId.startsWith('buy_all_')) {
+        }
+        // Handle buy all
+        else if (interaction.customId.startsWith('buy_all_')) {
             await handleBuyAll(interaction);
-        } else if (interaction.customId === 'buyall_confirm' || interaction.customId === 'buyall_cancel') {
+        }
+        // Handle buy all confirmation
+        else if (interaction.customId === 'buyall_confirm' || interaction.customId === 'buyall_cancel') {
             await handleBuyAllConfirmation(interaction);
         }
-        // Removed the handlePurchaseConfirmation references since they're handled by collectors in handleBuyCommand
     });
+
+    async function handlePagination(interaction) {
+        const parts = interaction.customId.split('_');
+        const action = parts[1]; // 'prev' or 'next'
+        const userId = parts[2];
+        const currentPage = parseInt(parts[3]);
+
+        if (!await checkButtonOwnership(interaction, `shop_${action}`, null, false)) {
+            return;
+        }
+
+        const newPage = action === 'next' ? currentPage + 1 : currentPage - 1;
+        const userShop = getUserShop(userId);
+        const rerollData = getRerollData(userId);
+
+        const shopEmbed = createShopEmbed(userId, userShop, newPage);
+        const buttons = createShopButtons(userId, rerollData.count, newPage);
+
+        await interaction.update({
+            embeds: [shopEmbed],
+            components: buttons
+        });
+    }
 
     async function handleReroll(interaction) {
         const isPaidReroll = interaction.customId.startsWith('paid_reroll_');
@@ -109,7 +140,7 @@ module.exports = async (client) => {
         const rerollEmbed = createRerollSuccessEmbed(
             updatedRerollData.count,
             getRerollCooldownRemaining(userId),
-            isPaidReroll ? getPaidRerollCost(userId) / 5 : null // Show the cost that was just paid (before increment)
+            isPaidReroll ? getPaidRerollCost(userId) / 5 : null
         );
 
         await interaction.reply({ embeds: [rerollEmbed], ephemeral: true });
@@ -119,8 +150,9 @@ module.exports = async (client) => {
             ephemeral: true
         });
 
-        const shopEmbed = createShopEmbed(userId, newShop);
-        const buttons = createShopButtons(userId, updatedRerollData.count);
+        // Start at page 0 after reroll
+        const shopEmbed = createShopEmbed(userId, newShop, 0);
+        const buttons = createShopButtons(userId, updatedRerollData.count, 0);
 
         await interaction.followUp({
             embeds: [shopEmbed],
@@ -279,8 +311,8 @@ module.exports = async (client) => {
 
     function handleDisplayShop(message, userId, userShop) {
         const rerollData = getRerollData(userId);
-        const shopEmbed = createShopEmbed(userId, userShop);
-        const buttons = createShopButtons(userId, rerollData.count);
+        const shopEmbed = createShopEmbed(userId, userShop, 0); // Start at page 0
+        const buttons = createShopButtons(userId, rerollData.count, 0);
         message.reply({ embeds: [shopEmbed], components: buttons, ephemeral: true });
     }
 };

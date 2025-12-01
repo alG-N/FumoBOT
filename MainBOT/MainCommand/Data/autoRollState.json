@@ -1,6 +1,6 @@
 {
   "1128296349566251068": {
-    "rollCount": 1,
+    "rollCount": 3,
     "autoSell": true,
     "startTime": 1764565602681,
     "bestFumo": {
@@ -10,7 +10,7 @@
     },
     "bestFumoAt": "12/1/2025, 2:40:02 PM",
     "bestFumoRoll": 21,
-    "specialFumoCount": 147,
+    "specialFumoCount": 157,
     "specialFumoFirstAt": "12/1/2025, 12:11:39 PM",
     "specialFumoFirstRoll": 3,
     "lowerSpecialFumos": [
@@ -853,11 +853,71 @@
         "rarity": "ETERNAL",
         "roll": 1,
         "time": "12/1/2025, 3:54:50 PM"
+      },
+      {
+        "name": "GawrGura(???)",
+        "rarity": "???",
+        "roll": 2,
+        "time": "12/1/2025, 3:55:50 PM"
+      },
+      {
+        "name": "Grani(CELESTIAL)",
+        "rarity": "CELESTIAL",
+        "roll": 3,
+        "time": "12/1/2025, 3:56:50 PM"
+      },
+      {
+        "name": "DarkYoumu(EXCLUSIVE)",
+        "rarity": "EXCLUSIVE",
+        "roll": 7,
+        "time": "12/1/2025, 4:00:51 PM"
+      },
+      {
+        "name": "Athena(ASTRAL)",
+        "rarity": "ASTRAL",
+        "roll": 9,
+        "time": "12/1/2025, 4:02:51 PM"
+      },
+      {
+        "name": "GawrGura(???)",
+        "rarity": "???",
+        "roll": 1,
+        "time": "12/1/2025, 4:04:35 PM"
+      },
+      {
+        "name": "CirnoSitting(EXCLUSIVE)",
+        "rarity": "EXCLUSIVE",
+        "roll": 2,
+        "time": "12/1/2025, 4:05:35 PM"
+      },
+      {
+        "name": "CirnoSitting(EXCLUSIVE)",
+        "rarity": "EXCLUSIVE",
+        "roll": 3,
+        "time": "12/1/2025, 4:06:35 PM"
+      },
+      {
+        "name": "Mima(INFINITE)",
+        "rarity": "INFINITE",
+        "roll": 4,
+        "time": "12/1/2025, 4:07:35 PM"
+      },
+      {
+        "name": "Mima(INFINITE)",
+        "rarity": "INFINITE",
+        "roll": 1,
+        "time": "12/1/2025, 4:08:46 PM"
+      },
+      {
+        "name": "Cheshire(ASTRAL)",
+        "rarity": "ASTRAL",
+        "roll": 2,
+        "time": "12/1/2025, 4:09:46 PM"
       }
     ]
   },
   "1421544451897299024": {
-    "rollCount": 1,
+    "rollCount": 3,
     "autoSell": true,
     "startTime": 1764565872028,
     "bestFumo": {
@@ -867,7 +927,7 @@
     },
     "bestFumoAt": "12/1/2025, 12:52:12 PM",
     "bestFumoRoll": 42,
-    "specialFumoCount": 73,
+    "specialFumoCount": 78,
     "specialFumoFirstAt": "12/1/2025, 12:12:12 PM",
     "specialFumoFirstRoll": 2,
     "lowerSpecialFumos": [
@@ -1290,11 +1350,41 @@
         "rarity": "EXCLUSIVE",
         "roll": 1,
         "time": "12/1/2025, 3:54:50 PM"
+      },
+      {
+        "name": "DarkYoumu(EXCLUSIVE)",
+        "rarity": "EXCLUSIVE",
+        "roll": 2,
+        "time": "12/1/2025, 3:55:50 PM"
+      },
+      {
+        "name": "UltraKillV2(ETERNAL)",
+        "rarity": "ETERNAL",
+        "roll": 3,
+        "time": "12/1/2025, 3:56:50 PM"
+      },
+      {
+        "name": "HyperSakuya(EXCLUSIVE)",
+        "rarity": "EXCLUSIVE",
+        "roll": 4,
+        "time": "12/1/2025, 3:57:51 PM"
+      },
+      {
+        "name": "Grani(CELESTIAL)",
+        "rarity": "CELESTIAL",
+        "roll": 1,
+        "time": "12/1/2025, 4:08:46 PM"
+      },
+      {
+        "name": "RedMarisa(EXCLUSIVE)",
+        "rarity": "EXCLUSIVE",
+        "roll": 2,
+        "time": "12/1/2025, 4:09:46 PM"
       }
     ]
   },
   "845274868697661440": {
-    "rollCount": 1,
+    "rollCount": 3,
     "autoSell": true,
     "startTime": 1764568206020,
     "bestFumo": {
@@ -1304,7 +1394,7 @@
     },
     "bestFumoAt": "12/1/2025, 2:41:02 PM",
     "bestFumoRoll": 22,
-    "specialFumoCount": 24,
+    "specialFumoCount": 26,
     "specialFumoFirstAt": "12/1/2025, 12:50:06 PM",
     "specialFumoFirstRoll": 1,
     "lowerSpecialFumos": [
@@ -1427,6 +1517,18 @@
         "rarity": "EXCLUSIVE",
         "roll": 28,
         "time": "12/1/2025, 3:52:12 PM"
+      },
+      {
+        "name": "SkibidiToilet(???)",
+        "rarity": "???",
+        "roll": 3,
+        "time": "12/1/2025, 4:06:35 PM"
+      },
+      {
+        "name": "HyperSakuya(EXCLUSIVE)",
+        "rarity": "EXCLUSIVE",
+        "roll": 4,
+        "time": "12/1/2025, 4:07:35 PM"
       }
     ]
   }

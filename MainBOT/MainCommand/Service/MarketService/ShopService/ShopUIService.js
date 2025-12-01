@@ -5,14 +5,31 @@ const { getUserShopTimeLeft } = require('./ShopCacheService');
 const { getRerollData, getRerollCooldownRemaining, formatTimeRemaining, getPaidRerollCost, canUseGemReroll } = require('./ShopRerollService');
 const { isDoubleLuckDay, isGuaranteedMysteryBlock } = require('./ShopGenerationService');
 
+// Define rarity pages for pagination
+const RARITY_PAGES = [
+    ['Basic', 'Common', 'Rare', 'Epic', 'Legendary'],  // Page 1: Common to Legendary
+    ['Mythical', 'Divine', '???', 'Unknown', 'Prime']   // Page 2: Mythical to Prime
+];
+
 function formatStockText(stock, stockMessage) {
     if (stock === 0) return `~~Out of Stock~~`;
     if (stock === 'unlimited') return stockMessage;
     return `Stock: ${stock} (${stockMessage})`;
 }
 
-function createShopEmbed(userId, userShop) {
-    const categorizedItems = { Basic: [], Common: [], Rare: [], Epic: [], Legendary: [], Mythical: [], Divine: [], '???': [] };
+function createShopEmbed(userId, userShop, page = 0) {
+    const categorizedItems = { 
+        Basic: [], 
+        Common: [], 
+        Rare: [], 
+        Epic: [], 
+        Legendary: [], 
+        Mythical: [], 
+        Divine: [], 
+        '???': [],
+        Unknown: [],  // ADDED
+        Prime: []     // ADDED
+    };
 
     Object.keys(userShop).forEach(itemName => {
         const item = userShop[itemName];
@@ -32,8 +49,12 @@ function createShopEmbed(userId, userShop) {
     const rerollData = getRerollData(userId);
     const cooldownRemaining = getRerollCooldownRemaining(userId);
 
+    // Get rarities for current page
+    const currentPageRarities = RARITY_PAGES[page] || RARITY_PAGES[0];
+    const totalPages = RARITY_PAGES.length;
+
     const shopEmbed = new EmbedBuilder()
-        .setTitle("✨ Welcome to Your Magical Shop ✨")
+        .setTitle(`✨ Welcome to Your Magical Shop ✨ (Page ${page + 1}/${totalPages})`)
         .setDescription(
             `🧙‍♂️ **Some random guy's magical shop** is open just for you!\n\n` +
             `📜 To buy: \`.shop buy <ItemName> <Quantity>\`\n` +
@@ -48,7 +69,8 @@ function createShopEmbed(userId, userShop) {
         .setThumbnail('https://img1.picmix.com/output/stamp/normal/6/1/0/7/2577016_a2c58.png')
         .setFooter({ text: 'Prices and stock are unique to you. Shop resets every hour on the hour.' });
 
-    for (const rarity of Object.keys(categorizedItems)) {
+    // Only show rarities for current page
+    for (const rarity of currentPageRarities) {
         const itemsList = categorizedItems[rarity].length > 0 ? 
             categorizedItems[rarity].join('\n') : 
             '-No items available here-';
@@ -62,24 +84,48 @@ function createShopEmbed(userId, userShop) {
     return shopEmbed;
 }
 
-function createShopButtons(userId, rerollCount) {
+function createShopButtons(userId, rerollCount, page = 0) {
     const rows = [];
-    const canGemReroll = canUseGemReroll(userId);
+    const totalPages = RARITY_PAGES.length;
 
+    // Row 1: Pagination buttons
+    if (totalPages > 1) {
+        const paginationRow = new ActionRowBuilder();
+        
+        const prevButton = new ButtonBuilder()
+            .setCustomId(`shop_prev_${userId}_${page}`)
+            .setLabel('◀ Previous')
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(page === 0);
+
+        const pageIndicator = new ButtonBuilder()
+            .setCustomId(`shop_page_${userId}_${page}`)
+            .setLabel(`Page ${page + 1}/${totalPages}`)
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(true);
+
+        const nextButton = new ButtonBuilder()
+            .setCustomId(`shop_next_${userId}_${page}`)
+            .setLabel('Next ▶')
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(page === totalPages - 1);
+
+        paginationRow.addComponents(prevButton, pageIndicator, nextButton);
+        rows.push(paginationRow);
+    }
+
+    // Row 2: Reroll buttons
+    const rerollRow = new ActionRowBuilder();
+    
     if (rerollCount > 0) {
-        // Show only free reroll button when rerolls are available
-        const row1 = new ActionRowBuilder();
         const freeRerollButton = new ButtonBuilder()
             .setCustomId(`free_reroll_${userId}`)
             .setLabel(`Free Reroll (${rerollCount}/5)`)
             .setStyle(ButtonStyle.Primary)
             .setEmoji('🔄');
 
-        row1.addComponents(freeRerollButton);
-        rows.push(row1);
+        rerollRow.addComponents(freeRerollButton);
     } else {
-        // Show only gem reroll button when free rerolls are exhausted
-        const row1 = new ActionRowBuilder();
         const paidRerollCost = getPaidRerollCost(userId);
         const paidRerollButton = new ButtonBuilder()
             .setCustomId(`paid_reroll_${userId}`)
@@ -87,26 +133,38 @@ function createShopButtons(userId, rerollCount) {
             .setStyle(ButtonStyle.Secondary)
             .setEmoji('💎');
 
-        row1.addComponents(paidRerollButton);
-        rows.push(row1);
+        rerollRow.addComponents(paidRerollButton);
     }
 
-    // Always show buy all button on second row
-    const row2 = new ActionRowBuilder();
+    rows.push(rerollRow);
+
+    // Row 3: Buy all button
+    const actionRow = new ActionRowBuilder();
     const buyAllButton = new ButtonBuilder()
         .setCustomId(`buy_all_${userId}`)
         .setLabel('Buy All Available')
         .setStyle(ButtonStyle.Success)
         .setEmoji('🛒');
 
-    row2.addComponents(buyAllButton);
-    rows.push(row2);
+    actionRow.addComponents(buyAllButton);
+    rows.push(actionRow);
 
     return rows;
 }
 
 function createSearchResultsEmbed(searchQuery, userShop) {
-    const categorizedItems = { Basic: [], Common: [], Rare: [], Epic: [], Legendary: [], Mythical: [], Divine: [], '???': [] };
+    const categorizedItems = { 
+        Basic: [], 
+        Common: [], 
+        Rare: [], 
+        Epic: [], 
+        Legendary: [], 
+        Mythical: [], 
+        Divine: [], 
+        '???': [],
+        Unknown: [],  // ADDED
+        Prime: []     // ADDED
+    };
 
     Object.keys(userShop).forEach(itemName => {
         const item = userShop[itemName];
@@ -127,15 +185,19 @@ function createSearchResultsEmbed(searchQuery, userShop) {
         .setDescription(`Here are the items that match your search:`)
         .setColor(Colors.Blue);
 
+    // Show all rarities in search results
     for (const rarity of Object.keys(categorizedItems)) {
         const itemsList = categorizedItems[rarity].length > 0 ? 
             categorizedItems[rarity].join('\n') : 
-            '-No items found-';
-        searchEmbed.addFields({ 
-            name: `${RARITY_ICONS[rarity]} ${rarity}`, 
-            value: itemsList, 
-            inline: false 
-        });
+            null;
+        
+        if (itemsList) {
+            searchEmbed.addFields({ 
+                name: `${RARITY_ICONS[rarity]} ${rarity}`, 
+                value: itemsList, 
+                inline: false 
+            });
+        }
     }
 
     return searchEmbed;
@@ -225,5 +287,6 @@ module.exports = {
     createPurchaseConfirmationEmbed,
     createBuyAllConfirmationEmbed,
     createPurchaseButtons,
-    createRerollSuccessEmbed
+    createRerollSuccessEmbed,
+    RARITY_PAGES
 };

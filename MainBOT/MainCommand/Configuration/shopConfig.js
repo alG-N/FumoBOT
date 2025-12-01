@@ -19,9 +19,9 @@ const RARITY_THRESHOLDS = {
     Legendary: [0.005, 0.015, 0.05, 0.15],
     Mythical: [0.005, 0.01, 0.03, 0.1],
     Divine: [0.003, 0.008, 0.02, 0.08],
-    '???': [0.005],
-    Unknown: [0.001],  // No unlimited stock
-    Prime: [0.0005]    // No unlimited stock
+    "???": [0.005],
+    Unknown: [0.0001],
+    Prime: [0.00001]
 };
 
 const STOCK_RANGES = {
@@ -29,8 +29,8 @@ const STOCK_RANGES = {
     LOTS: [3, 15],
     ON_STOCK: [1, 3],
     MYSTERY: [1, 2],
-    ULTRA_RARE: [1, 2],      // For Unknown/Prime normal stock
-    ULTRA_RARE_LUCKY: [3, 5] // For Unknown/Prime 0.1% chance
+    ULTRA_RARE: [1, 1], 
+    ULTRA_RARE_LUCKY: [2, 2]    
 };
 
 const ITEM_DEFINITIONS = [
