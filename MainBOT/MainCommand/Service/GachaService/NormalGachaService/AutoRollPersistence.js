@@ -8,13 +8,15 @@ const AUTO_ROLL_STATE_FILE = path.join(__dirname, '../../../Data/autoRollState.j
  * Save current auto-roll state to file
  * @param {Map} autoRollMap - The current auto-roll map
  */
-function saveAutoRollState(autoRollMap) {
+function saveAutoRollState(normalAutoRollMap, eventAutoRollMap = null) {
     try {
         const stateData = {};
         
-        for (const [userId, state] of autoRollMap.entries()) {
-            // Don't save the timeout ID, but save everything else
-            stateData[userId] = {
+        // Save normal gacha auto-rolls
+        for (const [userId, state] of normalAutoRollMap.entries()) {
+            if (!stateData[userId]) stateData[userId] = {};
+            
+            stateData[userId].normal = {
                 rollCount: state.rollCount || 0,
                 autoSell: state.autoSell || false,
                 startTime: state.startTime || Date.now(),
@@ -27,12 +29,34 @@ function saveAutoRollState(autoRollMap) {
                 bestFumoRoll: state.bestFumoRoll || null,
                 specialFumoCount: state.specialFumoCount || 0,
                 specialFumoFirstAt: state.specialFumoFirstAt || null,
-                specialFumoFirstRoll: state.specialFumoFirstRoll || null,
-                lowerSpecialFumos: state.lowerSpecialFumos || []
+                specialFumoFirstRoll: state.specialFumoFirstRoll || null
             };
         }
+        
+        // Save event gacha auto-rolls
+        if (eventAutoRollMap) {
+            for (const [userId, state] of eventAutoRollMap.entries()) {
+                if (!stateData[userId]) stateData[userId] = {};
+                
+                stateData[userId].event = {
+                    rollCount: state.rollCount || 0,
+                    autoSell: state.autoSell || false,
+                    startTime: state.startTime || Date.now(),
+                    totalFumosRolled: state.totalFumosRolled || 0,
+                    bestFumo: state.bestFumo ? {
+                        name: state.bestFumo.name,
+                        rarity: state.bestFumo.rarity,
+                        picture: state.bestFumo.picture
+                    } : null,
+                    bestFumoAt: state.bestFumoAt || null,
+                    bestFumoRoll: state.bestFumoRoll || null,
+                    specialFumoCount: state.specialFumoCount || 0,
+                    specialFumoFirstAt: state.specialFumoFirstAt || null,
+                    specialFumoFirstRoll: state.specialFumoFirstRoll || null
+                };
+            }
+        }
 
-        // Ensure directory exists
         const dir = path.dirname(AUTO_ROLL_STATE_FILE);
         if (!fs.existsSync(dir)) {
             fs.mkdirSync(dir, { recursive: true });
@@ -44,7 +68,7 @@ function saveAutoRollState(autoRollMap) {
             'utf8'
         );
 
-        debugLog('AUTO_ROLL_PERSIST', `Saved state for ${Object.keys(stateData).length} users`);
+        debugLog('AUTO_ROLL_PERSIST', `Saved unified state for ${Object.keys(stateData).length} users`);
         return true;
     } catch (error) {
         console.error('❌ Failed to save auto-roll state:', error);
