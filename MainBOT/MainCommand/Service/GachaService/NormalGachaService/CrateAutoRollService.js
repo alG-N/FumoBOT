@@ -10,14 +10,9 @@ const {
 } = require('./AutoRollPersistence');
 
 const autoRollMap = new Map();
-
-// Auto-save interval (every 30 seconds)
 const AUTO_SAVE_INTERVAL = 30000;
 let autoSaveTimer = null;
 
-/**
- * Start periodic auto-save
- */
 function startAutoSave() {
     if (autoSaveTimer) clearInterval(autoSaveTimer);
     
@@ -31,9 +26,6 @@ function startAutoSave() {
     console.log('✅ Auto-roll auto-save started (every 30s)');
 }
 
-/**
- * Stop periodic auto-save
- */
 function stopAutoSave() {
     if (autoSaveTimer) {
         clearInterval(autoSaveTimer);
@@ -221,14 +213,6 @@ function getAutoRollSummary(userId) {
     return autoRollMap.get(userId) || null;
 }
 
-/**
- * Restore auto-rolls from saved state (call this on bot startup)
- * @param {Client} client - Discord client
- * @param {Object} fumoPool - Fumo pool for rolling
- * @param {Object} options - Restoration options
- * @param {boolean} options.notifyUsers - Send DMs to users (default: true)
- * @param {string} options.logChannelId - Log channel ID for summary
- */
 async function restoreAutoRolls(client, fumoPool, options = {}) {
     const { notifyUsers = true, logChannelId = null } = options;
     const savedStates = loadAutoRollState();

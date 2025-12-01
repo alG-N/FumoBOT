@@ -9,8 +9,36 @@ const {
 } = require('../../../Configuration/eventConfig');
 const { SPECIAL_RARITIES, compareFumos, SELL_REWARDS, SHINY_CONFIG } = require('../../../Configuration/rarity');
 const { debugLog } = require('../../../Core/logger');
+const { 
+    saveEventAutoRollState, 
+    loadEventAutoRollState, 
+    removeEventUserState 
+} = require('./EventAutoRollPersistence');
 
 const eventAutoRollMap = new Map();
+const EVENT_AUTO_SAVE_INTERVAL = 30000;
+let eventAutoSaveTimer = null;
+
+function startEventAutoSave() {
+    if (eventAutoSaveTimer) clearInterval(eventAutoSaveTimer);
+    
+    eventAutoSaveTimer = setInterval(() => {
+        if (eventAutoRollMap.size > 0) {
+            saveEventAutoRollState(eventAutoRollMap);
+            debugLog('EVENT_AUTO_ROLL', `Auto-saved ${eventAutoRollMap.size} active event auto-rolls`);
+        }
+    }, EVENT_AUTO_SAVE_INTERVAL);
+    
+    console.log('✅ Event auto-roll auto-save started (every 30s)');
+}
+
+function stopEventAutoSave() {
+    if (eventAutoSaveTimer) {
+        clearInterval(eventAutoSaveTimer);
+        eventAutoSaveTimer = null;
+        console.log('🛑 Event auto-roll auto-save stopped');
+    }
+}
 
 async function calculateEventAutoRollInterval(userId) {
     const now = Date.now();
@@ -240,6 +268,113 @@ function getEventAutoRollSummary(userId) {
     return eventAutoRollMap.get(userId) || null;
 }
 
+async function restoreEventAutoRolls(client, options = {}) {
+    const { notifyUsers = true, logChannelId = null } = options;
+    const savedStates = loadEventAutoRollState();
+    const userIds = Object.keys(savedStates);
+
+    if (userIds.length === 0) {
+        console.log('ℹ️ No event auto-rolls to restore');
+        return { restored: 0, failed: 0 };
+    }
+
+    console.log(`🔄 Restoring ${userIds.length} event auto-rolls...`);
+
+    let restored = 0;
+    let failed = 0;
+    const restoredUsers = [];
+
+    for (const userId of userIds) {
+        try {
+            const saved = savedStates[userId];
+
+            // Ensure user can roll again
+            const data = await getEventUserRollData(userId);
+            if (!data?.hasFantasyBook) {
+                console.log(`⚠️ User ${userId} lacks Fantasy Book, skipping restore`);
+                removeEventUserState(userId);
+                failed++;
+                continue;
+            }
+
+            // Restart auto-roll
+            const result = await startEventAutoRoll(userId, saved.autoSell);
+
+            if (result.success) {
+                const current = eventAutoRollMap.get(userId);
+                if (current) {
+                    current.rollCount = saved.rollCount || 0;
+                    current.totalFumosRolled = saved.totalFumosRolled || 0;
+                    current.totalCoinsFromSales = saved.totalCoinsFromSales || 0;
+                    current.bestFumo = saved.bestFumo || null;
+                    current.bestFumoAt = saved.bestFumoAt || null;
+                    current.bestFumoRoll = saved.bestFumoRoll || null;
+                    current.specialFumoCount = saved.specialFumoCount || 0;
+                    current.specialFumoFirstAt = saved.specialFumoFirstAt || null;
+                    current.specialFumoFirstRoll = saved.specialFumoFirstRoll || null;
+                    current.specialFumos = saved.specialFumos || [];
+                }
+
+                restored++;
+                restoredUsers.push({ userId, state: saved });
+                console.log(`✅ Restored event auto-roll for user ${userId}`);
+            } else {
+                failed++;
+                console.log(`❌ Failed to restore event auto-roll for user ${userId}: ${result.error}`);
+            }
+        } catch (err) {
+            failed++;
+            console.error(`❌ Error restoring event auto-roll for user ${userId}:`, err);
+        }
+    }
+
+    console.log(`📊 Event auto-roll restoration complete: ${restored} restored, ${failed} failed`);
+
+    // Resume auto-save
+    startEventAutoSave();
+
+    // Send user notifications
+    if (notifyUsers && restoredUsers.length > 0) {
+        const { notifyUserEventAutoRollRestored } = require('./EventAutoRollNotification');
+
+        for (const { userId, state } of restoredUsers) {
+            await new Promise(r => setTimeout(r, 1000)); // avoid rate limiting
+            await notifyUserEventAutoRollRestored(client, userId, state);
+        }
+    }
+
+    // Send summary to log channel
+    if (logChannelId) {
+        const { sendEventRestorationSummary } = require('./EventAutoRollNotification');
+        await sendEventRestorationSummary(client, { restored, failed }, logChannelId);
+    }
+
+    return { restored, failed };
+}
+
+
+/**
+ * Gracefully shut down event auto-rolls
+ */
+function shutdownEventAutoRolls() {
+    console.log('🛑 Shutting down event auto-rolls...');
+
+    // Save current state
+    saveEventAutoRollState(eventAutoRollMap);
+
+    // Stop auto-save
+    stopEventAutoSave();
+
+    // Clear all timers
+    for (const [userId, state] of eventAutoRollMap.entries()) {
+        if (state.intervalId) {
+            clearTimeout(state.intervalId);
+        }
+    }
+
+    console.log(`💾 Saved ${eventAutoRollMap.size} active event auto-rolls`);
+}
+
 module.exports = {
     startEventAutoRoll,
     stopEventAutoRoll,
@@ -247,5 +382,11 @@ module.exports = {
     getEventAutoRollSummary,
     calculateEventAutoRollInterval,
     performEventAutoSell,
-    eventAutoRollMap
+    eventAutoRollMap,
+
+    // NEW
+    restoreEventAutoRolls,
+    shutdownEventAutoRolls,
+    startEventAutoSave,
+    stopEventAutoSave
 };
