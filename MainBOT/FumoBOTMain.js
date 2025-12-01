@@ -92,6 +92,7 @@ const endFarm = require('./MainCommand/CommandFolder/FarmingCommand/EndFarm');
 const farmCheck = require('./MainCommand/CommandFolder/FarmingCommand/FarmCheck');
 const farmInfo = require('./MainCommand/CommandFolder/FarmingCommand/FarmInfo');
 const InitializeFarming = require('./MainCommand/CommandFolder/FarmingCommand/InitializeFarming');
+const trade = require('./MainCommand/CommandFolder/TradeCommand/trade')
 
 // OTHER FUN COMMANDS
 const anime = require('./SubCommand/API-Website/Anime/anime');
@@ -187,6 +188,7 @@ eggInventory(client);
 eggOpen(client);
 eggcheck(client);
 equipPet(client);
+trade(client);
 
 // REGISTER ADMIN & USER SYSTEMS
 registerAdminCommands(client);
