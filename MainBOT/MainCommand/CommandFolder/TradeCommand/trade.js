@@ -39,6 +39,7 @@ const {
     handleAddItem,
     handleSelectItem,
     handleSelectFumoType,
+    handleSelectFumoRarity,
     handleSelectFumo
 } = require('../../Service/TradingService/TradingHandlers');
 
@@ -225,6 +226,9 @@ module.exports = (client) => {
                     break;
                 case 'select_fumo_type':
                     await handleSelectFumoType(interaction, trade);
+                    break;
+                case 'select_fumo_rarity':
+                    await handleSelectFumoRarity(interaction, trade);
                     break;
                 case 'select_fumo':
                     await handleSelectFumo(interaction, trade);

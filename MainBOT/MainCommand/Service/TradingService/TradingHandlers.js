@@ -5,6 +5,7 @@ const {
     ActionRowBuilder 
 } = require('discord.js');
 const TRADING_CONFIG = require('../../Configuration/tradingConfig');
+const { RARITY_PRIORITY } = require('../../Configuration/rarity');
 
 const {
     toggleAccept,
@@ -14,7 +15,8 @@ const {
     cancelTrade,
     getUserItems,
     getUserPets,
-    getUserFumos
+    getUserFumos,
+    getUserFumoQuantity
 } = require('./TradingService');
 
 const {
@@ -24,6 +26,7 @@ const {
     createItemSelectMenu,
     createPetSelectMenu,
     createFumoTypeMenu,
+    createFumoRarityMenu,
     createFumoSelectMenu,
     createConfirmationEmbed,
     createCompleteEmbed,
@@ -289,7 +292,7 @@ async function handleAddItem(interaction, trade, type) {
                 });
             }
 
-            const result = updateTradeItem(trade.sessionKey, interaction.user.id, type, { amount });
+            const result = await updateTradeItem(trade.sessionKey, interaction.user.id, type, { amount });
             
             if (!result.success) {
                 return submitted.reply({
@@ -402,7 +405,7 @@ async function handleSelectItem(interaction, trade, type) {
                 });
             }
 
-            const result = updateTradeItem(trade.sessionKey, interaction.user.id, 'item', {
+            const result = await updateTradeItem(trade.sessionKey, interaction.user.id, 'item', {
                 itemName: identifier,
                 quantity
             });
@@ -435,7 +438,7 @@ async function handleSelectItem(interaction, trade, type) {
             });
         }
 
-        const result = updateTradeItem(trade.sessionKey, interaction.user.id, 'pet', {
+        const result = await updateTradeItem(trade.sessionKey, interaction.user.id, 'pet', {
             petId: identifier,
             ...pet
         });
@@ -463,17 +466,35 @@ async function handleSelectFumoType(interaction, trade) {
     const fumoType = interaction.values[0];
     const [sessionKey, type] = fumoType.split('|');
     
-    // Get fumos of this type
-    const fumos = await getUserFumos(interaction.user.id, type);
+    // Show rarity selector
+    const menu = createFumoRarityMenu(sessionKey, type);
+    
+    await interaction.update({
+        content: `Select a rarity for ${type} fumos:`,
+        components: [menu]
+    });
+}
+
+/**
+ * Handle fumo rarity selection (NEW)
+ */
+async function handleSelectFumoRarity(interaction, trade) {
+    if (!interaction.isStringSelectMenu()) return;
+    
+    const value = interaction.values[0];
+    const [sessionKey, type, rarity] = value.split('|');
+    
+    // Get fumos of this type and rarity
+    const fumos = await getUserFumos(interaction.user.id, type, rarity);
     
     if (fumos.length === 0) {
         return interaction.update({
-            content: `❌ You have no ${type} fumos to trade!`,
+            content: `❌ You have no ${rarity} ${type} fumos to trade!`,
             components: []
         });
     }
     
-    // **FIX: Group fumos by name and sum quantities to avoid duplicates**
+    // Group fumos by name and sum quantities to avoid duplicates
     const groupedFumos = fumos.reduce((acc, fumo) => {
         if (acc.has(fumo.fumoName)) {
             acc.get(fumo.fumoName).quantity += fumo.quantity;
@@ -485,10 +506,10 @@ async function handleSelectFumoType(interaction, trade) {
     
     const uniqueFumos = Array.from(groupedFumos.values());
     
-    const menu = createFumoSelectMenu(sessionKey, uniqueFumos, type);
+    const menu = createFumoSelectMenu(sessionKey, uniqueFumos, type, rarity);
     
     await interaction.update({
-        content: `Select a ${type} fumo to trade:`,
+        content: `Select a ${rarity} ${type} fumo to trade:`,
         components: [menu]
     });
 }
@@ -509,16 +530,19 @@ async function handleSelectFumo(interaction, trade) {
     
     const [sessionKey, fumoName] = value.split('|');
     
+    // Get max quantity available
+    const maxQuantity = await getUserFumoQuantity(interaction.user.id, fumoName);
+    
     // Show quantity modal
     const modal = new ModalBuilder()
-        .setCustomId(`trade_fumo_qty_${sessionKey}_${interaction.user.id}`)
-        .setTitle(`Trade ${fumoName}`);
+        .setCustomId(`trade_fumo_qty_${sessionKey}_${fumoName}_${interaction.user.id}`)
+        .setTitle(`Trade ${fumoName.slice(0, 45)}`);
 
     const input = new TextInputBuilder()
         .setCustomId('quantity')
-        .setLabel('How many? (0 to remove)')
+        .setLabel(`How many? (Max: ${maxQuantity}, 0 to remove)`)
         .setStyle(TextInputStyle.Short)
-        .setPlaceholder('Enter quantity...')
+        .setPlaceholder(`Enter 1-${maxQuantity}...`)
         .setRequired(true);
 
     modal.addComponents(new ActionRowBuilder().addComponents(input));
@@ -527,22 +551,27 @@ async function handleSelectFumo(interaction, trade) {
     
     try {
         const submitted = await interaction.awaitModalSubmit({
-            filter: i => i.customId === modal.data.custom_id,
+            filter: i => i.customId.startsWith(`trade_fumo_qty_${sessionKey}_${fumoName}`),
             time: 60000
         });
 
-        const quantity = parseInt(submitted.fields.getTextInputValue('quantity'));
+        const inputQuantity = parseInt(submitted.fields.getTextInputValue('quantity'));
         
-        if (isNaN(quantity) || quantity < 0) {
+        if (isNaN(inputQuantity) || inputQuantity < 0) {
             return submitted.reply({
                 content: '❌ Invalid quantity!',
                 ephemeral: true
             });
         }
 
-        const result = updateTradeItem(trade.sessionKey, interaction.user.id, 'fumo', {
+        // Auto-cap to max available
+        const quantity = Math.min(inputQuantity, maxQuantity);
+        const wasCapped = inputQuantity > maxQuantity;
+
+        const result = await updateTradeItem(trade.sessionKey, interaction.user.id, 'fumo', {
             fumoName,
-            quantity
+            quantity,
+            maxQuantity
         });
         
         if (!result.success) {
@@ -552,14 +581,22 @@ async function handleSelectFumo(interaction, trade) {
             });
         }
 
+        let message;
+        if (quantity === 0) {
+            message = `✅ Removed ${fumoName} from trade`;
+        } else if (wasCapped) {
+            message = `✅ Added ${quantity}x ${fumoName} (capped to max available - you only have ${maxQuantity})`;
+        } else {
+            message = `✅ Added ${quantity}x ${fumoName}`;
+        }
+
         await submitted.reply({
-            content: quantity === 0 
-                ? `✅ Removed ${fumoName} from trade`
-                : `✅ Added ${quantity}x ${fumoName}`,
+            content: message,
             ephemeral: true
         });
     } catch (error) {
-        // Modal timeout
+        // Modal timeout or error
+        console.error('[Trade] Fumo selection error:', error);
     }
 }
 
@@ -573,5 +610,6 @@ module.exports = {
     handleAddItem,
     handleSelectItem,
     handleSelectFumoType,
+    handleSelectFumoRarity,
     handleSelectFumo
 };
