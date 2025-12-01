@@ -22,7 +22,7 @@ async function notifyUserAutoRollRestored(client, userId, state) {
             .setTitle('🔄 Auto Roll Restored!')
             .setDescription(
                 `Your auto-roll session has been automatically restored after the bot restarted.\n\n` +
-                `Your progress has been preserved and will continue where it left off.`
+                `Your progress has been preserved and will continue where it left off. **You can turn off the FumoBOT Notification by turning off in Discord if you want!**`
             )
             .addFields([
                 {
