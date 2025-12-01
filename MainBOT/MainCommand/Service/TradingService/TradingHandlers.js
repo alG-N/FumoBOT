@@ -473,7 +473,19 @@ async function handleSelectFumoType(interaction, trade) {
         });
     }
     
-    const menu = createFumoSelectMenu(sessionKey, fumos, type);
+    // **FIX: Group fumos by name and sum quantities to avoid duplicates**
+    const groupedFumos = fumos.reduce((acc, fumo) => {
+        if (acc.has(fumo.fumoName)) {
+            acc.get(fumo.fumoName).quantity += fumo.quantity;
+        } else {
+            acc.set(fumo.fumoName, { fumoName: fumo.fumoName, quantity: fumo.quantity });
+        }
+        return acc;
+    }, new Map());
+    
+    const uniqueFumos = Array.from(groupedFumos.values());
+    
+    const menu = createFumoSelectMenu(sessionKey, uniqueFumos, type);
     
     await interaction.update({
         content: `Select a ${type} fumo to trade:`,
