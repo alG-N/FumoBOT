@@ -1,0 +1,38 @@
+{
+  "845274868697661440": {
+    "stage": 101,
+    "requirements": {
+      "fumos": [
+        {
+          "name": "Cheshire(ASTRAL)[✨SHINY]",
+          "requireTrait": true
+        },
+        {
+          "name": "RedMarisa(EXCLUSIVE)[✨SHINY]",
+          "requireTrait": true
+        },
+        {
+          "name": "Rin(???)[✨SHINY]",
+          "requireTrait": true
+        }
+      ]
+    },
+    "generatedAt": 1764573714965
+  },
+  "1421544451897299024": {
+    "stage": 51,
+    "requirements": {
+      "fumos": [
+        {
+          "name": "Yuyuko(LEGENDARY)[🌟alG]",
+          "requireTrait": true
+        },
+        {
+          "name": "Yukari(LEGENDARY)[✨SHINY]",
+          "requireTrait": true
+        }
+      ]
+    },
+    "generatedAt": 1764573831119
+  }
+}
