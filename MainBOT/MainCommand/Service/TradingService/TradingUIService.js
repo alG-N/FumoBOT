@@ -193,9 +193,41 @@ function createItemTypeButtons(sessionKey) {
 }
 
 /**
+ * Create item rarity selection menu
+ */
+function createItemRarityMenu(sessionKey) {
+    const rarityEmojis = {
+        'Basic': '⚪',
+        'Common': '🟩',
+        'Rare': '🟦',
+        'Epic': '🟨',
+        'Legendary': '🟪',
+        'Mythical': '🟥',
+        'Divine': '⭐',
+        'Secret': '⬛'
+    };
+
+    const rarityOrder = ['Basic', 'Common', 'Rare', 'Epic', 'Legendary', 'Mythical', 'Divine', 'Secret'];
+
+    const options = rarityOrder.map(rarity => ({
+        label: rarity,
+        description: `Filter items by ${rarity} rarity`,
+        value: `${sessionKey}|${rarity}`,
+        emoji: rarityEmojis[rarity] || '⚪'
+    }));
+
+    return new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+            .setCustomId(`trade_select_item_rarity_${sessionKey}`)
+            .setPlaceholder('Select item rarity')
+            .addOptions(options)
+    );
+}
+
+/**
  * Create item selection menu
  */
-function createItemSelectMenu(sessionKey, items) {
+function createItemSelectMenu(sessionKey, items, rarity = '') {
     const options = items.slice(0, 25).map(item => ({
         label: item.itemName,
         description: `Available: ${item.quantity}`,
@@ -206,7 +238,7 @@ function createItemSelectMenu(sessionKey, items) {
     if (options.length === 0) {
         options.push({
             label: 'No items available',
-            description: 'You have no tradeable items',
+            description: rarity ? `You have no ${rarity} items` : 'You have no tradeable items',
             value: 'none',
             emoji: '❌'
         });
@@ -215,7 +247,7 @@ function createItemSelectMenu(sessionKey, items) {
     return new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
             .setCustomId(`trade_select_item_${sessionKey}`)
-            .setPlaceholder('Select an item to trade')
+            .setPlaceholder(rarity ? `Select a ${rarity} item to trade` : 'Select an item to trade')
             .addOptions(options)
             .setDisabled(options[0].value === 'none')
     );
@@ -282,7 +314,7 @@ function createFumoTypeMenu(sessionKey) {
 }
 
 /**
- * Create fumo rarity selection menu (NEW)
+ * Create fumo rarity selection menu
  */
 function createFumoRarityMenu(sessionKey, type) {
     const rarityEmojis = {
@@ -327,10 +359,25 @@ function createFumoSelectMenu(sessionKey, fumos, type, rarity) {
         alg: '🌟'
     };
     
-    const options = fumos.slice(0, 25).map(fumo => {
+    // Remove duplicates by using a Map with fumoName as key
+    const uniqueFumosMap = new Map();
+    fumos.forEach(fumo => {
+        const key = fumo.fumoName;
+        if (!uniqueFumosMap.has(key)) {
+            uniqueFumosMap.set(key, fumo);
+        } else {
+            // If duplicate found, sum the quantities
+            const existing = uniqueFumosMap.get(key);
+            existing.quantity += fumo.quantity;
+        }
+    });
+    
+    const uniqueFumos = Array.from(uniqueFumosMap.values());
+    
+    const options = uniqueFumos.slice(0, 25).map(fumo => {
         const cleanName = fumo.fumoName.replace(/\[.*?\]/g, '').trim();
         return {
-            label: cleanName,
+            label: cleanName.length > 100 ? cleanName.substring(0, 97) + '...' : cleanName,
             description: `Available: ${fumo.quantity}`,
             value: `${sessionKey}|${fumo.fumoName}`,
             emoji: typeEmoji[type] || '🎭'
@@ -421,6 +468,7 @@ module.exports = {
     createTradeEmbed,
     createTradeActionButtons,
     createItemTypeButtons,
+    createItemRarityMenu,
     createItemSelectMenu,
     createPetSelectMenu,
     createFumoTypeMenu,

@@ -3,8 +3,44 @@ const { performBatch100Roll } = require('./CrateGachaRollService');
 const { calculateCooldown } = require('./BoostService');
 const { SELL_REWARDS, SHINY_CONFIG, SPECIAL_RARITIES, compareFumos } = require('../../../Configuration/rarity');
 const { debugLog } = require('../../../Core/logger');
+const { 
+    saveAutoRollState, 
+    loadAutoRollState, 
+    removeUserState 
+} = require('./AutoRollPersistence');
 
 const autoRollMap = new Map();
+
+// Auto-save interval (every 30 seconds)
+const AUTO_SAVE_INTERVAL = 30000;
+let autoSaveTimer = null;
+
+/**
+ * Start periodic auto-save
+ */
+function startAutoSave() {
+    if (autoSaveTimer) clearInterval(autoSaveTimer);
+    
+    autoSaveTimer = setInterval(() => {
+        if (autoRollMap.size > 0) {
+            saveAutoRollState(autoRollMap);
+            debugLog('AUTO_ROLL', `Auto-saved ${autoRollMap.size} active auto-rolls`);
+        }
+    }, AUTO_SAVE_INTERVAL);
+    
+    console.log('✅ Auto-roll auto-save started (every 30s)');
+}
+
+/**
+ * Stop periodic auto-save
+ */
+function stopAutoSave() {
+    if (autoSaveTimer) {
+        clearInterval(autoSaveTimer);
+        autoSaveTimer = null;
+        console.log('🛑 Auto-roll auto-save stopped');
+    }
+}
 
 async function calculateAutoRollInterval(userId) {
     let interval = 60000;
@@ -15,7 +51,7 @@ async function calculateAutoRollInterval(userId) {
         get(`SELECT multiplier FROM activeBoosts WHERE userId = ? AND type = 'summonSpeed' AND source = 'TimeClock' AND expiresAt > ?`, [userId, now])
     ]);
 
-    if (timeBlessing?.multiplier === 0.5) intervral = 30000;
+    if (timeBlessing?.multiplier === 0.5) interval = 30000;
     if (timeClock?.multiplier === 2) interval = Math.floor(interval / 2);
 
     return interval;
@@ -85,6 +121,20 @@ async function startAutoRoll(userId, fumos, autoSell = false) {
     let rollCount = 0;
     let stopped = false;
 
+    const state = {
+        intervalId: null,
+        autoSell,
+        startTime: Date.now(),
+        bestFumo: null,
+        rollCount: 0,
+        bestFumoAt: null,
+        bestFumoRoll: null,
+        specialFumoCount: 0,
+        specialFumoFirstAt: null,
+        specialFumoFirstRoll: null,
+        lowerSpecialFumos: []
+    };
+
     async function autoRollLoop() {
         if (stopped) return;
         rollCount++;
@@ -138,19 +188,11 @@ async function startAutoRoll(userId, fumos, autoSell = false) {
         }
     }
 
-    autoRollMap.set(userId, {
-        intervalId: null,
-        bestFumo: null,
-        rollCount: 0,
-        bestFumoAt: null,
-        bestFumoRoll: null,
-        specialFumoCount: 0,
-        specialFumoFirstAt: null,
-        specialFumoFirstRoll: null,
-        lowerSpecialFumos: []
-    });
-
+    autoRollMap.set(userId, state);
     autoRollLoop();
+
+    // Save state immediately after starting
+    saveAutoRollState(autoRollMap);
 
     return { success: true, interval: initialInterval };
 }
@@ -165,6 +207,9 @@ function stopAutoRoll(userId) {
     const summary = { ...auto };
     autoRollMap.delete(userId);
 
+    // Remove from saved state
+    removeUserState(userId);
+
     return { success: true, summary };
 }
 
@@ -176,6 +221,127 @@ function getAutoRollSummary(userId) {
     return autoRollMap.get(userId) || null;
 }
 
+/**
+ * Restore auto-rolls from saved state (call this on bot startup)
+ * @param {Client} client - Discord client
+ * @param {Object} fumoPool - Fumo pool for rolling
+ * @param {Object} options - Restoration options
+ * @param {boolean} options.notifyUsers - Send DMs to users (default: true)
+ * @param {string} options.logChannelId - Log channel ID for summary
+ */
+async function restoreAutoRolls(client, fumoPool, options = {}) {
+    const { notifyUsers = true, logChannelId = null } = options;
+    const savedStates = loadAutoRollState();
+    const userIds = Object.keys(savedStates);
+
+    if (userIds.length === 0) {
+        console.log('ℹ️ No auto-rolls to restore');
+        return { restored: 0, failed: 0 };
+    }
+
+    console.log(`🔄 Restoring ${userIds.length} auto-rolls...`);
+    
+    let restored = 0;
+    let failed = 0;
+    const restoredUsers = [];
+
+    for (const userId of userIds) {
+        try {
+            const savedState = savedStates[userId];
+            const autoSell = savedState.autoSell || false;
+
+            // Check if user still has enough coins
+            const userRow = await get(
+                `SELECT coins FROM userCoins WHERE userId = ?`,
+                [userId]
+            );
+
+            if (!userRow || userRow.coins < 10000) {
+                console.log(`⚠️ User ${userId} has insufficient coins, skipping restore`);
+                removeUserState(userId);
+                failed++;
+                continue;
+            }
+
+            // Restart the auto-roll
+            const result = await startAutoRoll(userId, fumoPool, autoSell);
+            
+            if (result.success) {
+                // Restore the previous state
+                const current = autoRollMap.get(userId);
+                if (current) {
+                    current.rollCount = savedState.rollCount || 0;
+                    current.startTime = savedState.startTime || Date.now();
+                    current.bestFumo = savedState.bestFumo || null;
+                    current.bestFumoAt = savedState.bestFumoAt || null;
+                    current.bestFumoRoll = savedState.bestFumoRoll || null;
+                    current.specialFumoCount = savedState.specialFumoCount || 0;
+                    current.specialFumoFirstAt = savedState.specialFumoFirstAt || null;
+                    current.specialFumoFirstRoll = savedState.specialFumoFirstRoll || null;
+                    current.lowerSpecialFumos = savedState.lowerSpecialFumos || [];
+                }
+
+                restored++;
+                restoredUsers.push({ userId, state: savedState });
+                console.log(`✅ Restored auto-roll for user ${userId}`);
+            } else {
+                failed++;
+                console.log(`❌ Failed to restore auto-roll for user ${userId}: ${result.error}`);
+            }
+
+        } catch (error) {
+            failed++;
+            console.error(`❌ Error restoring auto-roll for user ${userId}:`, error);
+        }
+    }
+
+    console.log(`📊 Auto-roll restoration complete: ${restored} restored, ${failed} failed`);
+    
+    // Start auto-save after restoration
+    startAutoSave();
+
+    // Send notifications to restored users
+    if (notifyUsers && restoredUsers.length > 0) {
+        const { notifyUserAutoRollRestored } = require('./AutoRollNotification');
+        
+        for (const { userId, state } of restoredUsers) {
+            // Add small delay to avoid rate limits
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            await notifyUserAutoRollRestored(client, userId, state);
+        }
+    }
+
+    // Send summary to log channel
+    if (logChannelId) {
+        const { sendRestorationSummary } = require('./AutoRollNotification');
+        await sendRestorationSummary(client, { restored, failed }, logChannelId);
+    }
+
+    return { restored, failed };
+}
+
+/**
+ * Gracefully shutdown auto-rolls (call this before bot shutdown)
+ */
+function shutdownAutoRolls() {
+    console.log('🛑 Shutting down auto-rolls...');
+    
+    // Save current state
+    saveAutoRollState(autoRollMap);
+    
+    // Stop auto-save
+    stopAutoSave();
+    
+    // Clear all timeouts
+    for (const [userId, state] of autoRollMap.entries()) {
+        if (state.intervalId) {
+            clearTimeout(state.intervalId);
+        }
+    }
+    
+    console.log(`💾 Saved ${autoRollMap.size} active auto-rolls`);
+}
+
 module.exports = {
     startAutoRoll,
     stopAutoRoll,
@@ -183,5 +349,11 @@ module.exports = {
     getAutoRollSummary,
     calculateAutoRollInterval,
     performAutoSell,
-    autoRollMap
+    autoRollMap,
+    
+    // Persistence functions
+    restoreAutoRolls,
+    shutdownAutoRolls,
+    startAutoSave,
+    stopAutoSave
 };

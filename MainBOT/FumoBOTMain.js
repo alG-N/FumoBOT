@@ -19,6 +19,11 @@ const { initializeShop } = require('./MainCommand/Service/MarketService/EggShopS
 // SEASON MODULES
 const { initializeSeasonSystem } = require('./MainCommand/Service/FarmingService/SeasonService/SeasonManagerService')
 
+// AUTO-ROLL PERSISTENCE MODULE - NEW
+const { restoreAutoRolls, shutdownAutoRolls } = require('./MainCommand/Service/GachaService/NormalGachaService/CrateAutoRollService');
+const FumoPool = require('./MainCommand/Data/FumoPool');
+const { LOG_CHANNEL_ID } = require('./MainCommand/Core/logger');
+
 // ADMIN MODULES
 const { registerAdminCommands } = require('./MainCommand/Administrator/adminCommands');
 const { registerBanSystem } = require('./MainCommand/Administrator/banSystem');
@@ -118,7 +123,7 @@ if (steam && steam.data && steam.data.name) {
 }
 
 // BOT READY EVENT
-client.once('ready', () => {
+client.once('ready', async () => {
     console.log(`✅ Logged in as ${client.user.tag}`);
 
     // Initialize database
@@ -143,6 +148,30 @@ client.once('ready', () => {
     initializeSeasonSystem(client);
 
     initializeShop();
+
+    // ============================================
+    // RESTORE AUTO-ROLLS FROM PREVIOUS SESSION
+    // ============================================
+    try {
+        console.log('🔄 Checking for auto-rolls to restore...');
+        const crateFumos = FumoPool.getForCrate();
+        const result = await restoreAutoRolls(client, crateFumos, {
+            notifyUsers: true,      // Send DMs to users
+            logChannelId: LOG_CHANNEL_ID  // Send summary to log channel
+        });
+        
+        if (result.restored > 0) {
+            console.log(`🎉 Successfully restored ${result.restored} auto-roll(s)`);
+        } else if (result.failed === 0 && result.restored === 0) {
+            console.log('ℹ️ No auto-rolls to restore');
+        }
+        
+        if (result.failed > 0) {
+            console.warn(`⚠️ Failed to restore ${result.failed} auto-roll(s)`);
+        }
+    } catch (error) {
+        console.error('❌ Error during auto-roll restoration:', error);
+    }
 
     console.log('🚀 Bot is fully operational!');
 });
@@ -301,6 +330,48 @@ client.on('messageCreate', message => {
 
 // MUSIC COMMANDS
 musicCommands(client);
+
+// ============================================
+// GRACEFUL SHUTDOWN HANDLERS
+// ============================================
+process.on('SIGINT', handleShutdown);
+process.on('SIGTERM', handleShutdown);
+process.on('uncaughtException', handleCrash);
+
+async function handleShutdown(signal) {
+    console.log(`\n🛑 Received ${signal || 'shutdown'} signal, saving state...`);
+    
+    try {
+        // Save all active auto-rolls
+        shutdownAutoRolls();
+        
+        console.log('✅ Auto-roll state saved successfully');
+        console.log('👋 Shutting down gracefully...');
+        
+        // Give some time for cleanup
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        process.exit(0);
+    } catch (error) {
+        console.error('❌ Error during shutdown:', error);
+        process.exit(1);
+    }
+}
+
+function handleCrash(error) {
+    console.error('❌ CRITICAL: Uncaught Exception:', error);
+    
+    try {
+        // Emergency save before crash
+        console.log('💾 Emergency saving auto-roll state...');
+        shutdownAutoRolls();
+        console.log('✅ Emergency save complete');
+    } catch (saveError) {
+        console.error('❌ Failed to save state during crash:', saveError);
+    }
+    
+    process.exit(1);
+}
 
 // BOT LOGIN
 client.login(process.env.BOT_TOKEN);
