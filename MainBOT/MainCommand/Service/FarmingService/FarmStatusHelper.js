@@ -27,11 +27,15 @@ async function getFarmStatusData(userId, username) {
     const { coinMultiplier, gemMultiplier } = calculateMultipliers(boosts, seasonalMults, buildingLevels);
     const limitBreaks = upgradesRow?.limitBreaks || 0;
     const farmLimit = calculateFarmLimit(fragmentUses) + limitBreaks;
+    
+    // Calculate total farming count (sum of all quantities)
+    const totalFarmingCount = farmingFumos.reduce((sum, f) => sum + (f.quantity || 1), 0);
 
     return {
         username,
         farmingFumos,
         farmLimit,
+        totalFarmingCount,
         fragmentUses,
         limitBreaks,
         hasFumos: farmingFumos.length > 0,
@@ -79,7 +83,7 @@ function calculateMultipliers(boosts, seasonalMults, buildingLevels) {
 }
 
 function createFarmStatusEmbed(farmData) {
-    const { username, farmingFumos, farmLimit, fragmentUses, limitBreaks, boosts, seasons } = farmData;
+    const { username, farmingFumos, farmLimit, totalFarmingCount, fragmentUses, limitBreaks, boosts, seasons } = farmData;
 
     const grouped = groupByRarity(farmingFumos, boosts);
     const { totalCoins, totalGems } = calculateTotals(grouped);
@@ -110,7 +114,7 @@ function createFarmStatusEmbed(farmData) {
         },
         {
             name: '📦 Max Farming Slots',
-            value: `${farmingFumos.length} / ${farmLimit}`,
+            value: `${totalFarmingCount} / ${farmLimit}`,
             inline: true
         },
         {

@@ -1,6 +1,6 @@
 {
   "1128296349566251068": {
-    "rollCount": 1,
+    "rollCount": 3,
     "autoSell": true,
     "startTime": 1764565602681,
     "bestFumo": {
@@ -10,7 +10,7 @@
     },
     "bestFumoAt": "12/1/2025, 2:40:02 PM",
     "bestFumoRoll": 21,
-    "specialFumoCount": 123,
+    "specialFumoCount": 131,
     "specialFumoFirstAt": "12/1/2025, 12:11:39 PM",
     "specialFumoFirstRoll": 3,
     "lowerSpecialFumos": [
@@ -709,11 +709,59 @@
         "rarity": "ASTRAL",
         "roll": 1,
         "time": "12/1/2025, 3:17:39 PM"
+      },
+      {
+        "name": "Mima(INFINITE)",
+        "rarity": "INFINITE",
+        "roll": 2,
+        "time": "12/1/2025, 3:18:40 PM"
+      },
+      {
+        "name": "SkibidiToilet(???)",
+        "rarity": "???",
+        "roll": 3,
+        "time": "12/1/2025, 3:19:41 PM"
+      },
+      {
+        "name": "Cheshire(ASTRAL)",
+        "rarity": "ASTRAL",
+        "roll": 4,
+        "time": "12/1/2025, 3:20:41 PM"
+      },
+      {
+        "name": "RedMarisa(EXCLUSIVE)",
+        "rarity": "EXCLUSIVE",
+        "roll": 5,
+        "time": "12/1/2025, 3:21:41 PM"
+      },
+      {
+        "name": "RedMarisa(EXCLUSIVE)",
+        "rarity": "EXCLUSIVE",
+        "roll": 1,
+        "time": "12/1/2025, 3:23:10 PM"
+      },
+      {
+        "name": "HyperSakuya(EXCLUSIVE)",
+        "rarity": "EXCLUSIVE",
+        "roll": 1,
+        "time": "12/1/2025, 3:25:09 PM"
+      },
+      {
+        "name": "BlueReimu(EXCLUSIVE)",
+        "rarity": "EXCLUSIVE",
+        "roll": 2,
+        "time": "12/1/2025, 3:26:10 PM"
+      },
+      {
+        "name": "Athena(ASTRAL)",
+        "rarity": "ASTRAL",
+        "roll": 3,
+        "time": "12/1/2025, 3:27:10 PM"
       }
     ]
   },
   "1421544451897299024": {
-    "rollCount": 1,
+    "rollCount": 3,
     "autoSell": true,
     "startTime": 1764565872028,
     "bestFumo": {
@@ -723,7 +771,7 @@
     },
     "bestFumoAt": "12/1/2025, 12:52:12 PM",
     "bestFumoRoll": 42,
-    "specialFumoCount": 62,
+    "specialFumoCount": 64,
     "specialFumoFirstAt": "12/1/2025, 12:12:12 PM",
     "specialFumoFirstRoll": 2,
     "lowerSpecialFumos": [
@@ -1080,11 +1128,23 @@
         "rarity": "EXCLUSIVE",
         "roll": 1,
         "time": "12/1/2025, 3:17:39 PM"
+      },
+      {
+        "name": "Mostima(CELESTIAL)",
+        "rarity": "CELESTIAL",
+        "roll": 2,
+        "time": "12/1/2025, 3:18:40 PM"
+      },
+      {
+        "name": "SkibidiToilet(???)",
+        "rarity": "???",
+        "roll": 3,
+        "time": "12/1/2025, 3:19:41 PM"
       }
     ]
   },
   "845274868697661440": {
-    "rollCount": 1,
+    "rollCount": 3,
     "autoSell": true,
     "startTime": 1764568206020,
     "bestFumo": {

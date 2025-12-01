@@ -130,7 +130,8 @@ async function addRandomByRarity(userId, rarity) {
     const limitBreaks = upgradesRow?.limitBreaks || 0;
     const limit = calculateFarmLimit(fragmentUses) + limitBreaks;
     const farmingFumos = await getUserFarmingFumos(userId);
-    const availableSlots = limit - farmingFumos.length;
+    const currentFarmCount = farmingFumos.reduce((sum, f) => sum + (f.quantity || 1), 0);
+    const availableSlots = limit - currentFarmCount;
 
     if (availableSlots <= 0) {
         return { success: false, error: 'FARM_FULL', limit };
@@ -170,13 +171,15 @@ async function optimizeFarm(userId) {
     const farmingFumos = await getUserFarmingFumos(userId);
     const inventory = await getAllUserInventory(userId);
 
-    // Get all inventory items with their stats
-    const inventoryWithStats = inventory.map(item => ({
-        fumoName: item.fumoName,
-        availableCount: item.count,
-        ...calculateFarmingStats(item.fumoName),
-        totalIncome: 0 // Will calculate after
-    }));
+    // Filter out items with null/invalid fumoName and get stats
+    const inventoryWithStats = inventory
+        .filter(item => item.fumoName && typeof item.fumoName === 'string')
+        .map(item => ({
+            fumoName: item.fumoName,
+            availableCount: item.count,
+            ...calculateFarmingStats(item.fumoName),
+            totalIncome: 0 // Will calculate after
+        }));
 
     // Calculate total income (coins + gems) for each fumo type
     inventoryWithStats.forEach(item => {
