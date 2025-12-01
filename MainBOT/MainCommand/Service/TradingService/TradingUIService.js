@@ -1,5 +1,6 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require('discord.js');
 const TRADING_CONFIG = require('../../Configuration/tradingConfig');
+const { RARITY_PRIORITY } = require('../../Configuration/rarity');
 const { formatNumber } = require('../../Ultility/formatting');
 
 /**
@@ -250,7 +251,7 @@ function createPetSelectMenu(sessionKey, pets) {
 }
 
 /**
- * Create fumo type selection menu (NEW)
+ * Create fumo type selection menu
  */
 function createFumoTypeMenu(sessionKey) {
     return new ActionRowBuilder().addComponents(
@@ -281,9 +282,45 @@ function createFumoTypeMenu(sessionKey) {
 }
 
 /**
- * Create fumo selection menu (NEW)
+ * Create fumo rarity selection menu (NEW)
  */
-function createFumoSelectMenu(sessionKey, fumos, type) {
+function createFumoRarityMenu(sessionKey, type) {
+    const rarityEmojis = {
+        'Common': '⚪',
+        'UNCOMMON': '🟢',
+        'RARE': '🔵',
+        'EPIC': '🟣',
+        'OTHERWORLDLY': '🌌',
+        'LEGENDARY': '🟠',
+        'MYTHICAL': '💫',
+        'EXCLUSIVE': '💎',
+        '???': '❓',
+        'ASTRAL': '🌠',
+        'CELESTIAL': '🌟',
+        'INFINITE': '♾️',
+        'ETERNAL': '🪐',
+        'TRANSCENDENT': '🌈'
+    };
+
+    const options = RARITY_PRIORITY.map(rarity => ({
+        label: rarity,
+        description: `Filter ${type} fumos by ${rarity} rarity`,
+        value: `${sessionKey}|${type}|${rarity}`,
+        emoji: rarityEmojis[rarity] || '⚪'
+    }));
+
+    return new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+            .setCustomId(`trade_select_fumo_rarity_${sessionKey}`)
+            .setPlaceholder(`Select rarity for ${type} fumos`)
+            .addOptions(options)
+    );
+}
+
+/**
+ * Create fumo selection menu
+ */
+function createFumoSelectMenu(sessionKey, fumos, type, rarity) {
     const typeEmoji = {
         normal: '🎭',
         shiny: '✨',
@@ -303,7 +340,7 @@ function createFumoSelectMenu(sessionKey, fumos, type) {
     if (options.length === 0) {
         options.push({
             label: 'No fumos available',
-            description: `You have no ${type} fumos`,
+            description: `You have no ${rarity} ${type} fumos`,
             value: 'none',
             emoji: '❌'
         });
@@ -312,7 +349,7 @@ function createFumoSelectMenu(sessionKey, fumos, type) {
     return new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
             .setCustomId(`trade_select_fumo_${sessionKey}`)
-            .setPlaceholder(`Select a ${type} fumo to trade`)
+            .setPlaceholder(`Select a ${rarity} ${type} fumo to trade`)
             .addOptions(options)
             .setDisabled(options[0].value === 'none')
     );
@@ -387,6 +424,7 @@ module.exports = {
     createItemSelectMenu,
     createPetSelectMenu,
     createFumoTypeMenu,
+    createFumoRarityMenu,
     createFumoSelectMenu,
     createConfirmationEmbed,
     createCompleteEmbed,

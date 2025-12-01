@@ -41,7 +41,7 @@ function createTradeSession(user1, user2) {
             pets: new Map(),
             fumos: new Map(), // fumoName -> quantity
             accepted: false,
-            confirmed: false // NEW: for two-step confirmation
+            confirmed: false
         },
         user2: {
             id: user2.id,
@@ -52,7 +52,7 @@ function createTradeSession(user1, user2) {
             pets: new Map(),
             fumos: new Map(),
             accepted: false,
-            confirmed: false // NEW: for two-step confirmation
+            confirmed: false
         },
         createdAt: Date.now(),
         lastUpdate: Date.now()
@@ -70,9 +70,9 @@ function getTradeSession(sessionKey) {
 }
 
 /**
- * Update trade item
+ * Update trade item with validation and auto-capping
  */
-function updateTradeItem(sessionKey, userId, type, data) {
+async function updateTradeItem(sessionKey, userId, type, data) {
     const trade = activeTrades.get(sessionKey);
     if (!trade) return { success: false, error: 'TRADE_NOT_FOUND' };
 
@@ -129,7 +129,25 @@ function updateTradeItem(sessionKey, userId, type, data) {
             if (data.quantity <= 0) {
                 user.fumos.delete(data.fumoName);
             } else {
-                user.fumos.set(data.fumoName, data.quantity);
+                // CRITICAL: Always cap to max available
+                let cappedQuantity = data.quantity;
+                
+                // If maxQuantity provided, use it
+                if (data.maxQuantity !== undefined && data.maxQuantity !== null) {
+                    cappedQuantity = Math.min(data.quantity, data.maxQuantity);
+                }
+                
+                // Double check: verify actual quantity in DB
+                // This is a safety measure in case maxQuantity wasn't passed correctly
+                if (cappedQuantity > 0) {
+                    const actualQuantity = await getUserFumoQuantity(userId, data.fumoName);
+                    if (actualQuantity < cappedQuantity) {
+                        cappedQuantity = actualQuantity;
+                        console.warn(`[Trade] Auto-capped ${data.fumoName} from ${data.quantity} to ${cappedQuantity} (DB check)`);
+                    }
+                }
+                
+                user.fumos.set(data.fumoName, cappedQuantity);
             }
             break;
     }
@@ -164,7 +182,7 @@ function toggleAccept(sessionKey, userId) {
 }
 
 /**
- * Toggle user confirm status (NEW FUNCTION)
+ * Toggle user confirm status
  */
 function toggleConfirm(sessionKey, userId) {
     const trade = activeTrades.get(sessionKey);
@@ -187,14 +205,14 @@ function toggleConfirm(sessionKey, userId) {
 }
 
 /**
- * Validate user has resources
+ * Validate user has resources (with detailed error messages)
  */
 async function validateUserResources(userId, coins, gems, items, pets, fumos) {
     const user = await get(`SELECT coins, gems FROM userCoins WHERE userId = ?`, [userId]);
 
     if (!user) return { valid: false, error: 'USER_NOT_FOUND' };
-    if (user.coins < coins) return { valid: false, error: 'INSUFFICIENT_COINS' };
-    if (user.gems < gems) return { valid: false, error: 'INSUFFICIENT_GEMS' };
+    if (user.coins < coins) return { valid: false, error: `INSUFFICIENT_COINS (Have: ${user.coins}, Need: ${coins})` };
+    if (user.gems < gems) return { valid: false, error: `INSUFFICIENT_GEMS (Have: ${user.gems}, Need: ${gems})` };
 
     // Check items
     for (const [itemName, quantity] of items) {
@@ -203,7 +221,7 @@ async function validateUserResources(userId, coins, gems, items, pets, fumos) {
             [userId, itemName]
         );
         if (!item || item.quantity < quantity) {
-            return { valid: false, error: 'INSUFFICIENT_ITEMS', itemName };
+            return { valid: false, error: `INSUFFICIENT_ITEMS: ${itemName} (Have: ${item?.quantity || 0}, Need: ${quantity})` };
         }
     }
 
@@ -214,18 +232,21 @@ async function validateUserResources(userId, coins, gems, items, pets, fumos) {
             [userId, petId]
         );
         if (!pet) {
-            return { valid: false, error: 'PET_NOT_FOUND', petId };
+            return { valid: false, error: `PET_NOT_FOUND: ${petId}` };
         }
     }
 
-    // Check fumos
+    // Check fumos with detailed messages
     for (const [fumoName, quantity] of fumos) {
         const fumo = await get(
-            `SELECT quantity FROM userInventory WHERE userId = ? AND fumoName = ?`,
-            [userId, fumoName]
+            `SELECT SUM(quantity) as total FROM userInventory 
+             WHERE userId = ? AND (fumoName = ? OR itemName = ?)`,
+            [userId, fumoName, fumoName]
         );
-        if (!fumo || fumo.quantity < quantity) {
-            return { valid: false, error: 'INSUFFICIENT_FUMOS', fumoName };
+        const totalQuantity = fumo?.total || 0;
+        
+        if (totalQuantity < quantity) {
+            return { valid: false, error: `INSUFFICIENT_FUMOS: ${fumoName} (Have: ${totalQuantity}, Need: ${quantity})` };
         }
     }
 
@@ -303,41 +324,82 @@ async function executeTrade(sessionKey) {
         });
     }
 
-    // Transfer fumos
-    // Transfer fumos
+    // Transfer fumos - HANDLE DUPLICATE ROWS
     for (const [fumoName, quantity] of user1.fumos) {
-        operations.push({
-            sql: `UPDATE userInventory SET quantity = quantity - ? WHERE userId = ? AND itemName = ?`,
-            params: [quantity, user1.id, fumoName]
-        });
+        // Get all rows for this fumo (there might be duplicates)
+        const fumoRows = await all(
+            `SELECT id, quantity FROM userInventory 
+             WHERE userId = ? AND (fumoName = ? OR itemName = ?)`,
+            [user1.id, fumoName, fumoName]
+        );
+        
+        let remaining = quantity;
+        
+        // Deduct from each row
+        for (const row of fumoRows) {
+            if (remaining <= 0) break;
+            
+            const toDeduct = Math.min(row.quantity, remaining);
+            
+            operations.push({
+                sql: `UPDATE userInventory SET quantity = quantity - ? WHERE id = ?`,
+                params: [toDeduct, row.id]
+            });
+            
+            remaining -= toDeduct;
+        }
+        
+        // Add to receiver
         operations.push({
             sql: `INSERT INTO userInventory (userId, itemName, fumoName, quantity, type) 
               VALUES (?, ?, ?, ?, 'fumo')
               ON CONFLICT(userId, itemName) DO UPDATE SET quantity = quantity + ?`,
             params: [user2.id, fumoName, fumoName, quantity, quantity]
         });
+        
         // Clean up zero quantities
         operations.push({
-            sql: `DELETE FROM userInventory WHERE userId = ? AND itemName = ? AND quantity <= 0`,
-            params: [user1.id, fumoName]
+            sql: `DELETE FROM userInventory WHERE userId = ? AND (fumoName = ? OR itemName = ?) AND quantity <= 0`,
+            params: [user1.id, fumoName, fumoName]
         });
     }
 
     for (const [fumoName, quantity] of user2.fumos) {
-        operations.push({
-            sql: `UPDATE userInventory SET quantity = quantity - ? WHERE userId = ? AND itemName = ?`,
-            params: [quantity, user2.id, fumoName]
-        });
+        // Get all rows for this fumo (there might be duplicates)
+        const fumoRows = await all(
+            `SELECT id, quantity FROM userInventory 
+             WHERE userId = ? AND (fumoName = ? OR itemName = ?)`,
+            [user2.id, fumoName, fumoName]
+        );
+        
+        let remaining = quantity;
+        
+        // Deduct from each row
+        for (const row of fumoRows) {
+            if (remaining <= 0) break;
+            
+            const toDeduct = Math.min(row.quantity, remaining);
+            
+            operations.push({
+                sql: `UPDATE userInventory SET quantity = quantity - ? WHERE id = ?`,
+                params: [toDeduct, row.id]
+            });
+            
+            remaining -= toDeduct;
+        }
+        
+        // Add to receiver
         operations.push({
             sql: `INSERT INTO userInventory (userId, itemName, fumoName, quantity, type) 
               VALUES (?, ?, ?, ?, 'fumo')
               ON CONFLICT(userId, itemName) DO UPDATE SET quantity = quantity + ?`,
             params: [user1.id, fumoName, fumoName, quantity, quantity]
         });
+        
         // Clean up zero quantities
         operations.push({
-            sql: `DELETE FROM userInventory WHERE userId = ? AND itemName = ? AND quantity <= 0`,
-            params: [user2.id, fumoName]
+            sql: `DELETE FROM userInventory WHERE userId = ? AND (fumoName = ? OR itemName = ?) AND quantity <= 0`,
+            params: [user2.id, fumoName, fumoName]
         });
     }
 
@@ -403,14 +465,13 @@ async function getUserPets(userId) {
 }
 
 /**
- * Get user's fumos by type (normal, shiny, alG)
+ * Get user's fumos by type and rarity
  */
-async function getUserFumos(userId, type) {
-    let filter;
+async function getUserFumos(userId, type, rarity = null) {
+    let filter = '';
 
     switch (type) {
         case 'normal':
-            // Fumos without [✨SHINY] or [🌟alG]
             filter = `AND fumoName NOT LIKE '%[✨SHINY]%' AND fumoName NOT LIKE '%[🌟alG]%'`;
             break;
         case 'shiny':
@@ -419,16 +480,34 @@ async function getUserFumos(userId, type) {
         case 'alg':
             filter = `AND fumoName LIKE '%[🌟alG]%'`;
             break;
-        default:
-            filter = '';
     }
 
+    // Add rarity filter if specified
+    if (rarity) {
+        filter += ` AND fumoName LIKE '%(${rarity})'`;
+    }
+
+    // Group by fumoName and sum quantities to handle duplicates
     return await all(
-        `SELECT fumoName, quantity FROM userInventory 
+        `SELECT fumoName, SUM(quantity) as quantity 
+         FROM userInventory 
          WHERE userId = ? AND quantity > 0 AND fumoName LIKE '%(%' ${filter}
+         GROUP BY fumoName
          ORDER BY fumoName`,
         [userId]
     );
+}
+
+/**
+ * Get exact quantity of a specific fumo (handles duplicate rows)
+ */
+async function getUserFumoQuantity(userId, fumoName) {
+    const result = await get(
+        `SELECT SUM(quantity) as total FROM userInventory 
+         WHERE userId = ? AND (fumoName = ? OR itemName = ?)`,
+        [userId, fumoName, fumoName]
+    );
+    return result?.total || 0;
 }
 
 module.exports = {
@@ -445,5 +524,6 @@ module.exports = {
     getUserItems,
     getUserPets,
     getUserFumos,
+    getUserFumoQuantity,
     activeTrades
 };
