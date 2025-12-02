@@ -16,7 +16,6 @@ async function getUserFarmingFumos(userId) {
     );
 }
 
-// UPDATED: Support quantity parameter
 async function addFumoToFarm(userId, fumoName, coinsPerMin, gemsPerMin, quantity = 1) {
     await run(
         `INSERT INTO farmingFumos (userId, fumoName, coinsPerMin, gemsPerMin, quantity)
@@ -73,12 +72,10 @@ async function getUserInventoryByRarity(userId, rarity) {
     );
 }
 
-// NEW: Get inventory by rarity and trait
 async function getUserInventoryByRarityAndTrait(userId, rarity, trait) {
     let traitPattern;
     
     if (trait === 'Base') {
-        // No trait - exclude SHINY and alG
         return await all(
             `SELECT fumoName, COUNT(*) as count FROM userInventory 
              WHERE userId = ? 
@@ -104,13 +101,45 @@ async function getUserInventoryByRarityAndTrait(userId, rarity, trait) {
     );
 }
 
-// NEW: Get exact inventory count for a specific fumo
+// Helper function to get base fumo name (without traits)
+function getBaseFumoName(fumoName) {
+    return fumoName
+        .replace(/\[✨SHINY\]/g, '')
+        .replace(/\[🌟alG\]/g, '')
+        .trim();
+}
+
+// NEW: Get inventory count for a specific fumo INCLUDING all trait variants
 async function getInventoryCountForFumo(userId, fumoName) {
-    const row = await get(
-        `SELECT COUNT(*) as count FROM userInventory WHERE userId = ? AND fumoName = ?`,
-        [userId, fumoName]
+    // Get base name without traits
+    const baseName = getBaseFumoName(fumoName);
+    
+    // Count ALL variants of this fumo (base + shiny + alG)
+    const rows = await all(
+        `SELECT fumoName, COUNT(*) as count 
+         FROM userInventory 
+         WHERE userId = ? 
+         AND (
+             fumoName = ? OR
+             fumoName = ? OR
+             fumoName LIKE ? OR
+             fumoName LIKE ?
+         )
+         GROUP BY fumoName`,
+        [
+            userId,
+            fumoName,                              // Exact match (e.g., "Arisu(TRANSCENDENT)")
+            baseName,                              // Base without traits
+            `${baseName}[✨SHINY]%`,               // Shiny variant
+            `${baseName}[🌟alG]%`                  // alG variant
+        ]
     );
-    return row?.count || 0;
+    
+    // Sum up all variants
+    const totalCount = rows.reduce((sum, row) => sum + (row.count || 0), 0);
+    
+    debugLog('FARMING', `Inventory count for ${fumoName}: ${totalCount} (including all trait variants)`);
+    return totalCount;
 }
 
 async function getAllUserInventory(userId) {
@@ -173,7 +202,6 @@ module.exports = {
     replaceFarm,
     updateFarmingIncome,
     updateDailyQuest,
-    // NEW EXPORTS
     getUserInventoryByRarityAndTrait,
     getInventoryCountForFumo
 };

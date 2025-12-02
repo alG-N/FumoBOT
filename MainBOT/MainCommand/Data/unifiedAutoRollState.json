@@ -1,11 +1,11 @@
 {
   "1128296349566251068": {
     "event": {
-      "rollCount": 8,
+      "rollCount": 6,
       "autoSell": true,
       "startTime": 1764654745135,
-      "totalFumosRolled": 26100,
-      "totalCoinsFromSales": 298300,
+      "totalFumosRolled": 32500,
+      "totalCoinsFromSales": 203850,
       "bestFumo": {
         "name": "HeianSukuna(TRANSCENDENT)",
         "rarity": "TRANSCENDENT",
@@ -13,7 +13,7 @@
       },
       "bestFumoAt": "12/2/2025, 1:59:08 PM",
       "bestFumoRoll": 40,
-      "specialFumoCount": 9,
+      "specialFumoCount": 13,
       "specialFumoFirstAt": "12/2/2025, 1:32:55 PM",
       "specialFumoFirstRoll": 5,
       "specialFumos": [
@@ -70,21 +70,45 @@
           "rarity": "???",
           "roll": 8,
           "time": "12/2/2025, 2:51:33 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 29,
+          "time": "12/2/2025, 2:56:49 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 46,
+          "time": "12/2/2025, 3:01:05 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 51,
+          "time": "12/2/2025, 3:02:21 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 1,
+          "time": "12/2/2025, 3:07:01 PM"
         }
       ]
     },
     "normal": {
-      "rollCount": 4,
+      "rollCount": 3,
       "autoSell": true,
       "startTime": 1764660866533,
       "bestFumo": {
-        "name": "Cheshire(ASTRAL)",
-        "rarity": "ASTRAL",
-        "picture": "https://images.tokopedia.net/img/cache/500-square/VqbcmM/2024/2/25/932b310d-4256-42bc-abf7-c7d83869ee0c.jpg"
+        "name": "Mima(INFINITE)",
+        "rarity": "INFINITE",
+        "picture": "https://media.discordapp.net/attachments/1372426801472737280/1372428382263967824/svru2t354ix81.png?ex=6826bd08&is=68256b88&hm=9ff0e6a614af9fee9626a549a57b331e4940ade36f9de38472dbcb452d965d97&=&format=webp&quality=lossless&width=698&height=930"
       },
-      "bestFumoAt": "12/2/2025, 2:44:58 PM",
-      "bestFumoRoll": 18,
-      "specialFumoCount": 15,
+      "bestFumoAt": "12/2/2025, 2:51:47 PM",
+      "bestFumoRoll": 5,
+      "specialFumoCount": 24,
       "specialFumoFirstAt": "12/2/2025, 2:35:56 PM",
       "specialFumoFirstRoll": 4,
       "lowerSpecialFumos": [
@@ -159,6 +183,48 @@
           "rarity": "ASTRAL",
           "roll": 4,
           "time": "12/2/2025, 2:51:17 PM"
+        },
+        {
+          "name": "BlueReimu(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 14,
+          "time": "12/2/2025, 2:56:18 PM"
+        },
+        {
+          "name": "BlueReimu(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 16,
+          "time": "12/2/2025, 2:57:18 PM"
+        },
+        {
+          "name": "Athena(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 17,
+          "time": "12/2/2025, 2:57:48 PM"
+        },
+        {
+          "name": "GawrGura(???)",
+          "rarity": "???",
+          "roll": 18,
+          "time": "12/2/2025, 2:58:18 PM"
+        },
+        {
+          "name": "GawrGura(???)",
+          "rarity": "???",
+          "roll": 1,
+          "time": "12/2/2025, 3:03:09 PM"
+        },
+        {
+          "name": "Grani(CELESTIAL)",
+          "rarity": "CELESTIAL",
+          "roll": 3,
+          "time": "12/2/2025, 3:04:09 PM"
+        },
+        {
+          "name": "Athena(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 1,
+          "time": "12/2/2025, 3:07:01 PM"
         }
       ]
     }
