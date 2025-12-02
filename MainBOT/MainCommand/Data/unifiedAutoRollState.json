@@ -1,34 +1,166 @@
 {
   "1128296349566251068": {
     "event": {
-      "rollCount": 0,
+      "rollCount": 8,
       "autoSell": true,
-      "startTime": 1764660987653,
-      "totalFumosRolled": 0,
-      "totalCoinsFromSales": 0,
-      "bestFumo": null,
-      "bestFumoAt": null,
-      "bestFumoRoll": null,
-      "specialFumoCount": 0,
-      "specialFumoFirstAt": null,
-      "specialFumoFirstRoll": null,
-      "specialFumos": []
+      "startTime": 1764654745135,
+      "totalFumosRolled": 26100,
+      "totalCoinsFromSales": 298300,
+      "bestFumo": {
+        "name": "HeianSukuna(TRANSCENDENT)",
+        "rarity": "TRANSCENDENT",
+        "picture": "https://media.discordapp.net/attachments/1372426801472737280/1372880397599244378/raw.png?ex=68286201&is=68271081&hm=354b51c0bb278e08cef1d63050e9e0fc41765335d37309f15298050a8fdd03da&=&format=webp&quality=lossless&width=438&height=438"
+      },
+      "bestFumoAt": "12/2/2025, 1:59:08 PM",
+      "bestFumoRoll": 40,
+      "specialFumoCount": 9,
+      "specialFumoFirstAt": "12/2/2025, 1:32:55 PM",
+      "specialFumoFirstRoll": 5,
+      "specialFumos": [
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 5,
+          "time": "12/2/2025, 1:32:55 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 20,
+          "time": "12/2/2025, 1:49:07 PM"
+        },
+        {
+          "name": "HeianSukuna(TRANSCENDENT)",
+          "rarity": "TRANSCENDENT",
+          "roll": 40,
+          "time": "12/2/2025, 1:59:08 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 4,
+          "time": "12/2/2025, 2:37:12 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 19,
+          "time": "12/2/2025, 2:40:58 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 29,
+          "time": "12/2/2025, 2:43:29 PM"
+        },
+        {
+          "name": "Fraudkuna(???)",
+          "rarity": "???",
+          "roll": 50,
+          "time": "12/2/2025, 2:48:45 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 52,
+          "time": "12/2/2025, 2:49:16 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 8,
+          "time": "12/2/2025, 2:51:33 PM"
+        }
+      ]
     },
     "normal": {
       "rollCount": 4,
       "autoSell": true,
       "startTime": 1764660866533,
       "bestFumo": {
-        "name": "SkibidiToilet(???)",
-        "rarity": "???",
-        "picture": "https://i.imgur.com/pOZ9Sdf.png"
+        "name": "Cheshire(ASTRAL)",
+        "rarity": "ASTRAL",
+        "picture": "https://images.tokopedia.net/img/cache/500-square/VqbcmM/2024/2/25/932b310d-4256-42bc-abf7-c7d83869ee0c.jpg"
       },
-      "bestFumoAt": "12/2/2025, 2:35:56 PM",
-      "bestFumoRoll": 4,
-      "specialFumoCount": 1,
+      "bestFumoAt": "12/2/2025, 2:44:58 PM",
+      "bestFumoRoll": 18,
+      "specialFumoCount": 15,
       "specialFumoFirstAt": "12/2/2025, 2:35:56 PM",
       "specialFumoFirstRoll": 4,
-      "lowerSpecialFumos": []
+      "lowerSpecialFumos": [
+        {
+          "name": "DarkYoumu(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 2,
+          "time": "12/2/2025, 2:36:57 PM"
+        },
+        {
+          "name": "BlueReimu(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 5,
+          "time": "12/2/2025, 2:38:27 PM"
+        },
+        {
+          "name": "HyperSakuya(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 6,
+          "time": "12/2/2025, 2:38:58 PM"
+        },
+        {
+          "name": "GawrGura(???)",
+          "rarity": "???",
+          "roll": 8,
+          "time": "12/2/2025, 2:39:58 PM"
+        },
+        {
+          "name": "GawrGura(???)",
+          "rarity": "???",
+          "roll": 14,
+          "time": "12/2/2025, 2:42:58 PM"
+        },
+        {
+          "name": "Athena(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 19,
+          "time": "12/2/2025, 2:45:28 PM"
+        },
+        {
+          "name": "DarkYoumu(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 20,
+          "time": "12/2/2025, 2:45:58 PM"
+        },
+        {
+          "name": "GawrGura(???)",
+          "rarity": "???",
+          "roll": 21,
+          "time": "12/2/2025, 2:46:28 PM"
+        },
+        {
+          "name": "DarkYoumu(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 23,
+          "time": "12/2/2025, 2:47:28 PM"
+        },
+        {
+          "name": "DarkYoumu(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 25,
+          "time": "12/2/2025, 2:48:28 PM"
+        },
+        {
+          "name": "GawrGura(???)",
+          "rarity": "???",
+          "roll": 2,
+          "time": "12/2/2025, 2:50:17 PM"
+        },
+        {
+          "name": "Athena(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 4,
+          "time": "12/2/2025, 2:51:17 PM"
+        }
+      ]
     }
   }
 }
