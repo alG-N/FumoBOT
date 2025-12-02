@@ -1,6 +1,32 @@
 const { get, all, run } = require('../../Core/database');
 const { debugLog } = require('../../Core/logger');
 
+function getBaseFumoNameWithRarity(fumoName) {
+    if (!fumoName) return '';
+    
+    return fumoName
+        .replace(/\[✨SHINY\]/g, '')
+        .replace(/\[🌟alG\]/g, '')
+        .trim();
+}
+
+function getBaseFumoNameOnly(fumoName) {
+    if (!fumoName) return '';
+    
+    return fumoName
+        .replace(/\[✨SHINY\]/g, '')
+        .replace(/\[🌟alG\]/g, '')
+        .replace(/\(.*?\)/g, '')
+        .trim();
+}
+
+function extractTrait(fumoName) {
+    if (!fumoName) return 'Base';
+    if (fumoName.includes('[🌟alG]')) return 'alG';
+    if (fumoName.includes('[✨SHINY]')) return 'SHINY';
+    return 'Base';
+}
+
 async function getFarmLimit(userId) {
     const row = await get(
         `SELECT fragmentUses FROM userUpgrades WHERE userId = ?`,
@@ -73,72 +99,75 @@ async function getUserInventoryByRarity(userId, rarity) {
 }
 
 async function getUserInventoryByRarityAndTrait(userId, rarity, trait) {
-    let traitPattern;
+    let query;
+    let params;
     
     if (trait === 'Base') {
-        return await all(
-            `SELECT fumoName, COUNT(*) as count FROM userInventory 
-             WHERE userId = ? 
-             AND fumoName LIKE ?
-             AND fumoName NOT LIKE '%[✨SHINY]%'
-             AND fumoName NOT LIKE '%[🌟alG]%'
-             GROUP BY fumoName`,
-            [userId, `%(${rarity})%`]
-        );
-    } else if (trait === 'SHINY') {
-        traitPattern = '%[✨SHINY]%';
-    } else if (trait === 'alG') {
-        traitPattern = '%[🌟alG]%';
+        query = `
+            SELECT fumoName, SUM(quantity) as count 
+            FROM userInventory 
+            WHERE userId = ? 
+            AND fumoName LIKE ?
+            AND fumoName NOT LIKE '%[✨SHINY]%'
+            AND fumoName NOT LIKE '%[🌟alG]%'
+            GROUP BY fumoName
+            ORDER BY fumoName
+        `;
+        params = [userId, `%(${rarity})%`];
+    } else {
+        const traitTag = trait === 'SHINY' ? '[✨SHINY]' : '[🌟alG]';
+        query = `
+            SELECT fumoName, SUM(quantity) as count 
+            FROM userInventory 
+            WHERE userId = ? 
+            AND fumoName LIKE ?
+            AND fumoName LIKE ?
+            GROUP BY fumoName
+            ORDER BY fumoName
+        `;
+        params = [userId, `%(${rarity})%`, `%${traitTag}%`];
     }
     
-    return await all(
-        `SELECT fumoName, COUNT(*) as count FROM userInventory 
-         WHERE userId = ? 
-         AND fumoName LIKE ?
-         AND fumoName LIKE ?
-         GROUP BY fumoName`,
-        [userId, `%(${rarity})%`, traitPattern]
-    );
-}
-
-// Helper function to get base fumo name (without traits)
-function getBaseFumoName(fumoName) {
-    return fumoName
-        .replace(/\[✨SHINY\]/g, '')
-        .replace(/\[🌟alG\]/g, '')
-        .trim();
-}
-
-// NEW: Get inventory count for a specific fumo INCLUDING all trait variants
-async function getInventoryCountForFumo(userId, fumoName) {
-    // Get base name without traits
-    const baseName = getBaseFumoName(fumoName);
+    const rows = await all(query, params);
     
-    // Count ALL variants of this fumo (base + shiny + alG)
+    debugLog('FARMING', `[getUserInventoryByRarityAndTrait] Found ${rows.length} fumos for ${rarity}/${trait}`);
+    rows.forEach(row => debugLog('FARMING', `  - ${row.fumoName} x${row.count}`));
+    
+    return rows;
+}
+
+async function getInventoryCountForFumo(userId, fumoName) {
+    const baseWithRarity = getBaseFumoNameWithRarity(fumoName);
+    
+    const baseVariant = baseWithRarity;
+    const shinyVariant = `${baseWithRarity}[✨SHINY]`;
+    const alGVariant = `${baseWithRarity}[🌟alG]`;
+    
+    debugLog('FARMING', `[getInventoryCountForFumo] Looking for variants of: ${baseWithRarity}`);
+    debugLog('FARMING', `  - Base: ${baseVariant}`);
+    debugLog('FARMING', `  - Shiny: ${shinyVariant}`);
+    debugLog('FARMING', `  - alG: ${alGVariant}`);
+    
     const rows = await all(
-        `SELECT fumoName, COUNT(*) as count 
+        `SELECT fumoName, SUM(quantity) as count 
          FROM userInventory 
          WHERE userId = ? 
          AND (
              fumoName = ? OR
              fumoName = ? OR
-             fumoName LIKE ? OR
-             fumoName LIKE ?
+             fumoName = ?
          )
          GROUP BY fumoName`,
-        [
-            userId,
-            fumoName,                              // Exact match (e.g., "Arisu(TRANSCENDENT)")
-            baseName,                              // Base without traits
-            `${baseName}[✨SHINY]%`,               // Shiny variant
-            `${baseName}[🌟alG]%`                  // alG variant
-        ]
+        [userId, baseVariant, shinyVariant, alGVariant]
     );
     
-    // Sum up all variants
-    const totalCount = rows.reduce((sum, row) => sum + (row.count || 0), 0);
+    const totalCount = rows.reduce((sum, row) => {
+        const count = parseInt(row.count) || 0;
+        debugLog('FARMING', `  Found: ${row.fumoName} x${count}`);
+        return sum + count;
+    }, 0);
     
-    debugLog('FARMING', `Inventory count for ${fumoName}: ${totalCount} (including all trait variants)`);
+    debugLog('FARMING', `[getInventoryCountForFumo] Total for ${baseWithRarity}: ${totalCount}`);
     return totalCount;
 }
 
@@ -203,5 +232,8 @@ module.exports = {
     updateFarmingIncome,
     updateDailyQuest,
     getUserInventoryByRarityAndTrait,
-    getInventoryCountForFumo
+    getInventoryCountForFumo,
+    getBaseFumoNameWithRarity,
+    getBaseFumoNameOnly,
+    extractTrait
 };
