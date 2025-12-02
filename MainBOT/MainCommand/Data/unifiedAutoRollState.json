@@ -1,38 +1,106 @@
 {
   "1128296349566251068": {
     "event": {
-      "rollCount": 3,
+      "rollCount": 1,
       "autoSell": true,
       "startTime": 1764654745135,
-      "totalFumosRolled": 7400,
-      "totalCoinsFromSales": 122350,
+      "totalFumosRolled": 14600,
+      "totalCoinsFromSales": 31250,
       "bestFumo": {
-        "name": "OneShotCurse(MYTHICAL)",
-        "rarity": "MYTHICAL",
-        "picture": "https://animeislandca.com/cdn/shop/files/jujutsu-kaisen-kyurumaru-mahito-big-plush-toy-anime-island-ca.png?v=1692739157&width=1445"
+        "name": "HeianSukuna(TRANSCENDENT)",
+        "rarity": "TRANSCENDENT",
+        "picture": "https://media.discordapp.net/attachments/1372426801472737280/1372880397599244378/raw.png?ex=68286201&is=68271081&hm=354b51c0bb278e08cef1d63050e9e0fc41765335d37309f15298050a8fdd03da&=&format=webp&quality=lossless&width=438&height=438"
       },
-      "bestFumoAt": "12/2/2025, 1:01:37 PM",
-      "bestFumoRoll": 2,
-      "specialFumoCount": 0,
-      "specialFumoFirstAt": null,
-      "specialFumoFirstRoll": null,
-      "specialFumos": []
+      "bestFumoAt": "12/2/2025, 1:59:08 PM",
+      "bestFumoRoll": 40,
+      "specialFumoCount": 3,
+      "specialFumoFirstAt": "12/2/2025, 1:32:55 PM",
+      "specialFumoFirstRoll": 5,
+      "specialFumos": [
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 5,
+          "time": "12/2/2025, 1:32:55 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 20,
+          "time": "12/2/2025, 1:49:07 PM"
+        },
+        {
+          "name": "HeianSukuna(TRANSCENDENT)",
+          "rarity": "TRANSCENDENT",
+          "roll": 40,
+          "time": "12/2/2025, 1:59:08 PM"
+        }
+      ]
     },
     "normal": {
       "rollCount": 1,
       "autoSell": true,
       "startTime": 1764657124116,
       "bestFumo": {
-        "name": "DarkYoumu(EXCLUSIVE)",
-        "rarity": "EXCLUSIVE",
-        "picture": "https://fumo.website/img/918.jpg"
+        "name": "Cheshire(ASTRAL)",
+        "rarity": "ASTRAL",
+        "picture": "https://images.tokopedia.net/img/cache/500-square/VqbcmM/2024/2/25/932b310d-4256-42bc-abf7-c7d83869ee0c.jpg"
       },
-      "bestFumoAt": "12/2/2025, 1:32:04 PM",
-      "bestFumoRoll": 1,
-      "specialFumoCount": 1,
+      "bestFumoAt": "12/2/2025, 1:45:36 PM",
+      "bestFumoRoll": 7,
+      "specialFumoCount": 13,
       "specialFumoFirstAt": "12/2/2025, 1:32:04 PM",
       "specialFumoFirstRoll": 1,
-      "lowerSpecialFumos": []
+      "lowerSpecialFumos": [
+        {
+          "name": "BlueReimu(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 2,
+          "time": "12/2/2025, 1:40:35 PM"
+        },
+        {
+          "name": "RedMarisa(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 17,
+          "time": "12/2/2025, 1:55:36 PM"
+        },
+        {
+          "name": "HyperSakuya(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 18,
+          "time": "12/2/2025, 1:56:36 PM"
+        },
+        {
+          "name": "CirnoSitting(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 19,
+          "time": "12/2/2025, 1:57:36 PM"
+        },
+        {
+          "name": "BlueReimu(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 21,
+          "time": "12/2/2025, 1:59:36 PM"
+        },
+        {
+          "name": "CirnoSitting(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 23,
+          "time": "12/2/2025, 2:01:36 PM"
+        },
+        {
+          "name": "HyperSakuya(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 28,
+          "time": "12/2/2025, 2:06:36 PM"
+        },
+        {
+          "name": "GawrGura(???)",
+          "rarity": "???",
+          "roll": 1,
+          "time": "12/2/2025, 2:07:49 PM"
+        }
+      ]
     }
   }
 }
