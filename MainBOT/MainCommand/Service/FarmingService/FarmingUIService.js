@@ -4,10 +4,26 @@ const { RARITY_PRIORITY } = require('../../Configuration/rarity');
 const { getRarityFromName } = require('./FarmingCalculationService');
 
 function formatFarmingNumber(num) {
-    if (num >= 1e12) return (num / 1e12).toFixed(2) + 'T';
-    if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
-    if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
-    if (num >= 1e3) return (num / 1e3).toFixed(2) + 'K';
+    const units = [
+        { value: 1e33, symbol: 'Dc' },
+        { value: 1e30, symbol: 'No' },
+        { value: 1e27, symbol: 'Oc' },
+        { value: 1e24, symbol: 'Sp' }, 
+        { value: 1e21, symbol: 'Sx' }, 
+        { value: 1e18, symbol: 'Qi' },
+        { value: 1e15, symbol: 'Qa' }, 
+        { value: 1e12, symbol: 'T'  },
+        { value: 1e9,  symbol: 'B'  },
+        { value: 1e6,  symbol: 'M'  },
+        { value: 1e3,  symbol: 'K'  } 
+    ];
+
+    for (const u of units) {
+        if (num >= u.value) {
+            return (num / u.value).toFixed(2) + u.symbol;
+        }
+    }
+
     return num.toString();
 }
 
