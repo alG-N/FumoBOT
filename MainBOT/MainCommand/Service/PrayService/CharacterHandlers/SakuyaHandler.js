@@ -328,7 +328,7 @@ async function handleSakuya(userId, channel) {
             .setTitle('🕰️ Sakuya\'s Time Skip 🕰️')
             .setDescription(
                 `${blessingSkip ? '⏳ Sakuya skipped time forward a day!' : '⏳ Sakuya skipped time forward 12 hours!'}\n\n` +
-                `**You earned:**\n🪙 Coins: **${totalCoins.toLocaleString()}**\n💎 Gems: **${totalGems.toLocaleString()}**` +
+                `**You earned:**\n🪙 Coins: **${formatNumber(totalCoins)}**\n💎 Gems: **${formatNumber(totalCoins)}**` +
                 (drops.length ? `\n\n**Extra Item Drops:**\n${drops.map(d => `• ${d}`).join('\n')}` : '') +
                 `\n\n**Time's Demander:** \`${progressBar}\` (${currentDemand}/${timeSkip.maxUses})` +
                 (blessingSkip
