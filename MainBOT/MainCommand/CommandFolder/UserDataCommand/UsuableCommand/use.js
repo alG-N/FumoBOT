@@ -52,14 +52,13 @@ const ONE_TIME_USE_ITEMS = new Set([
 
 async function getUsableInventory(userId) {
     try {
-        // Match the exact query from ItemQueryService.js
+        // Match the exact query from ItemQueryService.js - REMOVED type = 'item' filter
         const rows = await all(
             `SELECT 
                 COALESCE(itemName, fumoName) as itemName,
                 SUM(quantity) as totalQuantity 
              FROM userInventory 
              WHERE userId = ? 
-             AND type = 'item'
              AND (itemName IS NOT NULL OR fumoName IS NOT NULL)
              AND (TRIM(COALESCE(itemName, '')) != '' OR TRIM(COALESCE(fumoName, '')) != '')
              GROUP BY COALESCE(itemName, fumoName)
@@ -109,14 +108,13 @@ async function getUsableInventoryByRarity(userId, rarity) {
             return [];
         }
 
-        // Match the exact query from ItemQueryService.js
+        // Match the exact query from ItemQueryService.js - REMOVED type = 'item' filter
         const rows = await all(
             `SELECT 
                 COALESCE(itemName, fumoName) as itemName,
                 SUM(quantity) as totalQuantity 
              FROM userInventory 
              WHERE userId = ? 
-             AND type = 'item'
              AND COALESCE(itemName, fumoName) LIKE ?
              AND (itemName IS NOT NULL OR fumoName IS NOT NULL)
              AND (TRIM(COALESCE(itemName, '')) != '' OR TRIM(COALESCE(fumoName, '')) != '')
