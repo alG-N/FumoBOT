@@ -12,6 +12,13 @@ const {
     incrementDailyPray
 } = require('../PrayDatabaseService');
 
+const GUARANTEED_SHARDS = {
+    1: ['RedShard(L)', 'BlueShard(L)'],
+    5: ['RedShard(L)', 'BlueShard(L)', 'YellowShard(L)', 'WhiteShard(L)'],
+    7: ['RedShard(L)', 'BlueShard(L)', 'YellowShard(L)', 'WhiteShard(L)', 'DarkShard(L)', 'ChromaShard(M)'],
+    10: ['RedShard(L)', 'BlueShard(L)', 'YellowShard(L)', 'WhiteShard(L)', 'DarkShard(L)', 'ChromaShard(M)', 'MonoShard(M)', 'EquinoxAlloy(M)']
+};
+
 async function handleYukari(userId, channel) {
     const config = PRAY_CHARACTERS.YUKARI;
     const user = await getUserData(userId);
@@ -56,8 +63,8 @@ async function handleYukari(userId, channel) {
     const selectedFumos = selectFumosForTrade(groups, Math.min(totalFumos, maxAllowed), config);
     const rewardMultiplier = config.rewards.multipliers[mark] || 1;
     
-    let coinsEarned = Math.floor(selectedFumos.totalValue * rewardMultiplier);
-    let gemsEarned = Math.floor(coinsEarned / 100);
+    let coinsEarned = Math.floor(selectedFumos.totalValue * rewardMultiplier * 2);
+    let gemsEarned = Math.floor(coinsEarned / 50);
 
     if (Math.random() < config.rewards.bonusChance) {
         coinsEarned = Math.floor(coinsEarned * config.rewards.bonusMultiplier.coins);
@@ -70,8 +77,15 @@ async function handleYukari(userId, channel) {
 
     await updateYukariData(userId, coinsEarned, gemsEarned, mark);
 
-    if (Math.random() < config.rewards.fumoTokenChance) {
-        await addSpiritTokens(userId, 1);
+    if (Math.random() < config.rewards.fumoTokenChance * 3) {
+        const tokens = Math.floor(Math.random() * 3) + 1;
+        await addSpiritTokens(userId, tokens);
+    }
+
+    const guaranteedShards = GUARANTEED_SHARDS[mark] || [];
+    for (const shard of guaranteedShards) {
+        const quantity = mark >= 7 ? Math.floor(Math.random() * 3) + 2 : Math.floor(Math.random() * 2) + 1;
+        await addToInventory(userId, shard, quantity);
     }
 
     const bonusItem = await rollBonusItem(userId, mark, config);
@@ -80,6 +94,10 @@ async function handleYukari(userId, channel) {
     const nextMin = config.requirements.minFumos[nextMark] || 1000;
     const nextMax = config.requirements.maxFumos[nextMark] || 1500;
 
+    const shardText = guaranteedShards.length > 0 
+        ? `\n🔮 Guaranteed Shards: ${guaranteedShards.map(s => `**${s}**`).join(', ')}`
+        : '';
+
     await channel.send({
         embeds: [new EmbedBuilder()
             .setTitle('🌌 Yukari\'s Exchange 🌌')
@@ -87,6 +105,7 @@ async function handleYukari(userId, channel) {
                 `Fumos traded! You earned:\n` +
                 `💰 +${formatNumber(coinsEarned)} coins\n` +
                 `💎 +${formatNumber(gemsEarned)} gems` +
+                `${shardText}` +
                 `${bonusItem ? `\n🎁 Bonus: **${bonusItem}**` : ''}`
             )
             .addFields(
@@ -166,10 +185,11 @@ async function rollBonusItem(userId, mark, config) {
     let cumulative = 0;
 
     for (const [itemName, chance] of Object.entries(bonusConfig)) {
-        cumulative += chance;
+        cumulative += chance * 2;
         if (roll < cumulative) {
-            await addToInventory(userId, itemName, 1);
-            return itemName;
+            const quantity = mark >= 7 ? Math.floor(Math.random() * 3) + 1 : 1;
+            await addToInventory(userId, itemName, quantity);
+            return `${itemName} x${quantity}`;
         }
     }
 

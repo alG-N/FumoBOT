@@ -17,6 +17,7 @@ const {
     getExchangeRate, 
     calculateExchange 
 } = require('./ExchangeRateService');
+const exchangeCache = require('./ExchangeCacheService');
 
 const MIN_EXCHANGE = 10;
 const MAX_EXCHANGES_PER_DAY = 5;
@@ -32,14 +33,13 @@ async function processExchange(userId, type, amount) {
         };
     }
 
-    // FIXED: Properly handle column names with backticks
     const fromCol = type;
     const toCol = type === 'coins' ? 'gems' : 'coins';
 
     await run(
         `UPDATE userCoins 
-         SET \`${fromCol}\` = \`${fromCol}\` - ?, 
-             \`${toCol}\` = \`${toCol}\` + ?
+         SET ${fromCol} = ${fromCol} - ?, 
+             ${toCol} = ${toCol} + ?
          WHERE userId = ?`,
         [amount, result, userId]
     );
@@ -104,6 +104,19 @@ async function handleExchangeCommand(message, args) {
         components: [embed.buttons]
     });
 
+    // Store exchange in cache to prevent expiration issues
+    const customIdConfirm = embed.buttons.components[0].data.custom_id;
+    exchangeCache.store(customIdConfirm, {
+        userId,
+        type,
+        amount,
+        taxedAmount,
+        result,
+        taxRate,
+        rate,
+        messageId: reply.id
+    });
+
     return reply;
 }
 
@@ -111,33 +124,19 @@ async function handleExchangeInteraction(interaction) {
     const parsed = parseCustomId(interaction.customId);
     const { action, userId, additionalData } = parsed;
     
-    // FIXED: Better validation of additionalData
-    if (!additionalData || !additionalData.t || !additionalData.a) {
+    // Check cache first for valid exchange data
+    const cachedExchange = exchangeCache.get(interaction.customId);
+    
+    if (!cachedExchange && !additionalData) {
         return interaction.reply({ 
-            content: '❌ Invalid or expired exchange.', 
+            content: '❌ This exchange has expired or is invalid. Please start a new exchange using `.exchange <type> <amount>`', 
             ephemeral: true 
         });
     }
 
-    // FIXED: Properly extract and validate type and amount
-    const type = additionalData.t;
-    const amount = parseInt(additionalData.a);
-    
-    // Validate type
-    if (type !== 'coins' && type !== 'gems') {
-        return interaction.reply({ 
-            content: '❌ Invalid exchange type.', 
-            ephemeral: true 
-        });
-    }
-    
-    // Validate amount
-    if (!isFinite(amount) || amount <= 0) {
-        return interaction.reply({ 
-            content: '❌ Invalid exchange amount.', 
-            ephemeral: true 
-        });
-    }
+    // Use cached data if available, otherwise fall back to additionalData
+    const exchangeData = cachedExchange || additionalData;
+    const { type, amount, taxedAmount, result, taxRate } = exchangeData;
     
     if (interaction.user.id !== userId) {
         return interaction.reply({ 
@@ -146,11 +145,10 @@ async function handleExchangeInteraction(interaction) {
         });
     }
 
-    // Recalculate exchange values
-    const rate = await getExchangeRate();
-    const { taxedAmount, result, taxRate } = calculateExchange(type, amount, rate);
-
     if (action === 'exchange_cancel') {
+        // Remove from cache
+        exchangeCache.remove(interaction.customId);
+        
         const embed = await createExchangeEmbed(userId, type, amount, result, taxRate, 'cancel', taxedAmount);
         await interaction.update({ 
             embeds: [embed.embed], 
@@ -160,8 +158,17 @@ async function handleExchangeInteraction(interaction) {
     }
 
     if (action === 'exchange_confirm') {
+        // Validate exchange is still in cache
+        if (!exchangeCache.isValid(interaction.customId)) {
+            return interaction.reply({
+                content: '❌ This exchange has expired. Please start a new exchange.',
+                ephemeral: true
+            });
+        }
+
         const limitCheck = await checkDailyLimit(userId);
         if (!limitCheck.canExchange) {
+            exchangeCache.remove(interaction.customId);
             return interaction.reply({ 
                 content: limitCheck.message, 
                 ephemeral: true 
@@ -170,6 +177,7 @@ async function handleExchangeInteraction(interaction) {
 
         const userRow = await get('SELECT coins, gems FROM userCoins WHERE userId = ?', [userId]);
         if (!userRow) {
+            exchangeCache.remove(interaction.customId);
             return interaction.reply({ 
                 content: '❌ Account not found.', 
                 ephemeral: true 
@@ -177,8 +185,8 @@ async function handleExchangeInteraction(interaction) {
         }
 
         const userBalance = type === 'coins' ? userRow.coins : userRow.gems;
-        
         if (userBalance < amount) {
+            exchangeCache.remove(interaction.customId);
             return interaction.reply({ 
                 content: `❌ You don't have enough ${type} to exchange.`, 
                 ephemeral: true 
@@ -188,11 +196,15 @@ async function handleExchangeInteraction(interaction) {
         const exchangeResult = await processExchange(userId, type, amount);
         
         if (!exchangeResult.success) {
+            exchangeCache.remove(interaction.customId);
             return interaction.reply({ 
                 content: '❌ Exchange failed.', 
                 ephemeral: true 
             });
         }
+
+        // Remove from cache after successful exchange
+        exchangeCache.remove(interaction.customId);
 
         const embed = await createExchangeEmbed(
             userId,
@@ -211,10 +223,26 @@ async function handleExchangeInteraction(interaction) {
     }
 }
 
+/**
+ * Get cache statistics (useful for debugging)
+ */
+function getExchangeCacheStats() {
+    return exchangeCache.getStats();
+}
+
+/**
+ * Clear expired exchanges from cache (can be called manually if needed)
+ */
+function cleanupExpiredExchanges() {
+    return exchangeCache.cleanup();
+}
+
 module.exports = {
     handleExchangeCommand,
     handleExchangeInteraction,
     processExchange,
+    getExchangeCacheStats,
+    cleanupExpiredExchanges,
     MIN_EXCHANGE,
     MAX_EXCHANGES_PER_DAY
 };

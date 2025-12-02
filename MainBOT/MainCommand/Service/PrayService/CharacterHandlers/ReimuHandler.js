@@ -53,7 +53,7 @@ async function handleGiftPhase(userId, channel, user, config, interactionUserId)
 
     let pickedRarity;
 
-    if (pityCount >= 14) {
+    if (pityCount >= 10) {
         pickedRarity = giftConfig.ultraRares[Math.floor(Math.random() * giftConfig.ultraRares.length)];
     } else {
         const adjustedProbabilities = applyPityBoost(giftConfig.rarities, pityCount, giftConfig.pityBoost);
@@ -183,10 +183,10 @@ async function handleDonationPhase(userId, channel, user, config) {
 }
 
 function applyPityBoost(probabilities, pityCount, boostFactor) {
-    if (pityCount >= 15) return probabilities;
+    if (pityCount >= 10) return probabilities;
     
     const boosted = { ...probabilities };
-    const factor = Math.pow(boostFactor, pityCount);
+    const factor = Math.pow(boostFactor, pityCount * 1.5);
     const rareKeys = ['???', 'ASTRAL', 'CELESTIAL', 'INFINITE', 'ETERNAL', 'TRANSCENDENT'];
     
     rareKeys.forEach(r => {
