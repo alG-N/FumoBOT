@@ -1,7 +1,7 @@
 {
   "1128296349566251068": {
     "normal": {
-      "rollCount": 1,
+      "rollCount": 2,
       "autoSell": true,
       "startTime": 1764660866533,
       "bestFumo": {
@@ -666,11 +666,11 @@
       ]
     },
     "event": {
-      "rollCount": 50,
+      "rollCount": 2,
       "autoSell": true,
       "startTime": 1764667892682,
-      "totalFumosRolled": 24100,
-      "totalCoinsFromSales": 1865050,
+      "totalFumosRolled": 24300,
+      "totalCoinsFromSales": 78450,
       "bestFumo": {
         "name": "Go/jo(???)",
         "rarity": "???",
@@ -920,11 +920,11 @@
       ]
     },
     "event": {
-      "rollCount": 25,
+      "rollCount": 1,
       "autoSell": true,
       "startTime": 1764667272073,
-      "totalFumosRolled": 14100,
-      "totalCoinsFromSales": 761300,
+      "totalFumosRolled": 14200,
+      "totalCoinsFromSales": 22900,
       "bestFumo": {
         "name": "Go/jo(???)",
         "rarity": "???",
@@ -1072,18 +1072,47 @@
       ]
     },
     "event": {
-      "rollCount": 0,
+      "rollCount": 1,
       "autoSell": true,
-      "startTime": 1764671592876,
-      "totalFumosRolled": 0,
-      "totalCoinsFromSales": 0,
-      "bestFumo": null,
-      "bestFumoAt": null,
-      "bestFumoRoll": null,
-      "specialFumoCount": 0,
-      "specialFumoFirstAt": null,
-      "specialFumoFirstRoll": null,
-      "specialFumos": []
+      "startTime": 1764666075255,
+      "totalFumosRolled": 18200,
+      "totalCoinsFromSales": 42900,
+      "bestFumo": {
+        "name": "Go/jo(???)",
+        "rarity": "???",
+        "picture": "https://m.media-amazon.com/images/I/41PQuj80tDS._AC_UF894,1000_QL80_.jpg"
+      },
+      "bestFumoAt": "12/2/2025, 4:11:16 PM",
+      "bestFumoRoll": 21,
+      "specialFumoCount": 4,
+      "specialFumoFirstAt": "12/2/2025, 4:11:16 PM",
+      "specialFumoFirstRoll": 21,
+      "specialFumos": [
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 21,
+          "time": "12/2/2025, 4:11:16 PM"
+        },
+        {
+          "name": "Fraudkuna(???)",
+          "rarity": "???",
+          "roll": 109,
+          "time": "12/2/2025, 4:55:22 PM"
+        },
+        {
+          "name": "Fraudkuna(???)",
+          "rarity": "???",
+          "roll": 2,
+          "time": "12/2/2025, 5:08:38 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 22,
+          "time": "12/2/2025, 5:31:00 PM"
+        }
+      ]
     }
   }
 }
