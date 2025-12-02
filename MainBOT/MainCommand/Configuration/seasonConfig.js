@@ -185,6 +185,58 @@ const SEASONS = {
         duration: 1200000,
         description: 'Stars shine brightly, blessing your farm!',
         emoji: '⭐'
+    },
+    // NEW: Ultra-rare glitched weather
+    G1TCH3D: {
+        name: 'G1tCh3D',
+        coinMultiplier: 3500,
+        gemMultiplier: 3500,
+        chance: 1 / 1500000, 
+        checkInterval: 1000, 
+        duration: 300000, 
+        description: '̷̢̛̝͎̈́̓R̴͎̈́͜E̸̢̛̳̅A̶̰̍̚L̷̰̈́͠I̵̞̿̚T̴̨̛̩́Y̶̱̿ ̶̢̍Ḯ̶̱͜S̶̱̀ ̴͖̌B̷̨̛̜R̴̨͋̕E̸̡̤̾A̵̬̓K̴̨̓Ī̵̮̓Ņ̶̎G̶̰̾!̷̱̈́',
+        emoji: '▓',
+        isGlitched: true
+    },
+    COSMIC_VOID: {
+        name: 'Cosmic Void',
+        coinMultiplier: 1/100,
+        gemMultiplier: 1/100,
+        chance: 0.03,
+        checkInterval: 3600000,
+        duration: 420000,
+        description: 'A void opens in space, draining all energy from your farm!',
+        emoji: '🕳️'
+    },
+    TEMPORAL_COLLAPSE: {
+        name: 'Temporal Collapse',
+        coinMultiplier: 1/50,
+        gemMultiplier: 1/75,
+        chance: 0.05,
+        checkInterval: 2700000,
+        duration: 600000, 
+        description: 'Time itself distorts, severely disrupting production!',
+        emoji: '⏳'
+    },
+    PESTILENCE: {
+        name: 'Pestilence',
+        coinMultiplier: 1/7,
+        gemMultiplier: 1/10,
+        chance: 0.11,
+        checkInterval: 1800000,
+        duration: 1500000,
+        description: 'A plague of locusts devours your crops!',
+        emoji: '🦗'
+    },
+    DIVINE_ASCENSION: {
+        name: 'Divine Ascension',
+        coinMultiplier: 250,
+        gemMultiplier: 250,
+        chance: 0.04,
+        checkInterval: 3600000,
+        duration: 480000, 
+        description: 'Divine beings bless your farm with otherworldly abundance!',
+        emoji: '👼'
     }
 };
 
@@ -206,7 +258,12 @@ const WEATHER_EVENTS = [
     'HAILSTORM',
     'BLIZZARD',
     'RAINBOW',
-    'STARRY_NIGHT'
+    'STARRY_NIGHT',
+    'G1TCH3D',
+    'COSMIC_VOID',
+    'TEMPORAL_COLLAPSE',
+    'PESTILENCE',
+    'DIVINE_ASCENSION'
 ];
 
 function isWeekend() {
@@ -268,7 +325,13 @@ function calculateTotalMultipliers(activeWeathers = []) {
 
 function getSeasonDescription(seasonKey) {
     const season = SEASONS[seasonKey];
-    return season ? `${season.emoji} ${season.description}` : '';
+    if (!season) return '';
+    
+    if (season.isGlitched) {
+        return `${season.emoji} ${season.description}`;
+    }
+    
+    return `${season.emoji} ${season.description}`;
 }
 
 function getWeatherDuration(weatherType) {
@@ -281,6 +344,26 @@ function getWeatherCheckInterval(weatherType) {
     return weather?.checkInterval || 1800000; 
 }
 
+function isGlitchedWeather(weatherType) {
+    const weather = SEASONS[weatherType];
+    return weather?.isGlitched || false;
+}
+
+function getWeatherRarity(weatherType) {
+    const weather = SEASONS[weatherType];
+    if (!weather || !weather.chance) return 'N/A';
+    
+    const chance = weather.chance;
+    
+    if (chance >= 0.15) return '⚪ Common';
+    if (chance >= 0.08) return '🟢 Uncommon';
+    if (chance >= 0.05) return '🔵 Rare';
+    if (chance >= 0.03) return '🟣 Epic';
+    if (chance >= 0.01) return '🟠 Legendary';
+    if (chance >= 0.001) return '🔴 Mythical';
+    return '⬛ ???';
+}
+
 module.exports = {
     SEASONS,
     WEATHER_EVENTS,
@@ -291,5 +374,7 @@ module.exports = {
     calculateTotalMultipliers,
     getSeasonDescription,
     getWeatherDuration,
-    getWeatherCheckInterval
+    getWeatherCheckInterval,
+    isGlitchedWeather,
+    getWeatherRarity
 };
