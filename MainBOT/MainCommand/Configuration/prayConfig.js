@@ -9,22 +9,35 @@ const PRAY_CHARACTERS = {
         description: 'The Princess of the Netherworld offers ghostly blessings... or curses.',
         color: 0xFF69B4,
         offers: {
+            // 75% chance - Normal blessing
             normal: {
-                coinCost: 150000,
-                gemCost: 30000,
-                rollReward: 100,
-                rollRewardWithShiny: 200,
-                luckBoost: 0.01,
+                coinCost: 50000,        // Actual deduction in handler
+                gemCost: 10000,         // Actual deduction in handler
+                // Base rolls: 500 (no ShinyMark+) or 1000 (with ShinyMark+)
+                // Then multiplied by 2.5 in handler
+                // ACTUAL REWARDS: 1,250 rolls or 2,500 rolls
+                baseRollsNoMark: 500,
+                baseRollsWithMark: 1000,
+                rollMultiplier: 2.5,
+                maxRolls: 10000,        // Hard cap in handler
+                luckBoost: 0.125,       // Actual boost applied
                 luckRarities: 'LEGENDARY,MYTHIC,EXCLUSIVE,???,ASTRAL,CELESTIAL,INFINITE,ETERNAL,TRANSCENDENT'
             },
+            // 25% chance - Devour event (randomNumber <= 25)
             devour: {
-                chance: 0.15,
-                coinCost: 1500000,
-                gemCost: 350000,
-                rollReward: 1000,
-                rollRewardWithShiny: 2000,
-                luckBoost: 0.1,
-                maxRolls: 10000
+                chance: 0.25,           // 25% trigger chance
+                coinCost: 600000,       // Required or loses everything
+                gemCost: 140000,        // Required or loses everything
+                // Base rolls: 5000 (no ShinyMark+) or 10000 (with ShinyMark+)
+                // Then multiplied by 3 in handler
+                // ACTUAL REWARDS: 15,000 rolls or 30,000 rolls
+                baseRollsNoMark: 5000,
+                baseRollsWithMark: 10000,
+                rollMultiplier: 3,
+                maxRolls: 50000,        // Hard cap in handler
+                luckBoost: 1.5,         // MASSIVE luck boost
+                // If broke: loses ALL coins and gems, gets nothing
+                consequenceIfBroke: 'LOSE_EVERYTHING'
             }
         }
     },
@@ -38,58 +51,77 @@ const PRAY_CHARACTERS = {
         description: 'The gap youkai trades your fumos for coins and gems. Better have enough collection!',
         color: 0x9932CC,
         requirements: {
+            // Handler: Math.floor(minFumos * 0.5) and Math.floor(maxFumos * 0.6)
             minFumos: {
-                1: 1500,
-                5: 1750,
-                7: 2000,
-                10: 3000
+                1: 750,   // 1500 * 0.5 = 750
+                5: 875,   // 1750 * 0.5 = 875
+                7: 1000,  // 2000 * 0.5 = 1000
+                10: 1500  // 3000 * 0.5 = 1500
             },
             maxFumos: {
-                1: 2000,
-                5: 2500,
-                7: 3000,
-                10: 5000
+                1: 1200,  // 2000 * 0.6 = 1200
+                5: 1500,  // 2500 * 0.6 = 1500
+                7: 1800,  // 3000 * 0.6 = 1800
+                10: 3000  // 5000 * 0.6 = 3000
             }
         },
         rewards: {
             multipliers: {
-                1: 1.5,
-                5: 3.5,
-                7: 5,
-                10: 25
+                // Handler: (multiplier * 1.8) * 2.5
+                // Final multiplier = base * 4.5
+                1: 1.5,   // Actual: 1.5 * 1.8 * 2.5 = 6.75x
+                5: 3.5,   // Actual: 3.5 * 1.8 * 2.5 = 15.75x
+                7: 5,     // Actual: 5 * 1.8 * 2.5 = 22.5x
+                10: 25    // Actual: 25 * 1.8 * 2.5 = 112.5x
             },
-            bonusChance: 0.20,
+            // Handler: Math.random() < bonusChance * 1.5
+            bonusChance: 0.30,      // 0.20 * 1.5 = 0.30 (30% actual chance)
             bonusMultiplier: {
-                coins: 1.15,
-                gems: 1.5
+                // Handler: multiplier * 1.3
+                coins: 1.495,       // 1.15 * 1.3 = 1.495
+                gems: 1.95          // 1.5 * 1.3 = 1.95
             },
-            fumoTokenChance: 0.07,
-            scamChance: 0.005
+            // Handler: Math.random() < fumoTokenChance * 5
+            fumoTokenChance: 0.35,  // 0.07 * 5 = 0.35 (35% actual chance)
+            tokenAmount: [2, 6],    // Random 2-6 tokens (Math.floor(Math.random() * 5) + 2)
+            // Handler: Math.random() < scamChance * 0.3
+            scamChance: 0.0015      // 0.005 * 0.3 = 0.0015 (0.15% actual chance)
         },
         bonusItems: {
-            1: { 'MysteriousShard(M)': 0.35 },
+            // All chances TRIPLED in handler (* 3)
+            // Quantities also increased based on mark
+            1: { 
+                'MysteriousShard(M)': { chance: 1.05, quantity: [3, 6] }  // 0.35 * 3, qty 3-6
+            },
             5: {
-                'MysteriousShard(M)': 0.50,
-                'GoldenSigil(?)': 0.10,
-                'Nullified(?)': 0.10,
-                'Undefined(?)': 0.10,
-                'Null?(?)': 0.10
+                'MysteriousShard(M)': { chance: 1.50, quantity: [3, 6] },  // 0.50 * 3
+                'GoldenSigil(?)': { chance: 0.30, quantity: [3, 6] },
+                'Nullified(?)': { chance: 0.30, quantity: [3, 6] },
+                'Undefined(?)': { chance: 0.30, quantity: [3, 6] },
+                'Null?(?)': { chance: 0.30, quantity: [3, 6] }
             },
             7: {
-                'MysteriousShard(M)': 0.75,
-                'GoldenSigil(?)': 0.10,
-                'Nullified(?)': 0.07,
-                'Undefined(?)': 0.04,
-                'Null(?)': 0.04
+                'MysteriousShard(M)': { chance: 2.25, quantity: [4, 9] },  // 0.75 * 3, qty 4-9
+                'GoldenSigil(?)': { chance: 0.30, quantity: [4, 9] },
+                'Nullified(?)': { chance: 0.21, quantity: [4, 9] },
+                'Undefined(?)': { chance: 0.12, quantity: [4, 9] },
+                'Null(?)': { chance: 0.12, quantity: [4, 9] }
             },
             10: {
-                'MysteriousShard(M)': 1.0,
-                'GoldenSigil(?)': 0.05,
-                'S!gil?(?)': 0.03,
-                'Nullified(?)': 0.15,
-                'Undefined(?)': 0.30,
-                'Null?(?)': 0.30
+                'MysteriousShard(M)': { chance: 3.0, quantity: [2, 6] },   // 1.0 * 3, qty 2-6
+                'GoldenSigil(?)': { chance: 0.15, quantity: [2, 6] },
+                'S!gil?(?)': { chance: 0.09, quantity: [2, 6] },
+                'Nullified(?)': { chance: 0.45, quantity: [2, 6] },
+                'Undefined(?)': { chance: 0.90, quantity: [2, 6] },
+                'Null?(?)': { chance: 0.90, quantity: [2, 6] }
             }
+        },
+        guaranteedShards: {
+            // Guaranteed shards per mark (3-9 quantity for mark 7+, 3-6 for others)
+            1: ['RedShard(L)', 'BlueShard(L)'],
+            5: ['RedShard(L)', 'BlueShard(L)', 'YellowShard(L)', 'WhiteShard(L)'],
+            7: ['RedShard(L)', 'BlueShard(L)', 'YellowShard(L)', 'WhiteShard(L)', 'DarkShard(L)', 'ChromaShard(M)'],
+            10: ['RedShard(L)', 'BlueShard(L)', 'YellowShard(L)', 'WhiteShard(L)', 'DarkShard(L)', 'ChromaShard(M)', 'MonoShard(M)', 'EquinoxAlloy(M)']
         },
         groupPriority: ['group1', 'group2', 'group3', 'shiny', 'alg'],
         rarityGroups: {
@@ -109,11 +141,12 @@ const PRAY_CHARACTERS = {
         color: 0xFF0000,
         phases: {
             donation: {
-                baseCoinCost: 60000,
-                baseGemCost: 5000,
-                penaltyCoinIncrease: 50000,
-                penaltyGemIncrease: 5000,
+                baseCoinCost: 30000,  // Handler uses 30k base, not 60k
+                baseGemCost: 2500,    // Handler uses 2.5k base, not 5k
+                penaltyCoinIncrease: 5000,  // Handler adds 5k per penalty
+                penaltyGemIncrease: 1000,   // Handler adds 1k per penalty
                 pityMultipliers: {
+                    // Applied to cost: (baseCost + penalty * increase) * multiplier
                     low: { min: 1, max: 5, multiplier: 2 },
                     medium: { min: 6, max: 10, multiplier: 5 },
                     high: { min: 11, max: 15, multiplier: 10 }
@@ -133,21 +166,27 @@ const PRAY_CHARACTERS = {
                     ETERNAL: 0.5,
                     TRANSCENDENT: 0.2
                 },
-                pityBoost: 1.08,
-                maxPityCount: 15,
+                pityBoost: 1.08,        // Math.pow(1.08, pityCount * 1.5) applied to ultra-rares
+                maxPityCount: 10,       // At 10+, guaranteed ultra-rare (not 15)
                 ultraRares: ['???', 'ASTRAL', 'CELESTIAL', 'INFINITE', 'ETERNAL', 'TRANSCENDENT'],
-                shinyChance: 0.18,
-                alGChance: 0.008,
+                shinyChance: 0.35,      // Handler: Math.random() < 0.35 (DOUBLED from 0.18)
+                alGChance: 0.1,         // Handler: Math.random() < 0.1 (not 0.008)
+                // Handler token logic:
+                // rng < 0.08 → 25 tokens
+                // rng < 0.20 → 5 tokens  
+                // rng < 0.35 → 2 tokens
+                // rng < 0.50 → 1 token
                 tokenChances: {
-                    1: 0.18,
-                    2: 0.06,
-                    5: 0.012,
-                    25: 0.0004
+                    25: 0.08,   // 8% for 25 tokens
+                    5: 0.12,    // 12% for 5 tokens (0.20 - 0.08)
+                    2: 0.15,    // 15% for 2 tokens (0.35 - 0.20)
+                    1: 0.15     // 15% for 1 token (0.50 - 0.35)
+                    // 50% chance for 0 tokens
                 }
             }
         },
-        maxUsagePerWindow: 3,
-        resetWindow: 12 * 60 * 60 * 1000
+        maxUsagePerWindow: 8,  // Handler checks: if (user.reimuUsageCount >= 8)
+        resetWindow: 12 * 60 * 60 * 1000  // 12 hours
     },
     MARISA: {
         id: 'marisa',
@@ -159,38 +198,34 @@ const PRAY_CHARACTERS = {
         description: 'The ordinary magician borrows coins and returns them with interest... usually.',
         color: 0xFFD700,
         costs: {
-            donation: 15000,
-            return: 35000
+            donation: 15000,    // Phase 1: Give 15k coins
+            return: 35000       // Phase 2: Get 35k coins (net +20k profit)
         },
         chances: {
-            absent: 0.15,
-            steal: 0.03,
-            stealMultiplier: {
-                coins: 0.03,
-                gems: 0.005
-            }
+            absent: 0.15        // 15% chance she's not around
+            // NO steal mechanic in current implementation
         },
         rewards: {
             potions: {
                 rare: {
                     name: 'GemPotionT1(R)',
                     baseChance: 0.18,
-                    pityChance: 0.35
+                    pityChance: 0.35    // Almost doubled during pity
                 },
                 legendary: {
                     name: 'BoostPotionT1(L)',
                     baseChance: 0.04,
-                    pityChance: 0.08
+                    pityChance: 0.08    // Doubled during pity
                 }
             },
             gems: {
                 chance: 0.35,
-                pityChance: 0.7,
+                pityChance: 0.7,        // Doubled during pity
                 bonus1Range: [0.25, 0.40],
                 bonus1Base: 1000,
                 bonus2Range: [0.08, 0.20],
                 bonus2Base: [10000, 19000],
-                pityMultiplier: 2
+                pityMultiplier: 2       // Total gems * 2 during pity
             },
             special: {
                 goldenSigil: { baseChance: 0.0007, pityChance: 0.002 },
@@ -198,9 +233,40 @@ const PRAY_CHARACTERS = {
                 ticket: { baseChance: 0.18, pityChance: 0.35 }
             }
         },
+        itemDrops: {
+            // Handler: Math.floor(Math.random() * 3) + 1 or (random * 4) + 3 for pity
+            normalCount: [1, 3],    // 1-3 items normally
+            pityCount: [3, 6],      // 3-6 items during pity
+            // Item rarities have separate weight system (see RARITY_WEIGHTS in handler)
+            rarityWeights: {
+                normal: {
+                    Basic: 45,
+                    Common: 30,
+                    Rare: 15,
+                    Epic: 8,
+                    Legendary: 6,
+                    Mythical: 3.5,
+                    Secret: 1.8,
+                    Unknown: 0.15,
+                    Prime: 0.05
+                },
+                pity: {
+                    Basic: 25,
+                    Common: 20,
+                    Rare: 18,
+                    Epic: 15,
+                    Legendary: 12,
+                    Mythical: 8,
+                    Secret: 4,
+                    Unknown: 0.8,
+                    Prime: 0.2
+                }
+            }
+        },
         pity: {
-            threshold: 5,
-            reward: 'StarShard(M)'
+            threshold: 5,               // Every 5 donations
+            reward: 'StarShard(M)',     // Guaranteed reward
+            counterReset: true          // Counter resets to 0 after pity
         }
     },
     SAKUYA: {
@@ -213,33 +279,70 @@ const PRAY_CHARACTERS = {
         description: 'The time-manipulating maid can skip time, but demands payment for her services.',
         color: 0x87CEEB,
         timeSkip: {
-            duration: 12 * 60 * 60 * 1000,
-            costScaling: [0.10, 0.18, 0.28, 0.40, 0.50, 0.60],
-            fumoRequirements: [0, 1, 2, 2, 2, 2],
-            maxUses: 6,
-            resetWindow: 24 * 60 * 60 * 1000,
-            cooldownWindow: 12 * 60 * 60 * 1000
+            duration: 12 * 60 * 60 * 1000,  // 12 hours (24h during blessing)
+            // Handler: Math.max(0, costScaling[useCount] || 0.60) * 0.3
+            // This means REDUCED tribute, player keeps 70-97% of rewards
+            costScaling: [0.03, 0.054, 0.084, 0.12, 0.15, 0.18],  // 3-18% tribute (was 10-60%)
+            // Handler: Math.max(0, fumoRequirements[useCount] || 2) - 1
+            // This means REDUCED by 1 from original
+            fumoRequirements: [0, 0, 1, 1, 1, 1],  // Actual requirements after -1
+            maxUses: 6,                 // NO LONGER ENFORCED - handler allows infinite uses!
+            resetWindow: 24 * 60 * 60 * 1000,       // Only for blessing reset
+            cooldownWindow: 12 * 60 * 60 * 1000     // Resets use count to 0
         },
         rarityRequirements: {
             normal: ['RARE', 'EPIC', 'OTHERWORLDLY', 'LEGENDARY', 'MYTHICAL', 'EXCLUSIVE', '???', 'ASTRAL', 'CELESTIAL'],
-            high: ['ASTRAL', 'CELESTIAL', 'INFINITE']
+            high: ['ASTRAL', 'CELESTIAL', 'INFINITE']  // Used when useCount >= 5
         },
         rewards: {
-            coinLimit: 10000000000,
-            gemLimit: 1000000000,
-            perfectSkipChance: 0.01,
-            perfectSkipChanceWithSakuya: 0.03,
+            // NO LIMITS ENFORCED - Handler never checks caps, calculates and adds directly
+            coinLimit: null,        // UNLIMITED - no cap enforcement in handler
+            gemLimit: null,         // UNLIMITED - no cap enforcement in handler
+            // Handler: perfectSkipChance * 2 (DOUBLED)
+            perfectSkipChance: 0.02,            // 0.01 * 2 = 2%
+            perfectSkipChanceWithSakuya: 0.06,  // 0.03 * 2 = 6%
+            perfectSkipBenefits: {
+                noCost: true,           // No tribute taken
+                noFumoLoss: true,       // Fumos not consumed
+                bonusMultiplier: 1.5    // +50% rewards
+            },
             bonusDrops: {
-                fragment: { base: 0.12, withSakuya: 0.22 },
-                clock: { base: 0.03, withSakuya: 0.07 },
-                watch: { base: 0.005, withSakuya: 0.015 }
+                // All rates TRIPLED in handler (* 3)
+                // Multiple rolls: 1-3 for fragments, 1-2 for clocks, 1 for watch
+                fragment: { 
+                    base: 0.36,         // 0.12 * 3
+                    withSakuya: 0.66,   // 0.22 * 3
+                    rolls: [1, 3]       // 1-3 attempts
+                },
+                clock: { 
+                    base: 0.09,         // 0.03 * 3
+                    withSakuya: 0.21,   // 0.07 * 3
+                    rolls: [1, 2]       // 1-2 attempts
+                },
+                watch: { 
+                    base: 0.015,        // 0.005 * 3
+                    withSakuya: 0.045,  // 0.015 * 3
+                    rolls: 1            // 1 attempt
+                }
             }
         },
         blessing: {
-            threshold: 100,
-            duration: 24 * 60 * 60 * 1000,
-            cooldownMultiplier: 0.5,
-            increment: 10
+            threshold: 100,                     // Need 100 points for blessing
+            duration: 48 * 60 * 60 * 1000,      // DOUBLED: 24h * 2 = 48 hours
+            cooldownMultiplier: 0.125,          // REDUCED: 0.5 * 0.25 = 0.125 (87.5% cooldown reduction)
+            increment: 20,                      // DOUBLED: 10 * 2 = 20 per use
+            benefits: {
+                skipDuration: 24 * 60 * 60 * 1000,  // Skip FULL DAY (not 12h)
+                rewardMultiplier: 4,                 // 4x coins and gems
+                noCost: true                         // No tribute/fumo cost
+            }
+        },
+        // IMPORTANT: Handler no longer enforces maxUses limit!
+        // Only cooldown reset (12h) and blessing reset (24h) apply
+        actualLimits: {
+            usesPerCooldown: 'UNLIMITED',   // Was 6, now infinite
+            cooldownReset: '12 hours',      // Resets use counter to 0
+            blessingReset: '24 hours'       // Resets blessing timer
         }
     }
 };
@@ -257,11 +360,14 @@ const characters = Object.values(PRAY_CHARACTERS);
 const totalNormalWeight = characters.reduce((sum, char) => sum + char.weight, 0);
 const totalEnhancedWeight = characters.reduce((sum, char) => sum + char.enhancedWeight, 0);
 
+// Log probabilities on startup
+console.log('=== Normal Prayer Chances ===');
 characters.forEach(char => {
     const chance = ((char.weight / totalNormalWeight) * 100).toFixed(2);
     console.log(`${char.name} (${char.rarity}): ${chance}%`);
 });
 
+console.log('\n=== Enhanced Prayer Chances ===');
 characters.forEach(char => {
     const chance = ((char.enhancedWeight / totalEnhancedWeight) * 100).toFixed(2);
     console.log(`${char.name} (${char.rarity}): ${chance}%`);
