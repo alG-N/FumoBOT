@@ -86,6 +86,20 @@ async function handleMarisa(userId, channel) {
         return;
     }
 
+    const donatedBefore = user.prayedToMarisa === 1;
+    const currentCount = user.marisaDonationCount || 0;
+    const isPityRound = (currentCount + 1) % config.pity.threshold === 0;
+
+    console.log(`[Marisa Debug] User ${userId}: prayedToMarisa=${user.prayedToMarisa}, donatedBefore=${donatedBefore}, count=${currentCount}`);
+
+    if (donatedBefore) {
+        await handleReturnPhase(userId, channel, user, config, isPityRound);
+    } else {
+        await handleDonationPhase(userId, channel, user, config);
+    }
+}
+
+async function handleDonationPhase(userId, channel, user, config) {
     if (user.coins < config.costs.donation) {
         await channel.send({
             embeds: [new EmbedBuilder()
@@ -97,39 +111,12 @@ async function handleMarisa(userId, channel) {
         return;
     }
 
-    const currentCount = user.marisaDonationCount || 0;
-    const isPityRound = (currentCount + 1) % config.pity.threshold === 0;
-    const donatedBefore = user.prayedToMarisa === 1;
-
-    if (!isPityRound && Math.random() < config.chances.steal) {
-        const extraStolenCoins = Math.floor((user.coins - config.costs.donation) * config.chances.stealMultiplier.coins);
-        const stolenGems = Math.floor((user.gems || 0) * config.chances.stealMultiplier.gems);
-
-        await deductUserCurrency(userId, config.costs.donation + extraStolenCoins, stolenGems);
-
-        await channel.send({
-            embeds: [new EmbedBuilder()
-                .setTitle('💀 Marisa\'s Trick 💀')
-                .setDescription(
-                    `Marisa cackled and vanished!\n` +
-                    `She stole your **15,000 coin donation**, an **extra ${formatNumber(extraStolenCoins)} coins**, and **${formatNumber(stolenGems)} gems**!`
-                )
-                .setColor('#8b0000')
-                .setTimestamp()]
-        });
-        return;
-    }
-
-    if (donatedBefore) {
-        await handleReturnPhase(userId, channel, user, config, isPityRound);
-    } else {
-        await handleDonationPhase(userId, channel, user, config);
-    }
-}
-
-async function handleDonationPhase(userId, channel, user, config) {
     await deductUserCurrency(userId, config.costs.donation, 0);
-    await updateMarisaData(userId, (user.marisaDonationCount || 0) + 1, 1); // ✅ FIX: Set prayedToMarisa = 1
+    
+    const newCount = (user.marisaDonationCount || 0) + 1;
+    await updateMarisaData(userId, newCount, 1); 
+
+    console.log(`[Marisa Debug] User ${userId} donated. New count: ${newCount}, prayedToMarisa set to 1`);
 
     await channel.send({
         embeds: [new EmbedBuilder()
@@ -142,7 +129,10 @@ async function handleDonationPhase(userId, channel, user, config) {
 
 async function handleReturnPhase(userId, channel, user, config, isPityRound) {
     await updateUserCoins(userId, config.costs.return, 0);
-    await updateMarisaData(userId, user.marisaDonationCount || 0, 0); // ✅ FIX: Reset prayedToMarisa to 0
+    
+    await updateMarisaData(userId, user.marisaDonationCount || 0, 0);
+
+    console.log(`[Marisa Debug] User ${userId} received rewards. prayedToMarisa reset to 0`);
 
     const rewards = [];
     let embedDescription = `You donated 15k coins. She returned with 35k coins for you!\n(Net profit: 20k)\n\n**Rewards:**\n`;
@@ -161,7 +151,7 @@ async function handleReturnPhase(userId, channel, user, config, isPityRound) {
 
     if (isPityRound) {
         await addToInventory(userId, config.pity.reward, 1);
-        await updateMarisaData(userId, 0, 0); // ✅ FIX: Reset both counter and status
+        await updateMarisaData(userId, 0, 0);
 
         await channel.send({
             embeds: [new EmbedBuilder()
