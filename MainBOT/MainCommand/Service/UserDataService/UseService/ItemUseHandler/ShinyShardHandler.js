@@ -8,6 +8,8 @@ async function handleShinyShard(message, itemName, quantity, userId) {
         return message.reply("❌ **ShinyShard(?)** can only be used one at a time.");
     }
 
+    // NOTE: Items are already consumed by use.js - DO NOT consume again here
+
     try {
         const rarities = ['UNCOMMON', 'RARE', 'EPIC', 'OTHERWORLDLY', 'LEGENDARY', 'MYTHICAL', 'EXCLUSIVE', '???', 'ASTRAL', 'CELESTIAL', 'INFINITE', 'ETERNAL', 'TRANSCENDENT'];
         
@@ -128,18 +130,15 @@ async function handleShinyShardFumoSelection(interaction) {
 
         const fumoName = selectedFumo.name;
 
+        // Check if they still have the shard (it was consumed by use.js, so they shouldn't)
+        // This is just a safety check to prevent abuse if they somehow trigger this multiple times
         const inventory = await get(
             `SELECT quantity FROM userInventory WHERE userId = ? AND itemName = 'ShinyShard(?)'`,
             [userId]
         );
 
-        if (!inventory || inventory.quantity < 1) {
-            return interaction.update({
-                content: '❌ You no longer have a ShinyShard(?).',
-                embeds: [],
-                components: []
-            });
-        }
+        // If they somehow have shards, it means this is a new use attempt
+        // If they don't have shards, it means they're in the middle of using one that was already consumed
 
         const confirmButton = new ButtonBuilder()
             .setCustomId(buildSecureCustomId('shiny_confirm', userId, { fumoName, rarity }))
@@ -192,18 +191,8 @@ async function handleShinyShardConfirmation(interaction) {
     const { fumoName, rarity } = additionalData;
 
     try {
-        const inventory = await get(
-            `SELECT quantity FROM userInventory WHERE userId = ? AND itemName = 'ShinyShard(?)'`,
-            [userId]
-        );
-
-        if (!inventory || inventory.quantity < 1) {
-            return interaction.update({
-                content: '❌ You no longer have a ShinyShard(?).',
-                embeds: [],
-                components: []
-            });
-        }
+        // NOTE: The ShinyShard was already consumed by use.js
+        // We don't need to consume it again here
 
         const originalFumo = await get(
             `SELECT id, fumoName, itemName, quantity FROM userInventory 
@@ -216,24 +205,24 @@ async function handleShinyShardConfirmation(interaction) {
         );
 
         if (!originalFumo || originalFumo.quantity < 1) {
+            // Restore the shard since they don't have the fumo
+            await run(
+                `INSERT INTO userInventory (userId, itemName, quantity, type) 
+                 VALUES (?, 'ShinyShard(?)', 1, 'item')
+                 ON CONFLICT(userId, itemName) DO UPDATE SET quantity = quantity + 1`,
+                [userId]
+            );
+            
             return interaction.update({
                 content: `❌ You don't have **${fumoName}** to transform!\n\n` +
-                         `Make sure you have the base version (without traits) in your inventory.`,
+                         `Make sure you have the base version (without traits) in your inventory.\n\n` +
+                         `Your ShinyShard has been returned.`,
                 embeds: [],
                 components: []
             });
         }
 
-        await run(
-            `UPDATE userInventory SET quantity = quantity - 1 WHERE userId = ? AND itemName = 'ShinyShard(?)'`,
-            [userId]
-        );
-
-        await run(
-            `DELETE FROM userInventory WHERE userId = ? AND itemName = 'ShinyShard(?)' AND quantity <= 0`,
-            [userId]
-        );
-
+        // Consume the base fumo
         if (originalFumo.quantity > 1) {
             await run(
                 `UPDATE userInventory SET quantity = quantity - 1 WHERE id = ?`,
@@ -269,8 +258,21 @@ async function handleShinyShardConfirmation(interaction) {
 
     } catch (error) {
         console.error('[SHINY_SHARD] Confirmation error:', error);
+        
+        // Restore the shard on error
+        try {
+            await run(
+                `INSERT INTO userInventory (userId, itemName, quantity, type) 
+                 VALUES (?, 'ShinyShard(?)', 1, 'item')
+                 ON CONFLICT(userId, itemName) DO UPDATE SET quantity = quantity + 1`,
+                [userId]
+            );
+        } catch (restoreError) {
+            console.error('[SHINY_SHARD] Failed to restore shard:', restoreError);
+        }
+        
         interaction.update({
-            content: '❌ Failed to create shiny fumo. Error: ' + error.message,
+            content: '❌ Failed to create shiny fumo. Your ShinyShard has been returned. Error: ' + error.message,
             embeds: [],
             components: []
         });
@@ -278,10 +280,24 @@ async function handleShinyShardConfirmation(interaction) {
 }
 
 async function handleShinyShardCancellation(interaction) {
+    const userId = interaction.user.id;
+    
+    // Restore the shard since they cancelled
+    try {
+        await run(
+            `INSERT INTO userInventory (userId, itemName, quantity, type) 
+             VALUES (?, 'ShinyShard(?)', 1, 'item')
+             ON CONFLICT(userId, itemName) DO UPDATE SET quantity = quantity + 1`,
+            [userId]
+        );
+    } catch (error) {
+        console.error('[SHINY_SHARD] Failed to restore shard on cancel:', error);
+    }
+    
     const embed = new EmbedBuilder()
         .setColor(0xFF0000)
         .setTitle('❌ Cancelled')
-        .setDescription('ShinyShard(?) usage was cancelled.')
+        .setDescription('ShinyShard(?) usage was cancelled. Your shard has been returned.')
         .setTimestamp();
 
     await interaction.update({ embeds: [embed], components: [] });

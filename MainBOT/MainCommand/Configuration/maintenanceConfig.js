@@ -1,4 +1,4 @@
 module.exports = {
-    maintenance: "no", 
+    maintenance: "yes", 
     developerID: "1128296349566251068" 
 };

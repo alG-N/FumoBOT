@@ -22,13 +22,12 @@ let cleanupInterval = null;
 let guaranteeCheckInterval = null;
 let lastWeatherEventTime = Date.now();
 
-const GUARANTEED_WEATHER_INTERVAL = 3 * 60 * 60 * 1000; // 3 hours
+const GUARANTEED_WEATHER_INTERVAL = 3 * 60 * 60 * 1000;
 
 async function initializeSeasonSystem(client) {
     try {
         await cleanExpiredSeasons();
         
-        // Always start weekend season if applicable
         if (isWeekend()) {
             const active = await getActiveSeasonTypes();
             if (!active.includes('WEEKEND')) {
@@ -37,21 +36,19 @@ async function initializeSeasonSystem(client) {
             }
         }
         
-        // Start individual weather check intervals
         for (const weather of WEATHER_EVENTS) {
             startWeatherCheckInterval(weather, client);
         }
         
-        // Start cleanup interval
         cleanupInterval = setInterval(async () => {
             const cleaned = await cleanExpiredSeasons();
             if (cleaned > 0) {
                 debugLog('SEASONS', `Auto-cleanup: removed ${cleaned} expired seasons`);
             }
-        }, 300000); // 5 minutes
+        }, 300000);
         
-        // Start guaranteed weather check
         startGuaranteedWeatherCheck(client);
+        startWeekendMonitor(client);
         
         console.log('✅ Season system initialized with buffed weather rates');
         await logToDiscord(
@@ -75,6 +72,24 @@ async function initializeSeasonSystem(client) {
     }
 }
 
+function startWeekendMonitor(client) {
+    setInterval(async () => {
+        const activeSeasons = await getActiveSeasonTypes();
+        const isCurrentlyWeekend = isWeekend();
+        const hasWeekendActive = activeSeasons.includes('WEEKEND');
+        
+        if (!isCurrentlyWeekend && hasWeekendActive) {
+            await endSeason('WEEKEND');
+            console.log('🎊 Weekend season ended (no longer weekend)');
+            await logToDiscord(client, '🎊 Weekend season ended', null, LogLevel.INFO);
+        } else if (isCurrentlyWeekend && !hasWeekendActive) {
+            await startSeason('WEEKEND', null);
+            console.log('🎊 Weekend season started');
+            await logToDiscord(client, '🎊 Weekend season started', null, LogLevel.INFO);
+        }
+    }, 3600000); 
+}
+
 function startWeatherCheckInterval(weatherType, client) {
     const interval = getWeatherCheckInterval(weatherType);
     
@@ -84,7 +99,6 @@ function startWeatherCheckInterval(weatherType, client) {
                 const duration = getWeatherDuration(weatherType);
                 await startSeason(weatherType, duration);
                 
-                // Update last weather event time
                 lastWeatherEventTime = Date.now();
                 
                 const description = getSeasonDescription(weatherType);
@@ -107,36 +121,30 @@ function startWeatherCheckInterval(weatherType, client) {
 }
 
 function startGuaranteedWeatherCheck(client) {
-    // Check every 10 minutes if we need to guarantee a weather event
     guaranteeCheckInterval = setInterval(async () => {
         try {
             const timeSinceLastWeather = Date.now() - lastWeatherEventTime;
             
-            // If it's been 3 hours without weather, force a random event
             if (timeSinceLastWeather >= GUARANTEED_WEATHER_INTERVAL) {
                 const activeSeasons = await getActiveSeasonTypes();
                 
-                // Don't count WEEKEND as a weather event
                 const activeWeather = activeSeasons.filter(s => s !== 'WEEKEND');
                 
-                // Only guarantee if no weather is currently active
                 if (activeWeather.length === 0) {
                     await triggerGuaranteedWeather(client);
                 } else {
-                    // Reset timer if weather is active
                     lastWeatherEventTime = Date.now();
                 }
             }
         } catch (error) {
             console.error('Error in guaranteed weather check:', error);
         }
-    }, 600000); // Check every 10 minutes
+    }, 600000);
     
     debugLog('SEASONS', 'Started guaranteed weather check (every 10 min)');
 }
 
 async function triggerGuaranteedWeather(client) {
-    // Pick a random positive weather event (avoid negative ones)
     const positiveWeather = [
         'FESTIVAL_HARVEST',
         'DAWN_DAYLIGHT',
@@ -169,20 +177,17 @@ async function triggerGuaranteedWeather(client) {
 }
 
 function stopAllWeatherIntervals() {
-    // Stop individual weather checks
     for (const [weather, intervalId] of weatherCheckIntervals.entries()) {
         clearInterval(intervalId);
         debugLog('SEASONS', `Stopped weather interval: ${weather}`);
     }
     weatherCheckIntervals.clear();
     
-    // Stop cleanup interval
     if (cleanupInterval) {
         clearInterval(cleanupInterval);
         cleanupInterval = null;
     }
     
-    // Stop guarantee check
     if (guaranteeCheckInterval) {
         clearInterval(guaranteeCheckInterval);
         guaranteeCheckInterval = null;
@@ -214,7 +219,6 @@ async function forceWeatherEvent(weatherType, duration = null, client = null) {
     const finalDuration = duration || getWeatherDuration(weatherType);
     await startSeason(weatherType, finalDuration);
     
-    // Update last weather event time
     if (weatherType !== 'WEEKEND') {
         lastWeatherEventTime = Date.now();
     }

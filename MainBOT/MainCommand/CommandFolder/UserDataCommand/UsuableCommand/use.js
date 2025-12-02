@@ -73,31 +73,59 @@ async function handleUseCommand(message, args) {
         return message.reply(error);
     }
 
+    console.log(`[USE_COMMAND] User ${message.author.id} attempting to use: ${itemName} x${quantity}`);
+
+    // Check if item is in the unusable materials list
     if (UNUSABLE_ITEMS.has(itemName)) {
+        console.log(`[USE_COMMAND] Item ${itemName} is in UNUSABLE_ITEMS list`);
         return message.reply(`❌ **${itemName}** is a material/crafting item and cannot be used directly.`);
     }
 
+    // Check if item has a handler
     if (!ItemHandlers.isUsableItem(itemName)) {
+        console.log(`[USE_COMMAND] No handler found for ${itemName}`);
         return message.reply(`❌ **${itemName}** cannot be used or has no implemented handler.`);
     }
 
+    console.log(`[USE_COMMAND] Handler found for ${itemName}, proceeding...`);
+
     try {
+        // Get user inventory
         const inventory = await getUserInventory(message.author.id, itemName);
+        console.log(`[USE_COMMAND] Inventory check: ${JSON.stringify(inventory)}`);
+        
+        // Validate they have enough items
         const validation = validateItemUse(inventory, itemName, quantity);
         if (!validation.valid) {
+            console.log(`[USE_COMMAND] Validation failed: ${validation.message}`);
             return message.reply(validation.message);
         }
+
+        // Update inventory (consume items) - DO THIS FIRST
         await updateInventory(message.author.id, itemName, quantity);
+        console.log(`[USE_COMMAND] Inventory updated, items consumed`);
+
+        // Execute item handler - handlers should NOT consume items again
+        console.log(`[USE_COMMAND] Executing handler for ${itemName}`);
         await ItemHandlers.handleItem(message, itemName, quantity);
+        console.log(`[USE_COMMAND] Handler execution completed successfully`);
 
     } catch (error) {
         console.error('[USE_COMMAND] Error processing item use:', error);
+        console.error('[USE_COMMAND] Error stack:', error.stack);
+        
+        // Try to restore items if something went wrong
         try {
-            await getUserInventory(message.author.id, itemName).then(inv => {
-                if (inv) {
-                    return updateInventory(message.author.id, itemName, -quantity);
-                }
-            });
+            const inv = await getUserInventory(message.author.id, itemName);
+            if (inv !== null) {
+                // Restore the consumed items
+                const { run } = require('../../../Core/database');
+                await run(
+                    `UPDATE userInventory SET quantity = quantity + ? WHERE userId = ? AND itemName = ?`,
+                    [quantity, message.author.id, itemName]
+                );
+                console.log(`[USE_COMMAND] Items restored after error`);
+            }
         } catch (restoreError) {
             console.error('[USE_COMMAND] Failed to restore items:', restoreError);
         }
@@ -105,7 +133,7 @@ async function handleUseCommand(message, args) {
         return sendErrorEmbed(
             message,
             '❌ Error Processing Item',
-            `Failed to use **${itemName}**. Your items have been returned.\n\nIf this persists, contact support.`
+            `Failed to use **${itemName}**. Your items have been returned.\n\n**Error:** ${error.message}\n\nIf this persists, contact support.`
         );
     }
 }
@@ -116,11 +144,13 @@ module.exports = (client) => {
         try {
             if (message.author.bot) return;
             if (!message.content.match(/^\.u(se)?(\s|$)/i)) return;
+            
             const args = message.content.split(/ +/).slice(1);
             await handleUseCommand(message, args);
 
         } catch (error) {
             console.error('[USE_COMMAND] Unexpected error:', error);
+            console.error('[USE_COMMAND] Unexpected error stack:', error.stack);
             message.reply('❌ An unexpected error occurred while processing your command.').catch(() => {});
         }
     });

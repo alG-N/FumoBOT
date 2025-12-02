@@ -6,12 +6,31 @@ const { sendErrorEmbed } = require('./UseUIService');
 const ItemHandlers = require('./ItemUseHandler/SpecialItemHandler');
 
 const UNUSABLE_ITEMS = new Set([
-    'UniqueRock(C)', 'Books(C)', 'Wool(C)', 'Wood(C)', 'Dice(C)',
+    'Stone(B)',
+    'Stick(B)',
+    'UniqueRock(C)',
+    'Books(C)',
+    'Wool(C)',
+    'Wood(C)',
+    'Dice(C)',
     'FragmentOf1800s(R)',
-    'EnhancedScroll(E)', 'RustedCore(E)',
-    'RedShard(L)', 'BlueShard(L)', 'YellowShard(L)', 'WhiteShard(L)', 'DarkShard(L)',
-    'ChromaShard(M)', 'MonoShard(M)', 'EquinoxAlloy(M)', 'StarShard(M)',
-    'Undefined(?)', 'Null?(?)',
+    'EnhancedScroll(E)',
+    'RustedCore(E)',
+    'RedShard(L)',
+    'BlueShard(L)',
+    'YellowShard(L)',
+    'WhiteShard(L)',
+    'DarkShard(L)',
+    'ChromaShard(M)',
+    'MonoShard(M)',
+    'EquinoxAlloy(M)',
+    'StarShard(M)',
+    'Undefined(?)',
+    'Null?(?)',
+    'VoidFragment(?)',
+    'ObsidianRelic(Un)',
+    'ChaosEssence(Un)',
+    'AbyssalShard(Un)'
 ]);
 
 async function handleUseCommand(message, args) {
