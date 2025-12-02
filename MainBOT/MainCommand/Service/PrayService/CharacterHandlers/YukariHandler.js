@@ -29,8 +29,8 @@ async function handleYukari(userId, channel) {
     }
 
     const mark = ((user.yukariMark || 0) % 10) + 1;
-    const minRequired = config.requirements.minFumos[mark] || 1000;
-    const maxAllowed = config.requirements.maxFumos[mark] || 1500;
+    const minRequired = Math.floor((config.requirements.minFumos[mark] || 1000) * 0.5);
+    const maxAllowed = Math.floor((config.requirements.maxFumos[mark] || 1500) * 0.6);
 
     const rows = await getUserInventory(userId);
     
@@ -48,7 +48,7 @@ async function handleYukari(userId, channel) {
         return;
     }
 
-    if (Math.random() < config.rewards.scamChance) {
+    if (Math.random() < config.rewards.scamChance * 0.3) {
         await channel.send({
             embeds: [new EmbedBuilder()
                 .setTitle('😈 Yukari\'s Prank 😈')
@@ -61,14 +61,14 @@ async function handleYukari(userId, channel) {
     }
 
     const selectedFumos = selectFumosForTrade(groups, Math.min(totalFumos, maxAllowed), config);
-    const rewardMultiplier = config.rewards.multipliers[mark] || 1;
+    const rewardMultiplier = (config.rewards.multipliers[mark] || 1) * 1.8;
     
-    let coinsEarned = Math.floor(selectedFumos.totalValue * rewardMultiplier * 2);
-    let gemsEarned = Math.floor(coinsEarned / 50);
+    let coinsEarned = Math.floor(selectedFumos.totalValue * rewardMultiplier * 2.5);
+    let gemsEarned = Math.floor(coinsEarned / 40);
 
-    if (Math.random() < config.rewards.bonusChance) {
-        coinsEarned = Math.floor(coinsEarned * config.rewards.bonusMultiplier.coins);
-        gemsEarned = Math.floor(gemsEarned * config.rewards.bonusMultiplier.gems);
+    if (Math.random() < config.rewards.bonusChance * 1.5) {
+        coinsEarned = Math.floor(coinsEarned * config.rewards.bonusMultiplier.coins * 1.3);
+        gemsEarned = Math.floor(gemsEarned * config.rewards.bonusMultiplier.gems * 1.3);
     }
 
     for (const fumo of selectedFumos.fumos) {
@@ -77,22 +77,22 @@ async function handleYukari(userId, channel) {
 
     await updateYukariData(userId, coinsEarned, gemsEarned, mark);
 
-    if (Math.random() < config.rewards.fumoTokenChance * 3) {
-        const tokens = Math.floor(Math.random() * 3) + 1;
+    if (Math.random() < config.rewards.fumoTokenChance * 5) {
+        const tokens = Math.floor(Math.random() * 5) + 2;
         await addSpiritTokens(userId, tokens);
     }
 
     const guaranteedShards = GUARANTEED_SHARDS[mark] || [];
     for (const shard of guaranteedShards) {
-        const quantity = mark >= 7 ? Math.floor(Math.random() * 3) + 2 : Math.floor(Math.random() * 2) + 1;
+        const quantity = mark >= 7 ? Math.floor(Math.random() * 6) + 4 : Math.floor(Math.random() * 4) + 3;
         await addToInventory(userId, shard, quantity);
     }
 
     const bonusItem = await rollBonusItem(userId, mark, config);
 
     const nextMark = mark === 10 ? 1 : mark + 1;
-    const nextMin = config.requirements.minFumos[nextMark] || 1000;
-    const nextMax = config.requirements.maxFumos[nextMark] || 1500;
+    const nextMin = Math.floor((config.requirements.minFumos[nextMark] || 1000) * 0.5);
+    const nextMax = Math.floor((config.requirements.maxFumos[nextMark] || 1500) * 0.6);
 
     const shardText = guaranteedShards.length > 0 
         ? `\n🔮 Guaranteed Shards: ${guaranteedShards.map(s => `**${s}**`).join(', ')}`
@@ -185,9 +185,9 @@ async function rollBonusItem(userId, mark, config) {
     let cumulative = 0;
 
     for (const [itemName, chance] of Object.entries(bonusConfig)) {
-        cumulative += chance * 2;
+        cumulative += chance * 3;
         if (roll < cumulative) {
-            const quantity = mark >= 7 ? Math.floor(Math.random() * 3) + 1 : 1;
+            const quantity = mark >= 7 ? Math.floor(Math.random() * 5) + 2 : Math.floor(Math.random() * 3) + 1;
             await addToInventory(userId, itemName, quantity);
             return `${itemName} x${quantity}`;
         }
