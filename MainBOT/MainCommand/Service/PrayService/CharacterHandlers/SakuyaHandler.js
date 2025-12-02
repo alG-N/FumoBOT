@@ -184,7 +184,7 @@ async function handleSakuya(userId, channel) {
         });
 
         // Apply building multipliers
-        const { getBuildingLevels } = require('../BuildingService/BuildingDatabaseService');
+        const { getBuildingLevels } = require('../../FarmingService/BuildingService/BuildingDatabaseService');
         const { calculateBuildingMultiplier, calculateEventAmplification } = require('../../../Configuration/buildingConfig');
         const buildingLevels = await getBuildingLevels(userId);
         
@@ -192,7 +192,7 @@ async function handleSakuya(userId, channel) {
         const gemBuildingBoost = calculateBuildingMultiplier('GEM_BOOST', buildingLevels.GEM_BOOST);
         
         // Apply weather/seasonal multipliers
-        const { getCurrentMultipliers } = require('../SeasonService/SeasonManagerService');
+        const { getCurrentMultipliers } = require('../../FarmingService/SeasonService/SeasonManagerService');
         let { coinMultiplier: seasonCoinMult, gemMultiplier: seasonGemMult } = await getCurrentMultipliers();
         
         // Apply event amplification from buildings

@@ -10,31 +10,63 @@ function isDoubleLuckDay() {
     return day === 5 || day === 6 || day === 0;
 }
 
+// ??? guaranteed every 6 hours (0, 6, 12, 18)
 function isGuaranteedMysteryBlock() {
     const hour = new Date().getUTCHours();
     return hour % 6 === 0;
 }
 
-function assignStock(rarity, forceMystery = false) {
-    if (rarity === '???' && forceMystery) {
+// Unknown guaranteed once per day at midnight UTC
+function isGuaranteedUnknownBlock() {
+    const hour = new Date().getUTCHours();
+    return hour === 0;
+}
+
+// Prime guaranteed every 3 days at midnight UTC
+function isGuaranteedPrimeBlock() {
+    const now = new Date();
+    const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
+    const hour = now.getUTCHours();
+    return (dayOfYear % 3 === 0) && hour === 0;
+}
+
+function assignStock(rarity, forceMystery = false, forceUnknown = false, forcePrime = false) {
+    // CRITICAL: Force stock for guaranteed items
+    if (forceMystery && rarity === '???') {
         return { 
             stock: getRandomInt(...STOCK_RANGES.MYSTERY), 
-            message: 'On-Stock' 
+            message: '🎁 GUARANTEED Stock!' 
         };
     }
 
+    if (forceUnknown && rarity === 'Unknown') {
+        return {
+            stock: getRandomInt(...STOCK_RANGES.ULTRA_RARE),
+            message: '🌀 GUARANTEED Ultra Rare!'
+        };
+    }
+
+    if (forcePrime && rarity === 'Prime') {
+        return {
+            stock: getRandomInt(...STOCK_RANGES.ULTRA_RARE),
+            message: '👑 GUARANTEED PRIME!'
+        };
+    }
+
+    // Ultra-rare handling (Unknown/Prime without guarantee)
     if (rarity === 'Unknown' || rarity === 'Prime') {
         const rand = Math.random();
         
+        // 0.1% chance for lucky stock
         if (rand <= 0.001) {
             return {
                 stock: getRandomInt(...STOCK_RANGES.ULTRA_RARE_LUCKY),
-                message: 'MIRACULOUS Stock!'
+                message: '⭐ MIRACULOUS Stock!'
             };
         }
         
-        const stockRand = Math.random();
-        if (stockRand <= 0.15) { 
+        // 5% chance for normal stock (was 15%, made MUCH rarer)
+        if (rand <= 0.05) {
             return {
                 stock: getRandomInt(...STOCK_RANGES.ULTRA_RARE),
                 message: 'Ultra Rare Stock'
@@ -44,6 +76,22 @@ function assignStock(rarity, forceMystery = false) {
         return { stock: 0, message: 'Out of Stock' };
     }
 
+    // ??? handling without guarantee
+    if (rarity === '???') {
+        const rand = Math.random();
+        
+        // 2% chance for stock (was higher in threshold)
+        if (rand <= 0.02) {
+            return {
+                stock: getRandomInt(...STOCK_RANGES.MYSTERY),
+                message: 'Mysterious Stock'
+            };
+        }
+        
+        return { stock: 0, message: 'Out of Stock' };
+    }
+
+    // Standard rarity handling
     const thresholds = RARITY_THRESHOLDS[rarity] || [];
     if (thresholds.length === 0) {
         return { stock: 0, message: 'Out of Stock' };
@@ -91,9 +139,9 @@ function randomizePrice(basePrice) {
     return { cost, priceTag };
 }
 
-function createItem(basePrice, currency, rarity, forceMystery = false) {
+function createItem(basePrice, currency, rarity, forceMystery = false, forceUnknown = false, forcePrime = false) {
     const { cost, priceTag } = randomizePrice(basePrice);
-    const stockData = assignStock(rarity, forceMystery);
+    const stockData = assignStock(rarity, forceMystery, forceUnknown, forcePrime);
     
     return {
         cost,
@@ -106,18 +154,48 @@ function createItem(basePrice, currency, rarity, forceMystery = false) {
 
 function generateUserShop() {
     const shop = {};
-    let guaranteedMysteryGiven = false;
+    
+    // Check guarantees
     const guaranteeMystery = isGuaranteedMysteryBlock();
+    const guaranteeUnknown = isGuaranteedUnknownBlock();
+    const guaranteePrime = isGuaranteedPrimeBlock();
+    
+    let mysteryGiven = false;
+    let unknownGiven = false;
+    let primeGiven = false;
+
+    debugLog('SHOP', `Generating shop - Mystery: ${guaranteeMystery}, Unknown: ${guaranteeUnknown}, Prime: ${guaranteePrime}`);
 
     const shuffledItems = [...ITEM_DEFINITIONS].sort(() => Math.random() - 0.5);
 
     for (const def of shuffledItems) {
-        const forceMystery = def.rarity === '???' && guaranteeMystery && !guaranteedMysteryGiven;
-        if (forceMystery) guaranteedMysteryGiven = true;
+        let forceMystery = false;
+        let forceUnknown = false;
+        let forcePrime = false;
 
-        shop[def.name] = createItem(def.basePrice, def.currency, def.rarity, forceMystery);
+        // Apply guarantees
+        if (def.rarity === '???' && guaranteeMystery && !mysteryGiven) {
+            forceMystery = true;
+            mysteryGiven = true;
+            debugLog('SHOP', `Guaranteed ??? item: ${def.name}`);
+        }
+
+        if (def.rarity === 'Unknown' && guaranteeUnknown && !unknownGiven) {
+            forceUnknown = true;
+            unknownGiven = true;
+            debugLog('SHOP', `Guaranteed Unknown item: ${def.name}`);
+        }
+
+        if (def.rarity === 'Prime' && guaranteePrime && !primeGiven) {
+            forcePrime = true;
+            primeGiven = true;
+            debugLog('SHOP', `Guaranteed Prime item: ${def.name}`);
+        }
+
+        shop[def.name] = createItem(def.basePrice, def.currency, def.rarity, forceMystery, forceUnknown, forcePrime);
     }
 
+    // Ensure minimum stock items
     const itemsWithStock = Object.values(shop).filter(item => item.stock > 0 || item.stock === 'unlimited');
     
     if (itemsWithStock.length < 3) {
@@ -125,6 +203,8 @@ function generateUserShop() {
         
         const itemsWithoutStock = Object.keys(shop).filter(key => {
             const item = shop[key];
+            // Don't force stock on ultra-rares unless it's their guarantee time
+            if (item.rarity === 'Unknown' || item.rarity === 'Prime') return false;
             return item.stock === 0;
         });
 
@@ -145,7 +225,7 @@ function generateUserShop() {
         }
     }
 
-    debugLog('SHOP', `Generated shop with ${Object.keys(shop).length} items`);
+    debugLog('SHOP', `Generated shop with ${Object.keys(shop).length} items, ${itemsWithStock.length} in stock`);
     return shop;
 }
 
@@ -153,5 +233,7 @@ module.exports = {
     generateUserShop,
     isDoubleLuckDay,
     isGuaranteedMysteryBlock,
+    isGuaranteedUnknownBlock,
+    isGuaranteedPrimeBlock,
     getRandomInt
 };
