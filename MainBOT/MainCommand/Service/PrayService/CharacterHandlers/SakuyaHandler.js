@@ -1,7 +1,7 @@
 const { EmbedBuilder } = require('discord.js');
 const { PRAY_CHARACTERS } = require('../../../Configuration/prayConfig');
 const { formatNumber } = require('../../../Ultility/formatting');
-const { getStatsByRarity } = require('../../../Ultility/characterStats');
+const { getRarityFromFumoName } = require('../../../Ultility/characterStats');
 const {
     getUserData,
     getSakuyaUsage,
@@ -126,8 +126,38 @@ async function handleSakuya(userId, channel) {
         let farmingCoins = 0;
         let farmingGems = 0;
 
+        // Calculate farming rewards with proper trait multipliers
         for (const fumo of farming) {
-            const { coinsPerMin, gemsPerMin } = getStatsByRarity(fumo.fumoName);
+            const rarity = getRarityFromFumoName(fumo.fumoName);
+            
+            const statMap = {
+                Common: [25, 5],
+                UNCOMMON: [55, 15],
+                RARE: [120, 35],
+                EPIC: [250, 75],
+                OTHERWORLDLY: [550, 165],
+                LEGENDARY: [1200, 360],
+                MYTHICAL: [2500, 750],
+                EXCLUSIVE: [5500, 1650],
+                '???': [12000, 3600],
+                ASTRAL: [25000, 7500],
+                CELESTIAL: [50000, 15000],
+                INFINITE: [85000, 25500],
+                ETERNAL: [125000, 37500],
+                TRANSCENDENT: [375000, 57500]
+            };
+
+            let [coinsPerMin, gemsPerMin] = statMap[rarity] || [0, 0];
+            
+            // Apply trait multipliers
+            if (fumo.fumoName.includes('[🌟alG]')) {
+                coinsPerMin *= 100;
+                gemsPerMin *= 100;
+            } else if (fumo.fumoName.includes('[✨SHINY]')) {
+                coinsPerMin *= 2;
+                gemsPerMin *= 2;
+            }
+            
             const qty = fumo.quantity || 1;
             farmingCoins += coinsPerMin * twelveHours * qty;
             farmingGems += gemsPerMin * twelveHours * qty;
@@ -138,17 +168,40 @@ async function handleSakuya(userId, channel) {
         let totalCoins = farmingCoins + baseCoins;
         let totalGems = farmingGems + baseGems;
 
+        // Apply personal boosts (potions, etc.)
         const coinBoosts = await getActiveBoosts(userId, now);
-        const coinMult = coinBoosts
-            .filter(b => ['coin', 'income'].includes(b.type.toLowerCase()))
-            .reduce((acc, b) => acc * b.multiplier, 1);
+        let coinMult = 1;
+        let gemMult = 1;
         
-        const gemMult = coinBoosts
-            .filter(b => ['gem', 'gems', 'income'].includes(b.type.toLowerCase()))
-            .reduce((acc, b) => acc * b.multiplier, 1);
+        coinBoosts.forEach(b => {
+            const type = b.type.toLowerCase();
+            if (['coin', 'income'].includes(type)) {
+                coinMult *= b.multiplier;
+            }
+            if (['gem', 'gems', 'income'].includes(type)) {
+                gemMult *= b.multiplier;
+            }
+        });
 
-        totalCoins = Math.floor(totalCoins * coinMult);
-        totalGems = Math.floor(totalGems * gemMult);
+        // Apply building multipliers
+        const { getBuildingLevels } = require('../BuildingService/BuildingDatabaseService');
+        const { calculateBuildingMultiplier, calculateEventAmplification } = require('../../../Configuration/buildingConfig');
+        const buildingLevels = await getBuildingLevels(userId);
+        
+        const coinBuildingBoost = calculateBuildingMultiplier('COIN_BOOST', buildingLevels.COIN_BOOST);
+        const gemBuildingBoost = calculateBuildingMultiplier('GEM_BOOST', buildingLevels.GEM_BOOST);
+        
+        // Apply weather/seasonal multipliers
+        const { getCurrentMultipliers } = require('../SeasonService/SeasonManagerService');
+        let { coinMultiplier: seasonCoinMult, gemMultiplier: seasonGemMult } = await getCurrentMultipliers();
+        
+        // Apply event amplification from buildings
+        seasonCoinMult = calculateEventAmplification(buildingLevels.EVENT_BOOST, seasonCoinMult);
+        seasonGemMult = calculateEventAmplification(buildingLevels.EVENT_BOOST, seasonGemMult);
+
+        // Calculate final amounts with all multipliers
+        totalCoins = Math.floor(totalCoins * coinMult * coinBuildingBoost * seasonCoinMult);
+        totalGems = Math.floor(totalGems * gemMult * gemBuildingBoost * seasonGemMult);
 
         timeBlessing += blessing.increment * 2;
 
