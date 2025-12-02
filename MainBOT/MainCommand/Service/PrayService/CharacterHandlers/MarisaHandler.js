@@ -116,8 +116,6 @@ async function handleDonationPhase(userId, channel, user, config) {
     const newCount = (user.marisaDonationCount || 0) + 1;
     await updateMarisaData(userId, newCount, 1); 
 
-    console.log(`[Marisa Debug] User ${userId} donated. New count: ${newCount}, prayedToMarisa set to 1`);
-
     await channel.send({
         embeds: [new EmbedBuilder()
             .setTitle('🧪 Donation Received 🧪')
