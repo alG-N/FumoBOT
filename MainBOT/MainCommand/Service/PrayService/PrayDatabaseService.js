@@ -164,10 +164,13 @@ async function updateReimuData(userId, updates) {
     );
 }
 
-async function updateMarisaData(userId, donationCount) {
+async function updateMarisaData(userId, donationCount, prayedStatus) {
     await run(
-        `UPDATE userCoins SET marisaDonationCount = ? WHERE userId = ?`,
-        [donationCount, userId]
+        `UPDATE userCoins 
+         SET marisaDonationCount = ?, 
+             prayedToMarisa = ? 
+         WHERE userId = ?`,
+        [donationCount, prayedStatus, userId]
     );
 }
 
