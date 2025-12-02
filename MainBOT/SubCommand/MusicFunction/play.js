@@ -16,8 +16,8 @@ const {
     AudioPlayerStatus,
 } = require("@discordjs/voice");
 const youtubedl = require("youtube-dl-exec");
-const ytSearch = require("yt-search"); 
-const ytsr = require("ytsr"); 
+const ytSearch = require("yt-search");
+const ytsr = require("ytsr");
 const queues = new Map();
 const INACTIVITY_TIMEOUT = 2 * 60 * 1000;
 
@@ -446,7 +446,7 @@ function rankSearchResults(results, query) {
 
         const wordsInTitle = queryWords.filter(word => title.includes(word)).length;
         const wordMatchRatio = queryWords.length > 0 ? wordsInTitle / queryWords.length : 0;
-        score += wordMatchRatio * 2000; 
+        score += wordMatchRatio * 2000;
 
         if (title.includes(queryLower)) {
             score += 500;
@@ -505,27 +505,27 @@ function rankSearchResults(results, query) {
         spamKeywords.forEach(keyword => {
             if (title.includes(keyword)) spamCount++;
         });
-        score -= spamCount * 1500; 
+        score -= spamCount * 1500;
 
         if (/\d+/.test(title) && (title.includes('top') || title.includes('best') ||
             title.includes('greatest') || title.includes('most'))) {
-            score -= 2000; 
+            score -= 2000;
         }
 
         if (durationSeconds > 600) {
             score -= 1000;
         } else if (durationSeconds > 480) {
-            score -= 300; 
+            score -= 300;
         }
 
         if (durationSeconds > 0 && durationSeconds < 60) {
             score -= 500;
         } else if (durationSeconds < 90) {
-            score -= 100; 
+            score -= 100;
         }
 
         if (!isOfficial && views > 100000 && durationSeconds >= 180 && durationSeconds <= 360) {
-            score += 200; 
+            score += 200;
         }
 
         return { ...result, _searchScore: score };
@@ -543,22 +543,25 @@ function parseDuration(durationStr) {
     if (!durationStr) return 0;
 
     const parts = durationStr.toString().split(':').map(Number);
-    if (parts.length === 2) return parts[0] * 60 + parts[1]; 
-    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]; 
+    if (parts.length === 2) return parts[0] * 60 + parts[1];
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
     return 0;
 }
 
 async function playNext(interaction, guildId) {
     const q = getOrCreateQueue(guildId);
 
+    // Kill any lingering process
     if (q.currentYtdlpProcess) {
         try {
             q.currentYtdlpProcess.kill('SIGKILL');
         } catch (e) {
+            console.error('[playNext] Error killing process:', e.message);
         }
         q.currentYtdlpProcess = null;
     }
 
+    // Don't start new track if one is already playing
     if (q.current || q.player.state.status === AudioPlayerStatus.Playing) {
         return;
     }
@@ -577,49 +580,72 @@ async function playNext(interaction, guildId) {
     try {
         if (/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/.test(t.url)) {
             console.log(`[playNext] Trying direct stream for: ${t.title}`);
+            
+            // Capture stderr to see the actual error
+            let stderrData = '';
+            
             const ytdlpProc = youtubedl.exec(t.url, {
                 output: '-',
-                format: 'bestaudio[ext=webm]/bestaudio/best',
-                quiet: true,
-                limitRate: '10M',
-            }, { stdio: ['ignore', 'pipe', 'pipe'] });
+                format: 'bestaudio/best',
+                noCheckCertificates: true,
+                preferFreeFormats: true,
+                addHeader: [
+                    'referer:youtube.com',
+                    'user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                ],
+            }, { 
+                stdio: ['ignore', 'pipe', 'pipe'],
+                windowsHide: true
+            });
 
             q.currentYtdlpProcess = ytdlpProc;
+            
+            // Capture stderr
+            ytdlpProc.stderr.on('data', (data) => {
+                stderrData += data.toString();
+                console.error('[playNext] yt-dlp stderr:', data.toString().trim());
+            });
 
             resource = createAudioResource(ytdlpProc.stdout, {
                 inputType: StreamType.Arbitrary,
                 inlineVolume: true,
             });
 
+            // Set volume after creating resource
+            if (resource.volume) {
+                resource.volume.setVolume(q.volume);
+            }
+
             used = "direct-stream";
-            console.log("[playNext] Using resource from:", used);
+            console.log("[playNext] Resource created successfully");
 
             ytdlpProc.catch((err) => {
                 if (err.signal === 'SIGKILL' || err.killed) {
                     return;
                 }
-                console.log(`[playNext] yt-dlp error: ${err.message}`);
+                console.error(`[playNext] yt-dlp error: ${err.message}`);
             });
 
             ytdlpProc.on("error", (err) => {
                 if (err.signal !== 'SIGKILL' && !err.killed) {
-                    console.log(`[playNext] Direct stream error: ${err.message}`);
+                    console.error(`[playNext] Process error: ${err.message}`);
                 }
             });
 
             ytdlpProc.on("close", (code, signal) => {
                 q.currentYtdlpProcess = null;
                 if (signal !== 'SIGKILL' && code !== 0 && code !== null) {
-                    console.log(`[playNext] Direct stream exited with code ${code}`);
+                    console.error(`[playNext] Process exited with code ${code}`);
+                    console.error(`[playNext] Full stderr output:\n${stderrData}`);
                 }
             });
         }
     } catch (e) {
-        console.log(`[playNext] Direct stream failed: ${e.message}`);
+        console.error(`[playNext] Stream creation failed: ${e.message}`);
     }
 
     if (!resource) {
-        console.log("[playNext] No resource, aborting playback.");
+        console.error("[playNext] No resource created, aborting playback.");
         await interaction.channel.send({
             embeds: [buildInfoEmbed("❌ Error", "Could not play this track.")]
         });
@@ -627,8 +653,22 @@ async function playNext(interaction, guildId) {
         return;
     }
 
+    // Ensure connection is still valid
+    if (!q.connection || q.connection.state.status === 'destroyed') {
+        console.error('[playNext] Connection lost, cannot play');
+        q.current = null;
+        return;
+    }
+
+    // Re-subscribe player to connection before playing
+    q.connection.subscribe(q.player);
+
+    // Now play the resource
     q.player.play(resource);
 
+    console.log(`[playNext] Player state after play: ${q.player.state.status}`);
+
+    // Disable previous message controls
     if (q.nowMessage) {
         const disabledRows = q.nowMessage.components?.map(row => {
             return ActionRowBuilder.from(row).setComponents(
