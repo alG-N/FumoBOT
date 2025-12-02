@@ -16,7 +16,7 @@
     "sqlite3": "^5.1.7",
     "tmp": "^0.2.5",
     "uuid": "^11.1.0",
-    "youtube-dl-exec": "^3.0.25",
+    "youtube-dl-exec": "^3.0.27",
     "youtubei.js": "^15.1.1",
     "yt-dlp-exec": "^1.0.2",
     "yt-dlp-wrap": "^2.3.12",
