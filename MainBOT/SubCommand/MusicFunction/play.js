@@ -584,15 +584,29 @@ async function playNext(interaction, guildId) {
             // Capture stderr to see the actual error
             let stderrData = '';
             
+            // Improved yt-dlp options to fix the issues
             const ytdlpProc = youtubedl.exec(t.url, {
                 output: '-',
-                format: 'bestaudio/best',
+                format: 'bestaudio[ext=webm]/bestaudio[ext=m4a]/bestaudio/best',
                 noCheckCertificates: true,
                 preferFreeFormats: true,
+                // Fix the JavaScript runtime warning and SABR issues
+                extractorArgs: 'youtube:player_client=android,web',
+                noWarnings: false,
+                // Add these to improve streaming stability
+                bufferSize: '16K',
+                httpChunkSize: '10M',
+                throttledRate: '100K', // Minimum rate to prevent stalling
+                // Headers to avoid detection/throttling
                 addHeader: [
                     'referer:youtube.com',
-                    'user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                    'user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'accept-language:en-US,en;q=0.9'
                 ],
+                // Retry options
+                retries: 3,
+                fragmentRetries: 5,
+                skipUnavailableFragments: true,
             }, { 
                 stdio: ['ignore', 'pipe', 'pipe'],
                 windowsHide: true
@@ -600,10 +614,15 @@ async function playNext(interaction, guildId) {
 
             q.currentYtdlpProcess = ytdlpProc;
             
-            // Capture stderr
+            // Capture stderr for debugging
             ytdlpProc.stderr.on('data', (data) => {
-                stderrData += data.toString();
-                console.error('[playNext] yt-dlp stderr:', data.toString().trim());
+                const output = data.toString();
+                stderrData += output;
+                
+                // Only log important messages, not every download progress line
+                if (!output.includes('[download]') || output.includes('ERROR') || output.includes('WARNING')) {
+                    console.error('[playNext] yt-dlp:', output.trim());
+                }
             });
 
             resource = createAudioResource(ytdlpProc.stdout, {
@@ -619,11 +638,18 @@ async function playNext(interaction, guildId) {
             used = "direct-stream";
             console.log("[playNext] Resource created successfully");
 
+            // Handle process errors
             ytdlpProc.catch((err) => {
                 if (err.signal === 'SIGKILL' || err.killed) {
                     return;
                 }
-                console.error(`[playNext] yt-dlp error: ${err.message}`);
+                console.error(`[playNext] yt-dlp process error: ${err.message}`);
+                
+                // If download fails, try to play next track
+                if (q.tracks.length > 0) {
+                    console.log('[playNext] Retrying with next track...');
+                    q.player.stop();
+                }
             });
 
             ytdlpProc.on("error", (err) => {
@@ -636,7 +662,9 @@ async function playNext(interaction, guildId) {
                 q.currentYtdlpProcess = null;
                 if (signal !== 'SIGKILL' && code !== 0 && code !== null) {
                     console.error(`[playNext] Process exited with code ${code}`);
-                    console.error(`[playNext] Full stderr output:\n${stderrData}`);
+                    if (stderrData) {
+                        console.error(`[playNext] stderr output:\n${stderrData}`);
+                    }
                 }
             });
         }
@@ -647,9 +675,14 @@ async function playNext(interaction, guildId) {
     if (!resource) {
         console.error("[playNext] No resource created, aborting playback.");
         await interaction.channel.send({
-            embeds: [buildInfoEmbed("❌ Error", "Could not play this track.")]
+            embeds: [buildInfoEmbed("❌ Error", "Could not play this track. Skipping...")]
         });
         q.current = null;
+        
+        // Try next track if available
+        if (q.tracks.length > 0) {
+            setTimeout(() => playNext(interaction, guildId), 1000);
+        }
         return;
     }
 
