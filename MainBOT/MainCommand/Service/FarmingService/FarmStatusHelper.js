@@ -12,7 +12,6 @@ const { getRarityFromName } = require('./FarmingCalculationService');
 async function getFarmStatusData(userId, username) {
     const now = Date.now();
     
-    // Parallel fetch for performance
     const [fragmentUses, farmingFumos, boosts, seasonalMults, activeSeasons, buildingLevels, upgradesRow] = 
         await Promise.all([
             getFarmLimit(userId),
@@ -28,7 +27,6 @@ async function getFarmStatusData(userId, username) {
     const limitBreaks = upgradesRow?.limitBreaks || 0;
     const farmLimit = calculateFarmLimit(fragmentUses) + limitBreaks;
     
-    // Calculate total farming count (sum of all quantities)
     const totalFarmingCount = farmingFumos.reduce((sum, f) => sum + (f.quantity || 1), 0);
 
     return {
@@ -63,7 +61,6 @@ function calculateMultipliers(boosts, seasonalMults, buildingLevels) {
     let coinMultiplier = 1;
     let gemMultiplier = 1;
 
-    // User boosts
     boosts.forEach(b => {
         const type = (b.type || '').toLowerCase();
         const mult = b.multiplier || 1;
@@ -71,15 +68,29 @@ function calculateMultipliers(boosts, seasonalMults, buildingLevels) {
         if (['gem', 'gems', 'income'].includes(type)) gemMultiplier *= mult;
     });
 
-    // Building boosts
     const coinBuildingBoost = calculateBuildingMultiplier('COIN_BOOST', buildingLevels.COIN_BOOST);
     const gemBuildingBoost = calculateBuildingMultiplier('GEM_BOOST', buildingLevels.GEM_BOOST);
 
-    // Final multipliers
     return {
         coinMultiplier: coinMultiplier * coinBuildingBoost * seasonalMults.coinMultiplier,
         gemMultiplier: gemMultiplier * gemBuildingBoost * seasonalMults.gemMultiplier
     };
+}
+
+// Helper to get base fumo name without traits and rarity
+function getBaseFumoName(fumoName) {
+    return fumoName
+        .replace(/\[✨SHINY\]/g, '')
+        .replace(/\[🌟alG\]/g, '')
+        .replace(/\(.*?\)/g, '')
+        .trim();
+}
+
+// Helper to get trait from fumo name
+function getTrait(fumoName) {
+    if (fumoName.includes('[🌟alG]')) return '🌟alG';
+    if (fumoName.includes('[✨SHINY]')) return '✨SHINY';
+    return null;
 }
 
 function createFarmStatusEmbed(farmData) {
@@ -94,7 +105,6 @@ function createFarmStatusEmbed(farmData) {
         .setDescription(`🛠️ Your Fumos are working hard. Let's check how much loot they're bringing!`)
         .setImage('https://tse4.mm.bing.net/th/id/OIP.uPn1KR9q8AKKhhJVCr1C4QHaDz?rs=1&pid=ImgDetMain&o=7&rm=3');
 
-    // Add rarity fields
     for (const rarity of RARITY_PRIORITY) {
         if (!grouped[rarity]) continue;
         const { fumos, totalCoins: rarityCoins, totalGems: rarityGems } = grouped[rarity];
@@ -105,7 +115,6 @@ function createFarmStatusEmbed(farmData) {
         });
     }
 
-    // Summary fields
     embed.addFields(
         {
             name: '💰 Total Earnings (with all boosts)',
@@ -124,7 +133,6 @@ function createFarmStatusEmbed(farmData) {
         }
     );
 
-    // Limit breaks
     if (limitBreaks > 0) {
         embed.addFields({
             name: '⚡ Limit Breaks',
@@ -133,7 +141,6 @@ function createFarmStatusEmbed(farmData) {
         });
     }
 
-    // Seasons
     if (seasons?.active && seasons.active !== 'No active seasonal events') {
         embed.addFields({
             name: '🌤️ Active Seasonal Events',
@@ -141,7 +148,6 @@ function createFarmStatusEmbed(farmData) {
         });
     }
 
-    // Active boosts
     const relevantBoosts = boosts?.activeBoosts?.filter(b => 
         ['coin', 'coins', 'gem', 'gems', 'income'].includes((b.type || '').toLowerCase())
     );
@@ -165,19 +171,46 @@ function createFarmStatusEmbed(farmData) {
 
 function groupByRarity(farmingFumos, boosts) {
     const grouped = {};
+    
+    // Group by base name AND trait
+    const fumoGroups = {};
     farmingFumos.forEach(fumo => {
+        const baseName = getBaseFumoName(fumo.fumoName);
+        const trait = getTrait(fumo.fumoName);
         const rarity = getRarityFromName(fumo.fumoName);
-        if (!grouped[rarity]) {
-            grouped[rarity] = { fumos: [], totalCoins: 0, totalGems: 0 };
-        }
-        const quantity = fumo.quantity || 1;
-        const coinsWithBoost = Math.floor(fumo.coinsPerMin * quantity * boosts.coinMultiplier);
-        const gemsWithBoost = Math.floor(fumo.gemsPerMin * quantity * boosts.gemMultiplier);
+        const key = `${baseName}_${trait || 'base'}`;
         
-        grouped[rarity].fumos.push(fumo);
-        grouped[rarity].totalCoins += coinsWithBoost;
-        grouped[rarity].totalGems += gemsWithBoost;
+        if (!fumoGroups[key]) {
+            fumoGroups[key] = {
+                baseName,
+                trait,
+                rarity,
+                quantity: 0,
+                coinsPerMin: fumo.coinsPerMin,
+                gemsPerMin: fumo.gemsPerMin
+            };
+        }
+        fumoGroups[key].quantity += fumo.quantity || 1;
     });
+    
+    // Group by rarity for display
+    Object.values(fumoGroups).forEach(fumo => {
+        if (!grouped[fumo.rarity]) {
+            grouped[fumo.rarity] = { fumos: [], totalCoins: 0, totalGems: 0 };
+        }
+        
+        const coinsWithBoost = Math.floor(fumo.coinsPerMin * fumo.quantity * boosts.coinMultiplier);
+        const gemsWithBoost = Math.floor(fumo.gemsPerMin * fumo.quantity * boosts.gemMultiplier);
+        
+        grouped[fumo.rarity].fumos.push({
+            baseName: fumo.baseName,
+            trait: fumo.trait,
+            quantity: fumo.quantity
+        });
+        grouped[fumo.rarity].totalCoins += coinsWithBoost;
+        grouped[fumo.rarity].totalGems += gemsWithBoost;
+    });
+    
     return grouped;
 }
 
@@ -192,22 +225,9 @@ function calculateTotals(grouped) {
 
 function formatFumoList(fumos) {
     return fumos.map(f => {
-        const cleanName = stripRarityFromName(f.fumoName);
-        const traits = [];
-        if (f.fumoName.includes('🌟alG')) traits.push('🌟alG');
-        if (f.fumoName.includes('✨SHINY')) traits.push('✨SHINY');
-        const traitStr = traits.length > 0 ? ` [${traits.join(' ')}]` : '';
-        return f.quantity > 1 ? `${cleanName}${traitStr} (x${f.quantity})` : `${cleanName}${traitStr}`;
+        const traitStr = f.trait ? ` [${f.trait}]` : '';
+        return f.quantity > 1 ? `${f.baseName}${traitStr} (x${f.quantity})` : `${f.baseName}${traitStr}`;
     }).join(', ');
-}
-
-function stripRarityFromName(fumoName) {
-    return fumoName
-        .replace(/\((.*?)\)/g, '')
-        .replace(/\[.*?\]/g, '')
-        .replace(/✨SHINY/g, '')
-        .replace(/🌟alG/g, '')
-        .trim();
 }
 
 function formatFarmingNumber(num) {

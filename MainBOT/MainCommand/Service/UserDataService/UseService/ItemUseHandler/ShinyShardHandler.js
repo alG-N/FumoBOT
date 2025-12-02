@@ -1,14 +1,11 @@
 const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { get, run } = require('../../../../Core/database');
+const { get, run, all } = require('../../../../Core/database');
 const { buildSecureCustomId } = require('../../../../Middleware/buttonOwnership');
-const FumoPool = require('../../../../Data/FumoPool');
 
 async function handleShinyShard(message, itemName, quantity, userId) {
     if (quantity > 1) {
         return message.reply("❌ **ShinyShard(?)** can only be used one at a time.");
     }
-
-    // NOTE: Items are already consumed by use.js - DO NOT consume again here
 
     try {
         const rarities = ['UNCOMMON', 'RARE', 'EPIC', 'OTHERWORLDLY', 'LEGENDARY', 'MYTHICAL', 'EXCLUSIVE', '???', 'ASTRAL', 'CELESTIAL', 'INFINITE', 'ETERNAL', 'TRANSCENDENT'];
@@ -47,23 +44,35 @@ async function handleShinyShardRaritySelection(interaction) {
     const rarity = interaction.values[0].replace('shiny_rarity_', '');
 
     try {
-        const allFumos = FumoPool.getForCrate();
-        const fumos = allFumos.filter(f => f.rarity === rarity);
+        // Get ALL fumos of this rarity from user's inventory (without traits)
+        const inventoryFumos = await all(
+            `SELECT DISTINCT fumoName 
+             FROM userInventory 
+             WHERE userId = ? 
+             AND fumoName LIKE ?
+             AND fumoName NOT LIKE '%[✨SHINY]%'
+             AND fumoName NOT LIKE '%[🌟alG]%'
+             ORDER BY fumoName`,
+            [userId, `%(${rarity})%`]
+        );
 
-        if (fumos.length === 0) {
+        if (inventoryFumos.length === 0) {
             return interaction.update({
-                content: `❌ No fumos available for rarity: ${rarity}`,
+                content: `❌ No ${rarity} fumos found in your inventory (without traits).`,
                 embeds: [],
                 components: []
             });
         }
 
-        const fumoOptions = fumos.slice(0, 25).map((fumo, index) => ({
-            label: fumo.name.replace(/\(.*?\)/, '').trim().slice(0, 100),
-            value: `shiny_fumo_${index}`,
-            description: `Create shiny version`.slice(0, 100),
-            emoji: '✨'
-        }));
+        const fumoOptions = inventoryFumos.slice(0, 25).map((item, index) => {
+            const cleanName = item.fumoName.replace(/\(.*?\)/, '').trim();
+            return {
+                label: cleanName.slice(0, 100),
+                value: `shiny_fumo_${index}`,
+                description: `Create shiny version`.slice(0, 100),
+                emoji: '✨'
+            };
+        });
 
         const selectMenu = new StringSelectMenuBuilder()
             .setCustomId(buildSecureCustomId('shiny_fumo_select', userId, { rarity }))
@@ -81,9 +90,16 @@ async function handleShinyShardRaritySelection(interaction) {
         const embed = new EmbedBuilder()
             .setColor(0xFFD700)
             .setTitle(`✨ ShinyShard(?) - Select ${rarity} Fumo`)
-            .setDescription(`Choose a fumo to create its **SHINY** version.\n\nShowing ${Math.min(fumos.length, 25)} available fumos.`)
-            .setFooter({ text: `Rarity: ${rarity} | Total: ${fumos.length}` })
+            .setDescription(`Choose a fumo to create its **SHINY** version.\n\nShowing ${Math.min(inventoryFumos.length, 25)} available fumos from your inventory.`)
+            .setFooter({ text: `Rarity: ${rarity} | Total: ${inventoryFumos.length}` })
             .setTimestamp();
+
+        // Store the fumo list for later retrieval
+        interaction.client.shinyShardData = interaction.client.shinyShardData || {};
+        interaction.client.shinyShardData[userId] = {
+            rarity,
+            fumos: inventoryFumos.map(f => f.fumoName)
+        };
 
         await interaction.update({ embeds: [embed], components: [row1, row2] });
 
@@ -116,11 +132,18 @@ async function handleShinyShardFumoSelection(interaction) {
     const selectedIndex = parseInt(interaction.values[0].replace('shiny_fumo_', ''));
 
     try {
-        const allFumos = FumoPool.getForCrate();
-        const fumos = allFumos.filter(f => f.rarity === rarity);
-        const selectedFumo = fumos[selectedIndex];
+        // Get the stored fumo list
+        const storedData = interaction.client.shinyShardData?.[userId];
+        if (!storedData || storedData.rarity !== rarity) {
+            return interaction.update({
+                content: '❌ Session expired. Please start over.',
+                embeds: [],
+                components: []
+            });
+        }
 
-        if (!selectedFumo) {
+        const selectedFumoName = storedData.fumos[selectedIndex];
+        if (!selectedFumoName) {
             return interaction.update({
                 content: '❌ Invalid fumo selection.',
                 embeds: [],
@@ -128,20 +151,8 @@ async function handleShinyShardFumoSelection(interaction) {
             });
         }
 
-        const fumoName = selectedFumo.name;
-
-        // Check if they still have the shard (it was consumed by use.js, so they shouldn't)
-        // This is just a safety check to prevent abuse if they somehow trigger this multiple times
-        const inventory = await get(
-            `SELECT quantity FROM userInventory WHERE userId = ? AND itemName = 'ShinyShard(?)'`,
-            [userId]
-        );
-
-        // If they somehow have shards, it means this is a new use attempt
-        // If they don't have shards, it means they're in the middle of using one that was already consumed
-
         const confirmButton = new ButtonBuilder()
-            .setCustomId(buildSecureCustomId('shiny_confirm', userId, { fumoName, rarity }))
+            .setCustomId(buildSecureCustomId('shiny_confirm', userId, { fumoName: selectedFumoName, rarity }))
             .setLabel('Confirm')
             .setStyle(ButtonStyle.Success);
 
@@ -156,8 +167,8 @@ async function handleShinyShardFumoSelection(interaction) {
             .setColor(0xFFD700)
             .setTitle('✨ Confirm ShinyShard Usage')
             .setDescription(
-                `**Selected Fumo:** ${fumoName}\n\n` +
-                `This will create: **${fumoName}[✨SHINY]**\n\n` +
+                `**Selected Fumo:** ${selectedFumoName}\n\n` +
+                `This will create: **${selectedFumoName}[✨SHINY]**\n\n` +
                 `Are you sure you want to proceed?`
             )
             .setTimestamp();
@@ -191,9 +202,6 @@ async function handleShinyShardConfirmation(interaction) {
     const { fumoName, rarity } = additionalData;
 
     try {
-        // NOTE: The ShinyShard was already consumed by use.js
-        // We don't need to consume it again here
-
         const originalFumo = await get(
             `SELECT id, fumoName, itemName, quantity FROM userInventory 
              WHERE userId = ? 
@@ -205,7 +213,6 @@ async function handleShinyShardConfirmation(interaction) {
         );
 
         if (!originalFumo || originalFumo.quantity < 1) {
-            // Restore the shard since they don't have the fumo
             await run(
                 `INSERT INTO userInventory (userId, itemName, quantity, type) 
                  VALUES (?, 'ShinyShard(?)', 1, 'item')
@@ -222,7 +229,6 @@ async function handleShinyShardConfirmation(interaction) {
             });
         }
 
-        // Consume the base fumo
         if (originalFumo.quantity > 1) {
             await run(
                 `UPDATE userInventory SET quantity = quantity - 1 WHERE id = ?`,
@@ -245,6 +251,11 @@ async function handleShinyShardConfirmation(interaction) {
             [userId, shinyFumoName, shinyFumoName, rarity]
         );
 
+        // Clean up stored data
+        if (interaction.client.shinyShardData?.[userId]) {
+            delete interaction.client.shinyShardData[userId];
+        }
+
         const embed = new EmbedBuilder()
             .setColor(0xFFD700)
             .setTitle('✨ ShinyShard(?) Used Successfully!')
@@ -259,7 +270,6 @@ async function handleShinyShardConfirmation(interaction) {
     } catch (error) {
         console.error('[SHINY_SHARD] Confirmation error:', error);
         
-        // Restore the shard on error
         try {
             await run(
                 `INSERT INTO userInventory (userId, itemName, quantity, type) 
@@ -282,7 +292,6 @@ async function handleShinyShardConfirmation(interaction) {
 async function handleShinyShardCancellation(interaction) {
     const userId = interaction.user.id;
     
-    // Restore the shard since they cancelled
     try {
         await run(
             `INSERT INTO userInventory (userId, itemName, quantity, type) 
@@ -292,6 +301,11 @@ async function handleShinyShardCancellation(interaction) {
         );
     } catch (error) {
         console.error('[SHINY_SHARD] Failed to restore shard on cancel:', error);
+    }
+
+    // Clean up stored data
+    if (interaction.client.shinyShardData?.[userId]) {
+        delete interaction.client.shinyShardData[userId];
     }
     
     const embed = new EmbedBuilder()
