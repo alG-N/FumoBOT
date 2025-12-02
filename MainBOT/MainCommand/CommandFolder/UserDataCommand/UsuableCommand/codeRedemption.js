@@ -9,10 +9,8 @@ const validCodes = {
         maxUses: null,
         description: "A warm welcome gift for new users!"
     },
-    "alterGoldenSoGood:D": {
+    "BugFix": {
         items: [
-            { item: "PetFoob(C)", quantity: 1500 },
-            { item: "Dice(C)", quantity: 10 },
             { item: "alGShard(P)", quantity: 1 },
             { item: "ShinyShard(?)", quantity: 10 }
         ],

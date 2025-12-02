@@ -105,6 +105,86 @@ const SEASONS = {
         duration: 480000, 
         description: 'Intense solar energy supercharges your farm!',
         emoji: '☀️'
+    },
+    SUNNY_DAY: {
+        name: 'Sunny Day',
+        coinMultiplier: 3,
+        gemMultiplier: 2,
+        chance: 0.25,
+        checkInterval: 1200000,
+        duration: 1800000,
+        description: 'Perfect weather for farming!',
+        emoji: '☀️'
+    },
+    LIGHT_RAIN: {
+        name: 'Light Rain',
+        coinMultiplier: 2,
+        gemMultiplier: 3,
+        chance: 0.20,
+        checkInterval: 1200000,
+        duration: 1500000,
+        description: 'Gentle rain nourishes the crops!',
+        emoji: '🌦️'
+    },
+    FOGGY: {
+        name: 'Foggy',
+        coinMultiplier: 1/3,
+        gemMultiplier: 1/3,
+        chance: 0.15,
+        checkInterval: 1800000,
+        duration: 1200000,
+        description: 'Thick fog reduces visibility and productivity!',
+        emoji: '🌫️'
+    },
+    DROUGHT: {
+        name: 'Drought',
+        coinMultiplier: 1/8,
+        gemMultiplier: 1/10,
+        chance: 0.10,
+        checkInterval: 2400000,
+        duration: 1800000,
+        description: 'Severe drought withers your crops!',
+        emoji: '🏜️'
+    },
+    HAILSTORM: {
+        name: 'Hailstorm',
+        coinMultiplier: 1/12,
+        gemMultiplier: 1/12,
+        chance: 0.08,
+        checkInterval: 1800000,
+        duration: 600000,
+        description: 'Hail damages your farm!',
+        emoji: '🧊'
+    },
+    BLIZZARD: {
+        name: 'Blizzard',
+        coinMultiplier: 1/20,
+        gemMultiplier: 1/20,
+        chance: 0.07,
+        checkInterval: 2400000,
+        duration: 900000,
+        description: 'Freezing blizzard halts farming operations!',
+        emoji: '❄️'
+    },
+    RAINBOW: {
+        name: 'Rainbow',
+        coinMultiplier: 8,
+        gemMultiplier: 12,
+        chance: 0.12,
+        checkInterval: 1800000,
+        duration: 600000,
+        description: 'A magical rainbow brings good fortune!',
+        emoji: '🌈'
+    },
+    STARRY_NIGHT: {
+        name: 'Starry Night',
+        coinMultiplier: 4,
+        gemMultiplier: 8,
+        chance: 0.18,
+        checkInterval: 1500000,
+        duration: 1200000,
+        description: 'Stars shine brightly, blessing your farm!',
+        emoji: '⭐'
     }
 };
 
@@ -118,7 +198,15 @@ const WEATHER_EVENTS = [
     'METEOR_SHOWER',
     'BLOOD_MOON',
     'AURORA_BOREALIS',
-    'SOLAR_FLARE'
+    'SOLAR_FLARE',
+    'SUNNY_DAY',
+    'LIGHT_RAIN',
+    'FOGGY',
+    'DROUGHT',
+    'HAILSTORM',
+    'BLIZZARD',
+    'RAINBOW',
+    'STARRY_NIGHT'
 ];
 
 function isWeekend() {
@@ -196,7 +284,6 @@ function getWeatherCheckInterval(weatherType) {
 module.exports = {
     SEASONS,
     WEATHER_EVENTS,
-    
     isWeekend,
     getBaseSeasonMultiplier,
     shouldTriggerWeather,
