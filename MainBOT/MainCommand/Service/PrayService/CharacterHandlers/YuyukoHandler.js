@@ -51,15 +51,19 @@ async function handleDevourOutcome(userId, channel, user, currentLuck, config) {
         });
     } else {
         await deductUserCurrency(userId, devourConfig.coinCost, devourConfig.gemCost);
+        
+        bonusRolls = Math.floor(bonusRolls * 3);
+        
         await updateUserRolls(userId, bonusRolls);
-        await updateUserLuck(userId, devourConfig.luckBoost);
+        await updateUserLuck(userId, devourConfig.luckBoost * 2);
 
         await channel.send({
             embeds: [new EmbedBuilder()
                 .setTitle('🍽️ Devoured! 🍽️')
                 .setDescription(
-                    `Yuyuko took 1.5M coins & 350k gems... but left ${bonusRolls} rolls` +
-                    `${bonusRolls === devourConfig.rollRewardWithShiny ? ' thanks to ShinyMark+!' : ' as a ghostly favor.'}`
+                    `Yuyuko took 1.5M coins & 350k gems... but left ${bonusRolls.toLocaleString()} rolls` +
+                    `${bonusRolls === devourConfig.rollRewardWithShiny * 3 ? ' thanks to ShinyMark+!' : ' as a ghostly favor.'}\n\n` +
+                    `✨ Luck boost has been tripled!`
                 )
                 .setColor('#0099ff')
                 .setTimestamp()]
@@ -87,15 +91,19 @@ async function handleNormalOutcome(userId, channel, user, currentLuck, config) {
     }
 
     await deductUserCurrency(userId, normalConfig.coinCost, normalConfig.gemCost);
+    
+    bonusRolls = Math.floor(bonusRolls * 2.5);
+    
     await updateUserRolls(userId, bonusRolls);
-    await updateUserLuck(userId, normalConfig.luckBoost, normalConfig.luckRarities);
+    await updateUserLuck(userId, normalConfig.luckBoost * 1.5, normalConfig.luckRarities);
 
     await channel.send({
         embeds: [new EmbedBuilder()
             .setTitle('🍀 Yuyuko\'s Blessing 🍀')
             .setDescription(
-                `${bonusRolls === normalConfig.rollRewardWithShiny ? 'ShinyMark+ triggered! ' : ''}` +
-                `150k coins & 30k gems lost... but luck shines on your next ${bonusRolls} rolls.`
+                `${bonusRolls === Math.floor(normalConfig.rollRewardWithShiny * 2.5) ? 'ShinyMark+ triggered! ' : ''}` +
+                `150k coins & 30k gems lost... but luck shines on your next ${bonusRolls.toLocaleString()} rolls.\n\n` +
+                `✨ Enhanced luck boost applied!`
             )
             .setColor('#0099ff')
             .setTimestamp()]

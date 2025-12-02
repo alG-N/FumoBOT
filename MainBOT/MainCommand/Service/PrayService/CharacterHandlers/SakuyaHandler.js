@@ -13,7 +13,7 @@ const {
     getUserInventory,
     deleteFumoFromInventory
 } = require('../PrayDatabaseService');
-const { run, all } = require('../../../Core/database');
+const { run } = require('../../../Core/database');
 
 async function handleSakuya(userId, channel) {
     const config = PRAY_CHARACTERS.SAKUYA;
@@ -76,8 +76,8 @@ async function handleSakuya(userId, channel) {
             return;
         }
 
-        const demand = timeSkip.costScaling[useCount] || 0.60;
-        const requiredFumos = timeSkip.fumoRequirements[useCount] || 2;
+        const demand = Math.max(0, timeSkip.costScaling[useCount] || 0.60) * 0.3;
+        const requiredFumos = Math.max(0, (timeSkip.fumoRequirements[useCount] || 2) - 1);
 
         const allowedRarities = useCount >= 5 
             ? config.rarityRequirements.high 
@@ -86,13 +86,20 @@ async function handleSakuya(userId, channel) {
         const allFumos = await getUserInventory(userId);
         const ownsSakuyaUncommon = allFumos.some(f => f.fumoName === "Sakuya(UNCOMMON)");
         
-        const dropChances = ownsSakuyaUncommon 
-            ? rewards.bonusDrops 
-            : {
-                fragment: { base: rewards.bonusDrops.fragment.base, withSakuya: rewards.bonusDrops.fragment.base },
-                clock: { base: rewards.bonusDrops.clock.base, withSakuya: rewards.bonusDrops.clock.base },
-                watch: { base: rewards.bonusDrops.watch.base, withSakuya: rewards.bonusDrops.watch.base }
-            };
+        const dropChances = {
+            fragment: { 
+                base: rewards.bonusDrops.fragment.base * 3, 
+                withSakuya: rewards.bonusDrops.fragment.withSakuya * 3 
+            },
+            clock: { 
+                base: rewards.bonusDrops.clock.base * 3, 
+                withSakuya: rewards.bonusDrops.clock.withSakuya * 3 
+            },
+            watch: { 
+                base: rewards.bonusDrops.watch.base * 3, 
+                withSakuya: rewards.bonusDrops.watch.withSakuya * 3 
+            }
+        };
 
         const rarePlusFumos = allFumos.filter(f => {
             const match = f.fumoName?.match(/\((.*?)\)$/);
@@ -103,13 +110,13 @@ async function handleSakuya(userId, channel) {
         const totalAvailable = rarePlusFumos.reduce((acc, f) => acc + (f.quantity || 1), 0);
         
         const perfectSkipChance = ownsSakuyaUncommon 
-            ? rewards.perfectSkipChanceWithSakuya 
-            : rewards.perfectSkipChance;
+            ? rewards.perfectSkipChanceWithSakuya * 2
+            : rewards.perfectSkipChance * 2;
         const isPerfectSkip = Math.random() < perfectSkipChance;
         const blessingActive = blessingExpiry && now < blessingExpiry;
         let blessingSkip = false;
 
-        if (totalAvailable < requiredFumos && !isPerfectSkip && !blessingActive) {
+        if (totalAvailable < requiredFumos && !isPerfectSkip && !blessingActive && requiredFumos > 0) {
             await channel.send(`⚠️ You need at least ${requiredFumos} RARE+ fumo(s) for Sakuya to skip time.`);
             return;
         }
@@ -143,11 +150,11 @@ async function handleSakuya(userId, channel) {
         totalCoins = Math.floor(totalCoins * coinMult);
         totalGems = Math.floor(totalGems * gemMult);
 
-        timeBlessing += blessing.increment;
+        timeBlessing += blessing.increment * 2;
 
         if (timeBlessing >= blessing.threshold && !blessingActive) {
             timeBlessing = 0;
-            blessingExpiry = now + blessing.duration;
+            blessingExpiry = now + blessing.duration * 2;
 
             await updateSakuyaUsage(userId, {
                 blessingExpiry,
@@ -157,26 +164,26 @@ async function handleSakuya(userId, channel) {
             await run(
                 `INSERT OR REPLACE INTO activeBoosts (userId, type, source, multiplier, expiresAt) 
                 VALUES (?, 'summonCooldown', 'TimeBlessing', ?, ?)`,
-                [userId, blessing.cooldownMultiplier, blessingExpiry]
+                [userId, blessing.cooldownMultiplier * 0.25, blessingExpiry]
             );
 
             blessingSkip = true;
         }
 
         if (blessingSkip || blessingActive) {
-            totalCoins *= 2;
-            totalGems *= 2;
+            totalCoins *= 4;
+            totalGems *= 4;
         }
 
         if (!isPerfectSkip && !blessingSkip && !blessingActive) {
             totalCoins = Math.floor(totalCoins * (1 - demand));
             totalGems = Math.floor(totalGems * (1 - demand));
+        } else {
+            totalCoins = Math.floor(totalCoins * 1.5);
+            totalGems = Math.floor(totalGems * 1.5);
         }
 
-        if (totalCoins > rewards.coinLimit) totalCoins = rewards.coinLimit;
-        if (totalGems > rewards.gemLimit) totalGems = rewards.gemLimit;
-
-        if (!isPerfectSkip && !blessingSkip && !blessingActive) {
+        if (!isPerfectSkip && !blessingSkip && !blessingActive && requiredFumos > 0) {
             const expanded = [];
             for (const f of rarePlusFumos) {
                 const qty = f.quantity || 1;
@@ -200,8 +207,20 @@ async function handleSakuya(userId, channel) {
         const drops = [];
         const dropRate = ownsSakuyaUncommon ? 'withSakuya' : 'base';
         
-        if (Math.random() < dropChances.fragment[dropRate]) drops.push("FragmentOfTime(E)");
-        if (Math.random() < dropChances.clock[dropRate]) drops.push("TimeClock-Broken(L)");
+        const fragmentRolls = Math.floor(Math.random() * 3) + 1;
+        for (let i = 0; i < fragmentRolls; i++) {
+            if (Math.random() < dropChances.fragment[dropRate]) {
+                drops.push("FragmentOfTime(E)");
+            }
+        }
+        
+        const clockRolls = Math.floor(Math.random() * 2) + 1;
+        for (let i = 0; i < clockRolls; i++) {
+            if (Math.random() < dropChances.clock[dropRate]) {
+                drops.push("TimeClock-Broken(L)");
+            }
+        }
+        
         if (Math.random() < dropChances.watch[dropRate]) drops.push("PocketWatch(M)");
 
         for (const item of drops) {
@@ -242,7 +261,7 @@ async function handleSakuya(userId, channel) {
 
         const blessingRemaining = blessingActive && blessingExpiry ? blessingExpiry - now : 0;
         const blessingPercent = blessingActive
-            ? Math.floor((blessingRemaining / blessing.duration) * 100)
+            ? Math.floor((blessingRemaining / (blessing.duration * 2)) * 100)
             : Math.min(Math.floor((timeBlessing / blessing.threshold) * 100), 100);
 
         const blessingBar = '█'.repeat(Math.floor(blessingPercent / 20)) + '░'.repeat(5 - Math.floor(blessingPercent / 20));
@@ -260,10 +279,10 @@ async function handleSakuya(userId, channel) {
                 (drops.length ? `\n\n**Extra Item Drops:**\n${drops.map(d => `• ${d}`).join('\n')}` : '') +
                 `\n\n**Time's Demander:** \`${progressBar}\` (${currentDemand}/${timeSkip.maxUses})` +
                 (blessingSkip
-                    ? `\n\n🌟 **Time Blessing activated!** No cost taken. 1-day cooldown buff granted!`
+                    ? `\n\n🌟 **Time Blessing activated!** No cost taken. Extended cooldown buff granted!`
                     : isPerfectSkip
-                        ? `\n\n✨ **Perfect Skip!** You kept everything without losing any fumos or coins!`
-                        : `\n\nSakuya took ${Math.round(demand * 100)}% of your rewards and ${requiredFumos} RARE+ fumo(s).`)
+                        ? `\n\n✨ **Perfect Skip!** You kept everything and got 50% bonus rewards!`
+                        : `\n\nSakuya took ${Math.round(demand * 100)}% of your rewards${requiredFumos > 0 ? ` and ${requiredFumos} RARE+ fumo(s)` : ''}.`)
             )
             .setFooter({ 
                 text: `🔮 Time Blessing: [${blessingBar}] ${blessingPercent}% | ${blessingActive ? `Expires in: ${blessingTimer}` : 'Not active'}` 

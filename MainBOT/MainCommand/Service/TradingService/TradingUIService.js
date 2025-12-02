@@ -32,44 +32,44 @@ function createInviteButtons(sessionKey) {
 
 function createTradeEmbed(trade, client) {
     const { user1, user2, state } = trade;
-    
+
     const user1Items = Array.from(user1.items.entries())
         .map(([name, qty]) => `• ${name} x${qty}`)
         .join('\n') || 'None';
-    
+
     const user2Items = Array.from(user2.items.entries())
         .map(([name, qty]) => `• ${name} x${qty}`)
         .join('\n') || 'None';
-    
+
     const user1Fumos = Array.from(user1.fumos.entries())
         .map(([name, qty]) => `• ${name} x${qty}`)
         .join('\n') || 'None';
-    
+
     const user2Fumos = Array.from(user2.fumos.entries())
         .map(([name, qty]) => `• ${name} x${qty}`)
         .join('\n') || 'None';
-    
+
     const user1Pets = Array.from(user1.pets.values())
         .map(p => `• ${p.petName || p.name} (${p.rarity})`)
         .join('\n') || 'None';
-    
+
     const user2Pets = Array.from(user2.pets.values())
         .map(p => `• ${p.petName || p.name} (${p.rarity})`)
         .join('\n') || 'None';
-    
+
     const statusEmoji1 = user1.accepted ? '✅' : '⏳';
     const statusEmoji2 = user2.accepted ? '✅' : '⏳';
-    
+
     const confirmEmoji1 = user1.confirmed ? '🎯' : '⬜';
     const confirmEmoji2 = user2.confirmed ? '🎯' : '⬜';
-    
+
     let color = TRADING_CONFIG.COLORS.ACTIVE;
     if (state === TRADING_CONFIG.STATES.BOTH_ACCEPTED) {
         color = TRADING_CONFIG.COLORS.ACCEPTED;
     } else if (state === TRADING_CONFIG.STATES.CONFIRMING) {
         color = TRADING_CONFIG.COLORS.CONFIRMING;
     }
-    
+
     let description = 'Add items to the trade and click Accept when ready.';
     if (state === TRADING_CONFIG.STATES.BOTH_ACCEPTED) {
         if (user1.confirmed && user2.confirmed) {
@@ -80,14 +80,14 @@ function createTradeEmbed(trade, client) {
     } else if (state === TRADING_CONFIG.STATES.CONFIRMING) {
         description = '⏰ **Final confirmation in progress...**';
     }
-    
+
     return new EmbedBuilder()
         .setTitle('🤝 Active Trade')
         .setDescription(description)
         .addFields(
             {
                 name: `${statusEmoji1}${confirmEmoji1} ${user1.tag}'s Offer`,
-                value: 
+                value:
                     `💰 Coins: **${formatNumber(user1.coins)}**\n` +
                     `💎 Gems: **${formatNumber(user1.gems)}**\n` +
                     `📦 Items:\n${user1Items}\n` +
@@ -97,7 +97,7 @@ function createTradeEmbed(trade, client) {
             },
             {
                 name: `${statusEmoji2}${confirmEmoji2} ${user2.tag}'s Offer`,
-                value: 
+                value:
                     `💰 Coins: **${formatNumber(user2.coins)}**\n` +
                     `💎 Gems: **${formatNumber(user2.gems)}**\n` +
                     `📦 Items:\n${user2Items}\n` +
@@ -107,17 +107,17 @@ function createTradeEmbed(trade, client) {
             }
         )
         .setColor(color)
-        .setFooter({ 
-            text: state === TRADING_CONFIG.STATES.BOTH_ACCEPTED 
+        .setFooter({
+            text: state === TRADING_CONFIG.STATES.BOTH_ACCEPTED
                 ? '✅ = Accepted | 🎯 = Confirmed | Both must confirm!'
-                : 'Trade will timeout after 5 minutes of inactivity' 
+                : 'Trade will timeout after 5 minutes of inactivity'
         })
         .setTimestamp();
 }
 
 function createTradeActionButtons(sessionKey, bothAccepted = false, bothConfirmed = false) {
     const buttons = [];
-    
+
     if (bothAccepted && !bothConfirmed) {
         buttons.push(
             new ButtonBuilder()
@@ -135,7 +135,7 @@ function createTradeActionButtons(sessionKey, bothAccepted = false, bothConfirme
                 .setEmoji('✅')
         );
     }
-    
+
     buttons.push(
         new ButtonBuilder()
             .setCustomId(`trade_cancel_${sessionKey}`)
@@ -143,7 +143,7 @@ function createTradeActionButtons(sessionKey, bothAccepted = false, bothConfirme
             .setStyle(ButtonStyle.Danger)
             .setEmoji('❌')
     );
-    
+
     return new ActionRowBuilder().addComponents(buttons);
 }
 
@@ -186,10 +186,12 @@ function createItemRarityMenu(sessionKey) {
         'Legendary': '🟪',
         'Mythical': '🟥',
         'Divine': '⭐',
-        'Secret': '⬛'
+        'Secret': '⬛',
+        'Unknown': "🌀",
+        'Prime': "👑"
     };
 
-    const rarityOrder = ['Basic', 'Common', 'Rare', 'Epic', 'Legendary', 'Mythical', 'Divine', 'Secret'];
+    const rarityOrder = ['Basic', 'Common', 'Rare', 'Epic', 'Legendary', 'Mythical', 'Divine', 'Secret', 'Unknown', 'Prime'];
 
     const options = rarityOrder.map(rarity => ({
         label: rarity,
@@ -213,7 +215,7 @@ function createItemSelectMenu(sessionKey, items, rarity = '') {
         value: `${sessionKey}|${item.itemName}`,
         emoji: '📦'
     }));
-    
+
     if (options.length === 0) {
         options.push({
             label: 'No items available',
@@ -222,7 +224,7 @@ function createItemSelectMenu(sessionKey, items, rarity = '') {
             emoji: '❌'
         });
     }
-    
+
     return new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
             .setCustomId(`trade_select_item_${sessionKey}`)
@@ -239,7 +241,7 @@ function createPetSelectMenu(sessionKey, pets) {
         value: `${sessionKey}|${pet.petId}`,
         emoji: '🐾'
     }));
-    
+
     if (options.length === 0) {
         options.push({
             label: 'No pets available',
@@ -248,7 +250,7 @@ function createPetSelectMenu(sessionKey, pets) {
             emoji: '❌'
         });
     }
-    
+
     return new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
             .setCustomId(`trade_select_pet_${sessionKey}`)
@@ -325,7 +327,7 @@ function createFumoSelectMenu(sessionKey, fumos, type, rarity) {
         shiny: '✨',
         alg: '🌟'
     };
-    
+
     const uniqueFumosMap = new Map();
     fumos.forEach(fumo => {
         const key = fumo.fumoName;
@@ -336,9 +338,9 @@ function createFumoSelectMenu(sessionKey, fumos, type, rarity) {
             existing.quantity += fumo.quantity;
         }
     });
-    
+
     const uniqueFumos = Array.from(uniqueFumosMap.values());
-    
+
     const options = uniqueFumos.slice(0, 25).map(fumo => {
         const cleanName = fumo.fumoName.replace(/\[.*?\]/g, '').trim();
         return {
@@ -348,7 +350,7 @@ function createFumoSelectMenu(sessionKey, fumos, type, rarity) {
             emoji: typeEmoji[type] || '🎭'
         };
     });
-    
+
     if (options.length === 0) {
         options.push({
             label: 'No fumos available',
@@ -357,7 +359,7 @@ function createFumoSelectMenu(sessionKey, fumos, type, rarity) {
             emoji: '❌'
         });
     }
-    
+
     return new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
             .setCustomId(`trade_select_fumo_${sessionKey}`)
@@ -378,7 +380,7 @@ function createConfirmationEmbed(trade) {
         .addFields(
             {
                 name: `${trade.user1.tag} gives:`,
-                value: 
+                value:
                     `💰 ${formatNumber(trade.user1.coins)} coins\n` +
                     `💎 ${formatNumber(trade.user1.gems)} gems\n` +
                     `📦 ${trade.user1.items.size} items\n` +
@@ -388,7 +390,7 @@ function createConfirmationEmbed(trade) {
             },
             {
                 name: `${trade.user2.tag} gives:`,
-                value: 
+                value:
                     `💰 ${formatNumber(trade.user2.coins)} coins\n` +
                     `💎 ${formatNumber(trade.user2.gems)} gems\n` +
                     `📦 ${trade.user2.items.size} items\n` +
