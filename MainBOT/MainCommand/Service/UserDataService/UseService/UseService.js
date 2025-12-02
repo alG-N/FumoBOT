@@ -1,4 +1,3 @@
-const { createClient } = require('../../../Configuration/discord');
 const { checkRestrictions } = require('../../../Middleware/restrictions');
 const { validateItemUse, canUseItem } = require('./UseValidationService');
 const { getUserInventory, updateInventory } = require('./UseDatabaseService');
