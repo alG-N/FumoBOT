@@ -13,7 +13,6 @@ function parseAddFarmCommand(input) {
 
     const trimmed = input.trim();
 
-    // Check if it's just a rarity selection
     if (VALID_RARITIES.some(r => r.toLowerCase() === trimmed.toLowerCase())) {
         return {
             valid: true,
@@ -22,7 +21,6 @@ function parseAddFarmCommand(input) {
         };
     }
 
-    // Check if it's a trait selection
     if (VALID_TRAITS.some(t => t.toLowerCase() === trimmed.toLowerCase())) {
         return {
             valid: true,
@@ -31,7 +29,6 @@ function parseAddFarmCommand(input) {
         };
     }
 
-    // Parse full fumo name with quantity
     const match = trimmed.match(/^([a-zA-Z0-9]+)(?:\(([a-zA-Z?]+)\))?(?:\[([^\]]+)\])?\s*(\d+)?$/);
     
     if (!match) {
@@ -66,7 +63,6 @@ function parseEndFarmCommand(input) {
         return { valid: true, type: 'ALL' };
     }
 
-    // Check if it's a rarity selection
     if (VALID_RARITIES.some(r => r.toLowerCase() === trimmed.toLowerCase())) {
         return {
             valid: true,
@@ -75,7 +71,6 @@ function parseEndFarmCommand(input) {
         };
     }
 
-    // Check if it's a trait selection
     if (VALID_TRAITS.some(t => t.toLowerCase() === trimmed.toLowerCase())) {
         return {
             valid: true,
@@ -84,7 +79,6 @@ function parseEndFarmCommand(input) {
         };
     }
 
-    // Parse full fumo name with quantity
     const match = trimmed.match(/^([a-zA-Z0-9]+)(?:\(([a-zA-Z?]+)\))?(?:\[([^\]]+)\])?\s*(\d+)?$/);
     
     if (!match) {

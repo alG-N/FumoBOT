@@ -2,12 +2,9 @@ const { all, run } = require('../../Core/database');
 const { stopFarmingInterval } = require('./FarmingIntervalService');
 const { debugLog } = require('../../Core/logger');
 
-const CLEANUP_INTERVAL = 60000; // 60 seconds
+const CLEANUP_INTERVAL = 60000; 
 let cleanupIntervalId = null;
 
-/**
- * Check all farming Fumos and remove those no longer in inventory
- */
 async function cleanupInvalidFarmingFumos() {
     try {
         const allFarming = await all(
@@ -28,13 +25,11 @@ async function cleanupInvalidFarmingFumos() {
             if (!existsInInventory) {
                 debugLog('FARMING_CLEANUP', `Removing ${fumoName} from farm for user ${userId} - not in inventory`);
                 
-                // Remove from database
                 await run(
                     `DELETE FROM farmingFumos WHERE userId = ? AND fumoName = ?`,
                     [userId, fumoName]
                 );
 
-                // Stop the interval
                 stopFarmingInterval(userId, fumoName);
                 
                 removedCount++;
@@ -50,9 +45,6 @@ async function cleanupInvalidFarmingFumos() {
     }
 }
 
-/**
- * Start the periodic cleanup job
- */
 function startCleanupJob() {
     if (cleanupIntervalId) {
         console.log('⚠️ Cleanup job already running');
@@ -63,9 +55,6 @@ function startCleanupJob() {
     console.log(`✅ Started farming cleanup job (every ${CLEANUP_INTERVAL / 1000}s)`);
 }
 
-/**
- * Stop the cleanup job
- */
 function stopCleanupJob() {
     if (cleanupIntervalId) {
         clearInterval(cleanupIntervalId);
