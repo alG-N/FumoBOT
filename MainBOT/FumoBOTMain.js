@@ -137,7 +137,6 @@ client.once('ready', async () => {
     initializeSeasonSystem(client);
     initializeShop();
     initializeShardHandler(client);
-
     try {
         console.log('🔄 Checking for auto-rolls to restore...');
         const crateFumos = FumoPool.getForCrate();
@@ -151,17 +150,16 @@ client.once('ready', async () => {
 
         const { restoreAutoRolls: restoreNormalAutoRolls } = require('./MainCommand/Service/GachaService/NormalGachaService/CrateAutoRollService');
         const { restoreEventAutoRolls } = require('./MainCommand/Service/GachaService/EventGachaService/EventAutoRollService');
+        const { loadUnifiedAutoRollState } = require('./MainCommand/Service/GachaService/UnifiedAutoRollPersistence');
 
-        const { loadAutoRollState } = require('./MainCommand/Service/GachaService/NormalGachaService/AutoRollPersistence');
-        const { loadEventAutoRollState } = require('./MainCommand/Service/GachaService/EventGachaService/EventAutoRollPersistence');
-        
-        const normalSavedStates = loadAutoRollState();
-        const eventSavedStates = loadEventAutoRollState();
+        const unifiedState = loadUnifiedAutoRollState();
+        const allUserIds = Object.keys(unifiedState);
 
-        const allUserIds = new Set([
-            ...Object.keys(normalSavedStates),
-            ...Object.keys(eventSavedStates)
-        ]);
+        if (allUserIds.length === 0) {
+            console.log('ℹ️ No auto-rolls to restore');
+        } else {
+            console.log(`🔄 Found ${allUserIds.length} user(s) with active auto-rolls to restore`);
+        }
 
         const results = {
             normal: { restored: 0, failed: 0 },
@@ -171,59 +169,81 @@ client.once('ready', async () => {
         const normalStates = new Map();
         const eventStates = new Map();
 
+        const normalResult = await restoreNormalAutoRolls(
+            client,
+            crateFumos,
+            { notifyUsers: false, logChannelId: null }
+        );
+        results.normal = normalResult;
+
+        const eventResult = await restoreEventAutoRolls(
+            client,
+            { notifyUsers: false, logChannelId: null }
+        );
+        results.event = eventResult;
+
+        const { getAutoRollMap } = require('./MainCommand/Service/GachaService/NormalGachaService/CrateAutoRollService');
+        const { getEventAutoRollMap } = require('./MainCommand/Service/GachaService/EventGachaService/EventAutoRollService');
+
+        const activeNormalMap = getAutoRollMap();
+        const activeEventMap = getEventAutoRollMap();
+
         for (const userId of allUserIds) {
-            if (normalSavedStates[userId]) {
-                const normalResult = await restoreNormalAutoRolls(
-                    client,
-                    crateFumos,
-                    { userId, savedState: normalSavedStates[userId], notifyUsers: false }
-                );
+            const userState = unifiedState[userId];
 
-                if (normalResult.success) {
-                    results.normal.restored++;
-                    normalStates.set(userId, normalSavedStates[userId]);
-                } else {
-                    results.normal.failed++;
-                }
+            if (userState.normal && activeNormalMap.has(userId)) {
+                normalStates.set(userId, userState.normal);
             }
 
-            if (eventSavedStates[userId]) {
-                const eventResult = await restoreEventAutoRolls(
-                    client,
-                    eventFumos,
-                    { userId, savedState: eventSavedStates[userId], notifyUsers: false }
-                );
-
-                if (eventResult.success) {
-                    results.event.restored++;
-                    eventStates.set(userId, eventSavedStates[userId]);
-                } else {
-                    results.event.failed++;
-                }
+            if (userState.event && activeEventMap.has(userId)) {
+                eventStates.set(userId, userState.event);
             }
+        }
 
-            if (normalStates.has(userId) || eventStates.has(userId)) {
-                await notifyUserUnifiedAutoRoll(
-                    client,
-                    userId,
-                    normalStates.get(userId),
-                    eventStates.get(userId)
-                );
+        for (const userId of allUserIds) {
+            const hasNormal = normalStates.has(userId);
+            const hasEvent = eventStates.has(userId);
+
+            if (hasNormal || hasEvent) {
+                try {
+                    await notifyUserUnifiedAutoRoll(
+                        client,
+                        userId,
+                        normalStates.get(userId) || null,
+                        eventStates.get(userId) || null
+                    );
+                } catch (error) {
+                    console.warn(`⚠️ Failed to send notification to user ${userId}:`, error.message);
+                }
             }
         }
 
         await sendUnifiedRestorationSummary(client, results, LOG_CHANNEL_ID);
 
-        client.on('interactionCreate', async interaction => {
+        const detailsButtonHandler = async (interaction) => {
             if (!interaction.isButton()) return;
 
             if (interaction.customId.startsWith('viewNormalAutoRoll_') ||
                 interaction.customId.startsWith('viewEventAutoRoll_')) {
                 await handleDetailsButtonInteraction(interaction, normalStates, eventStates);
             }
-        });
+        };
 
-        console.log(`📊 Restoration complete: Normal(${results.normal.restored}/${results.normal.failed}), Event(${results.event.restored}/${results.event.failed})`);
+        client.on('interactionCreate', detailsButtonHandler);
+
+        const totalRestored = results.normal.restored + results.event.restored;
+        const totalFailed = results.normal.failed + results.event.failed;
+
+        console.log(`📊 Restoration complete: ${totalRestored} restored, ${totalFailed} failed`);
+        console.log(`   ├─ Normal: ${results.normal.restored} restored, ${results.normal.failed} failed`);
+        console.log(`   └─ Event: ${results.event.restored} restored, ${results.event.failed} failed`);
+
+        if (normalResult.reasons && Object.keys(normalResult.reasons).length > 0) {
+            console.log(`📋 Normal failure reasons:`, normalResult.reasons);
+        }
+        if (eventResult.reasons && Object.keys(eventResult.reasons).length > 0) {
+            console.log(`📋 Event failure reasons:`, eventResult.reasons);
+        }
 
     } catch (error) {
         console.error('❌ Error during auto-roll restoration:', error);
