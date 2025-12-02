@@ -4,22 +4,29 @@ const { calculateCooldown } = require('./BoostService');
 const { SELL_REWARDS, SHINY_CONFIG, SPECIAL_RARITIES, compareFumos } = require('../../../Configuration/rarity');
 const { debugLog } = require('../../../Core/logger');
 const { 
-    saveAutoRollState, 
-    loadAutoRollState, 
-    removeUserState 
-} = require('./AutoRollPersistence');
+    saveUnifiedAutoRollState, 
+    loadNormalAutoRollState, 
+    removeNormalUserState 
+} = require('../UnifiedAutoRollPersistence');
 
 const autoRollMap = new Map();
 const AUTO_SAVE_INTERVAL = 30000;
 let autoSaveTimer = null;
+
+function getAutoRollMap() {
+    return autoRollMap;
+}
 
 function startAutoSave() {
     if (autoSaveTimer) clearInterval(autoSaveTimer);
     
     autoSaveTimer = setInterval(() => {
         if (autoRollMap.size > 0) {
-            saveAutoRollState(autoRollMap);
-            debugLog('AUTO_ROLL', `Auto-saved ${autoRollMap.size} active auto-rolls`);
+            const { getEventAutoRollMap } = require('../EventGachaService/EventAutoRollService');
+            const eventAutoRollMap = getEventAutoRollMap();
+            
+            saveUnifiedAutoRollState(autoRollMap, eventAutoRollMap);
+            debugLog('AUTO_ROLL', `Auto-saved ${autoRollMap.size} normal + ${eventAutoRollMap.size} event auto-rolls`);
         }
     }, AUTO_SAVE_INTERVAL);
     
@@ -183,7 +190,9 @@ async function startAutoRoll(userId, fumos, autoSell = false) {
     autoRollMap.set(userId, state);
     autoRollLoop();
 
-    saveAutoRollState(autoRollMap);
+    const { getEventAutoRollMap } = require('../EventGachaService/EventAutoRollService');
+    const eventAutoRollMap = getEventAutoRollMap();
+    saveUnifiedAutoRollState(autoRollMap, eventAutoRollMap);
 
     return { success: true, interval: initialInterval };
 }
@@ -198,7 +207,7 @@ function stopAutoRoll(userId) {
     const summary = { ...auto };
     autoRollMap.delete(userId);
 
-    removeUserState(userId);
+    removeNormalUserState(userId);
 
     return { success: true, summary };
 }
@@ -212,20 +221,20 @@ function getAutoRollSummary(userId) {
 }
 
 async function restoreAutoRolls(client, fumoPool, options = {}) {
-    const { notifyUsers = true, logChannelId = null } = options;
-    const savedStates = loadAutoRollState();
+    const { notifyUsers = false, logChannelId = null } = options;
+    const savedStates = loadNormalAutoRollState();
     const userIds = Object.keys(savedStates);
 
     if (userIds.length === 0) {
-        console.log('ℹ️ No auto-rolls to restore');
-        return { restored: 0, failed: 0 };
+        console.log('ℹ️ No normal auto-rolls to restore');
+        return { restored: 0, failed: 0, reasons: {} };
     }
 
-    console.log(`🔄 Restoring ${userIds.length} auto-rolls...`);
+    console.log(`🔄 Restoring ${userIds.length} normal auto-rolls...`);
     
     let restored = 0;
     let failed = 0;
-    const restoredUsers = [];
+    const failureReasons = {};
 
     for (const userId of userIds) {
         try {
@@ -237,9 +246,17 @@ async function restoreAutoRolls(client, fumoPool, options = {}) {
                 [userId]
             );
 
-            if (!userRow || userRow.coins < 10000) {
-                console.log(`⚠️ User ${userId} has insufficient coins, skipping restore`);
-                removeUserState(userId);
+            if (!userRow) {
+                console.log(`⚠️ User ${userId} not found in database - removing state`);
+                removeNormalUserState(userId);
+                failureReasons[userId] = 'USER_NOT_FOUND';
+                failed++;
+                continue;
+            }
+
+            if (userRow.coins < 10000) {
+                console.log(`⚠️ User ${userId} has insufficient coins - keeping state for later restoration`);
+                failureReasons[userId] = 'INSUFFICIENT_COINS';
                 failed++;
                 continue;
             }
@@ -261,52 +278,45 @@ async function restoreAutoRolls(client, fumoPool, options = {}) {
                 }
 
                 restored++;
-                restoredUsers.push({ userId, state: savedState });
-                console.log(`✅ Restored auto-roll for user ${userId}`);
+                console.log(`✅ Restored normal auto-roll for user ${userId}`);
             } else {
                 failed++;
-                console.log(`❌ Failed to restore auto-roll for user ${userId}: ${result.error}`);
+                failureReasons[userId] = result.error;
+                console.log(`❌ Failed to restore normal auto-roll for user ${userId}: ${result.error}`);
             }
 
         } catch (error) {
             failed++;
-            console.error(`❌ Error restoring auto-roll for user ${userId}:`, error);
+            failureReasons[userId] = 'UNKNOWN_ERROR';
+            console.error(`❌ Error restoring normal auto-roll for user ${userId}:`, error);
         }
     }
-
-    console.log(`📊 Auto-roll restoration complete: ${restored} restored, ${failed} failed`);
+    
+    if (Object.keys(failureReasons).length > 0) {
+        console.log('📋 Failure reasons:', failureReasons);
+    }
     
     startAutoSave();
 
-    if (notifyUsers && restoredUsers.length > 0) {
-        const { notifyUserAutoRollRestored } = require('./AutoRollNotification');
-        
-        for (const { userId, state } of restoredUsers) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            await notifyUserAutoRollRestored(client, userId, state);
-        }
-    }
-
-    if (logChannelId) {
-        const { sendRestorationSummary } = require('./AutoRollNotification');
-        await sendRestorationSummary(client, { restored, failed }, logChannelId);
-    }
-
-    return { restored, failed };
+    return { restored, failed, reasons: failureReasons };
 }
 
-
 function shutdownAutoRolls() {
-    console.log('🛑 Shutting down auto-rolls...');
-    saveAutoRollState(autoRollMap);
+    console.log('🛑 Shutting down normal auto-rolls...');
+    
+    const { getEventAutoRollMap } = require('../EventGachaService/EventAutoRollService');
+    const eventAutoRollMap = getEventAutoRollMap();
+    
+    saveUnifiedAutoRollState(autoRollMap, eventAutoRollMap);
     stopAutoSave();
+    
     for (const [userId, state] of autoRollMap.entries()) {
         if (state.intervalId) {
             clearTimeout(state.intervalId);
         }
     }
     
-    console.log(`💾 Saved ${autoRollMap.size} active auto-rolls`);
+    console.log(`💾 Saved ${autoRollMap.size} active normal auto-rolls to unified file`);
 }
 
 module.exports = {
@@ -317,6 +327,7 @@ module.exports = {
     calculateAutoRollInterval,
     performAutoSell,
     autoRollMap,
+    getAutoRollMap,
     restoreAutoRolls,
     shutdownAutoRolls,
     startAutoSave,

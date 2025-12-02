@@ -1,4 +1,4 @@
-const ItemHandlers = require('./ItemUseHandler/SpecialItemhandler');
+const ItemHandlers = require('./ItemUseHandler/SpecialItemHandler');
 const { getUserInventory, updateInventory } = require('./UseDatabaseService');
 const { validateItemUse } = require('./UseValidationService');
 

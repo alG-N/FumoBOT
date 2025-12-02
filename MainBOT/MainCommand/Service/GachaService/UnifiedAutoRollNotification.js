@@ -71,6 +71,7 @@ function createNormalGachaDetails(state, userId) {
                 value: 
                     `🎲 **Batches Completed:** ${formatNumber(state.rollCount)}\n` +
                     `🎯 **Total Rolls:** ${formatNumber(totalRolls)}\n` +
+                    `💸 **Coins Spent:** ${formatNumber(totalRolls * 100)}\n` +
                     `⏱️ **Session Duration:** ${uptime} minutes\n` +
                     `${state.autoSell ? '💰 **Auto-Sell:** Enabled (Selling below EXCLUSIVE)' : '💎 **Auto-Sell:** Disabled'}`,
                 inline: false
@@ -84,12 +85,16 @@ function createNormalGachaDetails(state, userId) {
             .replace(/\[.*?\]/g, '')
             .trim();
 
+        let suffix = '';
+        if (state.bestFumo.name.includes('[🌟alG]')) suffix = ' [🌟alG]';
+        else if (state.bestFumo.name.includes('[✨SHINY]')) suffix = ' [✨SHINY]';
+
         embed.addFields({
             name: '🏆 Best Fumo Obtained',
             value: 
-                `**${cleanName}**\n` +
+                `**${cleanName}${suffix}**\n` +
                 `Rarity: **${state.bestFumo.rarity}**\n` +
-                `Roll #${formatNumber(state.bestFumoRoll)} at ${state.bestFumoAt}`,
+                `Batch #${formatNumber(state.bestFumoRoll)} at ${state.bestFumoAt}`,
             inline: false
         });
 
@@ -103,7 +108,27 @@ function createNormalGachaDetails(state, userId) {
             name: '✨ Special Fumos',
             value: 
                 `You've obtained **${state.specialFumoCount}** special fumo(s) (EXCLUSIVE+)\n` +
-                `${state.specialFumoFirstAt ? `First at roll #${state.specialFumoFirstRoll} (${state.specialFumoFirstAt})` : ''}`,
+                `${state.specialFumoFirstAt ? `First at batch #${state.specialFumoFirstRoll} (${state.specialFumoFirstAt})` : ''}`,
+            inline: false
+        });
+    }
+
+    if (state.lowerSpecialFumos && state.lowerSpecialFumos.length > 0) {
+        const summaryLines = [];
+        const grouped = {};
+        
+        state.lowerSpecialFumos.forEach(f => {
+            if (!grouped[f.rarity]) grouped[f.rarity] = [];
+            grouped[f.rarity].push(f);
+        });
+
+        for (const [rarity, fumos] of Object.entries(grouped)) {
+            summaryLines.push(`**${rarity}:** ${fumos.length} obtained`);
+        }
+
+        embed.addFields({
+            name: '📦 Other Special Fumos',
+            value: summaryLines.join('\n') || 'None',
             inline: false
         });
     }
@@ -133,18 +158,30 @@ function createEventGachaDetails(state, userId) {
         ])
         .setTimestamp();
 
+    if (state.totalCoinsFromSales > 0) {
+        embed.addFields({
+            name: '💰 Auto-Sell Earnings',
+            value: `Earned **${formatNumber(state.totalCoinsFromSales)}** coins from auto-selling`,
+            inline: false
+        });
+    }
+
     if (state.bestFumo) {
         const cleanName = state.bestFumo.name
             .replace(/\(.*?\)/g, '')
             .replace(/\[.*?\]/g, '')
             .trim();
 
+        let suffix = '';
+        if (state.bestFumo.name.includes('[🌟alG]')) suffix = ' [🌟alG]';
+        else if (state.bestFumo.name.includes('[✨SHINY]')) suffix = ' [✨SHINY]';
+
         embed.addFields({
             name: '🏆 Best Fumo Obtained',
             value: 
-                `**${cleanName}**\n` +
+                `**${cleanName}${suffix}**\n` +
                 `Rarity: **${state.bestFumo.rarity}**\n` +
-                `Roll #${formatNumber(state.bestFumoRoll)} at ${state.bestFumoAt}`,
+                `Batch #${formatNumber(state.bestFumoRoll)} at ${state.bestFumoAt}`,
             inline: false
         });
 
@@ -158,9 +195,36 @@ function createEventGachaDetails(state, userId) {
             name: '✨ Special Fumos',
             value: 
                 `You've obtained **${state.specialFumoCount}** special fumo(s) (MYTHICAL+)\n` +
-                `${state.specialFumoFirstAt ? `First at roll #${state.specialFumoFirstRoll} (${state.specialFumoFirstAt})` : ''}`,
+                `${state.specialFumoFirstAt ? `First at batch #${state.specialFumoFirstRoll} (${state.specialFumoFirstAt})` : ''}`,
             inline: false
         });
+    }
+
+    if (state.specialFumos && state.specialFumos.length > 0) {
+        const summaryLines = [];
+        const grouped = {};
+        
+        state.specialFumos.forEach(f => {
+            if (!grouped[f.rarity]) grouped[f.rarity] = [];
+            grouped[f.rarity].push(f);
+        });
+
+        const rarityOrder = ['TRANSCENDENT', '???', 'MYTHICAL', 'LEGENDARY', 'EPIC'];
+        
+        for (const rarity of rarityOrder) {
+            if (grouped[rarity]) {
+                const fumos = grouped[rarity];
+                summaryLines.push(`**${rarity}:** ${fumos.length} obtained`);
+            }
+        }
+
+        if (summaryLines.length > 0) {
+            embed.addFields({
+                name: '📦 Special Fumos Breakdown',
+                value: summaryLines.join('\n'),
+                inline: false
+            });
+        }
     }
 
     return embed;
@@ -248,11 +312,13 @@ async function handleDetailsButtonInteraction(interaction, normalStates, eventSt
     }
 }
 
-
 async function sendUnifiedRestorationSummary(client, results, logChannelId) {
     try {
         const channel = await client.channels.fetch(logChannelId).catch(() => null);
         if (!channel || !channel.isTextBased()) return;
+
+        const totalRestored = results.normal.restored + results.event.restored;
+        const totalFailed = results.normal.failed + results.event.failed;
 
         const embed = new EmbedBuilder()
             .setTitle('🔄 Auto-Roll Restoration Summary')
@@ -275,17 +341,27 @@ async function sendUnifiedRestorationSummary(client, results, logChannelId) {
                 {
                     name: '📊 Total',
                     value: 
-                        `✅ ${results.normal.restored + results.event.restored} restored\n` +
-                        `❌ ${results.normal.failed + results.event.failed} failed`,
+                        `✅ ${totalRestored} restored\n` +
+                        `❌ ${totalFailed} failed`,
                     inline: true
                 }
             ])
-            .setColor(
-                (results.normal.failed + results.event.failed) > 0 
-                    ? Colors.Orange 
-                    : Colors.Green
-            )
+            .setColor(totalFailed > 0 ? Colors.Orange : Colors.Green)
             .setTimestamp();
+
+        if (totalFailed > 0) {
+            embed.addFields([
+                {
+                    name: '⚠️ Common Failure Reasons',
+                    value: 
+                        `• User has insufficient coins/gems\n` +
+                        `• User doesn't have Fantasy Book (event)\n` +
+                        `• User reached roll limit (event)\n` +
+                        `• Database connection issues`,
+                    inline: false
+                }
+            ]);
+        }
 
         await channel.send({ embeds: [embed] });
 
