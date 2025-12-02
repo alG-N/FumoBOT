@@ -123,7 +123,7 @@ const WEATHER_EVENTS = [
 
 function isWeekend() {
     const day = new Date().getDay();
-    return day === 0 || day === 5 || day === 6;
+    return day === 0 || day === 6; 
 }
 
 function getBaseSeasonMultiplier() {

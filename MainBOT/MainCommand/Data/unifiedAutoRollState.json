@@ -1,45 +1,38 @@
 {
   "1128296349566251068": {
-    "normal": {
-      "rollCount": 1,
-      "autoSell": true,
-      "startTime": 1764653816928,
-      "bestFumo": {
-        "name": "Athena(ASTRAL)",
-        "rarity": "ASTRAL",
-        "picture": "https://media.discordapp.net/attachments/1372426801472737280/1372426818594017311/OIP.png?ex=6826bb94&is=68256a14&hm=eb47a890b02dc810beefb84938f01c70b98522c1fe3c4a2ccb96de9293da28ac&=&format=webp&quality=lossless&width=309&height=309"
-      },
-      "bestFumoAt": "12/2/2025, 12:46:53 PM",
-      "bestFumoRoll": 1,
-      "specialFumoCount": 3,
-      "specialFumoFirstAt": "12/2/2025, 12:46:53 PM",
-      "specialFumoFirstRoll": 1,
-      "lowerSpecialFumos": [
-        {
-          "name": "HyperSakuya(EXCLUSIVE)",
-          "rarity": "EXCLUSIVE",
-          "roll": 1,
-          "time": "12/2/2025, 12:48:41 PM"
-        }
-      ]
-    },
     "event": {
-      "rollCount": 2,
+      "rollCount": 3,
       "autoSell": true,
       "startTime": 1764654745135,
-      "totalFumosRolled": 1100,
-      "totalCoinsFromSales": 69250,
+      "totalFumosRolled": 7400,
+      "totalCoinsFromSales": 122350,
       "bestFumo": {
-        "name": "MonkeyLeader(MYTHICAL)",
+        "name": "OneShotCurse(MYTHICAL)",
         "rarity": "MYTHICAL",
-        "picture": "https://m.media-amazon.com/images/I/517MfPrGaRL.jpg"
+        "picture": "https://animeislandca.com/cdn/shop/files/jujutsu-kaisen-kyurumaru-mahito-big-plush-toy-anime-island-ca.png?v=1692739157&width=1445"
       },
-      "bestFumoAt": "12/2/2025, 12:53:07 PM",
-      "bestFumoRoll": 1,
+      "bestFumoAt": "12/2/2025, 1:01:37 PM",
+      "bestFumoRoll": 2,
       "specialFumoCount": 0,
       "specialFumoFirstAt": null,
       "specialFumoFirstRoll": null,
       "specialFumos": []
+    },
+    "normal": {
+      "rollCount": 1,
+      "autoSell": true,
+      "startTime": 1764657124116,
+      "bestFumo": {
+        "name": "DarkYoumu(EXCLUSIVE)",
+        "rarity": "EXCLUSIVE",
+        "picture": "https://fumo.website/img/918.jpg"
+      },
+      "bestFumoAt": "12/2/2025, 1:32:04 PM",
+      "bestFumoRoll": 1,
+      "specialFumoCount": 1,
+      "specialFumoFirstAt": "12/2/2025, 1:32:04 PM",
+      "specialFumoFirstRoll": 1,
+      "lowerSpecialFumos": []
     }
   }
 }

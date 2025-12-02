@@ -11,7 +11,9 @@ async function handleTimeClock(message, itemName, quantity, userId) {
     const duration = 24 * 60 * 60 * 1000;
     const cooldown = 36 * 60 * 60 * 1000;
 
-    await run(`UPDATE userInventory SET quantity = quantity + 1 WHERE userId = ? AND itemName = ?`, [userId, itemName]);
+    // NOTE: DO NOT restore the item here!
+    // The item was already consumed by use.js
+    // We only restore on cooldown check failure
 
     try {
         const userRow = await get(
@@ -23,7 +25,15 @@ async function handleTimeClock(message, itemName, quantity, userId) {
         const lastUsed = userRow?.timeclockLastUsed || 0;
 
         if (lastUsed && now - lastUsed < cooldown) {
-            return message.reply(`⏳ **TimeClock(L)** is on cooldown!\nYou can use it again <t:${Math.floor((lastUsed + cooldown) / 1000)}:R>.`);
+            // Restore item since they can't use it yet
+            await run(
+                `INSERT INTO userInventory (userId, itemName, quantity, type) 
+                 VALUES (?, ?, 1, 'item')
+                 ON CONFLICT(userId, itemName) DO UPDATE SET quantity = quantity + 1`,
+                [userId, itemName]
+            );
+            
+            return message.reply(`⏳ **TimeClock(L)** is on cooldown!\nYou can use it again <t:${Math.floor((lastUsed + cooldown) / 1000)}:R>.\n\nYour item has been returned.`);
         }
 
         const boosts = [
@@ -44,8 +54,9 @@ async function handleTimeClock(message, itemName, quantity, userId) {
                 `> 💰 **x2 Coins**\n` +
                 `> 💎 **x2 Gems**\n` +
                 `> 🏃‍♂️ **x2 Summon Speed**\n` +
-                `> ⏳ Cooldown: **1d and 12h**\n\n` +
-                `*This item is not consumed. You can use it again after the cooldown.*`
+                `> ⏳ Duration: **24 hours**\n` +
+                `> 🔄 Cooldown: **36 hours**\n\n` +
+                `*This item is consumed but has a cooldown between uses.*`
             )
             .setFooter({ text: "Enjoy your time boost!" })
             .setTimestamp();

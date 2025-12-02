@@ -3,7 +3,14 @@ const { run, get } = require('../../../../Core/database');
 
 async function handleFantasyBook(message, itemName, quantity, userId) {
     if (quantity > 1) {
-        return message.reply("❌ **FantasyBook(M)** is a one-time use item.");
+        // Restore extra items
+        await run(
+            `INSERT INTO userInventory (userId, itemName, quantity, type) 
+             VALUES (?, ?, ?, 'item')
+             ON CONFLICT(userId, itemName) DO UPDATE SET quantity = quantity + ?`,
+            [userId, itemName, quantity - 1, quantity - 1]
+        );
+        return message.reply("❌ **FantasyBook(M)** is a one-time use item. Extra items have been returned.");
     }
 
     try {
@@ -13,10 +20,18 @@ async function handleFantasyBook(message, itemName, quantity, userId) {
         );
 
         if (userRow?.hasFantasyBook) {
+            // Restore item since they already used it
+            await run(
+                `INSERT INTO userInventory (userId, itemName, quantity, type) 
+                 VALUES (?, ?, 1, 'item')
+                 ON CONFLICT(userId, itemName) DO UPDATE SET quantity = quantity + 1`,
+                [userId, itemName]
+            );
+            
             const embed = new EmbedBuilder()
                 .setColor(0x9370DB)
                 .setTitle("📖 FantasyBook(M) Already Used!")
-                .setDescription("You've already unlocked **ASTRAL+** and non-Touhou rarities.\n> The Fantasy power is eternal.")
+                .setDescription("You've already unlocked **ASTRAL+** and non-Touhou rarities.\n> The Fantasy power is eternal.\n\nYour item has been returned.")
                 .setTimestamp();
             return message.reply({ embeds: [embed] });
         }
@@ -41,15 +56,27 @@ async function handleFantasyBook(message, itemName, quantity, userId) {
             .catch(() => null);
 
         if (!collected) {
-            await run(`UPDATE userInventory SET quantity = quantity + 1 WHERE userId = ? AND itemName = ?`, [userId, itemName]);
-            return message.reply('⏱️ FantasyBook(M) use timed out. Please try again.');
+            // Restore item on timeout
+            await run(
+                `INSERT INTO userInventory (userId, itemName, quantity, type) 
+                 VALUES (?, ?, 1, 'item')
+                 ON CONFLICT(userId, itemName) DO UPDATE SET quantity = quantity + 1`,
+                [userId, itemName]
+            );
+            return message.reply('⏱️ FantasyBook(M) use timed out. Your item has been returned.');
         }
 
         const response = collected.first().content.toLowerCase();
 
         if (response === 'no') {
-            await run(`UPDATE userInventory SET quantity = quantity + 1 WHERE userId = ? AND itemName = ?`, [userId, itemName]);
-            return message.reply('❌ FantasyBook(M) use cancelled.');
+            // Restore item on cancel
+            await run(
+                `INSERT INTO userInventory (userId, itemName, quantity, type) 
+                 VALUES (?, ?, 1, 'item')
+                 ON CONFLICT(userId, itemName) DO UPDATE SET quantity = quantity + 1`,
+                [userId, itemName]
+            );
+            return message.reply('❌ FantasyBook(M) use cancelled. Your item has been returned.');
         }
 
         await run(

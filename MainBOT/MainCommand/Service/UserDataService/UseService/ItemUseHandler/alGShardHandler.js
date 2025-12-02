@@ -8,6 +8,8 @@ async function handleAlGShard(message, itemName, quantity, userId) {
         return message.reply("❌ **alGShard(P)** can only be used one at a time.");
     }
 
+    // NOTE: Items are already consumed by use.js - DO NOT consume again here
+
     try {
         const rarities = ['LEGENDARY', 'MYTHICAL', 'EXCLUSIVE', '???', 'ASTRAL', 'CELESTIAL', 'INFINITE', 'ETERNAL', 'TRANSCENDENT'];
         
@@ -36,99 +38,6 @@ async function handleAlGShard(message, itemName, quantity, userId) {
     } catch (error) {
         console.error('[ALG_SHARD] Error:', error);
         message.reply('❌ Failed to use alGShard.');
-    }
-}
-
-async function handleAlGShardConfirmation(interaction) {
-    const userId = interaction.user.id;
-    
-    const { parseCustomId } = require('../../../../Middleware/buttonOwnership');
-    const { additionalData } = parseCustomId(interaction.customId);
-    
-    if (!additionalData?.fumoName || !additionalData?.rarity) {
-        return interaction.update({
-            content: '❌ Invalid confirmation data.',
-            embeds: [],
-            components: []
-        });
-    }
-    
-    const { fumoName, rarity } = additionalData;
-
-    try {
-        const inventory = await get(
-            `SELECT quantity FROM userInventory WHERE userId = ? AND itemName = 'alGShard(P)'`,
-            [userId]
-        );
-
-        if (!inventory || inventory.quantity < 1) {
-            return interaction.update({
-                content: '❌ You no longer have an alGShard(P).',
-                embeds: [],
-                components: []
-            });
-        }
-
-        const originalFumo = await get(
-            `SELECT quantity FROM userInventory WHERE userId = ? AND itemName = ?`,
-            [userId, fumoName]
-        );
-
-        if (!originalFumo || originalFumo.quantity < 1) {
-            return interaction.update({
-                content: `❌ You don't have **${fumoName}** to transform!`,
-                embeds: [],
-                components: []
-            });
-        }
-
-        await run(
-            `UPDATE userInventory SET quantity = quantity - 1 WHERE userId = ? AND itemName = 'alGShard(P)'`,
-            [userId]
-        );
-
-        await run(
-            `DELETE FROM userInventory WHERE userId = ? AND itemName = 'alGShard(P)' AND quantity <= 0`,
-            [userId]
-        );
-
-        await run(
-            `UPDATE userInventory SET quantity = quantity - 1 WHERE userId = ? AND itemName = ?`,
-            [userId, fumoName]
-        );
-
-        await run(
-            `DELETE FROM userInventory WHERE userId = ? AND itemName = ? AND quantity <= 0`,
-            [userId, fumoName]
-        );
-
-        const alGFumoName = `${fumoName}[🌟alG]`;
-
-        await run(
-            `INSERT INTO userInventory (userId, fumoName, itemName, rarity, quantity, type, dateObtained)
-             VALUES (?, ?, ?, ?, 1, 'fumo', datetime('now'))
-             ON CONFLICT(userId, itemName) DO UPDATE SET quantity = quantity + 1`,
-            [userId, alGFumoName, alGFumoName, rarity]
-        );
-
-        const embed = new EmbedBuilder()
-            .setColor(0xFFD700)
-            .setTitle('🌟 alGShard(P) Used Successfully!')
-            .setDescription(
-                `**Transformed:** ${fumoName} → ${alGFumoName}\n\n` +
-                `Your alG fumo has been added to your inventory!`
-            )
-            .setTimestamp();
-
-        await interaction.update({ embeds: [embed], components: [] });
-
-    } catch (error) {
-        console.error('[ALG_SHARD] Confirmation error:', error);
-        interaction.update({
-            content: '❌ Failed to create alG fumo.',
-            embeds: [],
-            components: []
-        });
     }
 }
 
@@ -219,19 +128,6 @@ async function handleAlGShardFumoSelection(interaction) {
 
         const fumoName = selectedFumo.name;
 
-        const inventory = await get(
-            `SELECT quantity FROM userInventory WHERE userId = ? AND itemName = 'alGShard(P)'`,
-            [userId]
-        );
-
-        if (!inventory || inventory.quantity < 1) {
-            return interaction.update({
-                content: '❌ You no longer have an alGShard(P).',
-                embeds: [],
-                components: []
-            });
-        }
-
         const confirmButton = new ButtonBuilder()
             .setCustomId(buildSecureCustomId('alg_confirm', userId, { fumoName, rarity }))
             .setLabel('Confirm')
@@ -283,18 +179,8 @@ async function handleAlGShardConfirmation(interaction) {
     const { fumoName, rarity } = additionalData;
 
     try {
-        const inventory = await get(
-            `SELECT quantity FROM userInventory WHERE userId = ? AND itemName = 'alGShard(P)'`,
-            [userId]
-        );
-
-        if (!inventory || inventory.quantity < 1) {
-            return interaction.update({
-                content: '❌ You no longer have an alGShard(P).',
-                embeds: [],
-                components: []
-            });
-        }
+        // NOTE: The alGShard was already consumed by use.js
+        // We don't need to consume it again here
 
         const originalFumo = await get(
             `SELECT id, fumoName, itemName, quantity FROM userInventory 
@@ -307,24 +193,24 @@ async function handleAlGShardConfirmation(interaction) {
         );
 
         if (!originalFumo || originalFumo.quantity < 1) {
+            // Restore the shard since they don't have the fumo
+            await run(
+                `INSERT INTO userInventory (userId, itemName, quantity, type) 
+                 VALUES (?, 'alGShard(P)', 1, 'item')
+                 ON CONFLICT(userId, itemName) DO UPDATE SET quantity = quantity + 1`,
+                [userId]
+            );
+            
             return interaction.update({
                 content: `❌ You don't have **${fumoName}** to transform!\n\n` +
-                         `Make sure you have the base version (without traits) in your inventory.`,
+                         `Make sure you have the base version (without traits) in your inventory.\n\n` +
+                         `Your alGShard has been returned.`,
                 embeds: [],
                 components: []
             });
         }
 
-        await run(
-            `UPDATE userInventory SET quantity = quantity - 1 WHERE userId = ? AND itemName = 'alGShard(P)'`,
-            [userId]
-        );
-
-        await run(
-            `DELETE FROM userInventory WHERE userId = ? AND itemName = 'alGShard(P)' AND quantity <= 0`,
-            [userId]
-        );
-
+        // Consume the base fumo
         if (originalFumo.quantity > 1) {
             await run(
                 `UPDATE userInventory SET quantity = quantity - 1 WHERE id = ?`,
@@ -360,8 +246,21 @@ async function handleAlGShardConfirmation(interaction) {
 
     } catch (error) {
         console.error('[ALG_SHARD] Confirmation error:', error);
+        
+        // Restore the shard on error
+        try {
+            await run(
+                `INSERT INTO userInventory (userId, itemName, quantity, type) 
+                 VALUES (?, 'alGShard(P)', 1, 'item')
+                 ON CONFLICT(userId, itemName) DO UPDATE SET quantity = quantity + 1`,
+                [userId]
+            );
+        } catch (restoreError) {
+            console.error('[ALG_SHARD] Failed to restore shard:', restoreError);
+        }
+        
         interaction.update({
-            content: '❌ Failed to create alG fumo. Error: ' + error.message,
+            content: '❌ Failed to create alG fumo. Your alGShard has been returned. Error: ' + error.message,
             embeds: [],
             components: []
         });
@@ -369,10 +268,24 @@ async function handleAlGShardConfirmation(interaction) {
 }
 
 async function handleAlGShardCancellation(interaction) {
+    const userId = interaction.user.id;
+    
+    // Restore the shard since they cancelled
+    try {
+        await run(
+            `INSERT INTO userInventory (userId, itemName, quantity, type) 
+             VALUES (?, 'alGShard(P)', 1, 'item')
+             ON CONFLICT(userId, itemName) DO UPDATE SET quantity = quantity + 1`,
+            [userId]
+        );
+    } catch (error) {
+        console.error('[ALG_SHARD] Failed to restore shard on cancel:', error);
+    }
+    
     const embed = new EmbedBuilder()
         .setColor(0xFF0000)
         .setTitle('❌ Cancelled')
-        .setDescription('alGShard(P) usage was cancelled.')
+        .setDescription('alGShard(P) usage was cancelled. Your shard has been returned.')
         .setTimestamp();
 
     await interaction.update({ embeds: [embed], components: [] });

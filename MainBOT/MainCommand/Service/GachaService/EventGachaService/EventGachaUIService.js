@@ -210,7 +210,7 @@ function createEventAutoRollSummary(summary, userId) {
 
     const gemsSpent = summary.totalFumosRolled * 100;
     const stopReason = summary.stoppedReason === 'LIMIT_REACHED' 
-        ? '⚠️ Stopped: Roll limit reached (10,000)'
+        ? '⚠️ Stopped: Roll limit reached (50,000)'
         : summary.stoppedReason === 'INSUFFICIENT_GEMS'
         ? '⚠️ Stopped: Ran out of gems'
         : summary.stoppedReason === 'ERROR'
