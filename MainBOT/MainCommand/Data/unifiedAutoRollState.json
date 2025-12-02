@@ -1,118 +1,34 @@
 {
   "1128296349566251068": {
     "event": {
-      "rollCount": 1,
+      "rollCount": 0,
       "autoSell": true,
-      "startTime": 1764654745135,
-      "totalFumosRolled": 17800,
-      "totalCoinsFromSales": 40750,
-      "bestFumo": {
-        "name": "HeianSukuna(TRANSCENDENT)",
-        "rarity": "TRANSCENDENT",
-        "picture": "https://media.discordapp.net/attachments/1372426801472737280/1372880397599244378/raw.png?ex=68286201&is=68271081&hm=354b51c0bb278e08cef1d63050e9e0fc41765335d37309f15298050a8fdd03da&=&format=webp&quality=lossless&width=438&height=438"
-      },
-      "bestFumoAt": "12/2/2025, 1:59:08 PM",
-      "bestFumoRoll": 40,
-      "specialFumoCount": 3,
-      "specialFumoFirstAt": "12/2/2025, 1:32:55 PM",
-      "specialFumoFirstRoll": 5,
-      "specialFumos": [
-        {
-          "name": "Go/jo(???)",
-          "rarity": "???",
-          "roll": 5,
-          "time": "12/2/2025, 1:32:55 PM"
-        },
-        {
-          "name": "Go/jo(???)",
-          "rarity": "???",
-          "roll": 20,
-          "time": "12/2/2025, 1:49:07 PM"
-        },
-        {
-          "name": "HeianSukuna(TRANSCENDENT)",
-          "rarity": "TRANSCENDENT",
-          "roll": 40,
-          "time": "12/2/2025, 1:59:08 PM"
-        }
-      ]
+      "startTime": 1764660987653,
+      "totalFumosRolled": 0,
+      "totalCoinsFromSales": 0,
+      "bestFumo": null,
+      "bestFumoAt": null,
+      "bestFumoRoll": null,
+      "specialFumoCount": 0,
+      "specialFumoFirstAt": null,
+      "specialFumoFirstRoll": null,
+      "specialFumos": []
     },
     "normal": {
-      "rollCount": 1,
+      "rollCount": 4,
       "autoSell": true,
-      "startTime": 1764657124116,
+      "startTime": 1764660866533,
       "bestFumo": {
-        "name": "Cheshire(ASTRAL)",
-        "rarity": "ASTRAL",
-        "picture": "https://images.tokopedia.net/img/cache/500-square/VqbcmM/2024/2/25/932b310d-4256-42bc-abf7-c7d83869ee0c.jpg"
+        "name": "SkibidiToilet(???)",
+        "rarity": "???",
+        "picture": "https://i.imgur.com/pOZ9Sdf.png"
       },
-      "bestFumoAt": "12/2/2025, 1:45:36 PM",
-      "bestFumoRoll": 7,
-      "specialFumoCount": 15,
-      "specialFumoFirstAt": "12/2/2025, 1:32:04 PM",
-      "specialFumoFirstRoll": 1,
-      "lowerSpecialFumos": [
-        {
-          "name": "BlueReimu(EXCLUSIVE)",
-          "rarity": "EXCLUSIVE",
-          "roll": 2,
-          "time": "12/2/2025, 1:40:35 PM"
-        },
-        {
-          "name": "RedMarisa(EXCLUSIVE)",
-          "rarity": "EXCLUSIVE",
-          "roll": 17,
-          "time": "12/2/2025, 1:55:36 PM"
-        },
-        {
-          "name": "HyperSakuya(EXCLUSIVE)",
-          "rarity": "EXCLUSIVE",
-          "roll": 18,
-          "time": "12/2/2025, 1:56:36 PM"
-        },
-        {
-          "name": "CirnoSitting(EXCLUSIVE)",
-          "rarity": "EXCLUSIVE",
-          "roll": 19,
-          "time": "12/2/2025, 1:57:36 PM"
-        },
-        {
-          "name": "BlueReimu(EXCLUSIVE)",
-          "rarity": "EXCLUSIVE",
-          "roll": 21,
-          "time": "12/2/2025, 1:59:36 PM"
-        },
-        {
-          "name": "CirnoSitting(EXCLUSIVE)",
-          "rarity": "EXCLUSIVE",
-          "roll": 23,
-          "time": "12/2/2025, 2:01:36 PM"
-        },
-        {
-          "name": "HyperSakuya(EXCLUSIVE)",
-          "rarity": "EXCLUSIVE",
-          "roll": 28,
-          "time": "12/2/2025, 2:06:36 PM"
-        },
-        {
-          "name": "GawrGura(???)",
-          "rarity": "???",
-          "roll": 1,
-          "time": "12/2/2025, 2:07:49 PM"
-        },
-        {
-          "name": "SkibidiToilet(???)",
-          "rarity": "???",
-          "roll": 2,
-          "time": "12/2/2025, 2:10:03 PM"
-        },
-        {
-          "name": "CirnoSitting(EXCLUSIVE)",
-          "rarity": "EXCLUSIVE",
-          "roll": 6,
-          "time": "12/2/2025, 2:19:38 PM"
-        }
-      ]
+      "bestFumoAt": "12/2/2025, 2:35:56 PM",
+      "bestFumoRoll": 4,
+      "specialFumoCount": 1,
+      "specialFumoFirstAt": "12/2/2025, 2:35:56 PM",
+      "specialFumoFirstRoll": 4,
+      "lowerSpecialFumos": []
     }
   }
 }

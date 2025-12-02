@@ -11,7 +11,7 @@ async function handleAncientRelic(message, itemName, quantity, userId) {
     ];
     const duration = 24 * 60 * 60 * 1000 * quantity;
 
-    try {
+    try {        
         await applyMultipleBoosts(userId, boosts, duration);
 
         const embed = new EmbedBuilder()
@@ -19,7 +19,7 @@ async function handleAncientRelic(message, itemName, quantity, userId) {
             .setTitle("🔮 Ancient Power Unleashed!")
             .setDescription(
                 `You used **AncientRelic(E)** x${quantity}!\n\n` +
-                `> 🤠 **+250% Luck Boost**\n` +
+                `> 🍀 **+250% Luck Boost**\n` +
                 `> 💰 **+350% Coin Boost**\n` +
                 `> 💎 **+500% Gem Boost**\n\n` +
                 `**Boost Details**\n` +
@@ -29,10 +29,11 @@ async function handleAncientRelic(message, itemName, quantity, userId) {
             .setFooter({ text: `Boost Source: ${source}` })
             .setTimestamp();
 
-        message.reply({ embeds: [embed] });
+        await message.reply({ embeds: [embed] });
+        
     } catch (error) {
         console.error('[ANCIENT_RELIC] Error:', error);
-        message.reply('❌ Failed to activate AncientRelic boost.');
+        await message.reply('❌ Failed to activate AncientRelic boost. Error: ' + error.message);
     }
 }
 

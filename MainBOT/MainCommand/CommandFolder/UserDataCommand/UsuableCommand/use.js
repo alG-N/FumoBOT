@@ -3,9 +3,6 @@ const { checkButtonOwnership, parseCustomId } = require('../../../Middleware/but
 const { RARITY_ORDER } = require('../../../Configuration/itemConfig');
 const UseService = require('../../../Service/UserDataService/UseService/UseCommandService');
 
-/**
- * Main command handler - shows initial rarity selection
- */
 async function handleUseCommand(message) {
     const restriction = checkRestrictions(message.author.id);
     if (restriction.blocked) {
@@ -30,9 +27,6 @@ async function handleUseCommand(message) {
     await message.reply({ embeds: [embed], components });
 }
 
-/**
- * Handle rarity selection from dropdown
- */
 async function handleRaritySelection(interaction) {
     const userId = interaction.user.id;
     const selectedRarity = interaction.values[0].replace('use_rarity_', '');
@@ -53,9 +47,6 @@ async function handleRaritySelection(interaction) {
     await interaction.update({ embeds: [embed], components });
 }
 
-/**
- * Handle item selection from dropdown
- */
 async function handleItemSelection(interaction) {
     const { additionalData } = parseCustomId(interaction.customId);
     const rarity = additionalData?.rarity;
@@ -91,9 +82,6 @@ async function handleItemSelection(interaction) {
     }
 }
 
-/**
- * Show quantity input prompt
- */
 async function showQuantityInput(interaction, itemName, maxQuantity, userId) {
     const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
     const { buildSecureCustomId } = require('../../../Middleware/buttonOwnership');
@@ -148,9 +136,6 @@ async function showQuantityInput(interaction, itemName, maxQuantity, userId) {
     await showConfirmation(interaction, itemName, inputQuantity, userId);
 }
 
-/**
- * Show confirmation dialog
- */
 async function showConfirmation(interaction, itemName, quantity, userId) {
     const { embed, components } = UseService.buildConfirmation(userId, itemName, quantity);
 
@@ -161,9 +146,6 @@ async function showConfirmation(interaction, itemName, quantity, userId) {
     }
 }
 
-/**
- * Handle confirmation button click
- */
 async function handleConfirmation(interaction) {
     const { additionalData } = parseCustomId(interaction.customId);
     
@@ -197,6 +179,11 @@ async function handleConfirmation(interaction) {
 
     try {
         await UseService.executeItemUse(userId, itemName, quantity, messageProxy);
+        
+        setTimeout(() => {
+            interaction.deleteReply().catch(() => {});
+        }, 500);
+        
     } catch (error) {
         console.error('[USE_COMMAND] Error:', error);
         return interaction.editReply({
@@ -207,9 +194,6 @@ async function handleConfirmation(interaction) {
     }
 }
 
-/**
- * Handle cancellation
- */
 async function handleCancellation(interaction) {
     const { EmbedBuilder } = require('discord.js');
     
@@ -222,9 +206,6 @@ async function handleCancellation(interaction) {
     await interaction.update({ embeds: [embed], components: [] });
 }
 
-/**
- * Handle pagination
- */
 async function handlePagination(interaction, direction) {
     const { additionalData } = parseCustomId(interaction.customId);
     let currentPage = additionalData?.page || 0;
@@ -249,9 +230,6 @@ async function handlePagination(interaction, direction) {
     await interaction.update({ embeds: [embed], components });
 }
 
-/**
- * Handle back to rarity selection
- */
 async function handleBackToRarity(interaction) {
     const userId = interaction.user.id;
     const usableItems = await UseService.getUsableInventory(userId);
@@ -272,7 +250,6 @@ async function handleBackToRarity(interaction) {
 }
 
 module.exports = (client) => {
-    // Message command handler
     client.on('messageCreate', async (message) => {
         try {
             if (message.author.bot) return;
@@ -285,7 +262,6 @@ module.exports = (client) => {
         }
     });
 
-    // Interaction handler
     client.on('interactionCreate', async (interaction) => {
         try {
             if (!interaction.isStringSelectMenu() && !interaction.isButton()) return;
