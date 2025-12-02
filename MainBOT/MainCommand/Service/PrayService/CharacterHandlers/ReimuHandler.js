@@ -29,7 +29,7 @@ async function handleReimu(userId, channel, interactionUserId) {
         user.reimuUsageCount = 0;
     }
 
-    if (user.reimuUsageCount >= config.maxUsagePerWindow) {
+    if (user.reimuUsageCount >= 8) {
         await channel.send({
             embeds: [new EmbedBuilder()
                 .setTitle("⏳ Prayer Cooldown")
@@ -69,8 +69,8 @@ async function handleGiftPhase(userId, channel, user, config, interactionUserId)
     }
 
     const fumo = filteredFumos[Math.floor(Math.random() * filteredFumos.length)];
-    const isAlterGolden = Math.random() < giftConfig.alGChance;
-    const isShiny = !isAlterGolden && Math.random() < giftConfig.shinyChance;
+    const isAlterGolden = Math.random() < 0.1;
+    const isShiny = !isAlterGolden && Math.random() < 0.35;
 
     let fumoName = fumo.name;
     if (isAlterGolden) {
@@ -105,7 +105,7 @@ async function handleGiftPhase(userId, channel, user, config, interactionUserId)
             .setTimestamp()]
     });
 
-    const tokensEarned = rollTokens(giftConfig.tokenChances);
+    const tokensEarned = rollTokens();
     if (tokensEarned > 0) {
         await addSpiritTokens(userId, tokensEarned);
         await channel.send({
@@ -144,8 +144,8 @@ async function handleDonationPhase(userId, channel, user, config) {
         multiplier = pityMultipliers.low.multiplier;
     }
 
-    const requiredCoins = (donationConfig.baseCoinCost + penalty * donationConfig.penaltyCoinIncrease) * multiplier;
-    const requiredGems = (donationConfig.baseGemCost + penalty * donationConfig.penaltyGemIncrease) * multiplier;
+    const requiredCoins = (30000 + penalty * 5000) * multiplier;
+    const requiredGems = (2500 + penalty * 1000) * multiplier;
 
     if (user.coins >= requiredCoins && user.gems >= requiredGems) {
         await deductUserCurrency(userId, requiredCoins, requiredGems);
@@ -165,8 +165,8 @@ async function handleDonationPhase(userId, channel, user, config) {
     } else {
         await updateReimuData(userId, { reimuPenalty: penalty + 1 });
 
-        const penaltyCoins = (penalty + 1) * 10000;
-        const penaltyGems = (penalty + 1) * 2000;
+        const penaltyCoins = (penalty + 1) * 5000;
+        const penaltyGems = (penalty + 1) * 1000;
 
         await channel.send({
             embeds: [new EmbedBuilder()
@@ -210,13 +210,13 @@ function pickRarity(probabilities) {
     return entries[0][0];
 }
 
-function rollTokens(chances) {
+function rollTokens() {
     const rng = Math.random();
     
-    if (rng < chances[25]) return 25;
-    if (rng < chances[5]) return 5;
-    if (rng < chances[2]) return 2;
-    if (rng < chances[1]) return 1;
+    if (rng < 0.08) return 25;
+    if (rng < 0.20) return 5;
+    if (rng < 0.35) return 2;
+    if (rng < 0.50) return 1;
     
     return 0;
 }

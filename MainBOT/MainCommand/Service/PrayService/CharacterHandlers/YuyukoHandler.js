@@ -20,7 +20,7 @@ async function handleYuyuko(userId, channel) {
     }
 
     const currentLuck = user.luck || 0;
-    const isDevour = randomNumber <= (config.offers.devour.chance * 100);
+    const isDevour = randomNumber <= 25;
 
     if (isDevour) {
         await handleDevourOutcome(userId, channel, user, currentLuck, config);
@@ -33,13 +33,13 @@ async function handleYuyuko(userId, channel) {
 
 async function handleDevourOutcome(userId, channel, user, currentLuck, config) {
     const devourConfig = config.offers.devour;
-    let bonusRolls = currentLuck >= 1 ? devourConfig.rollRewardWithShiny : devourConfig.rollReward;
-    let newLuck = Math.min(currentLuck + devourConfig.luckBoost, 1);
+    let bonusRolls = currentLuck >= 1 ? 10000 : 5000;
+    let newLuck = Math.min(currentLuck + 0.5, 1);
     
-    if (newLuck >= 1) bonusRolls = devourConfig.rollRewardWithShiny;
-    bonusRolls = Math.min(bonusRolls, devourConfig.maxRolls);
+    if (newLuck >= 1) bonusRolls = 10000;
+    bonusRolls = Math.min(bonusRolls, 50000);
 
-    if (user.coins < devourConfig.coinCost || user.gems < devourConfig.gemCost) {
+    if (user.coins < 600000 || user.gems < 140000) {
         await updateUserCoins(userId, -user.coins, -user.gems);
         
         await channel.send({
@@ -50,20 +50,20 @@ async function handleDevourOutcome(userId, channel, user, currentLuck, config) {
                 .setTimestamp()]
         });
     } else {
-        await deductUserCurrency(userId, devourConfig.coinCost, devourConfig.gemCost);
+        await deductUserCurrency(userId, 600000, 140000);
         
         bonusRolls = Math.floor(bonusRolls * 3);
         
         await updateUserRolls(userId, bonusRolls);
-        await updateUserLuck(userId, devourConfig.luckBoost * 2);
+        await updateUserLuck(userId, 1.5);
 
         await channel.send({
             embeds: [new EmbedBuilder()
                 .setTitle('🍽️ Devoured! 🍽️')
                 .setDescription(
-                    `Yuyuko took 1.5M coins & 350k gems... but left ${bonusRolls.toLocaleString()} rolls` +
-                    `${bonusRolls === devourConfig.rollRewardWithShiny * 3 ? ' thanks to ShinyMark+!' : ' as a ghostly favor.'}\n\n` +
-                    `✨ Luck boost has been tripled!`
+                    `Yuyuko took 600k coins & 140k gems... but left ${bonusRolls.toLocaleString()} rolls` +
+                    `${bonusRolls === 30000 ? ' thanks to ShinyMark+!' : ' as a ghostly favor.'}\n\n` +
+                    `✨ Luck boost has been massively increased!`
                 )
                 .setColor('#0099ff')
                 .setTimestamp()]
@@ -73,13 +73,13 @@ async function handleDevourOutcome(userId, channel, user, currentLuck, config) {
 
 async function handleNormalOutcome(userId, channel, user, currentLuck, config) {
     const normalConfig = config.offers.normal;
-    let bonusRolls = currentLuck >= 1 ? normalConfig.rollRewardWithShiny : normalConfig.rollReward;
-    let newLuck = Math.min(currentLuck + normalConfig.luckBoost, 1);
+    let bonusRolls = currentLuck >= 1 ? 1000 : 500;
+    let newLuck = Math.min(currentLuck + 0.05, 1);
     
-    if (newLuck >= 1) bonusRolls = normalConfig.rollRewardWithShiny;
+    if (newLuck >= 1) bonusRolls = 1000;
     bonusRolls = Math.min(bonusRolls, 10000);
 
-    if (user.coins < normalConfig.coinCost || user.gems < normalConfig.gemCost) {
+    if (user.coins < 50000 || user.gems < 10000) {
         await channel.send({
             embeds: [new EmbedBuilder()
                 .setTitle('🔮 Insufficient Funds 🔮')
@@ -90,19 +90,19 @@ async function handleNormalOutcome(userId, channel, user, currentLuck, config) {
         return;
     }
 
-    await deductUserCurrency(userId, normalConfig.coinCost, normalConfig.gemCost);
+    await deductUserCurrency(userId, 50000, 10000);
     
     bonusRolls = Math.floor(bonusRolls * 2.5);
     
     await updateUserRolls(userId, bonusRolls);
-    await updateUserLuck(userId, normalConfig.luckBoost * 1.5, normalConfig.luckRarities);
+    await updateUserLuck(userId, 0.125, normalConfig.luckRarities);
 
     await channel.send({
         embeds: [new EmbedBuilder()
             .setTitle('🍀 Yuyuko\'s Blessing 🍀')
             .setDescription(
-                `${bonusRolls === Math.floor(normalConfig.rollRewardWithShiny * 2.5) ? 'ShinyMark+ triggered! ' : ''}` +
-                `150k coins & 30k gems lost... but luck shines on your next ${bonusRolls.toLocaleString()} rolls.\n\n` +
+                `${bonusRolls === 2500 ? 'ShinyMark+ triggered! ' : ''}` +
+                `50k coins & 10k gems lost... but luck shines on your next ${bonusRolls.toLocaleString()} rolls.\n\n` +
                 `✨ Enhanced luck boost applied!`
             )
             .setColor('#0099ff')
