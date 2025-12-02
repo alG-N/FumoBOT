@@ -1,11 +1,11 @@
 {
   "1128296349566251068": {
     "event": {
-      "rollCount": 1,
+      "rollCount": 5,
       "autoSell": true,
       "startTime": 1764654745135,
-      "totalFumosRolled": 14600,
-      "totalCoinsFromSales": 31250,
+      "totalFumosRolled": 16100,
+      "totalCoinsFromSales": 181100,
       "bestFumo": {
         "name": "HeianSukuna(TRANSCENDENT)",
         "rarity": "TRANSCENDENT",
@@ -38,7 +38,7 @@
       ]
     },
     "normal": {
-      "rollCount": 1,
+      "rollCount": 3,
       "autoSell": true,
       "startTime": 1764657124116,
       "bestFumo": {
@@ -48,7 +48,7 @@
       },
       "bestFumoAt": "12/2/2025, 1:45:36 PM",
       "bestFumoRoll": 7,
-      "specialFumoCount": 13,
+      "specialFumoCount": 14,
       "specialFumoFirstAt": "12/2/2025, 1:32:04 PM",
       "specialFumoFirstRoll": 1,
       "lowerSpecialFumos": [
@@ -99,6 +99,12 @@
           "rarity": "???",
           "roll": 1,
           "time": "12/2/2025, 2:07:49 PM"
+        },
+        {
+          "name": "SkibidiToilet(???)",
+          "rarity": "???",
+          "roll": 2,
+          "time": "12/2/2025, 2:10:03 PM"
         }
       ]
     }
