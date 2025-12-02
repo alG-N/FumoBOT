@@ -1,36 +1,33 @@
 const { get, run } = require('../../../Core/database');
 
 async function applyBoost(userId, type, source, multiplier, expiresAt) {
-    return new Promise((resolve, reject) => {
-        get(
+    try {        
+        const row = await get(
             `SELECT expiresAt FROM activeBoosts WHERE userId = ? AND type = ? AND source = ?`,
-            [userId, type, source],
-            (err, row) => {
-                if (err) return reject(err);
-
-                const now = Date.now();
-                const newExpiresAt = (row && row.expiresAt > now)
-                    ? row.expiresAt + (expiresAt - now)
-                    : expiresAt;
-
-                run(
-                    `INSERT INTO activeBoosts (userId, type, source, multiplier, expiresAt)
-                     VALUES (?, ?, ?, ?, ?)
-                     ON CONFLICT(userId, type, source) DO UPDATE SET
-                        multiplier = excluded.multiplier,
-                        expiresAt = excluded.expiresAt`,
-                    [userId, type, source, multiplier, newExpiresAt],
-                    (err) => {
-                        if (err) return reject(err);
-                        resolve();
-                    }
-                );
-            }
+            [userId, type, source]
         );
-    });
+
+        const now = Date.now();
+        const newExpiresAt = (row && row.expiresAt > now)
+            ? row.expiresAt + (expiresAt - now)
+            : expiresAt;
+
+        await run(
+            `INSERT INTO activeBoosts (userId, type, source, multiplier, expiresAt)
+             VALUES (?, ?, ?, ?, ?)
+             ON CONFLICT(userId, type, source) DO UPDATE SET
+                multiplier = excluded.multiplier,
+                expiresAt = excluded.expiresAt`,
+            [userId, type, source, multiplier, newExpiresAt]
+        );
+                
+    } catch (error) {
+        console.error(`[BOOST_SERVICE] Error applying boost:`, error);
+        throw error;
+    }
 }
 
-async function applyMultipleBoosts(userId, boosts, duration) {
+async function applyMultipleBoosts(userId, boosts, duration) {    
     const now = Date.now();
     const expiresAt = now + duration;
     const errors = [];
@@ -39,13 +36,16 @@ async function applyMultipleBoosts(userId, boosts, duration) {
         try {
             await applyBoost(userId, type, source, multiplier, expiresAt);
         } catch (err) {
-            errors.push(err);
+            console.error(`[BOOST_SERVICE] Failed to apply ${type} boost:`, err);
+            errors.push({ type, source, error: err });
         }
     }
 
     if (errors.length > 0) {
-        throw errors;
+        console.error(`[BOOST_SERVICE] Some boosts failed:`, errors);
+        throw new Error(`Failed to apply ${errors.length} boost(s): ${errors.map(e => e.type).join(', ')}`);
     }
+    
 }
 
 async function updateBoostStack(userId, type, source, increment = 1, maxStack = 10) {
