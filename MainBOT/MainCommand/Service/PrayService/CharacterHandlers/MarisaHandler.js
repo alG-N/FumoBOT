@@ -129,12 +129,12 @@ async function handleMarisa(userId, channel) {
 
 async function handleDonationPhase(userId, channel, user, config) {
     await deductUserCurrency(userId, config.costs.donation, 0);
-    await updateMarisaData(userId, (user.marisaDonationCount || 0) + 1);
+    await updateMarisaData(userId, (user.marisaDonationCount || 0) + 1, 1); // ✅ FIX: Set prayedToMarisa = 1
 
     await channel.send({
         embeds: [new EmbedBuilder()
             .setTitle('🧪 Donation Received 🧪')
-            .setDescription('You gave Marisa 15k coins. She smiles mysteriously...')
+            .setDescription('You gave Marisa 15k coins. She smiles mysteriously...\n\n**Pray to Marisa again to receive your rewards!**')
             .setColor('#0099ff')
             .setTimestamp()]
     });
@@ -142,6 +142,7 @@ async function handleDonationPhase(userId, channel, user, config) {
 
 async function handleReturnPhase(userId, channel, user, config, isPityRound) {
     await updateUserCoins(userId, config.costs.return, 0);
+    await updateMarisaData(userId, user.marisaDonationCount || 0, 0); // ✅ FIX: Reset prayedToMarisa to 0
 
     const rewards = [];
     let embedDescription = `You donated 15k coins. She returned with 35k coins for you!\n(Net profit: 20k)\n\n**Rewards:**\n`;
@@ -160,7 +161,7 @@ async function handleReturnPhase(userId, channel, user, config, isPityRound) {
 
     if (isPityRound) {
         await addToInventory(userId, config.pity.reward, 1);
-        await updateMarisaData(userId, 0);
+        await updateMarisaData(userId, 0, 0); // ✅ FIX: Reset both counter and status
 
         await channel.send({
             embeds: [new EmbedBuilder()
