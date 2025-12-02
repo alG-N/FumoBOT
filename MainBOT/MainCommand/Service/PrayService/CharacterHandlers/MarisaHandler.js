@@ -90,8 +90,6 @@ async function handleMarisa(userId, channel) {
     const currentCount = user.marisaDonationCount || 0;
     const isPityRound = (currentCount + 1) % config.pity.threshold === 0;
 
-    console.log(`[Marisa Debug] User ${userId}: prayedToMarisa=${user.prayedToMarisa}, donatedBefore=${donatedBefore}, count=${currentCount}`);
-
     if (donatedBefore) {
         await handleReturnPhase(userId, channel, user, config, isPityRound);
     } else {
@@ -129,8 +127,6 @@ async function handleReturnPhase(userId, channel, user, config, isPityRound) {
     await updateUserCoins(userId, config.costs.return, 0);
     
     await updateMarisaData(userId, user.marisaDonationCount || 0, 0);
-
-    console.log(`[Marisa Debug] User ${userId} received rewards. prayedToMarisa reset to 0`);
 
     const rewards = [];
     let embedDescription = `You donated 15k coins. She returned with 35k coins for you!\n(Net profit: 20k)\n\n**Rewards:**\n`;
