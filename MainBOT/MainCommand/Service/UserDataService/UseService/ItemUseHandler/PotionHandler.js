@@ -1,5 +1,18 @@
 const { applyBoost, applyMultipleBoosts } = require('../UseBoostService');
-const { createBoostEmbed } = require('../UseUIService');
+const { EmbedBuilder } = require('discord.js');
+
+function createBoostEmbed(color, title, itemName, quantity, boost, duration, source) {
+    return new EmbedBuilder()
+        .setColor(color)
+        .setTitle(title)
+        .setDescription(
+            `You used **${itemName}** x${quantity}!\n\n` +
+            `> 📹 **${boost}**\n` +
+            `> ⏳ Duration: **${duration} hour${duration > 1 ? 's' : ''}**`
+        )
+        .setFooter({ text: `Boost Source: ${source}` })
+        .setTimestamp();
+}
 
 const COIN_POTIONS = {
     "CoinPotionT1(R)": { source: "CoinPotionT1", multiplier: 1.25, boost: "+25%" },
@@ -33,17 +46,7 @@ async function handleCoinPotion(message, itemName, quantity) {
 
     try {
         await applyBoost(userId, 'coin', source, multiplier, Date.now() + duration);
-
-        const embed = createBoostEmbed(
-            0xFFD700,
-            '💰 Coin Boost Activated!',
-            itemName,
-            quantity,
-            `${boost} Coin Boost`,
-            quantity,
-            source
-        );
-        
+        const embed = createBoostEmbed(0xFFD700, '💰 Coin Boost Activated!', itemName, quantity, `${boost} Coin Boost`, quantity, source);
         message.reply({ embeds: [embed] });
     } catch (error) {
         console.error('[POTION] Coin boost error:', error);
@@ -59,17 +62,7 @@ async function handleGemPotion(message, itemName, quantity) {
 
     try {
         await applyBoost(userId, 'gem', source, multiplier, Date.now() + duration);
-
-        const embed = createBoostEmbed(
-            0x00FFFF,
-            '💎 Gem Boost Activated!',
-            itemName,
-            quantity,
-            `${boost} Gem Boost`,
-            quantity,
-            source
-        );
-        
+        const embed = createBoostEmbed(0x00FFFF, '💎 Gem Boost Activated!', itemName, quantity, `${boost} Gem Boost`, quantity, source);
         message.reply({ embeds: [embed] });
     } catch (error) {
         console.error('[POTION] Gem boost error:', error);
@@ -90,17 +83,8 @@ async function handleBoostPotion(message, itemName, quantity) {
 
     try {
         await applyMultipleBoosts(userId, boosts, duration);
-
-        const embed = createBoostEmbed(
-            0x9932CC,
-            '🧪 Magic Boost Activated!',
-            itemName,
-            quantity,
-            `${boost} Coin & Gem Boost`,
-            Math.round(duration / (60 * 60 * 1000)),
-            source
-        );
-        
+        const hours = Math.round(duration / (60 * 60 * 1000));
+        const embed = createBoostEmbed(0x9932CC, '🧪 Magic Boost Activated!', itemName, quantity, `${boost} Coin & Gem Boost`, hours, source);
         message.reply({ embeds: [embed] });
     } catch (error) {
         console.error('[POTION] Boost potion error:', error);
