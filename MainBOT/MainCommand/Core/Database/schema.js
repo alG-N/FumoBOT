@@ -42,6 +42,10 @@ function createIndexes() {
         // Exchange History
         `CREATE INDEX IF NOT EXISTS idx_exchange_user ON exchangeHistory(userId, date)`,
 
+        // Exchange Cache - NEW
+        `CREATE INDEX IF NOT EXISTS idx_exchangeCache_expiresAt ON exchangeCache(expiresAt)`,
+        `CREATE INDEX IF NOT EXISTS idx_exchangeCache_userId ON exchangeCache(userId)`,
+
         // Redeemed Codes
         `CREATE INDEX IF NOT EXISTS idx_codes_user ON redeemedCodes(userId)`,
 
@@ -299,6 +303,25 @@ function createTables() {
                 date TEXT
             )`, (err) => {
                 if (err) console.error('Error creating exchangeHistory table:', err.message);
+                res();
+            });
+        }));
+
+        // Exchange Cache Table - NEW
+        tables.push(new Promise((res) => {
+            db.run(`CREATE TABLE IF NOT EXISTS exchangeCache (
+                exchangeId TEXT PRIMARY KEY,
+                userId TEXT NOT NULL,
+                type TEXT NOT NULL CHECK(type IN ('coins', 'gems')),
+                amount INTEGER NOT NULL,
+                expiresAt INTEGER NOT NULL,
+                createdAt INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+            )`, (err) => {
+                if (err) {
+                    console.error('Error creating exchangeCache table:', err.message);
+                } else {
+                    console.log('✅ Table exchangeCache is ready');
+                }
                 res();
             });
         }));

@@ -31,5 +31,17 @@
       ]
     },
     "generatedAt": 1764577704048
+  },
+  "1128296349566251068": {
+    "stage": 6,
+    "requirements": {
+      "fumos": [
+        {
+          "name": "Reimu(Common)",
+          "allowAnyTrait": true
+        }
+      ]
+    },
+    "generatedAt": 1764669846339
   }
 }

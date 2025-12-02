@@ -8,10 +8,7 @@ const { buildSecureCustomId } = require('../../../Middleware/buttonOwnership');
 function createExchangeButtons(userId, type, amount, taxedAmount, result, taxRate, disabled = false) {
     const data = {
         t: type,
-        a: amount,
-        ta: taxedAmount,
-        r: result,
-        tr: taxRate
+        a: amount
     };
     
     return new ActionRowBuilder().addComponents(

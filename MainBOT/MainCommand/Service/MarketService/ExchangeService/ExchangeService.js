@@ -32,13 +32,14 @@ async function processExchange(userId, type, amount) {
         };
     }
 
+    // FIXED: Properly handle column names with backticks
     const fromCol = type;
     const toCol = type === 'coins' ? 'gems' : 'coins';
 
     await run(
         `UPDATE userCoins 
-         SET ${fromCol} = ${fromCol} - ?, 
-             ${toCol} = ${toCol} + ?
+         SET \`${fromCol}\` = \`${fromCol}\` - ?, 
+             \`${toCol}\` = \`${toCol}\` + ?
          WHERE userId = ?`,
         [amount, result, userId]
     );
@@ -110,14 +111,33 @@ async function handleExchangeInteraction(interaction) {
     const parsed = parseCustomId(interaction.customId);
     const { action, userId, additionalData } = parsed;
     
-    if (!additionalData) {
+    // FIXED: Better validation of additionalData
+    if (!additionalData || !additionalData.t || !additionalData.a) {
         return interaction.reply({ 
             content: '❌ Invalid or expired exchange.', 
             ephemeral: true 
         });
     }
 
-    const { t: type, a: amount, ta: taxedAmount, r: result, tr: taxRate } = additionalData;
+    // FIXED: Properly extract and validate type and amount
+    const type = additionalData.t;
+    const amount = parseInt(additionalData.a);
+    
+    // Validate type
+    if (type !== 'coins' && type !== 'gems') {
+        return interaction.reply({ 
+            content: '❌ Invalid exchange type.', 
+            ephemeral: true 
+        });
+    }
+    
+    // Validate amount
+    if (!isFinite(amount) || amount <= 0) {
+        return interaction.reply({ 
+            content: '❌ Invalid exchange amount.', 
+            ephemeral: true 
+        });
+    }
     
     if (interaction.user.id !== userId) {
         return interaction.reply({ 
@@ -125,6 +145,10 @@ async function handleExchangeInteraction(interaction) {
             ephemeral: true 
         });
     }
+
+    // Recalculate exchange values
+    const rate = await getExchangeRate();
+    const { taxedAmount, result, taxRate } = calculateExchange(type, amount, rate);
 
     if (action === 'exchange_cancel') {
         const embed = await createExchangeEmbed(userId, type, amount, result, taxRate, 'cancel', taxedAmount);
@@ -153,6 +177,7 @@ async function handleExchangeInteraction(interaction) {
         }
 
         const userBalance = type === 'coins' ? userRow.coins : userRow.gems;
+        
         if (userBalance < amount) {
             return interaction.reply({ 
                 content: `❌ You don't have enough ${type} to exchange.`, 
