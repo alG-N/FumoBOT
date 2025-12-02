@@ -1,11 +1,11 @@
 {
   "1128296349566251068": {
     "event": {
-      "rollCount": 6,
+      "rollCount": 18,
       "autoSell": true,
       "startTime": 1764654745135,
-      "totalFumosRolled": 32500,
-      "totalCoinsFromSales": 203850,
+      "totalFumosRolled": 37500,
+      "totalCoinsFromSales": 640450,
       "bestFumo": {
         "name": "HeianSukuna(TRANSCENDENT)",
         "rarity": "TRANSCENDENT",
@@ -13,7 +13,7 @@
       },
       "bestFumoAt": "12/2/2025, 1:59:08 PM",
       "bestFumoRoll": 40,
-      "specialFumoCount": 13,
+      "specialFumoCount": 14,
       "specialFumoFirstAt": "12/2/2025, 1:32:55 PM",
       "specialFumoFirstRoll": 5,
       "specialFumos": [
@@ -94,11 +94,17 @@
           "rarity": "???",
           "roll": 1,
           "time": "12/2/2025, 3:07:01 PM"
+        },
+        {
+          "name": "Fraudkuna(???)",
+          "rarity": "???",
+          "roll": 17,
+          "time": "12/2/2025, 3:11:02 PM"
         }
       ]
     },
     "normal": {
-      "rollCount": 3,
+      "rollCount": 9,
       "autoSell": true,
       "startTime": 1764660866533,
       "bestFumo": {
@@ -108,7 +114,7 @@
       },
       "bestFumoAt": "12/2/2025, 2:51:47 PM",
       "bestFumoRoll": 5,
-      "specialFumoCount": 24,
+      "specialFumoCount": 32,
       "specialFumoFirstAt": "12/2/2025, 2:35:56 PM",
       "specialFumoFirstRoll": 4,
       "lowerSpecialFumos": [
@@ -225,6 +231,54 @@
           "rarity": "ASTRAL",
           "roll": 1,
           "time": "12/2/2025, 3:07:01 PM"
+        },
+        {
+          "name": "SkibidiToilet(???)",
+          "rarity": "???",
+          "roll": 6,
+          "time": "12/2/2025, 3:09:31 PM"
+        },
+        {
+          "name": "RedMarisa(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 7,
+          "time": "12/2/2025, 3:10:01 PM"
+        },
+        {
+          "name": "Cheshire(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 8,
+          "time": "12/2/2025, 3:10:31 PM"
+        },
+        {
+          "name": "HyperSakuya(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 19,
+          "time": "12/2/2025, 3:16:01 PM"
+        },
+        {
+          "name": "CirnoSitting(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 1,
+          "time": "12/2/2025, 3:16:37 PM"
+        },
+        {
+          "name": "CirnoSitting(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 4,
+          "time": "12/2/2025, 3:18:07 PM"
+        },
+        {
+          "name": "GawrGura(???)",
+          "rarity": "???",
+          "roll": 5,
+          "time": "12/2/2025, 3:18:37 PM"
+        },
+        {
+          "name": "RedMarisa(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 6,
+          "time": "12/2/2025, 3:19:07 PM"
         }
       ]
     }

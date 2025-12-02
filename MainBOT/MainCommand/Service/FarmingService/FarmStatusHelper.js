@@ -77,20 +77,90 @@ function calculateMultipliers(boosts, seasonalMults, buildingLevels) {
     };
 }
 
-// Helper to get base fumo name without traits and rarity
 function getBaseFumoName(fumoName) {
     return fumoName
         .replace(/\[✨SHINY\]/g, '')
         .replace(/\[🌟alG\]/g, '')
-        .replace(/\(.*?\)/g, '')
         .trim();
 }
 
-// Helper to get trait from fumo name
 function getTrait(fumoName) {
     if (fumoName.includes('[🌟alG]')) return '🌟alG';
     if (fumoName.includes('[✨SHINY]')) return '✨SHINY';
     return null;
+}
+
+function groupByRarity(farmingFumos, boosts) {
+    const grouped = {};
+    
+    const fumoGroups = {};
+    
+    farmingFumos.forEach(fumo => {
+        const baseName = getBaseFumoName(fumo.fumoName);
+        const trait = getTrait(fumo.fumoName);
+        const rarity = getRarityFromName(fumo.fumoName);
+        
+        const key = `${baseName}_${trait || 'base'}`;
+        
+        if (!fumoGroups[key]) {
+            fumoGroups[key] = {
+                baseName,
+                trait,
+                rarity,
+                quantity: 0,
+                coinsPerMin: fumo.coinsPerMin,
+                gemsPerMin: fumo.gemsPerMin
+            };
+        }
+        
+        fumoGroups[key].quantity += (fumo.quantity || 1);
+    });
+        
+    Object.values(fumoGroups).forEach(fumo => {
+        if (!grouped[fumo.rarity]) {
+            grouped[fumo.rarity] = { fumos: [], totalCoins: 0, totalGems: 0 };
+        }
+        
+        const coinsWithBoost = Math.floor(fumo.coinsPerMin * fumo.quantity * boosts.coinMultiplier);
+        const gemsWithBoost = Math.floor(fumo.gemsPerMin * fumo.quantity * boosts.gemMultiplier);
+        
+        grouped[fumo.rarity].fumos.push({
+            baseName: fumo.baseName,
+            trait: fumo.trait,
+            quantity: fumo.quantity
+        });
+        
+        grouped[fumo.rarity].totalCoins += coinsWithBoost;
+        grouped[fumo.rarity].totalGems += gemsWithBoost;
+        
+    });
+    
+    return grouped;
+}
+
+function calculateTotals(grouped) {
+    let totalCoins = 0, totalGems = 0;
+    Object.values(grouped).forEach(g => {
+        totalCoins += g.totalCoins;
+        totalGems += g.totalGems;
+    });
+    return { totalCoins, totalGems };
+}
+
+function formatFumoList(fumos) {
+    return fumos.map(f => {
+        const traitStr = f.trait ? ` [${f.trait}]` : '';
+        const baseName = f.baseName.replace(/\(.*?\)/, '');
+        return f.quantity > 1 ? `${baseName}${traitStr} (x${f.quantity})` : `${baseName}${traitStr}`;
+    }).join(', ');
+}
+
+function formatFarmingNumber(num) {
+    if (num >= 1e12) return (num / 1e12).toFixed(2) + 'T';
+    if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
+    if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
+    if (num >= 1e3) return (num / 1e3).toFixed(2) + 'K';
+    return num.toString();
 }
 
 function createFarmStatusEmbed(farmData) {
@@ -167,75 +237,6 @@ function createFarmStatusEmbed(farmData) {
     });
 
     return embed;
-}
-
-function groupByRarity(farmingFumos, boosts) {
-    const grouped = {};
-    
-    // Group by base name AND trait
-    const fumoGroups = {};
-    farmingFumos.forEach(fumo => {
-        const baseName = getBaseFumoName(fumo.fumoName);
-        const trait = getTrait(fumo.fumoName);
-        const rarity = getRarityFromName(fumo.fumoName);
-        const key = `${baseName}_${trait || 'base'}`;
-        
-        if (!fumoGroups[key]) {
-            fumoGroups[key] = {
-                baseName,
-                trait,
-                rarity,
-                quantity: 0,
-                coinsPerMin: fumo.coinsPerMin,
-                gemsPerMin: fumo.gemsPerMin
-            };
-        }
-        fumoGroups[key].quantity += fumo.quantity || 1;
-    });
-    
-    // Group by rarity for display
-    Object.values(fumoGroups).forEach(fumo => {
-        if (!grouped[fumo.rarity]) {
-            grouped[fumo.rarity] = { fumos: [], totalCoins: 0, totalGems: 0 };
-        }
-        
-        const coinsWithBoost = Math.floor(fumo.coinsPerMin * fumo.quantity * boosts.coinMultiplier);
-        const gemsWithBoost = Math.floor(fumo.gemsPerMin * fumo.quantity * boosts.gemMultiplier);
-        
-        grouped[fumo.rarity].fumos.push({
-            baseName: fumo.baseName,
-            trait: fumo.trait,
-            quantity: fumo.quantity
-        });
-        grouped[fumo.rarity].totalCoins += coinsWithBoost;
-        grouped[fumo.rarity].totalGems += gemsWithBoost;
-    });
-    
-    return grouped;
-}
-
-function calculateTotals(grouped) {
-    let totalCoins = 0, totalGems = 0;
-    Object.values(grouped).forEach(g => {
-        totalCoins += g.totalCoins;
-        totalGems += g.totalGems;
-    });
-    return { totalCoins, totalGems };
-}
-
-function formatFumoList(fumos) {
-    return fumos.map(f => {
-        const traitStr = f.trait ? ` [${f.trait}]` : '';
-        return f.quantity > 1 ? `${f.baseName}${traitStr} (x${f.quantity})` : `${f.baseName}${traitStr}`;
-    }).join(', ');
-}
-
-function formatFarmingNumber(num) {
-    if (num >= 1e12) return (num / 1e12).toFixed(2) + 'T';
-    if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
-    if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
-    if (num >= 1e3) return (num / 1e3).toFixed(2) + 'K';
-    return num.toString();
 }
 
 module.exports = {
