@@ -160,8 +160,6 @@ async function optimizeFarm(userId) {
     
     const farmingFumos = await getUserFarmingFumos(userId);
     
-    // Query ALL inventory items - both normal fumos and shard-created ones
-    // Don't filter by type since fumos might not have consistent type values
     const inventory = await all(
         `SELECT fumoName, SUM(quantity) as count 
          FROM userInventory 
@@ -173,13 +171,11 @@ async function optimizeFarm(userId) {
         [userId]
     );
 
-    // Filter and calculate stats for all fumos
     const inventoryWithStats = inventory
         .filter(item => {
             if (!item.fumoName || typeof item.fumoName !== 'string' || item.fumoName.trim() === '') {
                 return false;
             }
-            // Make sure it has a rarity tag (normal fumos) or trait tags (shard fumos)
             return item.fumoName.includes('(') || item.fumoName.includes('[');
         })
         .map(item => {
@@ -193,10 +189,8 @@ async function optimizeFarm(userId) {
             };
         });
 
-    // Sort by total income (highest first)
     inventoryWithStats.sort((a, b) => b.totalIncome - a.totalIncome);
 
-    // Build optimal farm considering quantities
     const optimalFarm = [];
     let slotsUsed = 0;
 
@@ -217,11 +211,9 @@ async function optimizeFarm(userId) {
         }
     }
 
-    // Clear existing farm and replace with optimal
     await stopAllFarmingIntervals(userId);
     await clearAllFarming(userId);
 
-    // Add optimal fumos to farm
     for (const fumo of optimalFarm) {
         await addFumoToFarm(userId, fumo.fumoName, fumo.coinsPerMin, fumo.gemsPerMin, fumo.quantity);
         await startFarmingInterval(userId, fumo.fumoName, fumo.coinsPerMin, fumo.gemsPerMin);

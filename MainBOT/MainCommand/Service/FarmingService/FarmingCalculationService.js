@@ -32,7 +32,6 @@ function calculateFarmingStats(fumoName) {
     let coinsPerMin = stats.coins;
     let gemsPerMin = stats.gems;
 
-    // Apply multipliers
     if (fumoName.includes('✨SHINY')) {
         coinsPerMin *= 2;
         gemsPerMin *= 2;
