@@ -15,10 +15,9 @@ const {
 } = require('./FarmingDatabaseService');
 const { startFarmingInterval, stopFarmingInterval, stopAllFarmingIntervals } = require('./FarmingIntervalService');
 const { debugLog } = require('../../Core/logger');
-const { get } = require('../../Core/database');
+const { get, all } = require('../../Core/database');
 const { parseTraitFromFumoName, stripTraitFromFumoName } = require('./FarmingParserService');
 
-// NEW: Add multiple fumos to farm
 async function addMultipleFumosToFarm(userId, fumoName, quantity) {
     const fragmentUses = await getFarmLimit(userId);
     const upgradesRow = await get(`SELECT limitBreaks FROM userUpgrades WHERE userId = ?`, [userId]);
@@ -35,7 +34,6 @@ async function addMultipleFumosToFarm(userId, fumoName, quantity) {
 
     const actualQuantity = Math.min(quantity, availableSlots);
 
-    // Check inventory count
     const inventoryCount = await getInventoryCountForFumo(userId, fumoName);
     
     if (inventoryCount < actualQuantity) {
@@ -44,14 +42,11 @@ async function addMultipleFumosToFarm(userId, fumoName, quantity) {
 
     const { coinsPerMin, gemsPerMin } = calculateFarmingStats(fumoName);
 
-    // Check if already farming this fumo
     const existingFumo = farmingFumos.find(f => f.fumoName === fumoName);
     
     if (existingFumo) {
-        // Add to existing
         await addFumoToFarm(userId, fumoName, coinsPerMin, gemsPerMin, actualQuantity);
     } else {
-        // Add new entry
         await addFumoToFarm(userId, fumoName, coinsPerMin, gemsPerMin, actualQuantity);
         await startFarmingInterval(userId, fumoName, coinsPerMin, gemsPerMin);
     }
@@ -59,7 +54,6 @@ async function addMultipleFumosToFarm(userId, fumoName, quantity) {
     return { success: true, added: actualQuantity, fumoName };
 }
 
-// NEW: Remove multiple fumos from farm
 async function removeMultipleFumosFromFarm(userId, fumoName, quantity) {
     const farmingFumos = await getUserFarmingFumos(userId);
     const fumo = farmingFumos.find(f => f.fumoName === fumoName);
@@ -75,7 +69,6 @@ async function removeMultipleFumosFromFarm(userId, fumoName, quantity) {
         return { success: false, error: 'REMOVE_FAILED' };
     }
 
-    // Check if fumo still exists after removal
     const updatedFumos = await getUserFarmingFumos(userId);
     const stillExists = updatedFumos.find(f => f.fumoName === fumoName);
     
@@ -86,7 +79,6 @@ async function removeMultipleFumosFromFarm(userId, fumoName, quantity) {
     return { success: true, removed: actualQuantity, fumoName };
 }
 
-// NEW: Get available fumos by rarity and trait
 async function getAvailableFumosByRarityAndTrait(userId, rarity, trait) {
     const inventoryFumos = await getUserInventoryByRarityAndTrait(userId, rarity, trait);
     
@@ -99,7 +91,6 @@ async function getAvailableFumosByRarityAndTrait(userId, rarity, trait) {
     }));
 }
 
-// NEW: Get farming fumos by rarity and trait
 async function getFarmingFumosByRarityAndTrait(userId, rarity, trait) {
     const farmingFumos = await getUserFarmingFumos(userId);
     
@@ -119,7 +110,6 @@ async function getFarmingFumosByRarityAndTrait(userId, rarity, trait) {
     }));
 }
 
-// EXISTING: Single fumo add (kept for compatibility)
 async function addSingleFumo(userId, fumoName) {
     return addMultipleFumosToFarm(userId, fumoName, 1);
 }
@@ -169,24 +159,41 @@ async function optimizeFarm(userId) {
     const limit = calculateFarmLimit(fragmentUses) + limitBreaks;
     
     const farmingFumos = await getUserFarmingFumos(userId);
-    const inventory = await getAllUserInventory(userId);
+    
+    // Query ALL inventory items - both normal fumos and shard-created ones
+    // Don't filter by type since fumos might not have consistent type values
+    const inventory = await all(
+        `SELECT fumoName, SUM(quantity) as count 
+         FROM userInventory 
+         WHERE userId = ? 
+         AND fumoName IS NOT NULL
+         AND TRIM(fumoName) != ''
+         AND (fumoName LIKE '%(%)' OR fumoName LIKE '%[✨SHINY]' OR fumoName LIKE '%[🌟alG]')
+         GROUP BY fumoName`,
+        [userId]
+    );
 
-    // Filter out items with null/invalid fumoName and get stats
+    // Filter and calculate stats for all fumos
     const inventoryWithStats = inventory
-        .filter(item => item.fumoName && typeof item.fumoName === 'string')
-        .map(item => ({
-            fumoName: item.fumoName,
-            availableCount: item.count,
-            ...calculateFarmingStats(item.fumoName),
-            totalIncome: 0 // Will calculate after
-        }));
+        .filter(item => {
+            if (!item.fumoName || typeof item.fumoName !== 'string' || item.fumoName.trim() === '') {
+                return false;
+            }
+            // Make sure it has a rarity tag (normal fumos) or trait tags (shard fumos)
+            return item.fumoName.includes('(') || item.fumoName.includes('[');
+        })
+        .map(item => {
+            const stats = calculateFarmingStats(item.fumoName);
+            return {
+                fumoName: item.fumoName,
+                availableCount: parseInt(item.count) || 0,
+                coinsPerMin: stats.coinsPerMin,
+                gemsPerMin: stats.gemsPerMin,
+                totalIncome: stats.coinsPerMin + stats.gemsPerMin
+            };
+        });
 
-    // Calculate total income (coins + gems) for each fumo type
-    inventoryWithStats.forEach(item => {
-        item.totalIncome = item.coinsPerMin + item.gemsPerMin;
-    });
-
-    // Sort by income (highest first)
+    // Sort by total income (highest first)
     inventoryWithStats.sort((a, b) => b.totalIncome - a.totalIncome);
 
     // Build optimal farm considering quantities
@@ -260,7 +267,6 @@ module.exports = {
     removeByName,
     removeByRarity,
     removeAll,
-    // NEW EXPORTS
     addMultipleFumosToFarm,
     removeMultipleFumosFromFarm,
     getAvailableFumosByRarityAndTrait,
