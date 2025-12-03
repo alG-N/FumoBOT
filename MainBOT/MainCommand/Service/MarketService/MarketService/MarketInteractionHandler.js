@@ -244,8 +244,7 @@ async function handleRaritySelection(interaction) {
         const valueWithIndex = interaction.values[0];
         const rarity = valueWithIndex.split('_').slice(0, -1).join('_');
 
-        // Get all fumos with this rarity (including trait variants)
-        const userFumos = await get(
+        const userFumos = await all(
             `SELECT fumoName, SUM(quantity) as count 
              FROM userInventory 
              WHERE userId = ? AND fumoName LIKE ? 
@@ -254,14 +253,13 @@ async function handleRaritySelection(interaction) {
             [interaction.user.id, `%(${rarity})%`]
         );
 
-        if (!userFumos || userFumos.count === 0) {
+        if (!userFumos || userFumos.length === 0) {
             return interaction.update({
                 content: `❌ You don't have any **${rarity}** fumos.`,
                 components: []
             });
         }
 
-        // Get unique base fumo names (without traits)
         const baseFumos = await all(
             `SELECT REPLACE(REPLACE(fumoName, '[✨SHINY]', ''), '[🌟alG]', '') as baseName,
                 COUNT(*) as variantCount
@@ -311,7 +309,6 @@ async function handleBaseFumoSelection(interaction) {
         const userId = parts[2];
         const rarity = parts[3];
 
-        // Get all variants of this base fumo
         const variants = await getAvailableVariants(userId, baseFumoName);
 
         if (variants.length === 0) {
@@ -509,17 +506,15 @@ async function handleConfirmListing(interaction) {
         const coinPrice = parts[4] !== 'null' ? parseInt(parts[4]) : null;
         const gemPrice = parts[5] !== 'null' ? parseInt(parts[5]) : null;
 
-        // Validate user has this fumo (including any variant)
         const validation = await validateUserHasFumo(userId, fumoName);
 
         if (!validation.found) {
             return interaction.update({
-                content: `❌ You no longer have **${fumoName}** (or any variant) in your inventory.`,
+                content: `❌ You no longer have **${fumoName}** in your inventory.`,
                 components: []
             });
         }
 
-        // Get the ID of one copy to remove
         const fumoId = await getFumoIdForRemoval(userId, fumoName);
 
         if (!fumoId) {
@@ -529,10 +524,8 @@ async function handleConfirmListing(interaction) {
             });
         }
 
-        // Remove from inventory
         await run(`DELETE FROM userInventory WHERE id = ?`, [fumoId]);
 
-        // Add listing(s)
         if (coinPrice) {
             await addGlobalListing(userId, fumoName, coinPrice, 'coins');
         }
