@@ -20,14 +20,8 @@ function extractTrait(fumoName) {
 async function validateUserHasFumo(userId, fumoName) {
     const baseWithRarity = getBaseFumoNameWithRarity(fumoName);
     
-    const baseVariant = baseWithRarity;
-    const shinyVariant = `${baseWithRarity}[✨SHINY]`;
-    const alGVariant = `${baseWithRarity}[🌟alG]`;
-    
     debugLog('MARKET_VALIDATOR', `Checking inventory for ${fumoName}`);
-    debugLog('MARKET_VALIDATOR', `  Base: ${baseVariant}`);
-    debugLog('MARKET_VALIDATOR', `  Shiny: ${shinyVariant}`);
-    debugLog('MARKET_VALIDATOR', `  alG: ${alGVariant}`);
+    debugLog('MARKET_VALIDATOR', `  Base: ${baseWithRarity}`);
     
     const rows = await all(
         `SELECT id, fumoName, COUNT(*) as count 
@@ -39,7 +33,7 @@ async function validateUserHasFumo(userId, fumoName) {
              fumoName = ?
          )
          GROUP BY fumoName`,
-        [userId, baseVariant, shinyVariant, alGVariant]
+        [userId, baseWithRarity, `${baseWithRarity}[✨SHINY]`, `${baseWithRarity}[🌟alG]`]
     );
     
     if (!rows || rows.length === 0) {
@@ -69,7 +63,6 @@ async function validateUserHasFumo(userId, fumoName) {
 
 async function getFumoIdForRemoval(userId, fumoName) {
     const baseWithRarity = getBaseFumoNameWithRarity(fumoName);
-    const requestedTrait = extractTrait(fumoName);
     
     const exactMatch = await all(
         `SELECT id FROM userInventory 
@@ -83,10 +76,6 @@ async function getFumoIdForRemoval(userId, fumoName) {
         return exactMatch[0].id;
     }
     
-    const baseVariant = baseWithRarity;
-    const shinyVariant = `${baseWithRarity}[✨SHINY]`;
-    const alGVariant = `${baseWithRarity}[🌟alG]`;
-    
     const anyVariant = await all(
         `SELECT id, fumoName FROM userInventory 
          WHERE userId = ? 
@@ -96,7 +85,7 @@ async function getFumoIdForRemoval(userId, fumoName) {
              fumoName = ?
          )
          LIMIT 1`,
-        [userId, baseVariant, shinyVariant, alGVariant]
+        [userId, baseWithRarity, `${baseWithRarity}[✨SHINY]`, `${baseWithRarity}[🌟alG]`]
     );
     
     if (anyVariant && anyVariant.length > 0) {
@@ -110,10 +99,6 @@ async function getFumoIdForRemoval(userId, fumoName) {
 
 async function getAvailableVariants(userId, baseFumoName) {
     const baseWithRarity = getBaseFumoNameWithRarity(baseFumoName);
-    
-    const baseVariant = baseWithRarity;
-    const shinyVariant = `${baseWithRarity}[✨SHINY]`;
-    const alGVariant = `${baseWithRarity}[🌟alG]`;
     
     const rows = await all(
         `SELECT fumoName, COUNT(*) as count 
@@ -131,7 +116,7 @@ async function getAvailableVariants(userId, baseFumoName) {
                  WHEN fumoName LIKE '%[✨SHINY]%' THEN 2
                  ELSE 3
              END`,
-        [userId, baseVariant, shinyVariant, alGVariant]
+        [userId, baseWithRarity, `${baseWithRarity}[✨SHINY]`, `${baseWithRarity}[🌟alG]`]
     );
     
     return rows || [];
