@@ -1,7 +1,7 @@
 {
   "845274868697661440": {
     "normal": {
-      "rollCount": 2,
+      "rollCount": 1,
       "autoSell": false,
       "startTime": 1764688357647,
       "bestFumo": {
@@ -11,7 +11,7 @@
       },
       "bestFumoAt": "12/2/2025, 11:23:00 PM",
       "bestFumoRoll": 22,
-      "specialFumoCount": 254,
+      "specialFumoCount": 258,
       "specialFumoFirstAt": "12/2/2025, 10:12:37 PM",
       "specialFumoFirstRoll": 1,
       "lowerSpecialFumos": [
@@ -1508,6 +1508,30 @@
           "rarity": "EXCLUSIVE",
           "roll": 1,
           "time": "12/3/2025, 11:06:28 AM"
+        },
+        {
+          "name": "Athena(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 5,
+          "time": "12/3/2025, 11:10:29 AM"
+        },
+        {
+          "name": "Mostima(CELESTIAL)",
+          "rarity": "CELESTIAL",
+          "roll": 6,
+          "time": "12/3/2025, 11:11:29 AM"
+        },
+        {
+          "name": "Grani(CELESTIAL)",
+          "rarity": "CELESTIAL",
+          "roll": 7,
+          "time": "12/3/2025, 11:12:29 AM"
+        },
+        {
+          "name": "Grani(CELESTIAL)",
+          "rarity": "CELESTIAL",
+          "roll": 8,
+          "time": "12/3/2025, 11:13:29 AM"
         }
       ]
     },
@@ -1755,7 +1779,7 @@
   },
   "1421544451897299024": {
     "normal": {
-      "rollCount": 2,
+      "rollCount": 1,
       "autoSell": true,
       "startTime": 1764666068326,
       "bestFumo": {
@@ -1765,7 +1789,7 @@
       },
       "bestFumoAt": "12/2/2025, 6:52:49 PM",
       "bestFumoRoll": 25,
-      "specialFumoCount": 378,
+      "specialFumoCount": 381,
       "specialFumoFirstAt": "12/2/2025, 4:02:08 PM",
       "specialFumoFirstRoll": 2,
       "lowerSpecialFumos": [
@@ -3988,6 +4012,24 @@
           "rarity": "???",
           "roll": 8,
           "time": "12/3/2025, 11:05:34 AM"
+        },
+        {
+          "name": "HyperSakuya(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 5,
+          "time": "12/3/2025, 11:10:29 AM"
+        },
+        {
+          "name": "DarkYoumu(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 10,
+          "time": "12/3/2025, 11:15:29 AM"
+        },
+        {
+          "name": "Cheshire(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 11,
+          "time": "12/3/2025, 11:16:29 AM"
         }
       ]
     },
@@ -4259,7 +4301,7 @@
   },
   "1362450043939979378": {
     "normal": {
-      "rollCount": 2,
+      "rollCount": 1,
       "autoSell": true,
       "startTime": 1764678925507,
       "bestFumo": {
@@ -4269,7 +4311,7 @@
       },
       "bestFumoAt": "12/2/2025, 8:17:26 PM",
       "bestFumoRoll": 43,
-      "specialFumoCount": 82,
+      "specialFumoCount": 84,
       "specialFumoFirstAt": "12/2/2025, 7:41:25 PM",
       "specialFumoFirstRoll": 7,
       "lowerSpecialFumos": [
@@ -4722,22 +4764,30 @@
           "rarity": "EXCLUSIVE",
           "roll": 3,
           "time": "12/3/2025, 11:00:34 AM"
+        },
+        {
+          "name": "HyperSakuya(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 6,
+          "time": "12/3/2025, 11:11:29 AM"
+        },
+        {
+          "name": "DarkYoumu(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 7,
+          "time": "12/3/2025, 11:12:29 AM"
         }
       ]
     },
     "event": {
-      "rollCount": 1,
+      "rollCount": 0,
       "autoSell": true,
-      "startTime": 1764699510636,
-      "totalFumosRolled": 200,
-      "totalCoinsFromSales": 32850,
-      "bestFumo": {
-        "name": "OneShotCurse(MYTHICAL)",
-        "rarity": "MYTHICAL",
-        "picture": "https://animeislandca.com/cdn/shop/files/jujutsu-kaisen-kyurumaru-mahito-big-plush-toy-anime-island-ca.png?v=1692739157&width=1445"
-      },
-      "bestFumoAt": "12/3/2025, 10:42:05 AM",
-      "bestFumoRoll": 1,
+      "startTime": 1764735469419,
+      "totalFumosRolled": 0,
+      "totalCoinsFromSales": 0,
+      "bestFumo": null,
+      "bestFumoAt": null,
+      "bestFumoRoll": null,
       "specialFumoCount": 0,
       "specialFumoFirstAt": null,
       "specialFumoFirstRoll": null,
@@ -4746,17 +4796,17 @@
   },
   "1128296349566251068": {
     "normal": {
-      "rollCount": 3,
+      "rollCount": 1,
       "autoSell": true,
       "startTime": 1764702472714,
       "bestFumo": {
-        "name": "Mima(INFINITE)",
-        "rarity": "INFINITE",
-        "picture": "https://media.discordapp.net/attachments/1372426801472737280/1372428382263967824/svru2t354ix81.png?ex=6826bd08&is=68256b88&hm=9ff0e6a614af9fee9626a549a57b331e4940ade36f9de38472dbcb452d965d97&=&format=webp&quality=lossless&width=698&height=930"
+        "name": "UltraKillV2(ETERNAL)",
+        "rarity": "ETERNAL",
+        "picture": "https://th.bing.com/th/id/OIP.0rsVamUgjh_eW_1Ep5NDfAAAAA?cb=iwp2&rs=1&pid=ImgDetMain"
       },
-      "bestFumoAt": "12/3/2025, 3:14:56 AM",
-      "bestFumoRoll": 135,
-      "specialFumoCount": 100,
+      "bestFumoAt": "12/3/2025, 11:13:59 AM",
+      "bestFumoRoll": 16,
+      "specialFumoCount": 107,
       "specialFumoFirstAt": "12/3/2025, 2:09:52 AM",
       "specialFumoFirstRoll": 5,
       "lowerSpecialFumos": [
@@ -5311,6 +5361,36 @@
           "rarity": "ASTRAL",
           "roll": 3,
           "time": "12/3/2025, 11:07:29 AM"
+        },
+        {
+          "name": "SkibidiToilet(???)",
+          "rarity": "???",
+          "roll": 4,
+          "time": "12/3/2025, 11:07:59 AM"
+        },
+        {
+          "name": "RedMarisa(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 6,
+          "time": "12/3/2025, 11:08:59 AM"
+        },
+        {
+          "name": "CirnoSitting(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 12,
+          "time": "12/3/2025, 11:11:59 AM"
+        },
+        {
+          "name": "CirnoSitting(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 15,
+          "time": "12/3/2025, 11:13:29 AM"
+        },
+        {
+          "name": "Mostima(CELESTIAL)[✨SHINY]",
+          "rarity": "CELESTIAL",
+          "roll": 17,
+          "time": "12/3/2025, 11:14:29 AM"
         }
       ]
     }

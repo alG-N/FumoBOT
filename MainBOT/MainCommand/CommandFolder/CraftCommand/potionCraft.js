@@ -7,10 +7,6 @@ const { parseCraftCommand } = require('../../Ultility/craftParser');
 module.exports = (client) => {
     client.on('messageCreate', async (message) => {
         try {
-            if (message.author.bot) return;
-            if (message.content !== '.potionCraft' && !message.content.startsWith('.potionCraft ') &&
-                message.content !== '.pc' && !message.content.startsWith('.pc ')) return;
-
             const restriction = checkRestrictions(message.author.id);
             if (restriction.blocked) {
                 return message.reply({ embeds: [restriction.embed] });

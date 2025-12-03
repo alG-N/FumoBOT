@@ -10,50 +10,55 @@ const CRAFT_CONFIG = {
     INTERACTION_TIMEOUT: 60000,
     MAX_CRAFT_AMOUNT: 1000,
     MAX_QUEUE_SLOTS: 5,
+    MULTIPLY_TIMER_BY_QUANTITY: true,
     
-    // Timer durations in milliseconds
     TIMER_DURATION: {
         ITEM: {
-            'ForgottenBook(C)': 60000,           // 1 minute
-            'FantasyBook(M)': 300000,            // 5 minutes
-            'Lumina(M)': 600000,                 // 10 minutes
-            'AncientRelic(E)': 900000,           // 15 minutes
-            'MysteriousCube(M)': 1200000,        // 20 minutes
-            'TimeClock(L)': 1800000,             // 30 minutes
-            'MysteriousDice(M)': 2400000,        // 40 minutes
-            'Nullified(?)': 3600000,             // 1 hour
-            'S!gil?(?)': 7200000                 // 2 hours
+            'ForgottenBook(C)': 60000,
+            'FantasyBook(M)': 300000,
+            'Lumina(M)': 600000,
+            'AncientRelic(E)': 900000,
+            'MysteriousCube(M)': 1200000,
+            'TimeClock(L)': 1800000,
+            'MysteriousDice(M)': 2400000,
+            'Nullified(?)': 3600000,
+            'CrystalSigil(?)': 7200000,
+            'VoidCrystal(?)': 10800000,
+            'EternalEssence(?)': 14400000,
+            'CosmicCore(?)': 18000000,
+            'S!gil?(?)': 21600000
         },
         POTION: {
-            'CoinPotionT2(R)': 120000,           // 2 minutes
-            'CoinPotionT3(R)': 240000,           // 4 minutes
-            'CoinPotionT4(L)': 480000,           // 8 minutes
-            'CoinPotionT5(M)': 960000,           // 16 minutes
-            'GemPotionT2(R)': 120000,            // 2 minutes
-            'GemPotionT3(R)': 240000,            // 4 minutes
-            'GemPotionT4(L)': 480000,            // 8 minutes
-            'GemPotionT5(M)': 960000,            // 16 minutes
-            'BoostPotionT1(L)': 180000,          // 3 minutes
-            'BoostPotionT2(L)': 360000,          // 6 minutes
-            'BoostPotionT3(L)': 720000,          // 12 minutes
-            'BoostPotionT4(M)': 1440000,         // 24 minutes
-            'BoostPotionT5(M)': 2880000          // 48 minutes
+            'CoinPotionT2(R)': 120000,
+            'CoinPotionT3(R)': 240000,
+            'CoinPotionT4(L)': 480000,
+            'CoinPotionT5(M)': 960000,
+            'GemPotionT2(R)': 120000,
+            'GemPotionT3(R)': 240000,
+            'GemPotionT4(L)': 480000,
+            'GemPotionT5(M)': 960000,
+            'BoostPotionT1(L)': 180000,
+            'BoostPotionT2(L)': 360000,
+            'BoostPotionT3(L)': 720000,
+            'BoostPotionT4(M)': 1440000,
+            'BoostPotionT5(M)': 2880000
         },
-        FUMO: 300000,     // 5 minutes default
-        BLESSING: 600000  // 10 minutes default
+        FUMO: 300000,
+        BLESSING: 600000
     }
 };
 
 const CRAFT_CATEGORIES = {
     ITEM: {
-        tiers: ['How to Craft', 'Tier 1', 'Tier 2', 'Tier 3', 'Tier 4', 'Tier 5', 'Tier 6(MAX)'],
+        tiers: ['How to Craft', 'Tier 1', 'Tier 2', 'Tier 3', 'Tier 4', 'Tier 5', 'Tier 6', 'Tier 7(MAX)'],
         icons: {
             '1': '[T1]',
             '2': '[T2]',
             '3': '[T3]',
             '4': '[T4]',
             '5': '[T5]',
-            '6': '[T6]'
+            '6': '[T6]',
+            '7': '[T7]'
         }
     },
     POTION: {
@@ -68,22 +73,28 @@ const CRAFT_CATEGORIES = {
     }
 };
 
-function getCraftTimer(craftType, itemName) {
+function getCraftTimer(craftType, itemName, quantity = 1) {
     const timers = CRAFT_CONFIG.TIMER_DURATION[craftType.toUpperCase()];
     
     if (typeof timers === 'object') {
-        return timers[itemName] || 0;
+        const baseTimer = timers[itemName] || 0;
+        return baseTimer * quantity;
     }
     
-    return timers || 0;
+    return (timers || 0) * quantity;
 }
 
 function formatTime(milliseconds) {
     const seconds = Math.floor(milliseconds / 1000);
     const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
     
-    if (hours > 0) {
+    if (days > 0) {
+        const remainingHours = hours % 24;
+        const remainingMinutes = minutes % 60;
+        return `${days}d ${remainingHours}h ${remainingMinutes}m`;
+    } else if (hours > 0) {
         const remainingMinutes = minutes % 60;
         return `${hours}h ${remainingMinutes}m`;
     } else if (minutes > 0) {

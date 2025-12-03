@@ -6,9 +6,6 @@ const { parseCustomId } = require('../../Middleware/buttonOwnership');
 module.exports = (client) => {
     client.on('messageCreate', async (message) => {
         try {
-            if (message.author.bot) return;
-            if (message.content !== '.craftQueue' && message.content !== '.cq') return;
-
             const restriction = checkRestrictions(message.author.id);
             if (restriction.blocked) {
                 return message.reply({ embeds: [restriction.embed] });
