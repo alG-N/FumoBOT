@@ -39,9 +39,6 @@ function createQueueEmbed(queueItems, userId) {
 
     const buttons = [];
     
-    const readyItems = queueItems.filter(item => item.completesAt <= now);
-    const pendingItems = queueItems.filter(item => item.completesAt > now);
-    
     const maxButtonsPerRow = 5;
     const maxRows = 4;
     let buttonCount = 0;
@@ -56,8 +53,9 @@ function createQueueEmbed(queueItems, userId) {
         
         const currentRow = buttons[buttons.length - 1];
         
+        // FIX: Use 'queueId' instead of 'id' to avoid key mapping conflicts
         const claimButton = new ButtonBuilder()
-            .setCustomId(buildSecureCustomId('craft_claim', userId, { id: item.id }))
+            .setCustomId(buildSecureCustomId('craft_claim', userId, { queueId: String(item.id) }))
             .setLabel(`${isReady ? '✅' : '⏱️'} ${item.itemName.slice(0, 60)}`)
             .setStyle(isReady ? ButtonStyle.Success : ButtonStyle.Secondary)
             .setDisabled(!isReady);
