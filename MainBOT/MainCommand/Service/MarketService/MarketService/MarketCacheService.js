@@ -1,10 +1,16 @@
-const { generateUserMarket } = require('./MarketGenerationService');
-const { MARKET_RESET_INTERVAL } = require('../../../Configuration/marketConfig');
-const { debugLog } = require('../../../Core/logger');
+const { generateCoinMarket, generateGemMarket } = require('./MarketGenerationService');
+const { 
+    COIN_MARKET_RESET_INTERVAL, 
+    GEM_MARKET_RESET_INTERVAL 
+} = require('../../../Configuration/marketConfig');
+const { 
+    getUserCoinMarket, 
+    setUserCoinMarket,
+    getUserGemMarket,
+    setUserGemMarket
+} = require('./MarketStorageService');
 
-const userMarkets = new Map();
-
-function getNextResetTime() {
+function getNextCoinResetTime() {
     const now = new Date();
     const next = new Date(now);
     next.setMinutes(0, 0, 0);
@@ -12,25 +18,46 @@ function getNextResetTime() {
     return next.getTime();
 }
 
-function getUserMarket(userId) {
+function getNextGemResetTime() {
     const now = Date.now();
-    let cache = userMarkets.get(userId);
+    const sixHours = 6 * 60 * 60 * 1000;
+    return Math.ceil(now / sixHours) * sixHours;
+}
+
+function getCoinMarket(userId) {
+    const now = Date.now();
+    let cache = getUserCoinMarket(userId);
 
     if (!cache || now > cache.resetTime) {
-        const market = generateUserMarket(userId);
+        const market = generateCoinMarket(userId);
         cache = {
             market,
-            resetTime: getNextResetTime()
+            resetTime: getNextCoinResetTime()
         };
-        userMarkets.set(userId, cache);
-        debugLog('MARKET_CACHE', `Created new market for ${userId}`);
+        setUserCoinMarket(userId, cache);
     }
 
     return cache;
 }
 
-function updateMarketStock(userId, fumoName, quantity) {
-    const cache = userMarkets.get(userId);
+function getGemMarket(userId) {
+    const now = Date.now();
+    let cache = getUserGemMarket(userId);
+
+    if (!cache || now > cache.resetTime) {
+        const market = generateGemMarket(userId);
+        cache = {
+            market,
+            resetTime: getNextGemResetTime()
+        };
+        setUserGemMarket(userId, cache);
+    }
+
+    return cache;
+}
+
+function updateCoinMarketStock(userId, fumoName, quantity) {
+    const cache = getUserCoinMarket(userId);
     if (!cache) return false;
 
     const fumo = cache.market.find(f => f.name === fumoName);
@@ -42,45 +69,38 @@ function updateMarketStock(userId, fumoName, quantity) {
         const index = cache.market.findIndex(f => f.name === fumoName);
         if (index !== -1) {
             cache.market.splice(index, 1);
-            debugLog('MARKET_CACHE', `Removed ${fumoName} from market (out of stock)`);
         }
     }
 
+    setUserCoinMarket(userId, cache);
     return true;
 }
 
-function clearUserMarket(userId) {
-    userMarkets.delete(userId);
-    debugLog('MARKET_CACHE', `Cleared market cache for ${userId}`);
-}
+function updateGemMarketStock(userId, fumoName, quantity) {
+    const cache = getUserGemMarket(userId);
+    if (!cache) return false;
 
-function clearAllMarkets() {
-    const size = userMarkets.size;
-    userMarkets.clear();
-    debugLog('MARKET_CACHE', `Cleared all market caches (${size} users)`);
-}
+    const fumo = cache.market.find(f => f.name === fumoName);
+    if (!fumo) return false;
 
-function scheduleGlobalMarketReset() {
-    const msUntilReset = getNextResetTime() - Date.now();
-    setTimeout(() => {
-        for (const userId of userMarkets.keys()) {
-            const newMarket = generateUserMarket(userId);
-            userMarkets.set(userId, {
-                market: newMarket,
-                resetTime: getNextResetTime()
-            });
+    fumo.stock -= quantity;
+    
+    if (fumo.stock <= 0) {
+        const index = cache.market.findIndex(f => f.name === fumoName);
+        if (index !== -1) {
+            cache.market.splice(index, 1);
         }
-        debugLog('MARKET_CACHE', `Global market reset completed for ${userMarkets.size} users`);
-        scheduleGlobalMarketReset();
-    }, msUntilReset);
-}
+    }
 
-scheduleGlobalMarketReset();
+    setUserGemMarket(userId, cache);
+    return true;
+}
 
 module.exports = {
-    getUserMarket,
-    updateMarketStock,
-    clearUserMarket,
-    clearAllMarkets,
-    getNextResetTime
+    getCoinMarket,
+    getGemMarket,
+    updateCoinMarketStock,
+    updateGemMarketStock,
+    getNextCoinResetTime,
+    getNextGemResetTime
 };
