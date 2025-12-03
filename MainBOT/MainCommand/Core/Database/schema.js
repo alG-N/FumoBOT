@@ -492,6 +492,25 @@ function createTables() {
             )`, () => res());
         }));
 
+        // Global market table
+        tables.push(new Promise((res) => {
+            db.run(`CREATE TABLE IF NOT EXISTS globalMarket (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                userId TEXT NOT NULL,
+                fumoName TEXT NOT NULL,
+                price INTEGER NOT NULL,
+                currency TEXT NOT NULL CHECK(currency IN ('coins', 'gems')),
+                listedAt INTEGER NOT NULL
+            )`, (err) => {
+                if (err) {
+                    console.error('Error creating globalMarket table:', err.message);
+                } else {
+                    console.log('✅ Table globalMarket is ready');
+                }
+                res();
+            });
+        }));
+
         // Wait for all tables to complete
         Promise.all(tables).then(resolve);
     });
