@@ -20,7 +20,7 @@ const client = new Client({
 client.setMaxListeners(150);
 const { maintenance, developerID } = require("../../Configuration/maintenanceConfig.js");
 const { isBanned } = require('../../Administrator/BannedList/BanUtils.js');
-const FumoPool = require('../../Data/FumoPool');
+const FumoPool = require('../../Data/FumoPool.js');
 
 module.exports = (client) => {
     const CATEGORIES = [

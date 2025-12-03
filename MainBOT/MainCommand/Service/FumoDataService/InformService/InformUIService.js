@@ -1,6 +1,6 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { format } = require('date-fns');
-const { VARIANT_CONFIG, SUMMON_PLACES } = require('../../../Configuration/informConfig');
+const { VARIANT_CONFIG } = require('../../../Configuration/informConfig');
 const { calculateVariantChance } = require('./InformDataService');
 const { buildSecureCustomId } = require('../../../Middleware/buttonOwnership');
 const { formatNumber } = require('../../../Ultility/formatting');
@@ -32,10 +32,9 @@ function createSelectionEmbed(fumo) {
 }
 
 function createInformEmbed(fumoData, ownershipData, variant) {
-    const { fumo, summonPlace, baseChance } = fumoData;
+    const { fumo, summonPlaces } = fumoData;
     const variantConfig = VARIANT_CONFIG[variant];
     
-    const fullName = `${fumo.name}(${fumo.rarity})${variantConfig.tag}`;
     const titleSuffix = variant !== 'NORMAL' ? ` - ${variantConfig.emoji} ${variant} Variant` : '';
 
     const embed = new EmbedBuilder()
@@ -44,47 +43,94 @@ function createInformEmbed(fumoData, ownershipData, variant) {
         .setImage(fumo.picture);
 
     if (fumo.origin) {
-        embed.addFields({ name: 'Origin', value: fumo.origin, inline: true });
+        embed.addFields({ name: '📖 Origin', value: fumo.origin, inline: false });
     }
     
     if (fumo.fact) {
-        embed.addFields({ name: 'Interesting Fact', value: fumo.fact, inline: true });
+        embed.addFields({ name: '💡 Interesting Fact', value: fumo.fact, inline: false });
     }
 
-    let description = '';
-    
+    let ownershipText = '';
     if (!ownershipData.userOwns) {
-        description += `❌ You currently don't own this fumo.\n`;
+        ownershipText += `❌ You currently don't own this ${variant.toLowerCase()} variant.\n`;
     } else {
-        description += `🎉 You are the proud owner of ${ownershipData.userQuantity} of this fumo. ✅\n`;
+        ownershipText += `✅ You own **${ownershipData.userQuantity}** of this ${variant.toLowerCase()} variant.\n`;
+        if (ownershipData.firstObtained) {
+            const formattedDate = format(new Date(ownershipData.firstObtained), 'PPpp');
+            ownershipText += `📅 First obtained: ${formattedDate}\n`;
+        }
     }
     
-    description += `🌐 Currently, there are ${formatNumber(ownershipData.totalExistence)} of this fumo in existence.`;
-    
-    if (ownershipData.userOwns && ownershipData.firstObtained) {
-        const formattedDate = format(new Date(ownershipData.firstObtained), 'PPPppp');
-        description += `\n📅 You welcomed your first fumo on ${formattedDate}.`;
-    }
+    embed.addFields({ 
+        name: '👤 Your Ownership', 
+        value: ownershipText,
+        inline: false 
+    });
 
-    if (summonPlace === SUMMON_PLACES.MARKET && fumo.marketPrice) {
-        description += `\n🛍️ This fumo can be acquired at the ${summonPlace} for a mere ${formatNumber(fumo.marketPrice)} coins.`;
-    } else if (baseChance) {
-        const displayChance = variant !== 'NORMAL' 
-            ? calculateVariantChance(baseChance, variantConfig.multiplier)
-            : baseChance;
+    let existenceText = '';
+    if (variant === 'NORMAL') {
+        existenceText += `🔹 Normal: **${formatNumber(ownershipData.normalExistence)}**\n`;
+        existenceText += `✨ Shiny: **${formatNumber(ownershipData.shinyExistence)}**\n`;
+        existenceText += `🌟 alG: **${formatNumber(ownershipData.algExistence)}**\n`;
+    } else {
+        existenceText += `${variantConfig.emoji} **${formatNumber(ownershipData.variantExistence)}** exist\n`;
+    }
+    existenceText += `🌐 Total (all variants): **${formatNumber(ownershipData.totalExistence)}**\n`;
+    existenceText += `👥 Unique owners: **${formatNumber(ownershipData.uniqueOwners)}**`;
+    
+    embed.addFields({ 
+        name: '📊 Server Statistics', // change this to global soon.
+        value: existenceText,
+        inline: false 
+    });
+
+    if (summonPlaces.length > 0) {
+        let availabilityText = '';
+        
+        summonPlaces.forEach((summonPlace, index) => {
+            if (index > 0) availabilityText += '\n\n';
             
-        description += `\n🔮 This fumo is summoned at the mystical ${summonPlace} using ${summonPlace === SUMMON_PLACES.GEMS_BANNER ? 'gems' : 'coins'} with a chance of ${displayChance}.`;
+            availabilityText += `**${summonPlace.place}**\n`;
+            
+            if (summonPlace.price !== undefined) {
+                availabilityText += `💰 Price: **${formatNumber(summonPlace.price)}** coins`;
+            } else if (summonPlace.chance) {
+                const displayChance = variant !== 'NORMAL' 
+                    ? calculateVariantChance(summonPlace.chance, variantConfig.multiplier)
+                    : summonPlace.chance;
+                
+                availabilityText += `🎲 Base chance: **${summonPlace.chance}**`;
+                
+                if (variant !== 'NORMAL') {
+                    availabilityText += `\n${variantConfig.emoji} ${variant} chance: **${displayChance}**`;
+                }
+                
+                availabilityText += `\n💎 Currency: **${summonPlace.currency}**`;
+            }
+        });
+        
+        embed.addFields({ 
+            name: '🎯 How to Obtain', 
+            value: availabilityText,
+            inline: false 
+        });
     }
 
     if (variant === 'SHINY') {
-        description += `\n✨ This is a rare **SHINY** variant with a 1% base summon chance.`;
+        embed.addFields({
+            name: '✨ Shiny Variant Info',
+            value: 'This is a rare **SHINY** variant with a 1% base appearance chance when summoning this fumo.',
+            inline: false
+        });
     } else if (variant === 'ALG') {
-        description += `\n🌟 This is an **Extremely Rare alG** variant with a 0.001% base summon chance.`;
+        embed.addFields({
+            name: '🌟 alG Variant Info',
+            value: 'This is an **Extremely Rare alG** variant with a 0.001% base appearance chance when summoning this fumo.',
+            inline: false
+        });
     }
 
-    description += `\n👥 Owned by ${formatNumber(ownershipData.uniqueOwners)} unique users.`;
-
-    embed.setDescription(description);
+    embed.setFooter({ text: 'Use the buttons below to view different variants' });
     
     return embed;
 }

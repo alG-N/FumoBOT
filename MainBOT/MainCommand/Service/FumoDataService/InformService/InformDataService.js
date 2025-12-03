@@ -30,45 +30,44 @@ function findFumoInPool(normalizedName) {
     });
 }
 
-function determineSummonPlace(fumo) {
-    if (!fumo) return null;
-
-    if (fumo.availability.market && fumo.marketPrice !== null) {
-        return SUMMON_PLACES.MARKET;
-    }
+function getAllSummonPlaces(fumo) {
+    if (!fumo) return [];
     
-    if (fumo.availability.pray) {
-        return SUMMON_PLACES.REIMU_PRAYER;
+    const places = [];
+    
+    if (fumo.availability.crate) {
+        places.push({
+            place: SUMMON_PLACES.COINS_BANNER,
+            chance: coinBannerChances[fumo.rarity] || null,
+            currency: 'coins'
+        });
     }
     
     if (fumo.availability.event) {
-        return SUMMON_PLACES.GEMS_BANNER;
+        places.push({
+            place: SUMMON_PLACES.GEMS_BANNER,
+            chance: gemBannerChances[fumo.rarity] || null,
+            currency: 'gems'
+        });
     }
     
-    if (fumo.availability.crate) {
-        return SUMMON_PLACES.COINS_BANNER;
+    if (fumo.availability.pray) {
+        places.push({
+            place: SUMMON_PLACES.REIMU_PRAYER,
+            chance: ReimuChances[fumo.rarity] || null,
+            currency: 'special'
+        });
     }
-
-    return null;
-}
-
-function getChanceForFumo(fumo, summonPlace) {
-    if (!fumo) return null;
-
-    const rarity = fumo.rarity;
-
-    switch (summonPlace) {
-        case SUMMON_PLACES.COINS_BANNER:
-            return coinBannerChances[rarity] || null;
-        case SUMMON_PLACES.GEMS_BANNER:
-            return gemBannerChances[rarity] || null;
-        case SUMMON_PLACES.REIMU_PRAYER:
-            return ReimuChances[rarity] || null;
-        case SUMMON_PLACES.MARKET:
-            return null;
-        default:
-            return null;
+    
+    if (fumo.availability.market && fumo.marketPrice !== null) {
+        places.push({
+            place: SUMMON_PLACES.MARKET,
+            price: fumo.marketPrice,
+            currency: 'coins'
+        });
     }
+    
+    return places;
 }
 
 function calculateVariantChance(baseChance, variantMultiplier) {
@@ -78,7 +77,7 @@ function calculateVariantChance(baseChance, variantMultiplier) {
     const variantChance = numericChance * variantMultiplier;
     
     if (variantChance >= 0.01) {
-        return `${variantChance.toFixed(2)}%`;
+        return `${variantChance.toFixed(4)}%`;
     } else if (variantChance > 0) {
         const inverse = Math.round(100 / variantChance);
         return `1 in ${inverse.toLocaleString()}`;
@@ -96,15 +95,13 @@ function getFumoData(input) {
         return { found: false };
     }
 
-    const summonPlace = determineSummonPlace(fumo);
-    const baseChance = getChanceForFumo(fumo, summonPlace);
+    const summonPlaces = getAllSummonPlaces(fumo);
 
     return {
         found: true,
         fumo,
         variant,
-        summonPlace,
-        baseChance
+        summonPlaces
     };
 }
 
@@ -112,8 +109,7 @@ module.exports = {
     normalizeFumoName,
     extractVariant,
     findFumoInPool,
-    determineSummonPlace,
-    getChanceForFumo,
+    getAllSummonPlaces,
     calculateVariantChance,
     getFumoData
 };

@@ -1,7 +1,7 @@
 {
   "845274868697661440": {
     "normal": {
-      "rollCount": 3,
+      "rollCount": 86,
       "autoSell": false,
       "startTime": 1764688357647,
       "bestFumo": {
@@ -11,7 +11,7 @@
       },
       "bestFumoAt": "12/3/2025, 11:56:31 AM",
       "bestFumoRoll": 29,
-      "specialFumoCount": 336,
+      "specialFumoCount": 406,
       "specialFumoFirstAt": "12/2/2025, 10:12:37 PM",
       "specialFumoFirstRoll": 1,
       "lowerSpecialFumos": [
@@ -1994,14 +1994,434 @@
           "rarity": "ASTRAL",
           "roll": 3,
           "time": "12/3/2025, 1:58:50 PM"
+        },
+        {
+          "name": "CirnoSitting(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 4,
+          "time": "12/3/2025, 1:59:50 PM"
+        },
+        {
+          "name": "GawrGura(???)",
+          "rarity": "???",
+          "roll": 5,
+          "time": "12/3/2025, 2:00:50 PM"
+        },
+        {
+          "name": "Athena(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 6,
+          "time": "12/3/2025, 2:01:50 PM"
+        },
+        {
+          "name": "Grani(CELESTIAL)",
+          "rarity": "CELESTIAL",
+          "roll": 7,
+          "time": "12/3/2025, 2:02:50 PM"
+        },
+        {
+          "name": "Mima(INFINITE)",
+          "rarity": "INFINITE",
+          "roll": 8,
+          "time": "12/3/2025, 2:03:50 PM"
+        },
+        {
+          "name": "GawrGura(???)",
+          "rarity": "???",
+          "roll": 9,
+          "time": "12/3/2025, 2:04:50 PM"
+        },
+        {
+          "name": "SkibidiToilet(???)",
+          "rarity": "???",
+          "roll": 2,
+          "time": "12/3/2025, 2:07:04 PM"
+        },
+        {
+          "name": "GawrGura(???)",
+          "rarity": "???",
+          "roll": 3,
+          "time": "12/3/2025, 2:08:04 PM"
+        },
+        {
+          "name": "RedMarisa(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 4,
+          "time": "12/3/2025, 2:09:04 PM"
+        },
+        {
+          "name": "SkibidiToilet(???)",
+          "rarity": "???",
+          "roll": 5,
+          "time": "12/3/2025, 2:10:04 PM"
+        },
+        {
+          "name": "CirnoSitting(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 6,
+          "time": "12/3/2025, 2:11:04 PM"
+        },
+        {
+          "name": "Athena(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 7,
+          "time": "12/3/2025, 2:12:05 PM"
+        },
+        {
+          "name": "HyperSakuya(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 8,
+          "time": "12/3/2025, 2:13:05 PM"
+        },
+        {
+          "name": "GawrGura(???)",
+          "rarity": "???",
+          "roll": 9,
+          "time": "12/3/2025, 2:14:05 PM"
+        },
+        {
+          "name": "Athena(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 10,
+          "time": "12/3/2025, 2:15:05 PM"
+        },
+        {
+          "name": "Athena(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 11,
+          "time": "12/3/2025, 2:16:05 PM"
+        },
+        {
+          "name": "DarkYoumu(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 14,
+          "time": "12/3/2025, 2:19:05 PM"
+        },
+        {
+          "name": "BlueReimu(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 16,
+          "time": "12/3/2025, 2:21:05 PM"
+        },
+        {
+          "name": "UltraKillV2(ETERNAL)",
+          "rarity": "ETERNAL",
+          "roll": 17,
+          "time": "12/3/2025, 2:22:05 PM"
+        },
+        {
+          "name": "GawrGura(???)",
+          "rarity": "???",
+          "roll": 20,
+          "time": "12/3/2025, 2:25:05 PM"
+        },
+        {
+          "name": "Grani(CELESTIAL)",
+          "rarity": "CELESTIAL",
+          "roll": 21,
+          "time": "12/3/2025, 2:26:05 PM"
+        },
+        {
+          "name": "Mima(INFINITE)",
+          "rarity": "INFINITE",
+          "roll": 22,
+          "time": "12/3/2025, 2:27:05 PM"
+        },
+        {
+          "name": "Mostima(CELESTIAL)",
+          "rarity": "CELESTIAL",
+          "roll": 23,
+          "time": "12/3/2025, 2:28:05 PM"
+        },
+        {
+          "name": "Cheshire(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 24,
+          "time": "12/3/2025, 2:29:06 PM"
+        },
+        {
+          "name": "CirnoSitting(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 25,
+          "time": "12/3/2025, 2:30:06 PM"
+        },
+        {
+          "name": "SkibidiToilet(???)",
+          "rarity": "???",
+          "roll": 27,
+          "time": "12/3/2025, 2:32:06 PM"
+        },
+        {
+          "name": "BlueReimu(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 28,
+          "time": "12/3/2025, 2:33:06 PM"
+        },
+        {
+          "name": "HyperSakuya(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 30,
+          "time": "12/3/2025, 2:35:06 PM"
+        },
+        {
+          "name": "BlueReimu(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 31,
+          "time": "12/3/2025, 2:36:06 PM"
+        },
+        {
+          "name": "HyperSakuya(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 33,
+          "time": "12/3/2025, 2:38:06 PM"
+        },
+        {
+          "name": "Mima(INFINITE)",
+          "rarity": "INFINITE",
+          "roll": 34,
+          "time": "12/3/2025, 2:39:06 PM"
+        },
+        {
+          "name": "Mima(INFINITE)",
+          "rarity": "INFINITE",
+          "roll": 35,
+          "time": "12/3/2025, 2:40:06 PM"
+        },
+        {
+          "name": "GawrGura(???)",
+          "rarity": "???",
+          "roll": 36,
+          "time": "12/3/2025, 2:41:06 PM"
+        },
+        {
+          "name": "HyperSakuya(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 37,
+          "time": "12/3/2025, 2:42:06 PM"
+        },
+        {
+          "name": "Cheshire(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 38,
+          "time": "12/3/2025, 2:43:06 PM"
+        },
+        {
+          "name": "Cheshire(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 39,
+          "time": "12/3/2025, 2:44:06 PM"
+        },
+        {
+          "name": "Athena(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 42,
+          "time": "12/3/2025, 2:47:07 PM"
+        },
+        {
+          "name": "BlueReimu(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 43,
+          "time": "12/3/2025, 2:48:07 PM"
+        },
+        {
+          "name": "CirnoSitting(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 44,
+          "time": "12/3/2025, 2:49:07 PM"
+        },
+        {
+          "name": "Cheshire(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 46,
+          "time": "12/3/2025, 2:51:07 PM"
+        },
+        {
+          "name": "Grani(CELESTIAL)",
+          "rarity": "CELESTIAL",
+          "roll": 47,
+          "time": "12/3/2025, 2:52:07 PM"
+        },
+        {
+          "name": "Grani(CELESTIAL)",
+          "rarity": "CELESTIAL",
+          "roll": 48,
+          "time": "12/3/2025, 2:53:07 PM"
+        },
+        {
+          "name": "HyperSakuya(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 50,
+          "time": "12/3/2025, 2:55:07 PM"
+        },
+        {
+          "name": "GawrGura(???)",
+          "rarity": "???",
+          "roll": 51,
+          "time": "12/3/2025, 2:56:07 PM"
+        },
+        {
+          "name": "Mima(INFINITE)",
+          "rarity": "INFINITE",
+          "roll": 52,
+          "time": "12/3/2025, 2:57:07 PM"
+        },
+        {
+          "name": "RedMarisa(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 54,
+          "time": "12/3/2025, 2:59:07 PM"
+        },
+        {
+          "name": "HyperSakuya(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 56,
+          "time": "12/3/2025, 3:01:07 PM"
+        },
+        {
+          "name": "Athena(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 58,
+          "time": "12/3/2025, 3:03:07 PM"
+        },
+        {
+          "name": "Mima(INFINITE)",
+          "rarity": "INFINITE",
+          "roll": 59,
+          "time": "12/3/2025, 3:04:07 PM"
+        },
+        {
+          "name": "Grani(CELESTIAL)",
+          "rarity": "CELESTIAL",
+          "roll": 60,
+          "time": "12/3/2025, 3:05:07 PM"
+        },
+        {
+          "name": "GawrGura(???)",
+          "rarity": "???",
+          "roll": 61,
+          "time": "12/3/2025, 3:06:07 PM"
+        },
+        {
+          "name": "GawrGura(???)",
+          "rarity": "???",
+          "roll": 64,
+          "time": "12/3/2025, 3:09:07 PM"
+        },
+        {
+          "name": "DarkYoumu(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 65,
+          "time": "12/3/2025, 3:10:07 PM"
+        },
+        {
+          "name": "CirnoSitting(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 66,
+          "time": "12/3/2025, 3:11:07 PM"
+        },
+        {
+          "name": "RedMarisa(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 67,
+          "time": "12/3/2025, 3:12:07 PM"
+        },
+        {
+          "name": "Athena(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 68,
+          "time": "12/3/2025, 3:13:07 PM"
+        },
+        {
+          "name": "GawrGura(???)",
+          "rarity": "???",
+          "roll": 69,
+          "time": "12/3/2025, 3:14:07 PM"
+        },
+        {
+          "name": "Mostima(CELESTIAL)",
+          "rarity": "CELESTIAL",
+          "roll": 71,
+          "time": "12/3/2025, 3:16:07 PM"
+        },
+        {
+          "name": "Grani(CELESTIAL)",
+          "rarity": "CELESTIAL",
+          "roll": 72,
+          "time": "12/3/2025, 3:17:07 PM"
+        },
+        {
+          "name": "SkibidiToilet(???)",
+          "rarity": "???",
+          "roll": 73,
+          "time": "12/3/2025, 3:18:07 PM"
+        },
+        {
+          "name": "BlueReimu(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 74,
+          "time": "12/3/2025, 3:19:07 PM"
+        },
+        {
+          "name": "Cheshire(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 75,
+          "time": "12/3/2025, 3:20:07 PM"
+        },
+        {
+          "name": "Mostima(CELESTIAL)",
+          "rarity": "CELESTIAL",
+          "roll": 76,
+          "time": "12/3/2025, 3:21:07 PM"
+        },
+        {
+          "name": "GawrGura(???)",
+          "rarity": "???",
+          "roll": 77,
+          "time": "12/3/2025, 3:22:07 PM"
+        },
+        {
+          "name": "Athena(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 80,
+          "time": "12/3/2025, 3:25:07 PM"
+        },
+        {
+          "name": "SkibidiToilet(???)",
+          "rarity": "???",
+          "roll": 82,
+          "time": "12/3/2025, 3:27:07 PM"
+        },
+        {
+          "name": "GawrGura(???)",
+          "rarity": "???",
+          "roll": 83,
+          "time": "12/3/2025, 3:28:07 PM"
+        },
+        {
+          "name": "Mostima(CELESTIAL)",
+          "rarity": "CELESTIAL",
+          "roll": 84,
+          "time": "12/3/2025, 3:29:07 PM"
+        },
+        {
+          "name": "Athena(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 85,
+          "time": "12/3/2025, 3:30:07 PM"
+        },
+        {
+          "name": "GawrGura(???)",
+          "rarity": "???",
+          "roll": 86,
+          "time": "12/3/2025, 3:31:07 PM"
         }
       ]
     },
     "event": {
-      "rollCount": 6,
+      "rollCount": 171,
       "autoSell": false,
       "startTime": 1764737694766,
-      "totalFumosRolled": 15800,
+      "totalFumosRolled": 34100,
       "totalCoinsFromSales": 0,
       "bestFumo": {
         "name": "Go/jo(???)[✨SHINY]",
@@ -2010,7 +2430,7 @@
       },
       "bestFumoAt": "12/3/2025, 12:35:18 PM",
       "bestFumoRoll": 18,
-      "specialFumoCount": 71,
+      "specialFumoCount": 121,
       "specialFumoFirstAt": "12/3/2025, 11:58:25 AM",
       "specialFumoFirstRoll": 8,
       "specialFumos": [
@@ -2439,13 +2859,313 @@
           "rarity": "???",
           "roll": 5,
           "time": "12/3/2025, 1:58:50 PM"
+        },
+        {
+          "name": "Fraudkuna(???)",
+          "rarity": "???",
+          "roll": 14,
+          "time": "12/3/2025, 2:03:21 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 17,
+          "time": "12/3/2025, 2:04:51 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 6,
+          "time": "12/3/2025, 2:08:35 PM"
+        },
+        {
+          "name": "Fraudkuna(???)",
+          "rarity": "???",
+          "roll": 7,
+          "time": "12/3/2025, 2:09:05 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 12,
+          "time": "12/3/2025, 2:11:35 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 15,
+          "time": "12/3/2025, 2:13:05 PM"
+        },
+        {
+          "name": "Fraudkuna(???)",
+          "rarity": "???",
+          "roll": 17,
+          "time": "12/3/2025, 2:14:06 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 17,
+          "time": "12/3/2025, 2:14:06 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 18,
+          "time": "12/3/2025, 2:14:36 PM"
+        },
+        {
+          "name": "Fraudkuna(???)",
+          "rarity": "???",
+          "roll": 24,
+          "time": "12/3/2025, 2:17:36 PM"
+        },
+        {
+          "name": "Fraudkuna(???)",
+          "rarity": "???",
+          "roll": 26,
+          "time": "12/3/2025, 2:18:36 PM"
+        },
+        {
+          "name": "Fraudkuna(???)",
+          "rarity": "???",
+          "roll": 30,
+          "time": "12/3/2025, 2:20:37 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 31,
+          "time": "12/3/2025, 2:21:07 PM"
+        },
+        {
+          "name": "Fraudkuna(???)",
+          "rarity": "???",
+          "roll": 33,
+          "time": "12/3/2025, 2:22:07 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 33,
+          "time": "12/3/2025, 2:22:07 PM"
+        },
+        {
+          "name": "Fraudkuna(???)",
+          "rarity": "???",
+          "roll": 34,
+          "time": "12/3/2025, 2:22:37 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 34,
+          "time": "12/3/2025, 2:22:37 PM"
+        },
+        {
+          "name": "Fraudkuna(???)",
+          "rarity": "???",
+          "roll": 34,
+          "time": "12/3/2025, 2:22:37 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 36,
+          "time": "12/3/2025, 2:23:37 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 39,
+          "time": "12/3/2025, 2:25:07 PM"
+        },
+        {
+          "name": "Fraudkuna(???)",
+          "rarity": "???",
+          "roll": 40,
+          "time": "12/3/2025, 2:25:37 PM"
+        },
+        {
+          "name": "Fraudkuna(???)",
+          "rarity": "???",
+          "roll": 40,
+          "time": "12/3/2025, 2:25:37 PM"
+        },
+        {
+          "name": "Fraudkuna(???)",
+          "rarity": "???",
+          "roll": 43,
+          "time": "12/3/2025, 2:27:08 PM"
+        },
+        {
+          "name": "Fraudkuna(???)",
+          "rarity": "???",
+          "roll": 43,
+          "time": "12/3/2025, 2:27:08 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 50,
+          "time": "12/3/2025, 2:30:39 PM"
+        },
+        {
+          "name": "Fraudkuna(???)",
+          "rarity": "???",
+          "roll": 52,
+          "time": "12/3/2025, 2:31:39 PM"
+        },
+        {
+          "name": "Fraudkuna(???)",
+          "rarity": "???",
+          "roll": 62,
+          "time": "12/3/2025, 2:36:40 PM"
+        },
+        {
+          "name": "Fraudkuna(???)",
+          "rarity": "???",
+          "roll": 62,
+          "time": "12/3/2025, 2:36:40 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 77,
+          "time": "12/3/2025, 2:44:11 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 78,
+          "time": "12/3/2025, 2:44:41 PM"
+        },
+        {
+          "name": "Fraudkuna(???)",
+          "rarity": "???",
+          "roll": 80,
+          "time": "12/3/2025, 2:45:41 PM"
+        },
+        {
+          "name": "Fraudkuna(???)",
+          "rarity": "???",
+          "roll": 92,
+          "time": "12/3/2025, 2:51:42 PM"
+        },
+        {
+          "name": "Fraudkuna(???)",
+          "rarity": "???",
+          "roll": 98,
+          "time": "12/3/2025, 2:54:42 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 106,
+          "time": "12/3/2025, 2:58:43 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 112,
+          "time": "12/3/2025, 3:01:43 PM"
+        },
+        {
+          "name": "Fraudkuna(???)",
+          "rarity": "???",
+          "roll": 114,
+          "time": "12/3/2025, 3:02:43 PM"
+        },
+        {
+          "name": "Fraudkuna(???)",
+          "rarity": "???",
+          "roll": 114,
+          "time": "12/3/2025, 3:02:43 PM"
+        },
+        {
+          "name": "Fraudkuna(???)",
+          "rarity": "???",
+          "roll": 117,
+          "time": "12/3/2025, 3:04:13 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 117,
+          "time": "12/3/2025, 3:04:13 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 119,
+          "time": "12/3/2025, 3:05:13 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 126,
+          "time": "12/3/2025, 3:08:44 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 127,
+          "time": "12/3/2025, 3:09:14 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 131,
+          "time": "12/3/2025, 3:11:15 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 134,
+          "time": "12/3/2025, 3:12:45 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 138,
+          "time": "12/3/2025, 3:14:45 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 140,
+          "time": "12/3/2025, 3:15:45 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 149,
+          "time": "12/3/2025, 3:20:16 PM"
+        },
+        {
+          "name": "Fraudkuna(???)",
+          "rarity": "???",
+          "roll": 162,
+          "time": "12/3/2025, 3:26:47 PM"
+        },
+        {
+          "name": "Fraudkuna(???)",
+          "rarity": "???",
+          "roll": 162,
+          "time": "12/3/2025, 3:26:47 PM"
+        },
+        {
+          "name": "Fraudkuna(???)",
+          "rarity": "???",
+          "roll": 163,
+          "time": "12/3/2025, 3:27:17 PM"
         }
       ]
     }
   },
   "1421544451897299024": {
     "normal": {
-      "rollCount": 3,
+      "rollCount": 86,
       "autoSell": true,
       "startTime": 1764666068326,
       "bestFumo": {
@@ -2455,7 +3175,7 @@
       },
       "bestFumoAt": "12/2/2025, 6:52:49 PM",
       "bestFumoRoll": 25,
-      "specialFumoCount": 422,
+      "specialFumoCount": 453,
       "specialFumoFirstAt": "12/2/2025, 4:02:08 PM",
       "specialFumoFirstRoll": 2,
       "lowerSpecialFumos": [
@@ -4942,6 +5662,192 @@
           "rarity": "EXCLUSIVE",
           "roll": 1,
           "time": "12/3/2025, 1:56:49 PM"
+        },
+        {
+          "name": "Mima(INFINITE)",
+          "rarity": "INFINITE",
+          "roll": 1,
+          "time": "12/3/2025, 2:06:04 PM"
+        },
+        {
+          "name": "Athena(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 2,
+          "time": "12/3/2025, 2:07:04 PM"
+        },
+        {
+          "name": "GawrGura(???)",
+          "rarity": "???",
+          "roll": 3,
+          "time": "12/3/2025, 2:08:04 PM"
+        },
+        {
+          "name": "RedMarisa(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 6,
+          "time": "12/3/2025, 2:11:05 PM"
+        },
+        {
+          "name": "DarkYoumu(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 11,
+          "time": "12/3/2025, 2:16:05 PM"
+        },
+        {
+          "name": "Mima(INFINITE)[✨SHINY]",
+          "rarity": "INFINITE",
+          "roll": 12,
+          "time": "12/3/2025, 2:17:05 PM"
+        },
+        {
+          "name": "Athena(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 13,
+          "time": "12/3/2025, 2:18:05 PM"
+        },
+        {
+          "name": "Mima(INFINITE)",
+          "rarity": "INFINITE",
+          "roll": 14,
+          "time": "12/3/2025, 2:19:05 PM"
+        },
+        {
+          "name": "DarkYoumu(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 15,
+          "time": "12/3/2025, 2:20:05 PM"
+        },
+        {
+          "name": "Grani(CELESTIAL)",
+          "rarity": "CELESTIAL",
+          "roll": 16,
+          "time": "12/3/2025, 2:21:05 PM"
+        },
+        {
+          "name": "Athena(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 18,
+          "time": "12/3/2025, 2:23:05 PM"
+        },
+        {
+          "name": "Athena(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 25,
+          "time": "12/3/2025, 2:30:06 PM"
+        },
+        {
+          "name": "Mostima(CELESTIAL)",
+          "rarity": "CELESTIAL",
+          "roll": 26,
+          "time": "12/3/2025, 2:31:06 PM"
+        },
+        {
+          "name": "DarkYoumu(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 27,
+          "time": "12/3/2025, 2:32:06 PM"
+        },
+        {
+          "name": "GawrGura(???)",
+          "rarity": "???",
+          "roll": 37,
+          "time": "12/3/2025, 2:42:07 PM"
+        },
+        {
+          "name": "HyperSakuya(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 38,
+          "time": "12/3/2025, 2:43:07 PM"
+        },
+        {
+          "name": "Athena(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 39,
+          "time": "12/3/2025, 2:44:07 PM"
+        },
+        {
+          "name": "GawrGura(???)",
+          "rarity": "???",
+          "roll": 40,
+          "time": "12/3/2025, 2:45:07 PM"
+        },
+        {
+          "name": "SkibidiToilet(???)",
+          "rarity": "???",
+          "roll": 43,
+          "time": "12/3/2025, 2:48:07 PM"
+        },
+        {
+          "name": "HyperSakuya(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 44,
+          "time": "12/3/2025, 2:49:07 PM"
+        },
+        {
+          "name": "CirnoSitting(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 46,
+          "time": "12/3/2025, 2:51:07 PM"
+        },
+        {
+          "name": "SkibidiToilet(???)",
+          "rarity": "???",
+          "roll": 50,
+          "time": "12/3/2025, 2:55:07 PM"
+        },
+        {
+          "name": "DarkYoumu(EXCLUSIVE)[✨SHINY]",
+          "rarity": "EXCLUSIVE",
+          "roll": 51,
+          "time": "12/3/2025, 2:56:07 PM"
+        },
+        {
+          "name": "Athena(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 52,
+          "time": "12/3/2025, 2:57:07 PM"
+        },
+        {
+          "name": "CirnoSitting(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 60,
+          "time": "12/3/2025, 3:05:07 PM"
+        },
+        {
+          "name": "HyperSakuya(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 62,
+          "time": "12/3/2025, 3:07:07 PM"
+        },
+        {
+          "name": "Athena(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 63,
+          "time": "12/3/2025, 3:08:07 PM"
+        },
+        {
+          "name": "SkibidiToilet(???)",
+          "rarity": "???",
+          "roll": 64,
+          "time": "12/3/2025, 3:09:08 PM"
+        },
+        {
+          "name": "Athena(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 75,
+          "time": "12/3/2025, 3:20:08 PM"
+        },
+        {
+          "name": "GawrGura(???)",
+          "rarity": "???",
+          "roll": 76,
+          "time": "12/3/2025, 3:21:08 PM"
+        },
+        {
+          "name": "GawrGura(???)",
+          "rarity": "???",
+          "roll": 77,
+          "time": "12/3/2025, 3:22:08 PM"
         }
       ]
     },
@@ -5213,7 +6119,7 @@
   },
   "1362450043939979378": {
     "normal": {
-      "rollCount": 3,
+      "rollCount": 86,
       "autoSell": true,
       "startTime": 1764678925507,
       "bestFumo": {
@@ -5223,7 +6129,7 @@
       },
       "bestFumoAt": "12/2/2025, 8:17:26 PM",
       "bestFumoRoll": 43,
-      "specialFumoCount": 93,
+      "specialFumoCount": 106,
       "specialFumoFirstAt": "12/2/2025, 7:41:25 PM",
       "specialFumoFirstRoll": 7,
       "lowerSpecialFumos": [
@@ -5742,6 +6648,84 @@
           "rarity": "EXCLUSIVE",
           "roll": 3,
           "time": "12/3/2025, 1:52:32 PM"
+        },
+        {
+          "name": "BlueReimu(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 6,
+          "time": "12/3/2025, 2:01:50 PM"
+        },
+        {
+          "name": "BlueReimu(EXCLUSIVE)[✨SHINY]",
+          "rarity": "EXCLUSIVE",
+          "roll": 8,
+          "time": "12/3/2025, 2:03:50 PM"
+        },
+        {
+          "name": "BlueReimu(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 10,
+          "time": "12/3/2025, 2:15:05 PM"
+        },
+        {
+          "name": "SkibidiToilet(???)",
+          "rarity": "???",
+          "roll": 11,
+          "time": "12/3/2025, 2:16:05 PM"
+        },
+        {
+          "name": "Athena(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 21,
+          "time": "12/3/2025, 2:26:06 PM"
+        },
+        {
+          "name": "HyperSakuya(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 22,
+          "time": "12/3/2025, 2:27:06 PM"
+        },
+        {
+          "name": "Grani(CELESTIAL)",
+          "rarity": "CELESTIAL",
+          "roll": 23,
+          "time": "12/3/2025, 2:28:06 PM"
+        },
+        {
+          "name": "HyperSakuya(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 36,
+          "time": "12/3/2025, 2:41:07 PM"
+        },
+        {
+          "name": "HyperSakuya(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 43,
+          "time": "12/3/2025, 2:48:07 PM"
+        },
+        {
+          "name": "Athena(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 48,
+          "time": "12/3/2025, 2:53:07 PM"
+        },
+        {
+          "name": "SkibidiToilet(???)",
+          "rarity": "???",
+          "roll": 61,
+          "time": "12/3/2025, 3:06:07 PM"
+        },
+        {
+          "name": "RedMarisa(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 63,
+          "time": "12/3/2025, 3:08:07 PM"
+        },
+        {
+          "name": "CirnoSitting(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 85,
+          "time": "12/3/2025, 3:30:08 PM"
         }
       ]
     },
@@ -5766,7 +6750,7 @@
   },
   "1128296349566251068": {
     "normal": {
-      "rollCount": 6,
+      "rollCount": 114,
       "autoSell": true,
       "startTime": 1764702472714,
       "bestFumo": {
@@ -5776,7 +6760,7 @@
       },
       "bestFumoAt": "12/3/2025, 11:13:59 AM",
       "bestFumoRoll": 16,
-      "specialFumoCount": 179,
+      "specialFumoCount": 221,
       "specialFumoFirstAt": "12/3/2025, 2:09:52 AM",
       "specialFumoFirstRoll": 5,
       "lowerSpecialFumos": [
@@ -6793,6 +7777,258 @@
           "rarity": "???",
           "roll": 12,
           "time": "12/3/2025, 1:56:02 PM"
+        },
+        {
+          "name": "Mostima(CELESTIAL)",
+          "rarity": "CELESTIAL",
+          "roll": 10,
+          "time": "12/3/2025, 2:01:20 PM"
+        },
+        {
+          "name": "Athena(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 11,
+          "time": "12/3/2025, 2:01:50 PM"
+        },
+        {
+          "name": "GawrGura(???)",
+          "rarity": "???",
+          "roll": 12,
+          "time": "12/3/2025, 2:02:20 PM"
+        },
+        {
+          "name": "Mostima(CELESTIAL)",
+          "rarity": "CELESTIAL",
+          "roll": 16,
+          "time": "12/3/2025, 2:04:20 PM"
+        },
+        {
+          "name": "CirnoSitting(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 1,
+          "time": "12/3/2025, 2:06:04 PM"
+        },
+        {
+          "name": "DarkYoumu(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 3,
+          "time": "12/3/2025, 2:07:04 PM"
+        },
+        {
+          "name": "HyperSakuya(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 4,
+          "time": "12/3/2025, 2:07:34 PM"
+        },
+        {
+          "name": "Cheshire(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 5,
+          "time": "12/3/2025, 2:08:04 PM"
+        },
+        {
+          "name": "Cheshire(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 6,
+          "time": "12/3/2025, 2:08:34 PM"
+        },
+        {
+          "name": "HyperSakuya(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 15,
+          "time": "12/3/2025, 2:13:05 PM"
+        },
+        {
+          "name": "GawrGura(???)",
+          "rarity": "???",
+          "roll": 16,
+          "time": "12/3/2025, 2:13:35 PM"
+        },
+        {
+          "name": "DarkYoumu(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 17,
+          "time": "12/3/2025, 2:14:05 PM"
+        },
+        {
+          "name": "DarkYoumu(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 18,
+          "time": "12/3/2025, 2:14:35 PM"
+        },
+        {
+          "name": "Cheshire(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 29,
+          "time": "12/3/2025, 2:20:05 PM"
+        },
+        {
+          "name": "Athena(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 30,
+          "time": "12/3/2025, 2:20:35 PM"
+        },
+        {
+          "name": "SkibidiToilet(???)",
+          "rarity": "???",
+          "roll": 31,
+          "time": "12/3/2025, 2:21:05 PM"
+        },
+        {
+          "name": "DarkYoumu(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 41,
+          "time": "12/3/2025, 2:26:06 PM"
+        },
+        {
+          "name": "Athena(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 42,
+          "time": "12/3/2025, 2:26:36 PM"
+        },
+        {
+          "name": "Mima(INFINITE)",
+          "rarity": "INFINITE",
+          "roll": 43,
+          "time": "12/3/2025, 2:27:06 PM"
+        },
+        {
+          "name": "SkibidiToilet(???)",
+          "rarity": "???",
+          "roll": 46,
+          "time": "12/3/2025, 2:28:36 PM"
+        },
+        {
+          "name": "CirnoSitting(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 51,
+          "time": "12/3/2025, 2:31:07 PM"
+        },
+        {
+          "name": "Mostima(CELESTIAL)",
+          "rarity": "CELESTIAL",
+          "roll": 53,
+          "time": "12/3/2025, 2:32:07 PM"
+        },
+        {
+          "name": "GawrGura(???)",
+          "rarity": "???",
+          "roll": 54,
+          "time": "12/3/2025, 2:32:37 PM"
+        },
+        {
+          "name": "DarkYoumu(EXCLUSIVE)[✨SHINY]",
+          "rarity": "EXCLUSIVE",
+          "roll": 55,
+          "time": "12/3/2025, 2:33:07 PM"
+        },
+        {
+          "name": "HyperSakuya(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 56,
+          "time": "12/3/2025, 2:33:37 PM"
+        },
+        {
+          "name": "CirnoSitting(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 57,
+          "time": "12/3/2025, 2:34:07 PM"
+        },
+        {
+          "name": "GawrGura(???)",
+          "rarity": "???",
+          "roll": 66,
+          "time": "12/3/2025, 2:43:07 PM"
+        },
+        {
+          "name": "Cheshire(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 67,
+          "time": "12/3/2025, 2:44:07 PM"
+        },
+        {
+          "name": "Mima(INFINITE)",
+          "rarity": "INFINITE",
+          "roll": 68,
+          "time": "12/3/2025, 2:45:07 PM"
+        },
+        {
+          "name": "CirnoSitting(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 70,
+          "time": "12/3/2025, 2:47:07 PM"
+        },
+        {
+          "name": "Grani(CELESTIAL)",
+          "rarity": "CELESTIAL",
+          "roll": 78,
+          "time": "12/3/2025, 2:55:07 PM"
+        },
+        {
+          "name": "Mima(INFINITE)",
+          "rarity": "INFINITE",
+          "roll": 79,
+          "time": "12/3/2025, 2:56:07 PM"
+        },
+        {
+          "name": "RedMarisa(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 80,
+          "time": "12/3/2025, 2:57:07 PM"
+        },
+        {
+          "name": "Athena(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 83,
+          "time": "12/3/2025, 3:00:07 PM"
+        },
+        {
+          "name": "GawrGura(???)",
+          "rarity": "???",
+          "roll": 91,
+          "time": "12/3/2025, 3:08:08 PM"
+        },
+        {
+          "name": "Cheshire(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 92,
+          "time": "12/3/2025, 3:09:08 PM"
+        },
+        {
+          "name": "CirnoSitting(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 93,
+          "time": "12/3/2025, 3:10:08 PM"
+        },
+        {
+          "name": "GawrGura(???)",
+          "rarity": "???",
+          "roll": 95,
+          "time": "12/3/2025, 3:12:08 PM"
+        },
+        {
+          "name": "RedMarisa(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 99,
+          "time": "12/3/2025, 3:16:08 PM"
+        },
+        {
+          "name": "CirnoSitting(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 100,
+          "time": "12/3/2025, 3:17:08 PM"
+        },
+        {
+          "name": "SkibidiToilet(???)[✨SHINY]",
+          "rarity": "???",
+          "roll": 104,
+          "time": "12/3/2025, 3:21:08 PM"
+        },
+        {
+          "name": "CirnoSitting(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 105,
+          "time": "12/3/2025, 3:22:08 PM"
         }
       ]
     }
