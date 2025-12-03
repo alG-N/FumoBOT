@@ -291,9 +291,9 @@ async function handleAddListing(interaction) {
             .setCustomId(`select_rarity_${interaction.user.id}`)
             .setPlaceholder('Select Fumo Rarity')
             .addOptions(
-                CATEGORIES.map(cat => ({
+                CATEGORIES.map((cat, idx) => ({
                     label: cat,
-                    value: cat
+                    value: `${cat}_${idx}`
                 }))
             );
 
@@ -315,7 +315,8 @@ async function handleAddListing(interaction) {
 
 async function handleRaritySelection(interaction) {
     try {
-        const rarity = interaction.values[0];
+        const valueWithIndex = interaction.values[0];
+        const rarity = valueWithIndex.split('_').slice(0, -1).join('_');
         
         const userFumos = await all(
             `SELECT fumoName FROM userInventory WHERE userId = ? AND fumoName LIKE ?`,
@@ -333,9 +334,9 @@ async function handleRaritySelection(interaction) {
             .setCustomId(`select_variant_${interaction.user.id}_${rarity}`)
             .setPlaceholder('Select Your Fumo')
             .addOptions(
-                userFumos.slice(0, 25).map(f => ({
+                userFumos.slice(0, 25).map((f, idx) => ({
                     label: f.fumoName,
-                    value: f.fumoName
+                    value: `${f.fumoName}_${idx}`
                 }))
             );
 
@@ -356,7 +357,8 @@ async function handleRaritySelection(interaction) {
 
 async function handleVariantSelection(interaction) {
     try {
-        const fumoName = interaction.values[0];
+        const valueWithIndex = interaction.values[0];
+        const fumoName = valueWithIndex.split('_').slice(0, -1).join('_');
         const parts = interaction.customId.split('_');
         const userId = parts[2];
         const rarity = parts[3];
@@ -538,10 +540,10 @@ async function handleRemoveListing(interaction) {
             });
         }
 
-        const options = userListings.map((listing) => ({
+        const options = userListings.map((listing, idx) => ({
             label: listing.fumoName,
             description: `${listing.price} ${listing.currency}`,
-            value: `${listing.id}`
+            value: `${listing.id}_${idx}`
         }));
 
         const selectMenu = new StringSelectMenuBuilder()
@@ -567,7 +569,8 @@ async function handleRemoveListing(interaction) {
 
 async function handleRemoveListingSelect(interaction) {
     try {
-        const listingId = parseInt(interaction.values[0]);
+        const valueWithIndex = interaction.values[0];
+        const listingId = parseInt(valueWithIndex.split('_')[0]);
         
         const listing = await get(
             `SELECT * FROM globalMarket WHERE id = ? AND userId = ?`,
