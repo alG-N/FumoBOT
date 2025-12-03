@@ -21,7 +21,9 @@ const {
     handleConfirmListing,
     handleRemoveListing,
     handleRemoveListingSelect,
-    handleRefreshGlobal
+    handleRefreshGlobal,
+    handleGlobalPurchaseSelect,
+    handleConfirmGlobalPurchase
 } = require('../../Service/MarketService/MarketService/MarketInteractionHandler');
 
 module.exports = async (client) => {
@@ -108,6 +110,12 @@ module.exports = async (client) => {
             } 
             else if (interaction.customId.startsWith('select_remove_listing_')) {
                 await handleRemoveListingSelect(interaction);
+            }
+            else if (interaction.customId.startsWith('global_purchase_select_')) {
+                await handleGlobalPurchaseSelect(interaction);
+            }
+            else if (interaction.customId.startsWith('confirm_global_purchase_')) {
+                await handleConfirmGlobalPurchase(interaction);
             }
         } catch (error) {
             console.error('Market interaction error:', error);
