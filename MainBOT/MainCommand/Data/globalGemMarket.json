@@ -1,13 +1,6 @@
 {
   "market": [
     {
-      "name": "Satori(EPIC)",
-      "price": 76,
-      "rarity": "EPIC",
-      "stock": 3,
-      "picture": null
-    },
-    {
       "name": "Kasen(EPIC)",
       "price": 90,
       "rarity": "EPIC",
@@ -15,33 +8,40 @@
       "picture": null
     },
     {
-      "name": "Bocchi(OTHERWORLDLY)",
-      "price": 950,
-      "rarity": "OTHERWORLDLY",
-      "stock": 1,
-      "picture": null
-    },
-    {
-      "name": "Yukari(LEGENDARY)",
-      "price": 1250,
+      "name": "Yuyuko(LEGENDARY)",
+      "price": 1550,
       "rarity": "LEGENDARY",
       "stock": 2,
       "picture": null
     },
     {
-      "name": "Mima(INFINITE)",
-      "price": 10000000,
-      "rarity": "INFINITE",
+      "name": "RedMarisa(EXCLUSIVE)",
+      "price": 325000,
+      "rarity": "EXCLUSIVE",
       "stock": 1,
       "picture": null
     },
     {
-      "name": "Cheshire(ASTRAL)",
-      "price": 6415000,
-      "rarity": "ASTRAL",
+      "name": "DarkYoumu(EXCLUSIVE)",
+      "price": 300000,
+      "rarity": "EXCLUSIVE",
+      "stock": 1,
+      "picture": null
+    },
+    {
+      "name": "Junko(MYTHICAL)",
+      "price": 150000,
+      "rarity": "MYTHICAL",
+      "stock": 1,
+      "picture": null
+    },
+    {
+      "name": "BlueReimu(EXCLUSIVE)",
+      "price": 275000,
+      "rarity": "EXCLUSIVE",
       "stock": 1,
       "picture": null
     }
   ],
-  "resetTime": 1764763200000
+  "resetTime": 1764784800000
 }

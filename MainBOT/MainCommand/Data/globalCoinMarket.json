@@ -4,37 +4,37 @@
       "name": "Reimu(Common)",
       "price": 125,
       "rarity": "Common",
-      "stock": 6,
-      "picture": null
-    },
-    {
-      "name": "Marisa(Common)",
-      "price": 125,
-      "rarity": "Common",
       "stock": 7,
       "picture": null
     },
     {
-      "name": "Cirno(Common)",
-      "price": 125,
-      "rarity": "Common",
-      "stock": 6,
-      "picture": null
-    },
-    {
-      "name": "Satori(EPIC)",
-      "price": 765,
-      "rarity": "EPIC",
-      "stock": 5,
-      "picture": null
-    },
-    {
-      "name": "Grani(CELESTIAL)",
-      "price": 139575000,
-      "rarity": "CELESTIAL",
+      "name": "Athena(ASTRAL)",
+      "price": 75940000,
+      "rarity": "ASTRAL",
       "stock": 1,
+      "picture": null
+    },
+    {
+      "name": "RedMarisa(EXCLUSIVE)",
+      "price": 3250000,
+      "rarity": "EXCLUSIVE",
+      "stock": 1,
+      "picture": null
+    },
+    {
+      "name": "Arisu(TRANSCENDENT)",
+      "price": 1000000000,
+      "rarity": "TRANSCENDENT",
+      "stock": 1,
+      "picture": null
+    },
+    {
+      "name": "Junko(MYTHICAL)",
+      "price": 1500000,
+      "rarity": "MYTHICAL",
+      "stock": 2,
       "picture": null
     }
   ],
-  "resetTime": 1764766800000
+  "resetTime": 1764777600000
 }
