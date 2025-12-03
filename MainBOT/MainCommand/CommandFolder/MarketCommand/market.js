@@ -261,7 +261,7 @@ async function handleCancelPurchase(interaction) {
 
 async function handleAddListing(interaction) {
     try {
-        const userListings = getUserGlobalListings(interaction.user.id);
+        const userListings = await getUserGlobalListings(interaction.user.id);
         
         if (userListings.length >= GLOBAL_SHOP_CONFIG.MAX_LISTINGS_PER_USER) {
             return interaction.reply({ 
@@ -269,20 +269,104 @@ async function handleAddListing(interaction) {
                 ephemeral: true 
             });
         }
-        
-        await interaction.reply({ 
-            content: '🔜 Global listing feature coming soon!', 
+
+        await interaction.reply({
+            content: 'Type the name of the Fumo you want to sell (e.g., `Reimu(Common)` or `Sakuya(UNCOMMON)[✨SHINY]`)',
+            ephemeral: true
+        });
+
+        const filter = m => m.author.id === interaction.user.id;
+        const nameCollected = await interaction.channel.awaitMessages({ 
+            filter, 
+            max: 1, 
+            time: 30000 
+        }).catch(() => null);
+
+        if (!nameCollected) {
+            return interaction.followUp({ 
+                content: '⏰ Time expired.', 
+                ephemeral: true 
+            });
+        }
+
+        const fumoName = nameCollected.first().content.trim();
+        nameCollected.first().delete().catch(() => {});
+
+        const userFumo = await get(
+            `SELECT fumoName FROM userInventory WHERE userId = ? AND fumoName = ?`,
+            [interaction.user.id, fumoName]
+        );
+
+        if (!userFumo) {
+            return interaction.followUp({ 
+                content: `❌ You don't have **${fumoName}** in your inventory.`, 
+                ephemeral: true 
+            });
+        }
+
+        await interaction.followUp({
+            content: 'Enter the price (e.g., `1000 coins` or `500 gems`)',
+            ephemeral: true
+        });
+
+        const priceCollected = await interaction.channel.awaitMessages({ 
+            filter, 
+            max: 1, 
+            time: 30000 
+        }).catch(() => null);
+
+        if (!priceCollected) {
+            return interaction.followUp({ 
+                content: '⏰ Time expired.', 
+                ephemeral: true 
+            });
+        }
+
+        const priceInput = priceCollected.first().content.trim().toLowerCase();
+        priceCollected.first().delete().catch(() => {});
+
+        const match = priceInput.match(/^(\d+)\s*(coins?|gems?)$/);
+        if (!match) {
+            return interaction.followUp({ 
+                content: '❌ Invalid format. Use: `1000 coins` or `500 gems`', 
+                ephemeral: true 
+            });
+        }
+
+        const price = parseInt(match[1]);
+        const currency = match[2].startsWith('gem') ? 'gems' : 'coins';
+
+        if (price < 1) {
+            return interaction.followUp({ 
+                content: '❌ Price must be at least 1.', 
+                ephemeral: true 
+            });
+        }
+
+        await run(
+            `DELETE FROM userInventory WHERE userId = ? AND fumoName = ?`,
+            [interaction.user.id, fumoName]
+        );
+
+        await addGlobalListing(interaction.user.id, fumoName, price, currency);
+
+        await interaction.followUp({ 
+            content: `✅ Listed **${fumoName}** for **${price} ${currency}**!`, 
             ephemeral: true 
         });
-        
+
     } catch (error) {
         console.error('Add listing error:', error);
+        await interaction.followUp({ 
+            content: '❌ An error occurred.', 
+            ephemeral: true 
+        }).catch(() => {});
     }
 }
 
 async function handleRemoveListing(interaction) {
     try {
-        const userListings = getUserGlobalListings(interaction.user.id);
+        const userListings = await getUserGlobalListings(interaction.user.id);
         
         if (userListings.length === 0) {
             return interaction.reply({ 
@@ -290,12 +374,64 @@ async function handleRemoveListing(interaction) {
                 ephemeral: true 
             });
         }
-        
+
+        const options = userListings.map((listing, idx) => ({
+            label: listing.fumoName,
+            description: `${listing.price} ${listing.currency}`,
+            value: `${listing.id}`
+        }));
+
+        const selectMenu = new ActionRowBuilder().addComponents(
+            new StringSelectMenuBuilder()
+                .setCustomId(`remove_listing_select_${interaction.user.id}`)
+                .setPlaceholder('Select a listing to remove')
+                .addOptions(options)
+        );
+
         await interaction.reply({ 
-            content: '🔜 Remove listing feature coming soon!', 
+            content: 'Select a listing to remove:', 
+            components: [selectMenu],
             ephemeral: true 
         });
-        
+
+        const selectFilter = i => i.customId === `remove_listing_select_${interaction.user.id}` && i.user.id === interaction.user.id;
+        const selectCollected = await interaction.channel.awaitMessageComponent({ 
+            filter: selectFilter, 
+            time: 30000 
+        }).catch(() => null);
+
+        if (!selectCollected) {
+            return interaction.editReply({ 
+                content: '⏰ Time expired.', 
+                components: [] 
+            });
+        }
+
+        const listingId = parseInt(selectCollected.values[0]);
+        const listing = await get(
+            `SELECT * FROM globalMarket WHERE id = ? AND userId = ?`,
+            [listingId, interaction.user.id]
+        );
+
+        if (!listing) {
+            return selectCollected.update({ 
+                content: '❌ Listing not found.', 
+                components: [] 
+            });
+        }
+
+        await run(`DELETE FROM globalMarket WHERE id = ?`, [listingId]);
+
+        await run(
+            `INSERT INTO userInventory (userId, fumoName) VALUES (?, ?)`,
+            [interaction.user.id, listing.fumoName]
+        );
+
+        await selectCollected.update({ 
+            content: `✅ Removed listing for **${listing.fumoName}**. It has been returned to your inventory.`, 
+            components: [] 
+        });
+
     } catch (error) {
         console.error('Remove listing error:', error);
     }

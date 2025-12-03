@@ -1,10 +1,10 @@
 const fs = require('fs');
 const path = require('path');
+const { get, all, run } = require('../../../Core/database');
 
 const STORAGE_DIR = path.join(__dirname, '../../../Data');
 const COIN_MARKET_FILE = path.join(STORAGE_DIR, 'coinMarket.json');
 const GEM_MARKET_FILE = path.join(STORAGE_DIR, 'gemMarket.json');
-const GLOBAL_MARKET_FILE = path.join(STORAGE_DIR, 'globalMarket.json');
 
 function ensureStorageExists() {
     if (!fs.existsSync(STORAGE_DIR)) {
@@ -17,10 +17,6 @@ function ensureStorageExists() {
     
     if (!fs.existsSync(GEM_MARKET_FILE)) {
         fs.writeFileSync(GEM_MARKET_FILE, JSON.stringify({}));
-    }
-    
-    if (!fs.existsSync(GLOBAL_MARKET_FILE)) {
-        fs.writeFileSync(GLOBAL_MARKET_FILE, JSON.stringify({ listings: [] }));
     }
 }
 
@@ -64,26 +60,6 @@ function saveGemMarket(data) {
     }
 }
 
-function loadGlobalMarket() {
-    ensureStorageExists();
-    try {
-        const data = fs.readFileSync(GLOBAL_MARKET_FILE, 'utf8');
-        return JSON.parse(data);
-    } catch (error) {
-        console.error('Failed to load global market:', error);
-        return { listings: [] };
-    }
-}
-
-function saveGlobalMarket(data) {
-    ensureStorageExists();
-    try {
-        fs.writeFileSync(GLOBAL_MARKET_FILE, JSON.stringify(data, null, 2));
-    } catch (error) {
-        console.error('Failed to save global market:', error);
-    }
-}
-
 function getUserCoinMarket(userId) {
     const markets = loadCoinMarket();
     return markets[userId] || null;
@@ -106,39 +82,43 @@ function setUserGemMarket(userId, market) {
     saveGemMarket(markets);
 }
 
-function addGlobalListing(listing) {
-    const data = loadGlobalMarket();
-    listing.id = Date.now() + Math.random();
-    data.listings.push(listing);
-    saveGlobalMarket(data);
-    return listing.id;
+async function addGlobalListing(userId, fumoName, price, currency) {
+    await run(
+        `INSERT INTO globalMarket (userId, fumoName, price, currency, listedAt)
+         VALUES (?, ?, ?, ?, ?)`,
+        [userId, fumoName, price, currency, Date.now()]
+    );
 }
 
-function removeGlobalListing(userId, listingId) {
-    const data = loadGlobalMarket();
-    data.listings = data.listings.filter(l => !(l.userId === userId && l.id === listingId));
-    saveGlobalMarket(data);
+async function removeGlobalListing(userId, listingId) {
+    await run(
+        `DELETE FROM globalMarket WHERE id = ? AND userId = ?`,
+        [listingId, userId]
+    );
 }
 
-function getUserGlobalListings(userId) {
-    const data = loadGlobalMarket();
-    return data.listings.filter(l => l.userId === userId);
+async function getUserGlobalListings(userId) {
+    return await all(
+        `SELECT * FROM globalMarket WHERE userId = ? ORDER BY listedAt DESC`,
+        [userId]
+    );
 }
 
-function getAllGlobalListings() {
-    const data = loadGlobalMarket();
-    return data.listings;
+async function getAllGlobalListings() {
+    return await all(
+        `SELECT * FROM globalMarket ORDER BY listedAt DESC`
+    );
 }
 
-function purchaseGlobalListing(listingId, buyerId) {
-    const data = loadGlobalMarket();
-    const index = data.listings.findIndex(l => l.id === listingId);
+async function purchaseGlobalListing(listingId, buyerId) {
+    const listing = await get(
+        `SELECT * FROM globalMarket WHERE id = ?`,
+        [listingId]
+    );
     
-    if (index === -1) return null;
+    if (!listing) return null;
     
-    const listing = data.listings[index];
-    data.listings.splice(index, 1);
-    saveGlobalMarket(data);
+    await run(`DELETE FROM globalMarket WHERE id = ?`, [listingId]);
     
     return listing;
 }
@@ -149,8 +129,6 @@ module.exports = {
     saveCoinMarket,
     loadGemMarket,
     saveGemMarket,
-    loadGlobalMarket,
-    saveGlobalMarket,
     getUserCoinMarket,
     setUserCoinMarket,
     getUserGemMarket,
