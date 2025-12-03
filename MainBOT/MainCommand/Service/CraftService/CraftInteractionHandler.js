@@ -56,8 +56,8 @@ async function handleButtonInteraction(interaction) {
 
     // Main menu - Item category
     if (action === 'craft_menu_item') {
-        if (!checkButtonOwnership(interaction, 'craft_menu_item', null, false)) {
-            return interaction.reply({ content: "❌ You can't use someone else's button.", ephemeral: true });
+        if (!(await checkButtonOwnership(interaction, 'craft_menu_item'))) {
+            return;
         }
 
         const userData = await getUserCraftData(userId, 'item');
@@ -78,8 +78,8 @@ async function handleButtonInteraction(interaction) {
 
     // Main menu - Potion category
     if (action === 'craft_menu_potion') {
-        if (!checkButtonOwnership(interaction, 'craft_menu_potion', null, false)) {
-            return interaction.reply({ content: "❌ You can't use someone else's button.", ephemeral: true });
+        if (!(await checkButtonOwnership(interaction, 'craft_menu_potion'))) {
+            return;
         }
 
         const userData = await getUserCraftData(userId, 'potion');
@@ -100,8 +100,8 @@ async function handleButtonInteraction(interaction) {
 
     // Main menu - Queue
     if (action === 'craft_menu_queue') {
-        if (!checkButtonOwnership(interaction, 'craft_menu_queue', null, false)) {
-            return interaction.reply({ content: "❌ You can't use someone else's button.", ephemeral: true });
+        if (!(await checkButtonOwnership(interaction, 'craft_menu_queue'))) {
+            return;
         }
 
         const queueItems = await getQueueItems(userId);
