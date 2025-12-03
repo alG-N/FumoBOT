@@ -10,24 +10,24 @@ const PRAY_CHARACTERS = {
         color: 0xFF69B4,
         offers: {
             normal: {
-                coinCost: 50000,  
-                gemCost: 10000,        
+                coinCost: 50000,
+                gemCost: 10000,
                 baseRollsNoMark: 500,
                 baseRollsWithMark: 1000,
                 rollMultiplier: 2.5,
-                maxRolls: 10000,      
-                luckBoost: 0.125,     
+                maxRolls: 10000,
+                luckBoost: 0.125,
                 luckRarities: 'LEGENDARY,MYTHIC,EXCLUSIVE,???,ASTRAL,CELESTIAL,INFINITE,ETERNAL,TRANSCENDENT'
             },
             devour: {
-                chance: 0.25,           
-                coinCost: 600000,      
-                gemCost: 140000,       
+                chance: 0.25,
+                coinCost: 600000,
+                gemCost: 140000,
                 baseRollsNoMark: 5000,
                 baseRollsWithMark: 10000,
                 rollMultiplier: 3,
-                maxRolls: 50000,     
-                luckBoost: 1.5,       
+                maxRolls: 50000,
+                luckBoost: 1.5,
                 consequenceIfBroke: 'LOSE_EVERYTHING'
             }
         }
@@ -43,54 +43,54 @@ const PRAY_CHARACTERS = {
         color: 0x9932CC,
         requirements: {
             minFumos: {
-                1: 750,   
-                5: 875,  
-                7: 1000, 
-                10: 1500 
+                1: 750,
+                5: 875,
+                7: 1000,
+                10: 1500
             },
             maxFumos: {
-                1: 1200, 
+                1: 1200,
                 5: 1500,
-                7: 1800, 
+                7: 1800,
                 10: 3000
             }
         },
         rewards: {
             multipliers: {
-                1: 1.5,   
-                5: 3.5,  
-                7: 5,    
-                10: 25   
+                1: 1.5,
+                5: 3.5,
+                7: 5,
+                10: 25
             },
-            bonusChance: 0.30,      
+            bonusChance: 0.30,
             bonusMultiplier: {
-                coins: 1.495,      
-                gems: 1.95        
+                coins: 1.495,
+                gems: 1.95
             },
-            fumoTokenChance: 0.35,  
-            tokenAmount: [2, 6],    
-            scamChance: 0.0015     
+            fumoTokenChance: 0.35,
+            tokenAmount: [2, 6],
+            scamChance: 0.0015
         },
         bonusItems: {
             1: { 
-                'MysteriousShard(M)': { chance: 1.05, quantity: [3, 6] }  
+                'MysteriousShard(M)': { chance: 1.05, quantity: [3, 6] }
             },
             5: {
-                'MysteriousShard(M)': { chance: 1.50, quantity: [3, 6] }, 
+                'MysteriousShard(M)': { chance: 1.50, quantity: [3, 6] },
                 'GoldenSigil(?)': { chance: 0.30, quantity: [3, 6] },
                 'Nullified(?)': { chance: 0.30, quantity: [3, 6] },
                 'Undefined(?)': { chance: 0.30, quantity: [3, 6] },
                 'Null?(?)': { chance: 0.30, quantity: [3, 6] }
             },
             7: {
-                'MysteriousShard(M)': { chance: 2.25, quantity: [4, 9] },  
+                'MysteriousShard(M)': { chance: 2.25, quantity: [4, 9] },
                 'GoldenSigil(?)': { chance: 0.30, quantity: [4, 9] },
                 'Nullified(?)': { chance: 0.21, quantity: [4, 9] },
                 'Undefined(?)': { chance: 0.12, quantity: [4, 9] },
                 'Null(?)': { chance: 0.12, quantity: [4, 9] }
             },
             10: {
-                'MysteriousShard(M)': { chance: 3.0, quantity: [2, 6] },   
+                'MysteriousShard(M)': { chance: 3.0, quantity: [2, 6] },
                 'GoldenSigil(?)': { chance: 0.15, quantity: [2, 6] },
                 'S!gil?(?)': { chance: 0.09, quantity: [2, 6] },
                 'Nullified(?)': { chance: 0.45, quantity: [2, 6] },
@@ -122,10 +122,10 @@ const PRAY_CHARACTERS = {
         color: 0xFF0000,
         phases: {
             donation: {
-                baseCoinCost: 30000, 
-                baseGemCost: 2500,  
-                penaltyCoinIncrease: 5000,  
-                penaltyGemIncrease: 1000,   
+                baseCoinCost: 30000,
+                baseGemCost: 2500,
+                penaltyCoinIncrease: 5000,
+                penaltyGemIncrease: 1000,
                 pityMultipliers: {
                     low: { min: 1, max: 5, multiplier: 2 },
                     medium: { min: 6, max: 10, multiplier: 5 },
@@ -146,21 +146,21 @@ const PRAY_CHARACTERS = {
                     ETERNAL: 0.5,
                     TRANSCENDENT: 0.2
                 },
-                pityBoost: 1.08,     
-                maxPityCount: 10,    
+                pityBoost: 1.08,
+                maxPityCount: 10,
                 ultraRares: ['???', 'ASTRAL', 'CELESTIAL', 'INFINITE', 'ETERNAL', 'TRANSCENDENT'],
-                shinyChance: 0.35,    
-                alGChance: 0.1,        
+                shinyChance: 0.35,
+                alGChance: 0.1,
                 tokenChances: {
-                    25: 0.08,   
-                    5: 0.12,  
-                    2: 0.15,   
-                    1: 0.15   
+                    25: 0.08,
+                    5: 0.12,
+                    2: 0.15,
+                    1: 0.15
                 }
             }
         },
-        maxUsagePerWindow: 8, 
-        resetWindow: 12 * 60 * 60 * 1000  
+        maxUsagePerWindow: 8,
+        resetWindow: 12 * 60 * 60 * 1000
     },
     MARISA: {
         id: 'marisa',
@@ -172,33 +172,33 @@ const PRAY_CHARACTERS = {
         description: 'The ordinary magician borrows coins and returns them with interest... usually.',
         color: 0xFFD700,
         costs: {
-            donation: 15000,    
-            return: 35000     
+            donation: 15000,
+            return: 35000
         },
         chances: {
-            absent: 0.15       
+            absent: 0.15
         },
         rewards: {
             potions: {
                 rare: {
                     name: 'GemPotionT1(R)',
                     baseChance: 0.18,
-                    pityChance: 0.35  
+                    pityChance: 0.35
                 },
                 legendary: {
                     name: 'BoostPotionT1(L)',
                     baseChance: 0.04,
-                    pityChance: 0.08  
+                    pityChance: 0.08
                 }
             },
             gems: {
                 chance: 0.35,
-                pityChance: 0.7,     
+                pityChance: 0.7,
                 bonus1Range: [0.25, 0.40],
                 bonus1Base: 1000,
                 bonus2Range: [0.08, 0.20],
                 bonus2Base: [10000, 19000],
-                pityMultiplier: 2     
+                pityMultiplier: 2
             },
             special: {
                 goldenSigil: { baseChance: 0.0007, pityChance: 0.002 },
@@ -207,8 +207,8 @@ const PRAY_CHARACTERS = {
             }
         },
         itemDrops: {
-            normalCount: [1, 3],   
-            pityCount: [3, 6],    
+            normalCount: [1, 3],
+            pityCount: [3, 6],
             rarityWeights: {
                 normal: {
                     Basic: 45,
@@ -235,9 +235,9 @@ const PRAY_CHARACTERS = {
             }
         },
         pity: {
-            threshold: 5,          
-            reward: 'StarShard(M)',   
-            counterReset: true         
+            threshold: 5,
+            reward: 'StarShard(M)',
+            counterReset: true
         }
     },
     SAKUYA: {
@@ -250,60 +250,60 @@ const PRAY_CHARACTERS = {
         description: 'The time-manipulating maid can skip time, but demands payment for her services.',
         color: 0x87CEEB,
         timeSkip: {
-            duration: 12 * 60 * 60 * 1000, 
+            duration: 12 * 60 * 60 * 1000,
             costScaling: [0.03, 0.054, 0.084, 0.12, 0.15, 0.18],
-            fumoRequirements: [0, 0, 1, 1, 1, 1],  
-            maxUses: 6,              
-            resetWindow: 24 * 60 * 60 * 1000,      
-            cooldownWindow: 12 * 60 * 60 * 1000    
+            fumoRequirements: [0, 0, 1, 1, 1, 1],
+            maxUses: 6,
+            resetWindow: 24 * 60 * 60 * 1000,
+            cooldownWindow: 12 * 60 * 60 * 1000
         },
         rarityRequirements: {
             normal: ['RARE', 'EPIC', 'OTHERWORLDLY', 'LEGENDARY', 'MYTHICAL', 'EXCLUSIVE', '???', 'ASTRAL', 'CELESTIAL'],
-            high: ['ASTRAL', 'CELESTIAL', 'INFINITE']  
+            high: ['ASTRAL', 'CELESTIAL', 'INFINITE']
         },
         rewards: {
-            coinLimit: null,  
-            gemLimit: null,       
-            perfectSkipChance: 0.02,      
-            perfectSkipChanceWithSakuya: 0.06, 
+            coinLimit: null,
+            gemLimit: null,
+            perfectSkipChance: 0.02,
+            perfectSkipChanceWithSakuya: 0.06,
             perfectSkipBenefits: {
-                noCost: true,      
-                noFumoLoss: true,    
-                bonusMultiplier: 1.5  
+                noCost: true,
+                noFumoLoss: true,
+                bonusMultiplier: 1.5
             },
             bonusDrops: {
                 fragment: { 
-                    base: 0.36,      
-                    withSakuya: 0.66,  
-                    rolls: [1, 3]     
+                    base: 0.36,
+                    withSakuya: 0.66,
+                    rolls: [1, 3]
                 },
                 clock: { 
-                    base: 0.09,      
-                    withSakuya: 0.21,  
-                    rolls: [1, 2]     
+                    base: 0.09,
+                    withSakuya: 0.21,
+                    rolls: [1, 2]
                 },
                 watch: { 
-                    base: 0.015,      
-                    withSakuya: 0.045,  
-                    rolls: 1        
+                    base: 0.015,
+                    withSakuya: 0.045,
+                    rolls: 1
                 }
             }
         },
         blessing: {
-            threshold: 100,             
-            duration: 48 * 60 * 60 * 1000, 
-            cooldownMultiplier: 0.125,        
-            increment: 20,                  
+            threshold: 100,
+            duration: 48 * 60 * 60 * 1000,
+            cooldownMultiplier: 0.125,
+            increment: 20,
             benefits: {
                 skipDuration: 24 * 60 * 60 * 1000,
-                rewardMultiplier: 4,           
-                noCost: true                       
+                rewardMultiplier: 4,
+                noCost: true
             }
         },
         actualLimits: {
-            usesPerCooldown: 'UNLIMITED', 
-            cooldownReset: '12 hours',    
-            blessingReset: '24 hours'      
+            usesPerWindow: 6,
+            resetLogic: 'Smart reset: 12h if <6 uses, 24h if >=6 uses',
+            coinGemCaps: 'NONE'
         }
     }
 };
