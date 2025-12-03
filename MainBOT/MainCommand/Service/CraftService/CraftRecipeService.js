@@ -58,7 +58,7 @@ const ITEM_RECIPES = {
             "Dice(C)": 150
         },
         resources: { coins: 35000, gems: 5000 },
-        effect: "Dice that can be used to gamble your luck!\n\nBoost a random from 0.01% to 1000% every hour, lasted for 12 hours!\n\n**NOTE:*This item is not stackable!"
+        effect: "Dice that can be used to gamble your luck!\n\nBoost a random from 0.01% to 1000% every hour, lasted for 12 hours!\n\n**NOTE:**This item is not stackable!"
     },
     "Nullified(?)": {
         category: "Tier 5",
@@ -67,19 +67,66 @@ const ITEM_RECIPES = {
             "Null?(?)": 2
         },
         resources: { coins: 150000, gems: 10000 },
-        effect: "Your rolls become nullified,\n rarity chance does not matter for 1 roll."
+        effect: "Your rolls become nullified,\nrarity chance does not matter for 1 roll."
+    },
+    "CrystalSigil(?)": {
+        category: "Tier 6",
+        requires: {
+            "Nullified(?)": 10,
+            "GoldenSigil(?)": 2,
+            "EquinoxAlloy(M)": 20,
+            "ChromaShard(M)": 15,
+            "MonoShard(M)": 15
+        },
+        resources: { coins: 500000, gems: 50000 },
+        effect: "Enhanced sigil with crystal properties.\n+500% coins boost\n+750% gems boost\nx1.1 to x1.5 rollspeed boost when activated"
+    },
+    "VoidCrystal(?)": {
+        category: "Tier 6",
+        requires: {
+            "CrystalSigil(?)": 3,
+            "Nullified(?)": 25,
+            "VoidFragment(?)": 1,
+            "ShinyShard(?)": 2
+        },
+        resources: { coins: 2500000, gems: 250000 },
+        effect: "Mysterious void energy contained in crystal.\n+1500% coins boost\n+2000% gems boost\nEnables void traits on rolls"
+    },
+    "EternalEssence(?)": {
+        category: "Tier 6",
+        requires: {
+            "VoidCrystal(?)": 2,
+            "CelestialEssence(D)": 10,
+            "EtherealCore(D)": 5,
+            "Nullified(?)": 50
+        },
+        resources: { coins: 10000000, gems: 1000000 },
+        effect: "Condensed eternal power.\n+5000% coins boost\n+7500% gems boost\nx2 trait luck permanently"
+    },
+    "CosmicCore(?)": {
+        category: "Tier 6",
+        requires: {
+            "EternalEssence(?)": 3,
+            "VoidCrystal(?)": 5,
+            "CrystalSigil(?)": 10,
+            "alGShard(P)": 1
+        },
+        resources: { coins: 50000000, gems: 5000000 },
+        effect: "Core of cosmic energy.\n+15000% coins boost\n+20000% gems boost\nEnables [GLITCHED] trait (1 in 25k)"
     },
     "S!gil?(?)": {
-        category: "Tier 6(MAX)",
+        category: "Tier 7(MAX)",
         requires: {
-            "Nullified(?)": 15,
-            "GoldenSigil(?)": 1,
-            "EquinoxAlloy(M)": 15,
-            "Undefined(?)": 10,
-            "Null?(?)": 10
+            "CosmicCore(?)": 2,
+            "CrystalSigil(?)": 15,
+            "GoldenSigil(?)": 5,
+            "EquinoxAlloy(M)": 50,
+            "Undefined(?)": 25,
+            "Null?(?)": 25,
+            "VoidFragment(?)": 3
         },
-        resources: { coins: 150000, gems: 10000 },
-        effect: "\n- +1000% to +10000% coins for every GoldenSigil(?) applied\n- x1.25 to x2 luck for every GoldenSigil(?) applied\n- Your 10 rolls become nullified, rarity chance does not matter, reset every 1 day\n- +500% value when selling fumo\n- +1500% luck on Reimu's Praying\n\n**Downside:**\n- All of your boost no longer applied\n- You can longer get more than 1 same rarity(Applied for ASTRAL+)"
+        resources: { coins: 500000000, gems: 50000000 },
+        effect: "**WONT CONSUME ITEM**\n\n+ x150 coins, x300 gems overall\n+ x1.25 to x2 luck for every GoldenSigil(?) boost applied\n+ x1.1 to x1.5 rollspeed for every CrystalSigil(?) boost applied\n+ x1.01 to x1.5 for trait luck\n+ Enabling [GLITCHED] trait, 1 in 50k\n+ 350% value when selling fumo, applied on all side\n+ 500% luck on Reimu's Praying\n\n**Downside:**\nEverytime you activate sigil, 15 Transcendent fumo[trait included] will be gone.\nEffect will apply for 12 hour"
     }
 };
 
