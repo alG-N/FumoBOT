@@ -12,7 +12,6 @@ const {
 } = require('../../Service/FumoDataService/InformService/InformUIService');
 
 module.exports = (client) => {
-    // Handle initial command
     client.on('messageCreate', async message => {
         try {
             if (!/^\.(inform|in)(\s|$)/.test(message.content)) return;
@@ -45,13 +44,11 @@ module.exports = (client) => {
             });
 
             const collector = variantMessage.createMessageComponentCollector({
-                time: 60000
+                time: 300000
             });
 
-            // THIS IS THE MISSING PART - Handle button clicks
             collector.on('collect', async interaction => {
                 try {
-                    // Verify ownership
                     const isOwner = await checkButtonOwnership(interaction, null, null, false);
                     if (!isOwner) {
                         return interaction.reply({
@@ -60,7 +57,6 @@ module.exports = (client) => {
                         });
                     }
 
-                    // Determine which variant was selected
                     let variant = 'NORMAL';
                     if (interaction.customId.includes('shiny')) {
                         variant = 'SHINY';
@@ -68,22 +64,19 @@ module.exports = (client) => {
                         variant = 'ALG';
                     }
 
-                    // Get ownership data
                     const ownershipData = await getFumoOwnershipData(
                         message.author.id, 
-                        `${fumoData.fumo.name}(${fumoData.fumo.rarity})`
+                        `${fumoData.fumo.name}(${fumoData.fumo.rarity})`,
+                        variant
                     );
 
-                    // Create and send the inform embed
                     const informEmbed = createInformEmbed(fumoData, ownershipData, variant);
+                    const updatedButtons = createVariantButtons(message.author.id);
 
                     await interaction.update({
                         embeds: [informEmbed],
-                        components: []
+                        components: [updatedButtons]
                     });
-
-                    // Stop the collector since we got a response
-                    collector.stop('completed');
 
                 } catch (error) {
                     console.error('[inform] Error handling button interaction:', error);
@@ -97,9 +90,8 @@ module.exports = (client) => {
             });
 
             collector.on('end', (collected, reason) => {
-                if (reason === 'time' && collected.size === 0) {
+                if (reason === 'time') {
                     variantMessage.edit({
-                        content: 'Selection timed out.',
                         components: []
                     }).catch(console.error);
                 }
