@@ -10,8 +10,8 @@ const SEASONS = {
         name: 'Festival Harvest',
         coinMultiplier: 15,
         gemMultiplier: 15,
-        chance: 0.15, 
-        checkInterval: 1800000, 
+        chance: 1/12000, // 1 in 12,000 seconds (was 0.15 every 30 min)
+        checkInterval: 1000,
         duration: 1800000, 
         description: 'Bountiful harvest! Massive farming boost!',
         emoji: '🌾'
@@ -20,8 +20,8 @@ const SEASONS = {
         name: 'Dawn Daylight',
         coinMultiplier: 350,
         gemMultiplier: 350,
-        chance: 0.05, 
-        checkInterval: 3600000, 
+        chance: 1/72000, // 1 in 72,000 seconds (was 0.05 every 1 hour)
+        checkInterval: 1000,
         duration: 600000,
         description: 'The legendary dawn has arrived!',
         emoji: '🌅'
@@ -30,8 +30,8 @@ const SEASONS = {
         name: 'Stormcharged',
         coinMultiplier: 1/15,
         gemMultiplier: 1/15,
-        chance: 0.08, 
-        checkInterval: 1800000, 
+        chance: 1/22500, // 1 in 22,500 seconds (was 0.08 every 30 min)
+        checkInterval: 1000,
         duration: 900000, 
         description: 'Electrical interference reduces farming!',
         emoji: '⚡'
@@ -40,8 +40,8 @@ const SEASONS = {
         name: 'Storm',
         coinMultiplier: 1/5,
         gemMultiplier: 1/5,
-        chance: 0.12, 
-        checkInterval: 1800000, 
+        chance: 1/15000, // 1 in 15,000 seconds (was 0.12 every 30 min)
+        checkInterval: 1000,
         duration: 1200000, 
         description: 'Heavy storm reduces farming efficiency!',
         emoji: '🌧️'
@@ -50,8 +50,8 @@ const SEASONS = {
         name: 'Tornado',
         coinMultiplier: 1/30,
         gemMultiplier: 1/30,
-        chance: 0.06, 
-        checkInterval: 1800000, 
+        chance: 1/30000, // 1 in 30,000 seconds (was 0.06 every 30 min)
+        checkInterval: 1000,
         duration: 300000, 
         description: 'Devastating tornado! Farming severely reduced!',
         emoji: '🌪️'
@@ -60,8 +60,8 @@ const SEASONS = {
         name: 'Golden Hour',
         coinMultiplier: 50,
         gemMultiplier: 50,
-        chance: 0.10,
-        checkInterval: 1800000, 
+        chance: 1/18000, // 1 in 18,000 seconds (was 0.10 every 30 min)
+        checkInterval: 1000,
         duration: 900000,
         description: 'The golden hour shines upon your farm!',
         emoji: '✨'
@@ -70,8 +70,8 @@ const SEASONS = {
         name: 'Meteor Shower',
         coinMultiplier: 100,
         gemMultiplier: 100,
-        chance: 0.05,
-        checkInterval: 2700000, 
+        chance: 1/54000, // 1 in 54,000 seconds (was 0.05 every 45 min)
+        checkInterval: 1000,
         duration: 600000, 
         description: 'Meteors rain down blessings!',
         emoji: '☄️'
@@ -80,8 +80,8 @@ const SEASONS = {
         name: 'Blood Moon',
         coinMultiplier: 5,
         gemMultiplier: 25,
-        chance: 0.08,
-        checkInterval: 1800000, 
+        chance: 1/22500, // 1 in 22,500 seconds (was 0.08 every 30 min)
+        checkInterval: 1000,
         duration: 1200000, 
         description: 'The crimson moon empowers gem production!',
         emoji: '🌕'
@@ -90,8 +90,8 @@ const SEASONS = {
         name: 'Aurora Borealis',
         coinMultiplier: 30,
         gemMultiplier: 30,
-        chance: 0.07,
-        checkInterval: 2400000, 
+        chance: 1/34286, // 1 in 34,286 seconds (was 0.07 every 40 min)
+        checkInterval: 1000,
         duration: 900000, 
         description: 'The northern lights dance across the sky!',
         emoji: '🌌'
@@ -100,8 +100,8 @@ const SEASONS = {
         name: 'Solar Flare',
         coinMultiplier: 75,
         gemMultiplier: 75,
-        chance: 0.06,
-        checkInterval: 2100000, 
+        chance: 1/35000, // 1 in 35,000 seconds (was 0.06 every 35 min)
+        checkInterval: 1000,
         duration: 480000, 
         description: 'Intense solar energy supercharges your farm!',
         emoji: '☀️'
@@ -110,8 +110,8 @@ const SEASONS = {
         name: 'Sunny Day',
         coinMultiplier: 3,
         gemMultiplier: 2,
-        chance: 0.25,
-        checkInterval: 1200000,
+        chance: 1/4800, // 1 in 4,800 seconds (was 0.25 every 20 min)
+        checkInterval: 1000,
         duration: 1800000,
         description: 'Perfect weather for farming!',
         emoji: '☀️'
@@ -120,8 +120,8 @@ const SEASONS = {
         name: 'Light Rain',
         coinMultiplier: 2,
         gemMultiplier: 3,
-        chance: 0.20,
-        checkInterval: 1200000,
+        chance: 1/6000, // 1 in 6,000 seconds (was 0.20 every 20 min)
+        checkInterval: 1000,
         duration: 1500000,
         description: 'Gentle rain nourishes the crops!',
         emoji: '🌦️'
@@ -130,8 +130,8 @@ const SEASONS = {
         name: 'Foggy',
         coinMultiplier: 1/3,
         gemMultiplier: 1/3,
-        chance: 0.15,
-        checkInterval: 1800000,
+        chance: 1/12000, // 1 in 12,000 seconds (was 0.15 every 30 min)
+        checkInterval: 1000,
         duration: 1200000,
         description: 'Thick fog reduces visibility and productivity!',
         emoji: '🌫️'
@@ -140,8 +140,8 @@ const SEASONS = {
         name: 'Drought',
         coinMultiplier: 1/8,
         gemMultiplier: 1/10,
-        chance: 0.10,
-        checkInterval: 2400000,
+        chance: 1/24000, // 1 in 24,000 seconds (was 0.10 every 40 min)
+        checkInterval: 1000,
         duration: 1800000,
         description: 'Severe drought withers your crops!',
         emoji: '🏜️'
@@ -150,8 +150,8 @@ const SEASONS = {
         name: 'Hailstorm',
         coinMultiplier: 1/12,
         gemMultiplier: 1/12,
-        chance: 0.08,
-        checkInterval: 1800000,
+        chance: 1/22500, // 1 in 22,500 seconds (was 0.08 every 30 min)
+        checkInterval: 1000,
         duration: 600000,
         description: 'Hail damages your farm!',
         emoji: '🧊'
@@ -160,8 +160,8 @@ const SEASONS = {
         name: 'Blizzard',
         coinMultiplier: 1/20,
         gemMultiplier: 1/20,
-        chance: 0.07,
-        checkInterval: 2400000,
+        chance: 1/34286, // 1 in 34,286 seconds (was 0.07 every 40 min)
+        checkInterval: 1000,
         duration: 900000,
         description: 'Freezing blizzard halts farming operations!',
         emoji: '❄️'
@@ -170,8 +170,8 @@ const SEASONS = {
         name: 'Rainbow',
         coinMultiplier: 8,
         gemMultiplier: 12,
-        chance: 0.12,
-        checkInterval: 1800000,
+        chance: 1/15000, // 1 in 15,000 seconds (was 0.12 every 30 min)
+        checkInterval: 1000,
         duration: 600000,
         description: 'A magical rainbow brings good fortune!',
         emoji: '🌈'
@@ -180,19 +180,18 @@ const SEASONS = {
         name: 'Starry Night',
         coinMultiplier: 4,
         gemMultiplier: 8,
-        chance: 0.18,
-        checkInterval: 1500000,
+        chance: 1/8333, // 1 in 8,333 seconds (was 0.18 every 25 min)
+        checkInterval: 1000,
         duration: 1200000,
         description: 'Stars shine brightly, blessing your farm!',
         emoji: '⭐'
     },
-    // NEW: Ultra-rare glitched weather
     G1TCH3D: {
         name: 'G1tCh3D',
         coinMultiplier: 3500,
         gemMultiplier: 3500,
-        chance: 1 / 1500000, 
-        checkInterval: 1000, 
+        chance: 1/1500000, // 1 in 1.5 million seconds (ultra mega rare!)
+        checkInterval: 1000,
         duration: 300000, 
         description: '̷̢̛̝͎̈́̓R̴͎̈́͜E̸̢̛̳̅A̶̰̍̚L̷̰̈́͠I̵̞̿̚T̴̨̛̩́Y̶̱̿ ̶̢̍Ḯ̶̱͜S̶̱̀ ̴͖̌B̷̨̛̜R̴̨͋̕E̸̡̤̾A̵̬̓K̴̨̓Ī̵̮̓Ņ̶̎G̶̰̾!̷̱̈́',
         emoji: '▓',
@@ -202,8 +201,8 @@ const SEASONS = {
         name: 'Cosmic Void',
         coinMultiplier: 1/100,
         gemMultiplier: 1/100,
-        chance: 0.03,
-        checkInterval: 3600000,
+        chance: 1/120000, // 1 in 120,000 seconds (was 0.03 every 1 hour)
+        checkInterval: 1000,
         duration: 420000,
         description: 'A void opens in space, draining all energy from your farm!',
         emoji: '🕳️'
@@ -212,8 +211,8 @@ const SEASONS = {
         name: 'Temporal Collapse',
         coinMultiplier: 1/50,
         gemMultiplier: 1/75,
-        chance: 0.05,
-        checkInterval: 2700000,
+        chance: 1/54000, // 1 in 54,000 seconds (was 0.05 every 45 min)
+        checkInterval: 1000,
         duration: 600000, 
         description: 'Time itself distorts, severely disrupting production!',
         emoji: '⏳'
@@ -222,8 +221,8 @@ const SEASONS = {
         name: 'Pestilence',
         coinMultiplier: 1/7,
         gemMultiplier: 1/10,
-        chance: 0.11,
-        checkInterval: 1800000,
+        chance: 1/16364, // 1 in 16,364 seconds (was 0.11 every 30 min)
+        checkInterval: 1000,
         duration: 1500000,
         description: 'A plague of locusts devours your crops!',
         emoji: '🦗'
@@ -232,8 +231,8 @@ const SEASONS = {
         name: 'Divine Ascension',
         coinMultiplier: 250,
         gemMultiplier: 250,
-        chance: 0.04,
-        checkInterval: 3600000,
+        chance: 1/90000, // 1 in 90,000 seconds (was 0.04 every 1 hour)
+        checkInterval: 1000,
         duration: 480000, 
         description: 'Divine beings bless your farm with otherworldly abundance!',
         emoji: '👼'

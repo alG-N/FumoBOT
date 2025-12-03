@@ -173,6 +173,8 @@ function createContinueButton(userId, numSummons, rollLimitReached) {
 }
 
 function createEventAutoRollSummary(summary, userId) {
+    const { updateSummaryWithNotificationButton } = require('../../Service/GachaService/NotificationButtonsService');
+    
     const rarityOrder = ['TRANSCENDENT', '???', 'MYTHICAL', 'LEGENDARY', 'EPIC'];
     
     let bestFumoText = 'None';
@@ -244,7 +246,10 @@ function createEventAutoRollSummary(summary, userId) {
             .setDisabled(summary.stoppedReason === 'LIMIT_REACHED')
     );
 
-    return { embed, components: [row] };
+    let components = [row];
+    components = updateSummaryWithNotificationButton(components, userId, 'event');
+
+    return { embed, components };
 }
 
 module.exports = {
