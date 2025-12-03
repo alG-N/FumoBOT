@@ -14,19 +14,19 @@ const CRAFT_CONFIG = {
     
     TIMER_DURATION: {
         ITEM: {
-            'ForgottenBook(C)': 60000,
-            'FantasyBook(M)': 300000,
-            'Lumina(M)': 600000,
-            'AncientRelic(E)': 900000,
-            'MysteriousCube(M)': 1200000,
-            'TimeClock(L)': 1800000,
-            'MysteriousDice(M)': 2400000,
-            'Nullified(?)': 3600000,
-            'CrystalSigil(?)': 7200000,
-            'VoidCrystal(?)': 10800000,
-            'EternalEssence(?)': 14400000,
-            'CosmicCore(?)': 18000000,
-            'S!gil?(?)': 21600000
+            'ForgottenBook(C)': 600000,
+            'FantasyBook(M)': 3000000,
+            'Lumina(M)': 6000000,
+            'AncientRelic(E)': 9000000,
+            'MysteriousCube(M)': 12000000,
+            'TimeClock(L)': 18000000,
+            'MysteriousDice(M)': 24000000,
+            'Nullified(?)': 36000000,
+            'CrystalSigil(?)': 72000000,
+            'VoidCrystal(?)': 108000000,
+            'EternalEssence(?)': 144000000,
+            'CosmicCore(?)': 180000000,
+            'S!gil?(?)': 216000000
         },
         POTION: {
             'CoinPotionT2(R)': 120000,

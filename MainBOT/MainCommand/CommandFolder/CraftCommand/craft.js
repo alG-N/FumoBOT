@@ -1,6 +1,7 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { checkRestrictions } = require('../../Middleware/restrictions');
 const { buildSecureCustomId } = require('../../Middleware/buttonOwnership');
+const { registerCraftInteractionHandler } = require('../../Service/CraftService/CraftInteractionHandler');
 
 // Prevent duplicate registration
 let isRegistered = false;
@@ -11,6 +12,9 @@ module.exports = (client) => {
         return;
     }
     isRegistered = true;
+
+    // Register the interaction handler for buttons
+    registerCraftInteractionHandler(client);
 
     // ONLY handle .craft command
     client.on('messageCreate', async (message) => {

@@ -2,7 +2,7 @@ const ITEM_RECIPES = {
     "ForgottenBook(C)": {
         category: "Tier 1",
         requires: { "Books(C)": 1, "FragmentOf1800s(R)": 1 },
-        resources: { coins: 500, gems: 100 },
+        resources: { coins: 5000, gems: 1000 },
         effect: "Unlock secret story of this bot and its developer..."
     },
     "FantasyBook(M)": {
@@ -15,40 +15,40 @@ const ITEM_RECIPES = {
             "BlueShard(L)": 1,
             "YellowShard(L)": 1
         },
-        resources: { coins: 500, gems: 100 },
+        resources: { coins: 2500, gems: 1000 },
         effect: "Enable other-fumo from otherworld.."
     },
     "Lumina(M)": {
         category: "Tier 2",
         requires: { "StarShard(M)": 5 },
-        resources: { coins: 25000, gems: 1500 },
+        resources: { coins: 250000, gems: 15000 },
         effect: "x5 luck permanently for every 10th roll\n(applied to normal/event banner)."
     },
     "AncientRelic(E)": {
         category: "Tier 3",
         requires: {
-            "ForgottenBook(C)": 5,
+            "ForgottenBook(C)": 15,
             "UniqueRock(C)": 25,
-            "WhiteShard(L)": 5,
-            "DarkShard(L)": 5
+            "WhiteShard(L)": 15,
+            "DarkShard(L)": 15
         },
-        resources: { coins: 35000, gems: 5000 },
+        resources: { coins: 350000, gems: 50000 },
         effect: "-60% value on selling, +250% luck boost\n+350% coin boost, +500% gem boost for 1 day\n(applied to normal/event banner)"
     },
     "MysteriousCube(M)": {
         category: "Tier 3",
         requires: { "MysteriousShard(M)": 5 },
-        resources: { coins: 35000, gems: 5000 },
+        resources: { coins: 705000, gems: 50000 },
         effect: "+???% luck, +??? coin boost, +??? gem boost for 1 day, applied to normal/event banner."
     },
     "TimeClock(L)": {
         category: "Tier 4",
         requires: {
-            "TimeClock-Broken(L)": 1,
-            "FragmentOfTime(E)": 5,
-            "FragmentOf1800s(R)": 10
+            "TimeClock-Broken(L)": 5,
+            "FragmentOfTime(E)": 25,
+            "FragmentOf1800s(R)": 100
         },
-        resources: { coins: 35000, gems: 5000 },
+        resources: { coins: 9500000, gems: 500000 },
         effect: "x2 speed on farming fumos, passive coins for 1 day(Cooldown: 1w)"
     },
     "MysteriousDice(M)": {
@@ -57,7 +57,7 @@ const ITEM_RECIPES = {
             "MysteriousCube(M)": 1,
             "Dice(C)": 150
         },
-        resources: { coins: 35000, gems: 5000 },
+        resources: { coins: 3500000, gems: 500000 },
         effect: "Dice that can be used to gamble your luck!\n\nBoost a random from 0.01% to 1000% every hour, lasted for 12 hours!\n\n**NOTE:**This item is not stackable!"
     },
     "Nullified(?)": {
@@ -66,19 +66,19 @@ const ITEM_RECIPES = {
             "Undefined(?)": 2,
             "Null?(?)": 2
         },
-        resources: { coins: 150000, gems: 10000 },
+        resources: { coins: 15000000, gems: 1000000 },
         effect: "Your rolls become nullified,\nrarity chance does not matter for 1 roll."
     },
     "CrystalSigil(?)": {
         category: "Tier 6",
         requires: {
             "Nullified(?)": 10,
-            "GoldenSigil(?)": 2,
+            "GoldenSigil(?)": 25,
             "EquinoxAlloy(M)": 20,
             "ChromaShard(M)": 15,
             "MonoShard(M)": 15
         },
-        resources: { coins: 500000, gems: 50000 },
+        resources: { coins: 50000000, gems: 5000000},
         effect: "Enhanced sigil with crystal properties.\n+500% coins boost\n+750% gems boost\nx1.1 to x1.5 rollspeed boost when activated"
     },
     "VoidCrystal(?)": {
@@ -86,10 +86,10 @@ const ITEM_RECIPES = {
         requires: {
             "CrystalSigil(?)": 3,
             "Nullified(?)": 25,
-            "VoidFragment(?)": 1,
-            "ShinyShard(?)": 2
+            "VoidFragment(?)": 15,
+            "ShinyShard(?)": 20
         },
-        resources: { coins: 2500000, gems: 250000 },
+        resources: { coins: 250000000, gems: 25000000 },
         effect: "Mysterious void energy contained in crystal.\n+1500% coins boost\n+2000% gems boost\nEnables void traits on rolls"
     },
     "EternalEssence(?)": {
@@ -98,9 +98,10 @@ const ITEM_RECIPES = {
             "VoidCrystal(?)": 2,
             "CelestialEssence(D)": 10,
             "EtherealCore(D)": 5,
-            "Nullified(?)": 50
+            "Nullified(?)": 50,
+            "alGShard(P)": 15
         },
-        resources: { coins: 10000000, gems: 1000000 },
+        resources: { coins: 10000000000, gems: 100000000 },
         effect: "Condensed eternal power.\n+5000% coins boost\n+7500% gems boost\nx2 trait luck permanently"
     },
     "CosmicCore(?)": {
@@ -111,7 +112,7 @@ const ITEM_RECIPES = {
             "CrystalSigil(?)": 10,
             "alGShard(P)": 1
         },
-        resources: { coins: 50000000, gems: 5000000 },
+        resources: { coins: 500000000000, gems: 5000000000 },
         effect: "Core of cosmic energy.\n+15000% coins boost\n+20000% gems boost\nEnables [GLITCHED] trait (1 in 25k)"
     },
     "S!gil?(?)": {
@@ -125,7 +126,7 @@ const ITEM_RECIPES = {
             "Null?(?)": 25,
             "VoidFragment(?)": 3
         },
-        resources: { coins: 500000000, gems: 50000000 },
+        resources: { coins: 95000000000000, gems: 950000000000 },
         effect: "**WONT CONSUME ITEM**\n\n+ x150 coins, x300 gems overall\n+ x1.25 to x2 luck for every GoldenSigil(?) boost applied\n+ x1.1 to x1.5 rollspeed for every CrystalSigil(?) boost applied\n+ x1.01 to x1.5 for trait luck\n+ Enabling [GLITCHED] trait, 1 in 50k\n+ 350% value when selling fumo, applied on all side\n+ 500% luck on Reimu's Praying\n\n**Downside:**\nEverytime you activate sigil, 15 Transcendent fumo[trait included] will be gone.\nEffect will apply for 12 hour"
     }
 };

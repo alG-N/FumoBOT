@@ -47,7 +47,8 @@ async function addToQueue(userId, craftType, itemName, amount) {
         throw new Error('QUEUE_FULL');
     }
 
-    const timerDuration = getCraftTimer(craftType, itemName);
+    // FIX: Pass the amount to getCraftTimer so it multiplies correctly
+    const timerDuration = getCraftTimer(craftType, itemName, amount);
     const now = Date.now();
     const completesAt = now + timerDuration;
 
@@ -79,7 +80,8 @@ async function processCraft(userId, itemName, amount, craftType, recipe, totalCo
     await deductResources(userId, totalCoins, totalGems);
     await deductMaterials(userId, recipe, amount);
 
-    const timerDuration = getCraftTimer(craftType, itemName);
+    // FIX: Pass amount to getCraftTimer here too
+    const timerDuration = getCraftTimer(craftType, itemName, amount);
 
     if (timerDuration > 0) {
         // Add to queue with timer

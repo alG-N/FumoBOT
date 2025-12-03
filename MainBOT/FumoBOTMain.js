@@ -301,7 +301,7 @@ registerCodeRedemption(client);
 // INTERACTION HANDLER
 client.on('interactionCreate', async interaction => {
     if (interaction.isButton()) {
-        // console.log('🔘 Button interaction received:', interaction.customId);
+        console.log('🔘 Button interaction received:', interaction.customId);
         if (interaction.customId.startsWith('show_post_') ||
             interaction.customId.startsWith('gallery_') ||
             interaction.customId.startsWith('back_to_list_') ||

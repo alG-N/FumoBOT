@@ -1,3 +1,4 @@
+// MainBOT/MainCommand/Service/CraftService/CraftInteractionHandler.js
 const { getUserCraftData } = require('../CraftService/CraftCacheService');
 const { getAllRecipes } = require('../CraftService/CraftRecipeService');
 const { validateFullCraft } = require('../CraftService/CraftValidationService');
@@ -29,6 +30,13 @@ function registerCraftInteractionHandler(client) {
 
     client.on('interactionCreate', async (interaction) => {
         try {
+            // Only handle craft-related interactions
+            if (!interaction.customId?.startsWith('craft_')) {
+                return;
+            }
+
+            console.log('🔨 [Craft Handler] Processing:', interaction.customId);
+
             if (interaction.isButton()) {
                 await handleButtonInteraction(interaction);
             } else if (interaction.isStringSelectMenu()) {
@@ -40,7 +48,7 @@ function registerCraftInteractionHandler(client) {
             console.error('[CraftInteractionHandler] Error:', err);
             if (!interaction.replied && !interaction.deferred) {
                 await interaction.reply({ 
-                    content: '❌ An error occurred.', 
+                    content: '❌ An error occurred: ' + err.message, 
                     ephemeral: true 
                 }).catch(() => {});
             }
@@ -54,60 +62,112 @@ async function handleButtonInteraction(interaction) {
     const { action, additionalData } = parseCustomId(interaction.customId);
     const userId = interaction.user.id;
 
+    console.log('🔨 [Craft] Button action:', action, 'User:', userId);
+
     // Main menu - Item category
     if (action === 'craft_menu_item') {
-        if (!(await checkButtonOwnership(interaction, 'craft_menu_item'))) {
-            return;
+        console.log('📦 [Craft] Opening item menu...');
+        if (!checkButtonOwnership(interaction, 'craft_menu_item', null, false)) {
+            return interaction.reply({ content: "❌ You can't use someone else's button.", ephemeral: true });
         }
 
-        const userData = await getUserCraftData(userId, 'item');
-        const recipes = getAllRecipes('item');
-        const pages = CRAFT_CATEGORIES.ITEM.tiers;
-        const currentPage = 0;
+        try {
+            const userData = await getUserCraftData(userId, 'item');
+            console.log('✅ [Craft] Got user data:', Object.keys(userData));
+            
+            const recipes = getAllRecipes('item');
+            console.log('✅ [Craft] Got recipes:', Object.keys(recipes).length);
+            
+            const pages = CRAFT_CATEGORIES.ITEM.tiers;
+            const currentPage = 0;
 
-        const pageData = createCraftCategoryEmbed('item', currentPage, recipes, userData);
-        const navButtons = createCraftNavigationButtons(userId, 'item', currentPage, pages.length, userData.queue.length);
-        const selectMenu = createCraftItemSelectMenu(userId, 'item', pageData.items);
+            const pageData = createCraftCategoryEmbed('item', currentPage, recipes, userData);
+            console.log('✅ [Craft] Created embed, has items:', pageData.items.length);
+            
+            const navButtons = createCraftNavigationButtons(userId, 'item', currentPage, pages.length, userData.queue.length);
+            console.log('✅ [Craft] Created nav buttons:', navButtons.length);
+            
+            const selectMenu = createCraftItemSelectMenu(userId, 'item', pageData.items);
+            console.log('✅ [Craft] Created select menu:', !!selectMenu);
 
-        const components = [...navButtons];
-        if (selectMenu) components.push(selectMenu);
+            const components = [...navButtons];
+            if (selectMenu) components.push(selectMenu);
 
-        await interaction.update({ embeds: [pageData.embed], components });
+            console.log('🔄 [Craft] Updating interaction with', components.length, 'component rows');
+            await interaction.update({ embeds: [pageData.embed], components });
+            console.log('✅ [Craft] Update successful!');
+        } catch (err) {
+            console.error('❌ [Craft Item Menu] Error:', err);
+            if (!interaction.replied && !interaction.deferred) {
+                await interaction.reply({ 
+                    content: '❌ Failed to display item menu: ' + err.message, 
+                    ephemeral: true 
+                }).catch(() => {});
+            }
+        }
         return;
     }
 
     // Main menu - Potion category
     if (action === 'craft_menu_potion') {
-        if (!(await checkButtonOwnership(interaction, 'craft_menu_potion'))) {
-            return;
+        console.log('🧪 [Craft] Opening potion menu...');
+        if (!checkButtonOwnership(interaction, 'craft_menu_potion', null, false)) {
+            return interaction.reply({ content: "❌ You can't use someone else's button.", ephemeral: true });
         }
 
-        const userData = await getUserCraftData(userId, 'potion');
-        const recipes = getAllRecipes('potion');
-        const pages = CRAFT_CATEGORIES.POTION.categories;
-        const currentPage = 0;
+        try {
+            const userData = await getUserCraftData(userId, 'potion');
+            console.log('✅ [Craft] Got user data:', Object.keys(userData));
+            
+            const recipes = getAllRecipes('potion');
+            console.log('✅ [Craft] Got recipes:', Object.keys(recipes).length);
+            
+            const pages = CRAFT_CATEGORIES.POTION.categories;
+            const currentPage = 0;
 
-        const pageData = createCraftCategoryEmbed('potion', currentPage, recipes, userData);
-        const navButtons = createCraftNavigationButtons(userId, 'potion', currentPage, pages.length, userData.queue.length);
-        const selectMenu = createCraftItemSelectMenu(userId, 'potion', pageData.items);
+            const pageData = createCraftCategoryEmbed('potion', currentPage, recipes, userData);
+            console.log('✅ [Craft] Created embed, has items:', pageData.items.length);
+            
+            const navButtons = createCraftNavigationButtons(userId, 'potion', currentPage, pages.length, userData.queue.length);
+            console.log('✅ [Craft] Created nav buttons:', navButtons.length);
+            
+            const selectMenu = createCraftItemSelectMenu(userId, 'potion', pageData.items);
+            console.log('✅ [Craft] Created select menu:', !!selectMenu);
 
-        const components = [...navButtons];
-        if (selectMenu) components.push(selectMenu);
+            const components = [...navButtons];
+            if (selectMenu) components.push(selectMenu);
 
-        await interaction.update({ embeds: [pageData.embed], components });
+            console.log('🔄 [Craft] Updating interaction with', components.length, 'component rows');
+            await interaction.update({ embeds: [pageData.embed], components });
+            console.log('✅ [Craft] Update successful!');
+        } catch (err) {
+            console.error('❌ [Craft Potion Menu] Error:', err);
+            if (!interaction.replied && !interaction.deferred) {
+                await interaction.reply({ 
+                    content: '❌ Failed to display potion menu: ' + err.message, 
+                    ephemeral: true 
+                }).catch(() => {});
+            }
+        }
         return;
     }
 
     // Main menu - Queue
     if (action === 'craft_menu_queue') {
-        if (!(await checkButtonOwnership(interaction, 'craft_menu_queue'))) {
-            return;
+        if (!checkButtonOwnership(interaction, 'craft_menu_queue', null, false)) {
+            return interaction.reply({ content: "❌ You can't use someone else's button.", ephemeral: true });
         }
 
         const queueItems = await getQueueItems(userId);
         const queueData = createQueueEmbed(queueItems, userId);
 
-        await interaction.update({ embeds: [queueData.embed], components: queueData.buttons });
+        await interaction.update({ embeds: [queueData.embed], components: queueData.buttons }).catch(async (err) => {
+            console.error('[Queue Menu] Update failed:', err);
+            await interaction.reply({ 
+                content: '❌ Failed to display queue. Please try again.', 
+                ephemeral: true 
+            }).catch(() => {});
+        });
         return;
     }
 
@@ -170,7 +230,7 @@ async function handleSelectMenuInteraction(interaction, client) {
     }
 
     const maxCraftable = Math.min(
-        require('./CraftService/CraftValidationService').calculateMaxCraftable(
+        require('./CraftValidationService').calculateMaxCraftable(
             validation.recipe, updatedUserData.inventory, updatedUserData.coins, updatedUserData.gems
         ),
         CRAFT_CONFIG.MAX_CRAFT_AMOUNT
@@ -235,14 +295,16 @@ async function handleNavigation(interaction, action, additionalData, userId) {
     const pages = craftType === 'item' ? CRAFT_CATEGORIES.ITEM.tiers : CRAFT_CATEGORIES.POTION.categories;
     
     let currentPage = 0;
-    if (action === 'craft_nav_first') currentPage = 0;
-    else if (action === 'craft_nav_last') currentPage = pages.length - 1;
-    else if (action === 'craft_nav_prev') {
+    if (action === 'craft_nav_first') {
+        currentPage = 0;
+    } else if (action === 'craft_nav_last') {
+        currentPage = pages.length - 1;
+    } else if (action === 'craft_nav_prev') {
         const match = interaction.message.embeds[0]?.footer?.text?.match(/Page (\d+)\//);
         currentPage = match ? Math.max(0, parseInt(match[1]) - 2) : 0;
     } else if (action === 'craft_nav_next') {
         const match = interaction.message.embeds[0]?.footer?.text?.match(/Page (\d+)\//);
-        currentPage = match ? parseInt(match[1]) : 1;
+        currentPage = match ? Math.min(pages.length - 1, parseInt(match[1])) : 1;
     }
 
     const pageData = createCraftCategoryEmbed(craftType, currentPage, recipes, userData);
@@ -252,7 +314,13 @@ async function handleNavigation(interaction, action, additionalData, userId) {
     const components = [...navButtons];
     if (selectMenu) components.push(selectMenu);
 
-    await interaction.update({ embeds: [pageData.embed], components });
+    await interaction.update({ embeds: [pageData.embed], components }).catch(async (err) => {
+        console.error('[Navigation] Update failed:', err);
+        await interaction.reply({ 
+            content: '❌ Failed to navigate. Please try again.', 
+            ephemeral: true 
+        }).catch(() => {});
+    });
 }
 
 async function handleReturnToMain(interaction, userId) {
@@ -308,14 +376,24 @@ async function handleConfirmCraft(interaction, userId) {
         interaction.client.craftConfirmData.delete(userId);
         interaction.client.craftModalData?.delete(userId);
     } catch (error) {
+        console.error('[Confirm Craft] Error:', error);
         const errorEmbed = createErrorEmbed(error.message === 'QUEUE_FULL' ? 'QUEUE_FULL' : 'UNKNOWN', { error: error.message });
         await interaction.update({ embeds: [errorEmbed], components: [] });
     }
 }
 
 async function handleClaimItem(interaction, additionalData, userId) {
-    const queueId = additionalData?.id;
-    if (!queueId) return;
+    console.log('🎁 [Claim] additionalData:', additionalData);
+    
+    // Get queueId from additionalData - it should be 'queueId' now
+    const queueId = additionalData?.queueId;
+    
+    if (!queueId) {
+        console.error('❌ [Claim] No queue ID found in additionalData:', additionalData);
+        return interaction.reply({ content: '❌ Invalid queue item.', ephemeral: true });
+    }
+
+    console.log('🎁 [Claim] Queue ID:', queueId, 'Type:', typeof queueId);
 
     try {
         const claimed = await claimQueuedCraft(queueId, userId);
@@ -328,7 +406,8 @@ async function handleClaimItem(interaction, additionalData, userId) {
             await interaction.message.edit({ embeds: [queueData.embed], components: queueData.buttons }).catch(() => {});
         }
     } catch (error) {
-        await interaction.reply({ content: '❌ Failed to claim item. It may not be ready yet.', ephemeral: true });
+        console.error('[Claim Item] Error:', error);
+        await interaction.reply({ content: '❌ Failed to claim item: ' + error.message, ephemeral: true });
     }
 }
 
