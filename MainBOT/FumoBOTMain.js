@@ -82,8 +82,6 @@ const useItem = require('./MainCommand/CommandFolder/UserDataCommand/UsuableComm
 const itemInfo = require('./MainCommand/CommandFolder/UserDataCommand/UsuableCommand/itemInfo');
 const boost = require('./MainCommand/CommandFolder/UserDataCommand/UserBalance/boost');
 const credit = require('./MainCommand/CommandFolder/TutorialCommand/aboutBot');
-const Pcraft = require('./MainCommand/CommandFolder/CraftCommand/potionCraft');
-const Icraft = require('./MainCommand/CommandFolder/CraftCommand/itemCraft');
 const craft = require('./MainCommand/CommandFolder/CraftCommand/craft');
 const quest = require('./MainCommand/CommandFolder/UserDataCommand/UsuableCommand/quest');
 const daily = require('./MainCommand/CommandFolder/UserDataCommand/DailyStuff/daily');
@@ -285,8 +283,6 @@ farmCheck(client);
 farmInfo(client);
 InitializeFarming(client);
 credit(client);
-Pcraft(client);
-Icraft(client);
 craft(client);
 quest(client);
 eggshop(client);

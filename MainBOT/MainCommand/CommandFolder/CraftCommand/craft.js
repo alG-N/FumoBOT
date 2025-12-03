@@ -2,7 +2,17 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('
 const { checkRestrictions } = require('../../Middleware/restrictions');
 const { buildSecureCustomId } = require('../../Middleware/buttonOwnership');
 
+// Prevent duplicate registration
+let isRegistered = false;
+
 module.exports = (client) => {
+    if (isRegistered) {
+        console.log('⚠️ craft.js already registered, skipping...');
+        return;
+    }
+    isRegistered = true;
+
+    // ONLY handle .craft command
     client.on('messageCreate', async (message) => {
         if (message.author.bot) return;
         if (message.content !== '.craft' && message.content !== '.c') return;
@@ -18,6 +28,8 @@ module.exports = (client) => {
 
         await message.reply({ embeds: [embed], components: [buttons] });
     });
+
+    console.log('✅ Main craft command registered');
 };
 
 function createMainCraftEmbed() {
