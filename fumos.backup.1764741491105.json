@@ -1,6 +1,6 @@
 {
-  "version": "1.1.0",
-  "generatedAt": "2025-12-03T05:58:11.104Z",
+  "version": "1.0.0",
+  "generatedAt": "2025-11-29T10:25:30.937Z",
   "totalFumos": 54,
   "fumos": [
     {
@@ -519,9 +519,7 @@
         "pray": false,
         "library": true,
         "market": false
-      },
-      "origin": "Yuji Itadori from Jujutsu Kaisen",
-      "fact": "Did you know, Itadori was meant to be a side character, yuta was the main character. Until Gege think again."
+      }
     },
     {
       "id": "eye_popping_epic",
@@ -535,9 +533,7 @@
         "pray": false,
         "library": true,
         "market": false
-      },
-      "origin": "Nobara from Jujutsu Kaisen",
-      "fact": "She came back...As a MVP"
+      }
     },
     {
       "id": "abandonedchild_epic",
@@ -579,9 +575,7 @@
         "pray": false,
         "library": true,
         "market": false
-      },
-      "origin": "Chill blone guy in Jujutsu Kaisen",
-      "fact": "And he does not deserved that"
+      }
     },
     {
       "id": "monkeyleader_mythical",
@@ -609,9 +603,7 @@
         "pray": false,
         "library": true,
         "market": false
-      },
-      "origin": "The villain thats everyone hate in Jujutsu Kaisen",
-      "fact": "Dont let me touch you ahh skill-set"
+      }
     },
     {
       "id": "avoidchildsupport_mythical",
@@ -625,9 +617,7 @@
         "pray": false,
         "library": true,
         "market": false
-      },
-      "origin": "The strongest child support avoider of today in Jujutsu Kaisen",
-      "fact": "Apple Logo"
+      }
     },
     {
       "id": "fraudkuna_",
@@ -641,9 +631,7 @@
         "pray": false,
         "library": true,
         "market": false
-      },
-      "origin": "The strongest sorcerer of HISTORY in Jujutsu Kaisen",
-      "fact": "Lame ahh death"
+      }
     },
     {
       "id": "go_jo_",
@@ -657,9 +645,7 @@
         "pray": false,
         "library": true,
         "market": false
-      },
-      "origin": "The strongest sorcerer of Today in Jujutsu Kaisen",
-      "fact": "Kitkat"
+      }
     },
     {
       "id": "heiansukuna_transcendent",
@@ -673,9 +659,7 @@
         "pray": false,
         "library": true,
         "market": false
-      },
-      "origin": "The strongest sorcerer of all time in Jujutsu Kaisen",
-      "fact": "He is the one who created the curse technique"
+      }
     },
     {
       "id": "faruzamn_otherworldly",
@@ -703,9 +687,7 @@
         "pray": true,
         "library": true,
         "market": false
-      },
-      "origin": "This enemy is from NvD, one of the most ANNOYING enemy",
-      "fact": "I just got pissed off due to him one shot me everytime so i added this so i can sell him."
+      }
     },
     {
       "id": "miku_",
@@ -719,9 +701,7 @@
         "pray": true,
         "library": true,
         "market": false
-      },
-      "origin": "One of the most popular vocaloid, and still for now",
-      "fact": "Miku miku beam"
+      }
     },
     {
       "id": "rin_",
@@ -735,15 +715,13 @@
         "pray": true,
         "library": true,
         "market": false
-      },
-      "origin": "One of the most popular vocaloid, just behind Miku? Perhaps",
-      "fact": "Electric Angel is a nice song!"
+      }
     },
     {
       "id": "miku_senbonzakura_version_",
       "name": "Miku-Senbonzakura,version",
       "rarity": "???",
-      "picture": "https://media.karousell.com/media/photos/products/2024/1/27/hatsune_miku_b3007_1706379047_07e6315f_progressive.jpg",
+      "picture": null,
       "marketPrice": 62150000,
       "availability": {
         "crate": false,
@@ -751,15 +729,13 @@
         "pray": false,
         "library": true,
         "market": true
-      },
-      "origin": "This fumo is from Senbonzakura, a Miku`s song.",
-      "fact": "That song is a banger, try out if you havent\n-Golden"
+      }
     },
     {
       "id": "imsorryofficerfumo_",
       "name": "ImSorryOfficerFumo",
       "rarity": "???",
-      "picture": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ12E41aug7Gz4o2480KbQh0VMuqeILVCzCbA&usqp=CAU",
+      "picture": null,
       "marketPrice": 54150000,
       "availability": {
         "crate": false,
@@ -773,7 +749,7 @@
       "id": "theowner_transcendent",
       "name": "TheOwner",
       "rarity": "TRANSCENDENT",
-      "picture": "https://media.discordapp.net/attachments/1372426801472737280/1372439224485150750/raw.png?ex=6826c721&is=682575a1&hm=a72a009e12f63be9b10c5dba154451bc7704a54c1e68ef997c83bb2d9f9ee092&=&format=webp&quality=lossless&width=930&height=930",
+      "picture": null,
       "marketPrice": 7777777777,
       "availability": {
         "crate": false,
@@ -781,14 +757,7 @@
         "pray": false,
         "library": true,
         "market": true
-      },
-      "origin": "alterGolden or golden_exist",
-      "fact": "I love fixing bug"
+      }
     }
-  ],
-  "lastMerge": {
-    "timestamp": "2025-12-03T05:58:11.105Z",
-    "updatedFumos": 54,
-    "missingData": 0
-  }
+  ]
 }
