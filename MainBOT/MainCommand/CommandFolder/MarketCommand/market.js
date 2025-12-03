@@ -16,9 +16,16 @@ const {
     createPurchaseSuccessEmbed,
     createErrorEmbed
 } = require('../../Service/MarketService/MarketService/MarketUIService');
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { get, all } = require('../../Core/database');
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require('discord.js');
+const { get, all, run } = require('../../Core/database');
 const { GLOBAL_SHOP_CONFIG } = require('../../Configuration/marketConfig');
+const FumoPool = require('../../Data/FumoPool');
+
+const CATEGORIES = [
+    'Common', 'UNCOMMON', 'RARE', 'EPIC', 'OTHERWORLDLY',
+    'LEGENDARY', 'MYTHICAL', 'EXCLUSIVE', '???',
+    'ASTRAL', 'CELESTIAL', 'INFINITE', 'ETERNAL', 'TRANSCENDENT'
+];
 
 module.exports = async (client) => {
     client.on('messageCreate', async (message) => {
@@ -72,6 +79,16 @@ module.exports = async (client) => {
         } else if (interaction.customId.startsWith('refresh_global_')) {
             if (!checkButtonOwnership(interaction, 'refresh_global')) return;
             await handleRefreshGlobal(interaction);
+        } else if (interaction.customId.startsWith('select_rarity_')) {
+            await handleRaritySelection(interaction);
+        } else if (interaction.customId.startsWith('select_variant_')) {
+            await handleVariantSelection(interaction);
+        } else if (interaction.customId.startsWith('select_currency_')) {
+            await handleCurrencySelection(interaction);
+        } else if (interaction.customId.startsWith('confirm_listing_')) {
+            await handleConfirmListing(interaction);
+        } else if (interaction.customId.startsWith('select_remove_listing_')) {
+            await handleRemoveListingSelect(interaction);
         }
     });
 };
@@ -117,7 +134,7 @@ async function handleGemShop(interaction) {
 
 async function handleGlobalShop(interaction) {
     try {
-        const allListings = getAllGlobalListings();
+        const allListings = await getAllGlobalListings();
         const shuffled = allListings.sort(() => Math.random() - 0.5);
         const display = shuffled.slice(0, 5);
         
@@ -270,97 +287,243 @@ async function handleAddListing(interaction) {
             });
         }
 
+        const selectMenu = new StringSelectMenuBuilder()
+            .setCustomId(`select_rarity_${interaction.user.id}`)
+            .setPlaceholder('Select Fumo Rarity')
+            .addOptions(
+                CATEGORIES.map(cat => ({
+                    label: cat,
+                    value: cat
+                }))
+            );
+
+        const row = new ActionRowBuilder().addComponents(selectMenu);
+
         await interaction.reply({
-            content: 'Type the name of the Fumo you want to sell (e.g., `Reimu(Common)` or `Sakuya(UNCOMMON)[✨SHINY]`)',
+            content: '**Step 1/4:** Select the rarity of your Fumo',
+            components: [row],
             ephemeral: true
         });
+    } catch (error) {
+        console.error('Add listing error:', error);
+        await interaction.reply({ 
+            content: '❌ An error occurred.', 
+            ephemeral: true 
+        });
+    }
+}
 
-        const filter = m => m.author.id === interaction.user.id;
-        const nameCollected = await interaction.channel.awaitMessages({ 
+async function handleRaritySelection(interaction) {
+    try {
+        const rarity = interaction.values[0];
+        
+        const userFumos = await all(
+            `SELECT fumoName FROM userInventory WHERE userId = ? AND fumoName LIKE ?`,
+            [interaction.user.id, `%(${rarity})`]
+        );
+
+        if (userFumos.length === 0) {
+            return interaction.update({
+                content: `❌ You don't have any **${rarity}** fumos.`,
+                components: []
+            });
+        }
+
+        const selectMenu = new StringSelectMenuBuilder()
+            .setCustomId(`select_variant_${interaction.user.id}_${rarity}`)
+            .setPlaceholder('Select Your Fumo')
+            .addOptions(
+                userFumos.slice(0, 25).map(f => ({
+                    label: f.fumoName,
+                    value: f.fumoName
+                }))
+            );
+
+        const row = new ActionRowBuilder().addComponents(selectMenu);
+
+        await interaction.update({
+            content: '**Step 2/4:** Select which Fumo to list',
+            components: [row]
+        });
+    } catch (error) {
+        console.error('Rarity selection error:', error);
+        await interaction.update({
+            content: '❌ An error occurred.',
+            components: []
+        });
+    }
+}
+
+async function handleVariantSelection(interaction) {
+    try {
+        const fumoName = interaction.values[0];
+        const parts = interaction.customId.split('_');
+        const userId = parts[2];
+        const rarity = parts[3];
+
+        const selectMenu = new StringSelectMenuBuilder()
+            .setCustomId(`select_currency_${userId}_${encodeURIComponent(fumoName)}`)
+            .setPlaceholder('Select Currency')
+            .addOptions([
+                { label: '🪙 Coins', value: 'coins' },
+                { label: '💎 Gems', value: 'gems' },
+                { label: '🪙💎 Both', value: 'both' }
+            ]);
+
+        const row = new ActionRowBuilder().addComponents(selectMenu);
+
+        await interaction.update({
+            content: `**Step 3/4:** Select currency for **${fumoName}**`,
+            components: [row]
+        });
+    } catch (error) {
+        console.error('Variant selection error:', error);
+        await interaction.update({
+            content: '❌ An error occurred.',
+            components: []
+        });
+    }
+}
+
+async function handleCurrencySelection(interaction) {
+    try {
+        const currencyType = interaction.values[0];
+        const parts = interaction.customId.split('_');
+        const userId = parts[2];
+        const fumoName = decodeURIComponent(parts[3]);
+
+        if (currencyType === 'both') {
+            await interaction.update({
+                content: `**Step 4/4:** Enter prices for **${fumoName}**\nFormat: \`coins_amount gems_amount\`\nExample: \`1000000 50000\``,
+                components: []
+            });
+        } else {
+            await interaction.update({
+                content: `**Step 4/4:** Enter the ${currencyType === 'coins' ? '🪙 coin' : '💎 gem'} price for **${fumoName}**`,
+                components: []
+            });
+        }
+
+        const filter = m => m.author.id === userId;
+        const collected = await interaction.channel.awaitMessages({ 
             filter, 
             max: 1, 
-            time: 30000 
+            time: 60000 
         }).catch(() => null);
 
-        if (!nameCollected) {
+        if (!collected) {
             return interaction.followUp({ 
                 content: '⏰ Time expired.', 
                 ephemeral: true 
             });
         }
 
-        const fumoName = nameCollected.first().content.trim();
-        nameCollected.first().delete().catch(() => {});
+        const input = collected.first().content.trim();
+        collected.first().delete().catch(() => {});
+
+        let coinPrice = null;
+        let gemPrice = null;
+
+        if (currencyType === 'both') {
+            const amounts = input.split(/\s+/);
+            if (amounts.length !== 2 || isNaN(amounts[0]) || isNaN(amounts[1])) {
+                return interaction.followUp({
+                    content: '❌ Invalid format. Use: `coins_amount gems_amount`',
+                    ephemeral: true
+                });
+            }
+            coinPrice = parseInt(amounts[0]);
+            gemPrice = parseInt(amounts[1]);
+        } else {
+            const price = parseInt(input);
+            if (isNaN(price) || price < 1) {
+                return interaction.followUp({
+                    content: '❌ Price must be at least 1.',
+                    ephemeral: true
+                });
+            }
+            if (currencyType === 'coins') {
+                coinPrice = price;
+            } else {
+                gemPrice = price;
+            }
+        }
+
+        const confirmButtons = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId(`confirm_listing_${userId}_${encodeURIComponent(fumoName)}_${coinPrice}_${gemPrice}`)
+                .setLabel('✅ Confirm')
+                .setStyle(ButtonStyle.Success),
+            new ButtonBuilder()
+                .setCustomId(`cancel_purchase_${userId}`)
+                .setLabel('❌ Cancel')
+                .setStyle(ButtonStyle.Danger)
+        );
+
+        let confirmText = `**Confirm Listing:**\n**Fumo:** ${fumoName}\n`;
+        if (coinPrice) confirmText += `**Coin Price:** 🪙 ${coinPrice.toLocaleString()}\n`;
+        if (gemPrice) confirmText += `**Gem Price:** 💎 ${gemPrice.toLocaleString()}\n`;
+
+        await interaction.followUp({
+            content: confirmText,
+            components: [confirmButtons],
+            ephemeral: true
+        });
+    } catch (error) {
+        console.error('Currency selection error:', error);
+        await interaction.followUp({
+            content: '❌ An error occurred.',
+            ephemeral: true
+        });
+    }
+}
+
+async function handleConfirmListing(interaction) {
+    try {
+        const parts = interaction.customId.split('_');
+        const userId = parts[2];
+        const fumoName = decodeURIComponent(parts[3]);
+        const coinPrice = parts[4] !== 'null' ? parseInt(parts[4]) : null;
+        const gemPrice = parts[5] !== 'null' ? parseInt(parts[5]) : null;
 
         const userFumo = await get(
             `SELECT fumoName FROM userInventory WHERE userId = ? AND fumoName = ?`,
-            [interaction.user.id, fumoName]
+            [userId, fumoName]
         );
 
         if (!userFumo) {
-            return interaction.followUp({ 
-                content: `❌ You don't have **${fumoName}** in your inventory.`, 
-                ephemeral: true 
-            });
-        }
-
-        await interaction.followUp({
-            content: 'Enter the price (e.g., `1000 coins` or `500 gems`)',
-            ephemeral: true
-        });
-
-        const priceCollected = await interaction.channel.awaitMessages({ 
-            filter, 
-            max: 1, 
-            time: 30000 
-        }).catch(() => null);
-
-        if (!priceCollected) {
-            return interaction.followUp({ 
-                content: '⏰ Time expired.', 
-                ephemeral: true 
-            });
-        }
-
-        const priceInput = priceCollected.first().content.trim().toLowerCase();
-        priceCollected.first().delete().catch(() => {});
-
-        const match = priceInput.match(/^(\d+)\s*(coins?|gems?)$/);
-        if (!match) {
-            return interaction.followUp({ 
-                content: '❌ Invalid format. Use: `1000 coins` or `500 gems`', 
-                ephemeral: true 
-            });
-        }
-
-        const price = parseInt(match[1]);
-        const currency = match[2].startsWith('gem') ? 'gems' : 'coins';
-
-        if (price < 1) {
-            return interaction.followUp({ 
-                content: '❌ Price must be at least 1.', 
-                ephemeral: true 
+            return interaction.update({
+                content: `❌ You no longer have **${fumoName}** in your inventory.`,
+                components: []
             });
         }
 
         await run(
-            `DELETE FROM userInventory WHERE userId = ? AND fumoName = ?`,
-            [interaction.user.id, fumoName]
+            `DELETE FROM userInventory WHERE userId = ? AND fumoName = ? LIMIT 1`,
+            [userId, fumoName]
         );
 
-        await addGlobalListing(interaction.user.id, fumoName, price, currency);
+        if (coinPrice) {
+            await addGlobalListing(userId, fumoName, coinPrice, 'coins');
+        }
+        if (gemPrice) {
+            await addGlobalListing(userId, fumoName, gemPrice, 'gems');
+        }
 
-        await interaction.followUp({ 
-            content: `✅ Listed **${fumoName}** for **${price} ${currency}**!`, 
-            ephemeral: true 
+        let successText = `✅ Listed **${fumoName}**!\n`;
+        if (coinPrice) successText += `🪙 Coin Price: ${coinPrice.toLocaleString()}\n`;
+        if (gemPrice) successText += `💎 Gem Price: ${gemPrice.toLocaleString()}`;
+
+        await interaction.update({
+            content: successText,
+            components: []
         });
-
     } catch (error) {
-        console.error('Add listing error:', error);
-        await interaction.followUp({ 
-            content: '❌ An error occurred.', 
-            ephemeral: true 
-        }).catch(() => {});
+        console.error('Confirm listing error:', error);
+        await interaction.update({
+            content: '❌ An error occurred.',
+            components: []
+        });
     }
 }
 
@@ -375,46 +538,44 @@ async function handleRemoveListing(interaction) {
             });
         }
 
-        const options = userListings.map((listing, idx) => ({
+        const options = userListings.map((listing) => ({
             label: listing.fumoName,
             description: `${listing.price} ${listing.currency}`,
             value: `${listing.id}`
         }));
 
-        const selectMenu = new ActionRowBuilder().addComponents(
-            new StringSelectMenuBuilder()
-                .setCustomId(`remove_listing_select_${interaction.user.id}`)
-                .setPlaceholder('Select a listing to remove')
-                .addOptions(options)
-        );
+        const selectMenu = new StringSelectMenuBuilder()
+            .setCustomId(`select_remove_listing_${interaction.user.id}`)
+            .setPlaceholder('Select a listing to remove')
+            .addOptions(options);
+
+        const row = new ActionRowBuilder().addComponents(selectMenu);
 
         await interaction.reply({ 
             content: 'Select a listing to remove:', 
-            components: [selectMenu],
+            components: [row],
             ephemeral: true 
         });
+    } catch (error) {
+        console.error('Remove listing error:', error);
+        await interaction.reply({
+            content: '❌ An error occurred.',
+            ephemeral: true
+        });
+    }
+}
 
-        const selectFilter = i => i.customId === `remove_listing_select_${interaction.user.id}` && i.user.id === interaction.user.id;
-        const selectCollected = await interaction.channel.awaitMessageComponent({ 
-            filter: selectFilter, 
-            time: 30000 
-        }).catch(() => null);
-
-        if (!selectCollected) {
-            return interaction.editReply({ 
-                content: '⏰ Time expired.', 
-                components: [] 
-            });
-        }
-
-        const listingId = parseInt(selectCollected.values[0]);
+async function handleRemoveListingSelect(interaction) {
+    try {
+        const listingId = parseInt(interaction.values[0]);
+        
         const listing = await get(
             `SELECT * FROM globalMarket WHERE id = ? AND userId = ?`,
             [listingId, interaction.user.id]
         );
 
         if (!listing) {
-            return selectCollected.update({ 
+            return interaction.update({ 
                 content: '❌ Listing not found.', 
                 components: [] 
             });
@@ -427,19 +588,22 @@ async function handleRemoveListing(interaction) {
             [interaction.user.id, listing.fumoName]
         );
 
-        await selectCollected.update({ 
+        await interaction.update({ 
             content: `✅ Removed listing for **${listing.fumoName}**. It has been returned to your inventory.`, 
             components: [] 
         });
-
     } catch (error) {
-        console.error('Remove listing error:', error);
+        console.error('Remove listing select error:', error);
+        await interaction.update({
+            content: '❌ An error occurred.',
+            components: []
+        });
     }
 }
 
 async function handleRefreshGlobal(interaction) {
     try {
-        const allListings = getAllGlobalListings();
+        const allListings = await getAllGlobalListings();
         const shuffled = allListings.sort(() => Math.random() - 0.5);
         const display = shuffled.slice(0, 5);
         

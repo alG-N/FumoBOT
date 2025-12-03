@@ -1,0 +1,40 @@
+{
+  "market": [
+    {
+      "name": "Marisa(Common)",
+      "price": 125,
+      "rarity": "Common",
+      "stock": 8,
+      "picture": null
+    },
+    {
+      "name": "Sakuya(UNCOMMON)",
+      "price": 200,
+      "rarity": "UNCOMMON",
+      "stock": 7,
+      "picture": null
+    },
+    {
+      "name": "Grani(CELESTIAL)",
+      "price": 139575000,
+      "rarity": "CELESTIAL",
+      "stock": 1,
+      "picture": null
+    },
+    {
+      "name": "Ran(EPIC)",
+      "price": 765,
+      "rarity": "EPIC",
+      "stock": 4,
+      "picture": null
+    },
+    {
+      "name": "Mostima(CELESTIAL)",
+      "price": 124550000,
+      "rarity": "CELESTIAL",
+      "stock": 1,
+      "picture": null
+    }
+  ],
+  "resetTime": 1764763200000
+}

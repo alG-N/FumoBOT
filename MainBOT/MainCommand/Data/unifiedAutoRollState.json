@@ -11,7 +11,7 @@
       },
       "bestFumoAt": "12/3/2025, 11:56:31 AM",
       "bestFumoRoll": 29,
-      "specialFumoCount": 455,
+      "specialFumoCount": 458,
       "specialFumoFirstAt": "12/2/2025, 10:12:37 PM",
       "specialFumoFirstRoll": 1,
       "lowerSpecialFumos": [
@@ -2708,6 +2708,24 @@
           "rarity": "EXCLUSIVE",
           "roll": 1,
           "time": "12/3/2025, 6:33:41 PM"
+        },
+        {
+          "name": "Cheshire(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 3,
+          "time": "12/3/2025, 6:35:42 PM"
+        },
+        {
+          "name": "UltraKillV2(ETERNAL)",
+          "rarity": "ETERNAL",
+          "roll": 4,
+          "time": "12/3/2025, 6:36:42 PM"
+        },
+        {
+          "name": "Athena(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 6,
+          "time": "12/3/2025, 6:38:42 PM"
         }
       ]
     },
@@ -3613,7 +3631,7 @@
       },
       "bestFumoAt": "12/2/2025, 6:52:49 PM",
       "bestFumoRoll": 25,
-      "specialFumoCount": 485,
+      "specialFumoCount": 488,
       "specialFumoFirstAt": "12/2/2025, 4:02:08 PM",
       "specialFumoFirstRoll": 2,
       "lowerSpecialFumos": [
@@ -6466,6 +6484,24 @@
           "rarity": "???",
           "roll": 1,
           "time": "12/3/2025, 6:33:41 PM"
+        },
+        {
+          "name": "RedMarisa(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 3,
+          "time": "12/3/2025, 6:35:42 PM"
+        },
+        {
+          "name": "Athena(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 5,
+          "time": "12/3/2025, 6:37:42 PM"
+        },
+        {
+          "name": "Grani(CELESTIAL)",
+          "rarity": "CELESTIAL",
+          "roll": 7,
+          "time": "12/3/2025, 6:39:43 PM"
         }
       ]
     },
@@ -6747,7 +6783,7 @@
       },
       "bestFumoAt": "12/2/2025, 8:17:26 PM",
       "bestFumoRoll": 43,
-      "specialFumoCount": 118,
+      "specialFumoCount": 120,
       "specialFumoFirstAt": "12/2/2025, 7:41:25 PM",
       "specialFumoFirstRoll": 7,
       "lowerSpecialFumos": [
@@ -7416,6 +7452,18 @@
           "rarity": "EXCLUSIVE",
           "roll": 5,
           "time": "12/3/2025, 6:27:56 PM"
+        },
+        {
+          "name": "HyperSakuya(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 3,
+          "time": "12/3/2025, 6:35:42 PM"
+        },
+        {
+          "name": "SkibidiToilet(???)",
+          "rarity": "???",
+          "roll": 4,
+          "time": "12/3/2025, 6:36:42 PM"
         }
       ]
     },
@@ -7450,7 +7498,7 @@
       },
       "bestFumoAt": "12/3/2025, 11:13:59 AM",
       "bestFumoRoll": 16,
-      "specialFumoCount": 255,
+      "specialFumoCount": 257,
       "specialFumoFirstAt": "12/3/2025, 2:09:52 AM",
       "specialFumoFirstRoll": 5,
       "lowerSpecialFumos": [
@@ -8917,22 +8965,57 @@
           "rarity": "EXCLUSIVE",
           "roll": 9,
           "time": "12/3/2025, 6:31:56 PM"
+        },
+        {
+          "name": "Grani(CELESTIAL)",
+          "rarity": "CELESTIAL",
+          "roll": 7,
+          "time": "12/3/2025, 6:39:43 PM"
+        },
+        {
+          "name": "Athena(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 1,
+          "time": "12/3/2025, 6:41:13 PM"
         }
       ]
     },
     "event": {
-      "rollCount": 0,
+      "rollCount": 1,
       "autoSell": true,
-      "startTime": 1764761621954,
-      "totalFumosRolled": 0,
-      "totalCoinsFromSales": 0,
-      "bestFumo": null,
-      "bestFumoAt": null,
-      "bestFumoRoll": null,
-      "specialFumoCount": 0,
-      "specialFumoFirstAt": null,
-      "specialFumoFirstRoll": null,
-      "specialFumos": []
+      "startTime": 1764758874960,
+      "totalFumosRolled": 10400,
+      "totalCoinsFromSales": 42800,
+      "bestFumo": {
+        "name": "Go/jo(???)",
+        "rarity": "???",
+        "picture": "https://m.media-amazon.com/images/I/41PQuj80tDS._AC_UF894,1000_QL80_.jpg"
+      },
+      "bestFumoAt": "12/3/2025, 5:50:22 PM",
+      "bestFumoRoll": 4,
+      "specialFumoCount": 3,
+      "specialFumoFirstAt": "12/3/2025, 5:50:22 PM",
+      "specialFumoFirstRoll": 4,
+      "specialFumos": [
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 4,
+          "time": "12/3/2025, 5:50:22 PM"
+        },
+        {
+          "name": "Fraudkuna(???)",
+          "rarity": "???",
+          "roll": 8,
+          "time": "12/3/2025, 5:52:22 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 3,
+          "time": "12/3/2025, 6:34:42 PM"
+        }
+      ]
     }
   }
 }
