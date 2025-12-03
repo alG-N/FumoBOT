@@ -1,7 +1,7 @@
 {
   "845274868697661440": {
     "normal": {
-      "rollCount": 1,
+      "rollCount": 2,
       "autoSell": false,
       "startTime": 1764688357647,
       "bestFumo": {
@@ -11,7 +11,7 @@
       },
       "bestFumoAt": "12/3/2025, 11:56:31 AM",
       "bestFumoRoll": 29,
-      "specialFumoCount": 565,
+      "specialFumoCount": 571,
       "specialFumoFirstAt": "12/2/2025, 10:12:37 PM",
       "specialFumoFirstRoll": 1,
       "lowerSpecialFumos": [
@@ -3368,14 +3368,50 @@
           "rarity": "EXCLUSIVE",
           "roll": 3,
           "time": "12/3/2025, 11:18:25 PM"
+        },
+        {
+          "name": "CirnoSitting(EXCLUSIVE)[✨SHINY]",
+          "rarity": "EXCLUSIVE",
+          "roll": 2,
+          "time": "12/3/2025, 11:20:22 PM"
+        },
+        {
+          "name": "GawrGura(???)",
+          "rarity": "???",
+          "roll": 3,
+          "time": "12/3/2025, 11:21:22 PM"
+        },
+        {
+          "name": "Athena(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 2,
+          "time": "12/3/2025, 11:30:33 PM"
+        },
+        {
+          "name": "GawrGura(???)",
+          "rarity": "???",
+          "roll": 3,
+          "time": "12/3/2025, 11:31:33 PM"
+        },
+        {
+          "name": "SkibidiToilet(???)",
+          "rarity": "???",
+          "roll": 4,
+          "time": "12/3/2025, 11:32:33 PM"
+        },
+        {
+          "name": "DarkYoumu(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 2,
+          "time": "12/3/2025, 11:34:55 PM"
         }
       ]
     },
     "event": {
-      "rollCount": 1,
+      "rollCount": 8,
       "autoSell": false,
       "startTime": 1764764670724,
-      "totalFumosRolled": 46600,
+      "totalFumosRolled": 49000,
       "totalCoinsFromSales": 0,
       "bestFumo": {
         "name": "Go/jo(???)",
@@ -3384,7 +3420,7 @@
       },
       "bestFumoAt": "12/3/2025, 7:29:31 PM",
       "bestFumoRoll": 11,
-      "specialFumoCount": 41,
+      "specialFumoCount": 44,
       "specialFumoFirstAt": "12/3/2025, 7:29:31 PM",
       "specialFumoFirstRoll": 11,
       "specialFumos": [
@@ -3633,13 +3669,31 @@
           "rarity": "???",
           "roll": 3,
           "time": "12/3/2025, 11:17:26 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 2,
+          "time": "12/3/2025, 11:23:08 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 3,
+          "time": "12/3/2025, 11:30:34 PM"
+        },
+        {
+          "name": "Go/jo(???)",
+          "rarity": "???",
+          "roll": 6,
+          "time": "12/3/2025, 11:32:04 PM"
         }
       ]
     }
   },
   "1421544451897299024": {
     "normal": {
-      "rollCount": 1,
+      "rollCount": 2,
       "autoSell": true,
       "startTime": 1764666068326,
       "bestFumo": {
@@ -3649,7 +3703,7 @@
       },
       "bestFumoAt": "12/2/2025, 6:52:49 PM",
       "bestFumoRoll": 25,
-      "specialFumoCount": 619,
+      "specialFumoCount": 625,
       "specialFumoFirstAt": "12/2/2025, 4:02:08 PM",
       "specialFumoFirstRoll": 2,
       "lowerSpecialFumos": [
@@ -7306,6 +7360,42 @@
           "rarity": "EXCLUSIVE",
           "roll": 1,
           "time": "12/3/2025, 11:19:21 PM"
+        },
+        {
+          "name": "HyperSakuya(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 1,
+          "time": "12/3/2025, 11:22:38 PM"
+        },
+        {
+          "name": "Cheshire(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 2,
+          "time": "12/3/2025, 11:23:39 PM"
+        },
+        {
+          "name": "SkibidiToilet(???)",
+          "rarity": "???",
+          "roll": 3,
+          "time": "12/3/2025, 11:24:39 PM"
+        },
+        {
+          "name": "GawrGura(???)",
+          "rarity": "???",
+          "roll": 3,
+          "time": "12/3/2025, 11:31:33 PM"
+        },
+        {
+          "name": "SkibidiToilet(???)",
+          "rarity": "???",
+          "roll": 1,
+          "time": "12/3/2025, 11:33:55 PM"
+        },
+        {
+          "name": "HyperSakuya(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 2,
+          "time": "12/3/2025, 11:34:55 PM"
         }
       ]
     },
@@ -7577,7 +7667,7 @@
   },
   "1362450043939979378": {
     "normal": {
-      "rollCount": 1,
+      "rollCount": 2,
       "autoSell": true,
       "startTime": 1764678925507,
       "bestFumo": {
@@ -7587,7 +7677,7 @@
       },
       "bestFumoAt": "12/2/2025, 8:17:26 PM",
       "bestFumoRoll": 43,
-      "specialFumoCount": 151,
+      "specialFumoCount": 152,
       "specialFumoFirstAt": "12/2/2025, 7:41:25 PM",
       "specialFumoFirstRoll": 7,
       "lowerSpecialFumos": [
@@ -8454,6 +8544,12 @@
           "rarity": "EXCLUSIVE",
           "roll": 52,
           "time": "12/3/2025, 11:13:38 PM"
+        },
+        {
+          "name": "GawrGura(???)",
+          "rarity": "???",
+          "roll": 3,
+          "time": "12/3/2025, 11:21:22 PM"
         }
       ]
     },
@@ -8478,7 +8574,7 @@
   },
   "1128296349566251068": {
     "normal": {
-      "rollCount": 1,
+      "rollCount": 2,
       "autoSell": true,
       "startTime": 1764702472714,
       "bestFumo": {
@@ -8488,7 +8584,7 @@
       },
       "bestFumoAt": "12/3/2025, 8:18:48 PM",
       "bestFumoRoll": 70,
-      "specialFumoCount": 348,
+      "specialFumoCount": 351,
       "specialFumoFirstAt": "12/3/2025, 2:09:52 AM",
       "specialFumoFirstRoll": 5,
       "lowerSpecialFumos": [
@@ -10507,6 +10603,24 @@
           "rarity": "EXCLUSIVE",
           "roll": 1,
           "time": "12/3/2025, 11:16:24 PM"
+        },
+        {
+          "name": "GawrGura(???)",
+          "rarity": "???",
+          "roll": 2,
+          "time": "12/3/2025, 11:23:39 PM"
+        },
+        {
+          "name": "Athena(ASTRAL)",
+          "rarity": "ASTRAL",
+          "roll": 1,
+          "time": "12/3/2025, 11:25:59 PM"
+        },
+        {
+          "name": "Grani(CELESTIAL)",
+          "rarity": "CELESTIAL",
+          "roll": 2,
+          "time": "12/3/2025, 11:34:55 PM"
         }
       ]
     },

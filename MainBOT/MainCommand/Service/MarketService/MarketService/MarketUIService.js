@@ -108,9 +108,10 @@ function createGlobalShopEmbed(listings, page = 0) {
     } else {
         displayListings.forEach((listing, idx) => {
             const currencyEmoji = listing.currency === 'coins' ? '🪙' : '💎';
-            const variant = listing.variant !== 'normal' ? ` [${listing.variant.toUpperCase()}]` : '';
+            // The variant info is already in the fumoName (e.g., "Reimu(RARE)[✨SHINY]")
+            // No need to add it separately
             embed.addFields({
-                name: `${listing.fumoName}${variant}`,
+                name: `${listing.fumoName}`,
                 value: `${currencyEmoji} ${formatNumber(listing.price)} | Seller: <@${listing.userId}>`,
                 inline: false
             });

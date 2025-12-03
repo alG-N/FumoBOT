@@ -109,13 +109,7 @@ async function getAvailableVariants(userId, baseFumoName) {
              fumoName = ? OR
              fumoName = ?
          )
-         GROUP BY fumoName
-         ORDER BY 
-             CASE 
-                 WHEN fumoName LIKE '%[🌟alG]%' THEN 1
-                 WHEN fumoName LIKE '%[✨SHINY]%' THEN 2
-                 ELSE 3
-             END`,
+         GROUP BY fumoName`,
         [userId, baseWithRarity, `${baseWithRarity}[✨SHINY]`, `${baseWithRarity}[🌟alG]`]
     );
     
