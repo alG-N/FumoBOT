@@ -51,6 +51,11 @@ function createIndexes() {
 
         // User Buildings
         `CREATE INDEX IF NOT EXISTS idx_buildings_user ON userBuildings(userId)`,
+
+        // Craft
+        `CREATE INDEX IF NOT EXISTS idx_craftQueue_user ON craftQueue(userId, completesAt)`,
+        `CREATE INDEX IF NOT EXISTS idx_craftQueue_claimed ON craftQueue(claimed)`,
+        `CREATE INDEX IF NOT EXISTS idx_craftHistory_user ON craftHistory(userId, craftedAt DESC)`
     ];
 
     return new Promise((resolve) => {
@@ -406,28 +411,6 @@ function createTables() {
             )`, () => res());
         }));
 
-        // User Craft History Table
-        tables.push(new Promise((res) => {
-            db.run(`CREATE TABLE IF NOT EXISTS userCraftHistory (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                userId TEXT NOT NULL,
-                itemName TEXT NOT NULL,
-                amount INTEGER NOT NULL,
-                craftedAt INTEGER NOT NULL
-            )`, () => res());
-        }));
-
-        // Potion Craft History Table
-        tables.push(new Promise((res) => {
-            db.run(`CREATE TABLE IF NOT EXISTS potionCraftHistory (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                userId TEXT NOT NULL,
-                itemName TEXT NOT NULL,
-                amount INTEGER NOT NULL,
-                craftedAt INTEGER NOT NULL
-            )`, () => res());
-        }));
-
         // Pet Inventory Table
         tables.push(new Promise((res) => {
             db.run(`CREATE TABLE IF NOT EXISTS petInventory (
@@ -480,6 +463,32 @@ function createTables() {
                 fumoName TEXT, 
                 quantity INTEGER, 
                 timestamp INTEGER
+            )`, () => res());
+        }));
+
+        // User Craft Queue Table
+        tables.push(new Promise((res) => {
+            db.run(`CREATE TABLE IF NOT EXISTS craftQueue (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                userId TEXT NOT NULL,
+                craftType TEXT NOT NULL,
+                itemName TEXT NOT NULL,
+                amount INTEGER NOT NULL,
+                startedAt INTEGER NOT NULL,
+                completesAt INTEGER NOT NULL,
+                claimed INTEGER DEFAULT 0
+            )`, () => res());
+        }));
+
+        // User Craft History Table
+        tables.push(new Promise((res) => {
+            db.run(`CREATE TABLE IF NOT EXISTS craftHistory (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                userId TEXT NOT NULL,
+                craftType TEXT NOT NULL,
+                itemName TEXT NOT NULL,
+                amount INTEGER NOT NULL,
+                craftedAt INTEGER NOT NULL
             )`, () => res());
         }));
 
