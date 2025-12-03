@@ -1,19 +1,8 @@
 const { checkRestrictions } = require('../../Middleware/restrictions');
-const { getUserCraftData } = require('../../Service/CraftService/CraftCacheService');
-const { getAllRecipes } = require('../../Service/CraftService/CraftRecipeService');
-const { validateFullCraft } = require('../../Service/CraftService/CraftValidationService');
-const { processCraft } = require('../../Service/CraftService/CraftProcessService');
-const { parseCraftCommand } = require('../../Ultility/craftParser');
 const { all } = require('../../Core/database');
-const { CRAFT_CATEGORIES, CRAFT_CONFIG } = require('../../Configuration/craftConfig');
-const {
-    createCraftMenuEmbed,
-    createConfirmEmbed,
-    createSuccessEmbed,
-    createErrorEmbed,
-    createHistoryEmbed,
-    createNavigationButtons
-} = require('../../Service/CraftService/CraftUIService');
+const { CRAFT_CONFIG } = require('../../Configuration/craftConfig');
+const { createHistoryEmbed } = require('../../Service/CraftService/CraftUIService');
+const { parseCraftCommand } = require('../../Ultility/craftParser');
 
 module.exports = (client) => {
     client.on('messageCreate', async (message) => {
@@ -31,6 +20,7 @@ module.exports = (client) => {
             const parsed = parseCraftCommand(args);
             const userId = message.author.id;
 
+            // Show history
             if (parsed.type === 'HISTORY') {
                 const history = await all(
                     `SELECT itemName, amount, craftedAt FROM craftHistory WHERE userId = ? AND craftType = ? ORDER BY craftedAt DESC LIMIT ?`,
@@ -40,107 +30,55 @@ module.exports = (client) => {
                 return message.reply({ embeds: [embed] });
             }
 
-            if (parsed.type === 'MENU') {
-                const userData = await getUserCraftData(userId, 'potion');
-                const recipes = getAllRecipes('potion');
-                const pages = CRAFT_CATEGORIES.POTION.categories;
-                let currentPage = 0;
+            // For everything else, redirect to main craft menu
+            const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+            const { buildSecureCustomId } = require('../../Middleware/buttonOwnership');
 
-                const getEmbed = () => {
-                    if (pages[currentPage] === 'Craft History') {
-                        return all(
-                            `SELECT itemName, amount, craftedAt FROM craftHistory WHERE userId = ? AND craftType = ? ORDER BY craftedAt DESC LIMIT ?`,
-                            [userId, 'potion', CRAFT_CONFIG.HISTORY_LIMIT]
-                        ).then(history => createHistoryEmbed(history, 'potion'));
-                    }
-                    return Promise.resolve(createCraftMenuEmbed('potion', pages[currentPage], recipes, userData));
-                };
+            const embed = new EmbedBuilder()
+                .setTitle('🛠️ Crafting Menu')
+                .setDescription(
+                    '**Welcome to the Crafting System!**\n\n' +
+                    'Select a crafting category below to view available recipes.\n\n' +
+                    '📊 **Queue Status:** Use the Queue button to view your crafting progress.\n' +
+                    '⚠️ **Limit:** You can have up to 5 items crafting at once.\n\n' +
+                    '**Categories:**\n' +
+                    '💊 **Potions** - Boost your coin, gem, and income production\n' +
+                    '🧰 **Items** - Craft powerful tools and materials\n' +
+                    '🧸 **Fumos** - Coming soon!\n' +
+                    '🌟 **Blessings** - Coming soon!'
+                )
+                .setColor('Random')
+                .setFooter({ text: 'Select a category to begin crafting!' })
+                .setTimestamp();
 
-                const row = createNavigationButtons(userId);
-                const sent = await message.reply({ embeds: [await getEmbed()], components: [row] });
-
-                const collector = sent.createMessageComponentCollector({
-                    filter: i => i.user.id === userId,
-                    time: 60000
-                });
-
-                collector.on('collect', async interaction => {
-                    await interaction.deferUpdate();
-                    if (interaction.customId === `next_page_${userId}`) {
-                        currentPage = (currentPage + 1) % pages.length;
-                    } else if (interaction.customId === `prev_page_${userId}`) {
-                        currentPage = (currentPage - 1 + pages.length) % pages.length;
-                    }
-                    await sent.edit({ embeds: [await getEmbed()], components: [row] });
-                });
-
-                collector.on('end', () => {
-                    sent.edit({ components: [] }).catch(() => {});
-                });
-
-                return;
-            }
-
-            if (parsed.type === 'CRAFT') {
-                const userData = await getUserCraftData(userId, 'potion');
-                const validation = validateFullCraft(parsed.itemName, parsed.amount, 'potion', userData);
-
-                if (!validation.valid) {
-                    const errorEmbed = createErrorEmbed(validation.error, {
-                        ...validation,
-                        itemName: parsed.itemName,
-                        max: CRAFT_CONFIG.MAX_CRAFT_AMOUNT
-                    });
-                    return message.reply({ embeds: [errorEmbed] });
-                }
-
-                const confirmEmbed = createConfirmEmbed(
-                    parsed.itemName,
-                    parsed.amount,
-                    validation.recipe,
-                    validation.totalCoins,
-                    validation.totalGems,
-                    userData
+            const buttons = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(buildSecureCustomId('craft_menu_potion', userId))
+                        .setLabel('💊 Potions')
+                        .setStyle(ButtonStyle.Primary),
+                    new ButtonBuilder()
+                        .setCustomId(buildSecureCustomId('craft_menu_item', userId))
+                        .setLabel('🧰 Items')
+                        .setStyle(ButtonStyle.Primary),
+                    new ButtonBuilder()
+                        .setCustomId(buildSecureCustomId('craft_menu_fumo', userId))
+                        .setLabel('🧸 Fumos')
+                        .setStyle(ButtonStyle.Secondary)
+                        .setDisabled(true),
+                    new ButtonBuilder()
+                        .setCustomId(buildSecureCustomId('craft_menu_blessing', userId))
+                        .setLabel('🌟 Blessings')
+                        .setStyle(ButtonStyle.Secondary)
+                        .setDisabled(true),
+                    new ButtonBuilder()
+                        .setCustomId(buildSecureCustomId('craft_menu_queue', userId))
+                        .setLabel('📋 Queue')
+                        .setStyle(ButtonStyle.Success)
                 );
 
-                await message.reply({ embeds: [confirmEmbed] });
+            await message.reply({ embeds: [embed], components: [buttons] });
 
-                const collector = message.channel.createMessageCollector({
-                    filter: m => m.author.id === userId,
-                    max: 1,
-                    time: CRAFT_CONFIG.CONFIRM_TIMEOUT
-                });
-
-                collector.on('collect', async collected => {
-                    if (collected.content.toLowerCase() === 'yes') {
-                        const result = await processCraft(
-                            userId,
-                            parsed.itemName,
-                            parsed.amount,
-                            'potion',
-                            validation.recipe,
-                            validation.totalCoins,
-                            validation.totalGems
-                        );
-
-                        const successEmbed = createSuccessEmbed(
-                            parsed.itemName,
-                            parsed.amount,
-                            result.queued,
-                            result
-                        );
-                        message.reply({ embeds: [successEmbed] });
-                    } else {
-                        message.reply('❌ Crafting cancelled.');
-                    }
-                });
-
-                collector.on('end', (collected) => {
-                    if (collected.size === 0) {
-                        message.reply('⌛ Crafting timed out.');
-                    }
-                });
-            }
         } catch (err) {
             console.error('[potionCraft] Error:', err);
             message.reply('❌ An error occurred. Please try again later.');

@@ -1,35 +1,51 @@
-const { EmbedBuilder, Colors, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const { EmbedBuilder, Colors, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const { formatNumber } = require('../../Ultility/formatting');
 const { calculateMaxCraftable } = require('./CraftValidationService');
-const { getCraftTimer, formatTime } = require('../../Configuration/craftConfig');
+const { getCraftTimer, formatTime, CRAFT_CATEGORIES } = require('../../Configuration/craftConfig');
 const { buildSecureCustomId } = require('../../Middleware/buttonOwnership');
 
-function createCraftableItemsEmbed(craftType, category, recipes, userData) {
+function createCraftCategoryEmbed(craftType, page, recipes, userData) {
+    const categories = craftType === 'item' 
+        ? CRAFT_CATEGORIES.ITEM.tiers 
+        : CRAFT_CATEGORIES.POTION.categories;
+    
+    const category = categories[page];
+    
     const embed = new EmbedBuilder()
         .setColor(Colors.Blue)
         .setTimestamp();
 
+    // How to Craft page
     if (category === 'How to Craft') {
         embed
             .setTitle('📖 How to Craft')
             .setDescription(
                 `**Enhanced Crafting System**\n\n` +
                 `**Features:**\n` +
-                `• Click on items to craft them\n` +
+                `• Select items from dropdown to craft them\n` +
                 `• Queue up to 5 items at once\n` +
                 `• View crafting progress in real-time\n` +
                 `• Claim finished items instantly\n\n` +
                 `**Usage:**\n` +
-                `1. Browse available recipes\n` +
-                `2. Click "Craft" button on desired item\n` +
+                `1. Browse available recipes using navigation\n` +
+                `2. Select item from dropdown menu\n` +
                 `3. Enter amount to craft\n` +
                 `4. Confirm and wait for timer\n` +
                 `5. Claim when ready!\n\n` +
-                `📊 Use \`.craftQueue\` to view your crafting progress`
+                `📊 Use the **Queue** button to view your crafting progress`
             );
-        return embed;
+        return { embed, items: [], hasRecipes: false };
     }
 
+    // Craft History page (potions only)
+    if (category === 'Craft History') {
+        embed
+            .setTitle('🕑 Craft History')
+            .setDescription('This page will show your recent crafting history.\n\nUse `.pc history` to view detailed potion history.');
+        return { embed, items: [], hasRecipes: false };
+    }
+
+    // Regular recipe pages
     embed.setTitle(`🛠️ ${category} - Available Recipes`);
 
     const items = [];
@@ -60,76 +76,87 @@ function createCraftableItemsEmbed(craftType, category, recipes, userData) {
 
     if (items.length === 0) {
         embed.setDescription(`No recipes available in **${category}**.`);
-        return { embed, items: [] };
+        return { embed, items: [], hasRecipes: false };
     }
 
-    embed.setDescription(
-        items.map(item => 
-            `${item.status} **\`${item.itemName}\`** ${item.timerDisplay}\n` +
-            `> 📝 *${item.recipe.effect || 'No effect'}*\n` +
-            `> 🧰 Max Craftable: **${item.maxCraftable || "None"}**\n` +
-            `> 💰 ${formatNumber(item.recipe.resources.coins)} coins, ${formatNumber(item.recipe.resources.gems)} gems\n`
-        ).join('\n')
-    );
+    const description = items.map(item => 
+        `${item.status} **\`${item.itemName}\`** ${item.timerDisplay}\n` +
+        `> 📝 *${item.recipe.effect || 'No effect'}*\n` +
+        `> 🧰 Max Craftable: **${item.maxCraftable || "None"}**\n` +
+        `> 💰 ${formatNumber(item.recipe.resources.coins)} coins, ${formatNumber(item.recipe.resources.gems)} gems\n`
+    ).join('\n');
 
-    return { embed, items };
+    embed.setDescription(description);
+    embed.setFooter({ text: `Page ${page + 1}/${categories.length} • Select from dropdown below` });
+
+    return { embed, items, hasRecipes: true };
 }
 
-function createCraftButtons(userId, craftableItems, startIndex = 0) {
-    const rows = [];
-    const itemsPerRow = 5;
-    const maxButtons = 10;
-    
-    const itemsToShow = craftableItems.slice(startIndex, startIndex + maxButtons);
-    
-    for (let i = 0; i < itemsToShow.length; i += itemsPerRow) {
-        const row = new ActionRowBuilder();
-        const chunk = itemsToShow.slice(i, i + itemsPerRow);
-        
-        chunk.forEach((item, idx) => {
-            const globalIndex = startIndex + i + idx;
-            row.addComponents(
-                new ButtonBuilder()
-                    .setCustomId(buildSecureCustomId('craft_item', userId, { 
-                        idx: globalIndex,
-                        item: item.itemName 
-                    }))
-                    .setLabel(item.itemName.slice(0, 20))
-                    .setStyle(item.canCraft ? ButtonStyle.Success : ButtonStyle.Secondary)
-                    .setDisabled(!item.canCraft)
-            );
-        });
-        
-        rows.push(row);
-    }
-    
-    // Navigation row
-    const navRow = new ActionRowBuilder()
+function createCraftNavigationButtons(userId, craftType, currentPage, totalPages, queueCount = 0) {
+    const row1 = new ActionRowBuilder()
         .addComponents(
             new ButtonBuilder()
-                .setCustomId(buildSecureCustomId('craft_prev', userId))
+                .setCustomId(buildSecureCustomId('craft_nav_first', userId, { type: craftType }))
+                .setLabel('⏮️ First')
+                .setStyle(ButtonStyle.Primary)
+                .setDisabled(currentPage === 0),
+            new ButtonBuilder()
+                .setCustomId(buildSecureCustomId('craft_nav_prev', userId, { type: craftType }))
                 .setLabel('◀ Previous')
                 .setStyle(ButtonStyle.Primary)
-                .setDisabled(startIndex === 0),
+                .setDisabled(currentPage === 0),
             new ButtonBuilder()
-                .setCustomId(buildSecureCustomId('craft_next', userId))
+                .setCustomId(buildSecureCustomId('craft_nav_next', userId, { type: craftType }))
                 .setLabel('Next ▶')
                 .setStyle(ButtonStyle.Primary)
-                .setDisabled(startIndex + maxButtons >= craftableItems.length),
+                .setDisabled(currentPage >= totalPages - 1),
             new ButtonBuilder()
-                .setCustomId(buildSecureCustomId('craft_queue_view', userId))
-                .setLabel('📋 View Queue')
+                .setCustomId(buildSecureCustomId('craft_nav_last', userId, { type: craftType }))
+                .setLabel('⏭️ Last')
+                .setStyle(ButtonStyle.Primary)
+                .setDisabled(currentPage >= totalPages - 1),
+            new ButtonBuilder()
+                .setCustomId(buildSecureCustomId('craft_nav_return', userId))
+                .setLabel('🏠 Main Menu')
                 .setStyle(ButtonStyle.Secondary)
         );
-    
-    rows.push(navRow);
-    return rows;
+
+    return [row1];
+}
+
+function createCraftItemSelectMenu(userId, craftType, items) {
+    if (!items || items.length === 0) {
+        return null;
+    }
+
+    const options = items
+        .filter(item => item.canCraft)
+        .slice(0, 25)
+        .map(item => 
+            new StringSelectMenuOptionBuilder()
+                .setLabel(item.itemName.slice(0, 100))
+                .setValue(item.itemName)
+                .setDescription(`Max: ${item.maxCraftable} | ${item.timerDisplay}`.slice(0, 100))
+                .setEmoji(item.canCraft ? '✅' : '❌')
+        );
+
+    if (options.length === 0) {
+        return null;
+    }
+
+    return new ActionRowBuilder()
+        .addComponents(
+            new StringSelectMenuBuilder()
+                .setCustomId(buildSecureCustomId('craft_select_item', userId, { type: craftType }))
+                .setPlaceholder('Select an item to craft...')
+                .addOptions(options)
+        );
 }
 
 function createAmountModal(itemName, userId, maxCraftable) {
     return new ModalBuilder()
         .setCustomId(`craft_amount_${userId}`)
-        .setTitle(`Craft ${itemName}`)
+        .setTitle(`Craft ${itemName.slice(0, 40)}`)
         .addComponents(
             new ActionRowBuilder().addComponents(
                 new TextInputBuilder()
@@ -149,7 +176,7 @@ function createConfirmButtons(userId, itemName, amount) {
         .addComponents(
             new ButtonBuilder()
                 .setCustomId(buildSecureCustomId('craft_confirm', userId, { 
-                    item: itemName, 
+                    item: itemName.slice(0, 50), 
                     amt: amount 
                 }))
                 .setLabel('✅ Confirm')
@@ -187,7 +214,7 @@ function createConfirmEmbed(itemName, amount, recipe, totalCoins, totalGems, use
         .setTimestamp();
 }
 
-function createQueueEmbed(queueItems, userData) {
+function createQueueEmbed(queueItems, userId) {
     const embed = new EmbedBuilder()
         .setTitle('🔨 Crafting Queue')
         .setColor(Colors.Blue)
@@ -195,7 +222,16 @@ function createQueueEmbed(queueItems, userData) {
 
     if (!queueItems || queueItems.length === 0) {
         embed.setDescription('Your crafting queue is empty.\n\nStart crafting items to see them here!');
-        return { embed, buttons: [] };
+        
+        const returnButton = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId(buildSecureCustomId('craft_nav_return', userId))
+                    .setLabel('🏠 Return to Main Menu')
+                    .setStyle(ButtonStyle.Primary)
+            );
+        
+        return { embed, buttons: [returnButton] };
     }
 
     const now = Date.now();
@@ -216,29 +252,29 @@ function createQueueEmbed(queueItems, userData) {
     const buttons = [];
     
     if (readyItems.length > 0) {
-        const row = new ActionRowBuilder();
-        readyItems.slice(0, 5).forEach((item, idx) => {
-            row.addComponents(
+        const claimRow = new ActionRowBuilder();
+        readyItems.slice(0, 5).forEach((item) => {
+            claimRow.addComponents(
                 new ButtonBuilder()
-                    .setCustomId(buildSecureCustomId('craft_claim', userData.userId || 'user', { 
+                    .setCustomId(buildSecureCustomId('craft_claim', userId, { 
                         id: item.id 
                     }))
-                    .setLabel(`Claim ${item.itemName}`)
+                    .setLabel(`✅ ${item.itemName.slice(0, 70)}`)
                     .setStyle(ButtonStyle.Success)
             );
         });
-        buttons.push(row);
+        buttons.push(claimRow);
     }
 
     const navRow = new ActionRowBuilder()
         .addComponents(
             new ButtonBuilder()
-                .setCustomId(buildSecureCustomId('craft_queue_refresh', userData.userId || 'user'))
+                .setCustomId(buildSecureCustomId('craft_queue_refresh', userId))
                 .setLabel('🔄 Refresh')
                 .setStyle(ButtonStyle.Primary),
             new ButtonBuilder()
-                .setCustomId(buildSecureCustomId('craft_back', userData.userId || 'user'))
-                .setLabel('◀ Back to Crafting')
+                .setCustomId(buildSecureCustomId('craft_nav_return', userId))
+                .setLabel('🏠 Main Menu')
                 .setStyle(ButtonStyle.Secondary)
         );
     
@@ -260,7 +296,7 @@ function createSuccessEmbed(itemName, amount, queued = false, queueData = null) 
                 `Your craft of **${amount}x ${itemName}** has been queued!\n\n` +
                 `⏱️ **Completes in:** ${formatTime(timeLeft)}\n` +
                 `📋 **Queue Position:** ${queueData.position}/5\n\n` +
-                `Use \`.craftQueue\` or click the button below to check progress.`
+                `Use the **Queue** button to check progress.`
             );
     } else {
         embed
@@ -279,7 +315,8 @@ function createErrorEmbed(error, details = {}) {
         INSUFFICIENT_CURRENCY: `You are missing:\n${details.missing?.join('\n') || 'coins/gems'}`,
         INSUFFICIENT_MATERIALS: `You are missing:\n${details.missing?.map(m => `- ${m}`).join('\n') || 'materials'}`,
         QUEUE_FULL: `Your crafting queue is full (5/5 slots).\n\nClaim finished items first!`,
-        INVALID_QUEUE_ITEM: 'This crafting item no longer exists or has already been claimed.'
+        INVALID_QUEUE_ITEM: 'This crafting item no longer exists or has already been claimed.',
+        NOT_READY: 'This item is not ready to be claimed yet.'
     };
 
     return new EmbedBuilder()
@@ -309,14 +346,38 @@ function createHistoryEmbed(history, craftType) {
     return embed;
 }
 
+// Legacy function for compatibility
+function createCraftMenuEmbed(craftType, category, recipes, userData) {
+    return createCraftCategoryEmbed(craftType, 0, recipes, userData).embed;
+}
+
+function createNavigationButtons(userId) {
+    return new ActionRowBuilder()
+        .addComponents(
+            new ButtonBuilder()
+                .setCustomId(`prev_page_${userId}`)
+                .setLabel('◀ Previous')
+                .setStyle(ButtonStyle.Primary),
+            new ButtonBuilder()
+                .setCustomId(`next_page_${userId}`)
+                .setLabel('Next ▶')
+                .setStyle(ButtonStyle.Primary)
+        );
+}
+
 module.exports = {
-    createCraftableItemsEmbed,
-    createCraftButtons,
+    createCraftCategoryEmbed,
+    createCraftNavigationButtons,
+    createCraftItemSelectMenu,
     createAmountModal,
     createConfirmButtons,
     createConfirmEmbed,
     createQueueEmbed,
     createSuccessEmbed,
     createErrorEmbed,
-    createHistoryEmbed
+    createHistoryEmbed,
+    
+    // Legacy exports
+    createCraftMenuEmbed,
+    createNavigationButtons
 };

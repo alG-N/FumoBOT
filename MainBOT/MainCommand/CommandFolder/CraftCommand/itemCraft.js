@@ -2,300 +2,23 @@ const { checkRestrictions } = require('../../Middleware/restrictions');
 const { getUserCraftData } = require('../../Service/CraftService/CraftCacheService');
 const { getAllRecipes } = require('../../Service/CraftService/CraftRecipeService');
 const { validateFullCraft } = require('../../Service/CraftService/CraftValidationService');
-const { processCraft, getQueueItems, claimQueuedCraft, claimAllReady } = require('../../Service/CraftService/CraftProcessService');
-const { parseCraftCommand } = require('../../Ultility/craftParser');
-const { all } = require('../../Core/database');
+const { processCraft, getQueueItems, claimQueuedCraft } = require('../../Service/CraftService/CraftProcessService');
 const { CRAFT_CATEGORIES, CRAFT_CONFIG } = require('../../Configuration/craftConfig');
 const { checkButtonOwnership, parseCustomId } = require('../../Middleware/buttonOwnership');
 const {
-    createCraftableItemsEmbed,
-    createCraftButtons,
+    createCraftCategoryEmbed,
+    createCraftNavigationButtons,
+    createCraftItemSelectMenu,
     createAmountModal,
     createConfirmButtons,
     createConfirmEmbed,
     createQueueEmbed,
     createSuccessEmbed,
-    createErrorEmbed,
-    createHistoryEmbed
+    createErrorEmbed
 } = require('../../Service/CraftService/CraftUIService');
 
 module.exports = (client) => {
-    // Main command handler
-    client.on('messageCreate', async (message) => {
-        try {
-            if (message.author.bot) return;
-            if (message.content !== '.itemCraft' && !message.content.startsWith('.itemCraft ') &&
-                message.content !== '.ic' && !message.content.startsWith('.ic ')) return;
-
-            const restriction = checkRestrictions(message.author.id);
-            if (restriction.blocked) {
-                return message.reply({ embeds: [restriction.embed] });
-            }
-
-            const args = message.content.split(' ').slice(1);
-            const parsed = parseCraftCommand(args);
-            const userId = message.author.id;
-
-            // Show craft history
-            if (parsed.type === 'HISTORY') {
-                const history = await all(
-                    `SELECT itemName, amount, craftedAt FROM craftHistory WHERE userId = ? AND craftType = ? ORDER BY craftedAt DESC LIMIT ?`,
-                    [userId, 'item', CRAFT_CONFIG.HISTORY_LIMIT]
-                );
-                const embed = createHistoryEmbed(history, 'item');
-                return message.reply({ embeds: [embed] });
-            }
-
-            // Show crafting menu
-            if (parsed.type === 'MENU') {
-                const userData = await getUserCraftData(userId, 'item');
-                const recipes = getAllRecipes('item');
-                const pages = CRAFT_CATEGORIES.ITEM.tiers;
-                let currentPage = 0;
-                let currentStartIndex = 0;
-
-                const getPageData = () => {
-                    const result = createCraftableItemsEmbed('item', pages[currentPage], recipes, userData);
-                    return result;
-                };
-
-                const updateMessage = async () => {
-                    const pageData = getPageData();
-                    
-                    if (pages[currentPage] === 'How to Craft') {
-                        const navigationRow = require('discord.js').ActionRowBuilder;
-                        const navigationButton = require('discord.js').ButtonBuilder;
-                        const ButtonStyle = require('discord.js').ButtonStyle;
-                        
-                        const navRow = new navigationRow().addComponents(
-                            new navigationButton()
-                                .setCustomId(`craft_page_prev_${userId}`)
-                                .setLabel('◀ Previous')
-                                .setStyle(ButtonStyle.Primary)
-                                .setDisabled(currentPage === 0),
-                            new navigationButton()
-                                .setCustomId(`craft_page_next_${userId}`)
-                                .setLabel('Next ▶')
-                                .setStyle(ButtonStyle.Primary)
-                                .setDisabled(currentPage === pages.length - 1)
-                        );
-                        
-                        return { embeds: [pageData.embed], components: [navRow] };
-                    }
-
-                    const buttons = createCraftButtons(userId, pageData.items, currentStartIndex);
-                    
-                    const navigationRow = require('discord.js').ActionRowBuilder;
-                    const navigationButton = require('discord.js').ButtonBuilder;
-                    const ButtonStyle = require('discord.js').ButtonStyle;
-                    
-                    const pageNavRow = new navigationRow().addComponents(
-                        new navigationButton()
-                            .setCustomId(`craft_page_prev_${userId}`)
-                            .setLabel('◀ Prev Category')
-                            .setStyle(ButtonStyle.Primary)
-                            .setDisabled(currentPage === 0),
-                        new navigationButton()
-                            .setCustomId(`craft_page_next_${userId}`)
-                            .setLabel('Next Category ▶')
-                            .setStyle(ButtonStyle.Primary)
-                            .setDisabled(currentPage === pages.length - 1)
-                    );
-                    
-                    return { 
-                        embeds: [pageData.embed], 
-                        components: [...buttons, pageNavRow] 
-                    };
-                };
-
-                const sent = await message.reply(await updateMessage());
-
-                // Button collector
-                const collector = sent.createMessageComponentCollector({
-                    filter: i => i.user.id === userId,
-                    time: 300000 // 5 minutes
-                });
-
-                collector.on('collect', async interaction => {
-                    const { action, additionalData } = parseCustomId(interaction.customId);
-
-                    // Page navigation
-                    if (action === 'craft_page_next') {
-                        currentPage = Math.min(currentPage + 1, pages.length - 1);
-                        currentStartIndex = 0;
-                        await interaction.update(await updateMessage());
-                        return;
-                    }
-
-                    if (action === 'craft_page_prev') {
-                        currentPage = Math.max(currentPage - 1, 0);
-                        currentStartIndex = 0;
-                        await interaction.update(await updateMessage());
-                        return;
-                    }
-
-                    // Item list navigation
-                    if (action === 'craft_next') {
-                        currentStartIndex += 10;
-                        await interaction.update(await updateMessage());
-                        return;
-                    }
-
-                    if (action === 'craft_prev') {
-                        currentStartIndex = Math.max(0, currentStartIndex - 10);
-                        await interaction.update(await updateMessage());
-                        return;
-                    }
-
-                    // View queue
-                    if (action === 'craft_queue_view') {
-                        const queueItems = await getQueueItems(userId);
-                        const queueData = createQueueEmbed(queueItems, { userId });
-                        await interaction.reply({ 
-                            embeds: [queueData.embed], 
-                            components: queueData.buttons, 
-                            ephemeral: true 
-                        });
-                        return;
-                    }
-
-                    // Item selection
-                    if (action === 'craft_item') {
-                        const itemName = additionalData?.item;
-                        if (!itemName) return;
-
-                        const updatedUserData = await getUserCraftData(userId, 'item');
-                        const validation = validateFullCraft(itemName, 1, 'item', updatedUserData);
-                        
-                        if (!validation.valid) {
-                            const errorEmbed = createErrorEmbed(validation.error, {
-                                ...validation,
-                                itemName,
-                                max: CRAFT_CONFIG.MAX_CRAFT_AMOUNT
-                            });
-                            await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
-                            return;
-                        }
-
-                        // Show amount modal
-                        const maxCraftable = Math.min(
-                            require('../../Service/CraftService/CraftValidationService').calculateMaxCraftable(
-                                validation.recipe,
-                                updatedUserData.inventory,
-                                updatedUserData.coins,
-                                updatedUserData.gems
-                            ),
-                            CRAFT_CONFIG.MAX_CRAFT_AMOUNT
-                        );
-
-                        const modal = createAmountModal(itemName, userId, maxCraftable);
-                        
-                        // Store item data for modal submission
-                        client.craftModalData = client.craftModalData || new Map();
-                        client.craftModalData.set(userId, { 
-                            itemName, 
-                            maxCraftable,
-                            recipe: validation.recipe 
-                        });
-                        
-                        await interaction.showModal(modal);
-                        return;
-                    }
-                });
-
-                collector.on('end', () => {
-                    sent.edit({ components: [] }).catch(() => {});
-                });
-
-                return;
-            }
-
-        } catch (err) {
-            console.error('[itemCraft] Error:', err);
-            message.reply('❌ An error occurred. Please try again later.');
-        }
-    });
-
-    // Modal submission handler
-    client.on('interactionCreate', async (interaction) => {
-        try {
-            if (!interaction.isModalSubmit()) return;
-            if (!interaction.customId.startsWith('craft_amount_')) return;
-
-            const userId = interaction.user.id;
-            const modalData = client.craftModalData?.get(userId);
-            
-            if (!modalData) {
-                await interaction.reply({ 
-                    content: '❌ Session expired. Please try again.', 
-                    ephemeral: true 
-                });
-                return;
-            }
-
-            const amount = parseInt(interaction.fields.getTextInputValue('amount'));
-            
-            if (isNaN(amount) || amount < 1 || amount > modalData.maxCraftable) {
-                await interaction.reply({ 
-                    content: `❌ Invalid amount. Please enter 1-${modalData.maxCraftable}`, 
-                    ephemeral: true 
-                });
-                return;
-            }
-
-            // Get fresh user data
-            const userData = await getUserCraftData(userId, 'item');
-            const validation = validateFullCraft(modalData.itemName, amount, 'item', userData);
-            
-            if (!validation.valid) {
-                const errorEmbed = createErrorEmbed(validation.error, {
-                    ...validation,
-                    itemName: modalData.itemName,
-                    max: CRAFT_CONFIG.MAX_CRAFT_AMOUNT
-                });
-                await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
-                return;
-            }
-
-            // Show confirmation
-            const confirmEmbed = createConfirmEmbed(
-                modalData.itemName,
-                amount,
-                validation.recipe,
-                validation.totalCoins,
-                validation.totalGems,
-                userData,
-                'item'
-            );
-
-            const confirmButtons = createConfirmButtons(userId, modalData.itemName, amount);
-
-            // Store craft data
-            client.craftConfirmData = client.craftConfirmData || new Map();
-            client.craftConfirmData.set(userId, {
-                itemName: modalData.itemName,
-                amount,
-                recipe: validation.recipe,
-                totalCoins: validation.totalCoins,
-                totalGems: validation.totalGems
-            });
-
-            await interaction.reply({ 
-                embeds: [confirmEmbed], 
-                components: [confirmButtons],
-                ephemeral: true 
-            });
-
-        } catch (err) {
-            console.error('[craftModal] Error:', err);
-            await interaction.reply({ 
-                content: '❌ An error occurred.', 
-                ephemeral: true 
-            }).catch(() => {});
-        }
-    });
-
-    // Button handler for confirm/cancel/claim
+    // Button handler for menu navigation
     client.on('interactionCreate', async (interaction) => {
         try {
             if (!interaction.isButton()) return;
@@ -303,23 +26,288 @@ module.exports = (client) => {
             const { action, additionalData } = parseCustomId(interaction.customId);
             const userId = interaction.user.id;
 
-            // Confirm craft
-            if (action === 'craft_confirm') {
-                if (!checkButtonOwnership(interaction, 'craft_confirm', null, false)) {
-                    await interaction.reply({ 
+            // Main menu - Item category selected
+            if (action === 'craft_menu_item') {
+                if (!checkButtonOwnership(interaction, 'craft_menu_item', null, false)) {
+                    return interaction.reply({ 
                         content: "❌ You can't use someone else's button.", 
                         ephemeral: true 
                     });
-                    return;
+                }
+
+                const userData = await getUserCraftData(userId, 'item');
+                const recipes = getAllRecipes('item');
+                const pages = CRAFT_CATEGORIES.ITEM.tiers;
+                const currentPage = 0;
+
+                const pageData = createCraftCategoryEmbed('item', currentPage, recipes, userData);
+                const navButtons = createCraftNavigationButtons(userId, 'item', currentPage, pages.length, userData.queue.length);
+                const selectMenu = createCraftItemSelectMenu(userId, 'item', pageData.items);
+
+                const components = [...navButtons];
+                if (selectMenu) components.push(selectMenu);
+
+                await interaction.update({
+                    embeds: [pageData.embed],
+                    components
+                });
+                return;
+            }
+
+            // Main menu - Potion category selected
+            if (action === 'craft_menu_potion') {
+                if (!checkButtonOwnership(interaction, 'craft_menu_potion', null, false)) {
+                    return interaction.reply({ 
+                        content: "❌ You can't use someone else's button.", 
+                        ephemeral: true 
+                    });
+                }
+
+                const userData = await getUserCraftData(userId, 'potion');
+                const recipes = getAllRecipes('potion');
+                const pages = CRAFT_CATEGORIES.POTION.categories;
+                const currentPage = 0;
+
+                const pageData = createCraftCategoryEmbed('potion', currentPage, recipes, userData);
+                const navButtons = createCraftNavigationButtons(userId, 'potion', currentPage, pages.length, userData.queue.length);
+                const selectMenu = createCraftItemSelectMenu(userId, 'potion', pageData.items);
+
+                const components = [...navButtons];
+                if (selectMenu) components.push(selectMenu);
+
+                await interaction.update({
+                    embeds: [pageData.embed],
+                    components
+                });
+                return;
+            }
+
+            // Main menu - Queue selected
+            if (action === 'craft_menu_queue') {
+                if (!checkButtonOwnership(interaction, 'craft_menu_queue', null, false)) {
+                    return interaction.reply({ 
+                        content: "❌ You can't use someone else's button.", 
+                        ephemeral: true 
+                    });
+                }
+
+                const queueItems = await getQueueItems(userId);
+                const queueData = createQueueEmbed(queueItems, userId);
+
+                await interaction.update({
+                    embeds: [queueData.embed],
+                    components: queueData.buttons
+                });
+                return;
+            }
+
+            // Navigation - First page
+            if (action === 'craft_nav_first') {
+                if (!checkButtonOwnership(interaction, 'craft_nav_first', null, false)) {
+                    return interaction.reply({ 
+                        content: "❌ You can't use someone else's button.", 
+                        ephemeral: true 
+                    });
+                }
+
+                const craftType = additionalData?.type || 'item';
+                const userData = await getUserCraftData(userId, craftType);
+                const recipes = getAllRecipes(craftType);
+                const pages = craftType === 'item' 
+                    ? CRAFT_CATEGORIES.ITEM.tiers 
+                    : CRAFT_CATEGORIES.POTION.categories;
+                const currentPage = 0;
+
+                const pageData = createCraftCategoryEmbed(craftType, currentPage, recipes, userData);
+                const navButtons = createCraftNavigationButtons(userId, craftType, currentPage, pages.length, userData.queue.length);
+                const selectMenu = createCraftItemSelectMenu(userId, craftType, pageData.items);
+
+                const components = [...navButtons];
+                if (selectMenu) components.push(selectMenu);
+
+                await interaction.update({
+                    embeds: [pageData.embed],
+                    components
+                });
+                return;
+            }
+
+            // Navigation - Previous page
+            if (action === 'craft_nav_prev') {
+                if (!checkButtonOwnership(interaction, 'craft_nav_prev', null, false)) {
+                    return interaction.reply({ 
+                        content: "❌ You can't use someone else's button.", 
+                        ephemeral: true 
+                    });
+                }
+
+                const craftType = additionalData?.type || 'item';
+                const userData = await getUserCraftData(userId, craftType);
+                const recipes = getAllRecipes(craftType);
+                const pages = craftType === 'item' 
+                    ? CRAFT_CATEGORIES.ITEM.tiers 
+                    : CRAFT_CATEGORIES.POTION.categories;
+                
+                // Extract current page from embed footer
+                const currentPageMatch = interaction.message.embeds[0]?.footer?.text?.match(/Page (\d+)\//);
+                const currentPage = currentPageMatch ? Math.max(0, parseInt(currentPageMatch[1]) - 2) : 0;
+
+                const pageData = createCraftCategoryEmbed(craftType, currentPage, recipes, userData);
+                const navButtons = createCraftNavigationButtons(userId, craftType, currentPage, pages.length, userData.queue.length);
+                const selectMenu = createCraftItemSelectMenu(userId, craftType, pageData.items);
+
+                const components = [...navButtons];
+                if (selectMenu) components.push(selectMenu);
+
+                await interaction.update({
+                    embeds: [pageData.embed],
+                    components
+                });
+                return;
+            }
+
+            // Navigation - Next page
+            if (action === 'craft_nav_next') {
+                if (!checkButtonOwnership(interaction, 'craft_nav_next', null, false)) {
+                    return interaction.reply({ 
+                        content: "❌ You can't use someone else's button.", 
+                        ephemeral: true 
+                    });
+                }
+
+                const craftType = additionalData?.type || 'item';
+                const userData = await getUserCraftData(userId, craftType);
+                const recipes = getAllRecipes(craftType);
+                const pages = craftType === 'item' 
+                    ? CRAFT_CATEGORIES.ITEM.tiers 
+                    : CRAFT_CATEGORIES.POTION.categories;
+                
+                // Extract current page from embed footer
+                const currentPageMatch = interaction.message.embeds[0]?.footer?.text?.match(/Page (\d+)\//);
+                const currentPage = currentPageMatch ? parseInt(currentPageMatch[1]) : 1;
+
+                const pageData = createCraftCategoryEmbed(craftType, currentPage, recipes, userData);
+                const navButtons = createCraftNavigationButtons(userId, craftType, currentPage, pages.length, userData.queue.length);
+                const selectMenu = createCraftItemSelectMenu(userId, craftType, pageData.items);
+
+                const components = [...navButtons];
+                if (selectMenu) components.push(selectMenu);
+
+                await interaction.update({
+                    embeds: [pageData.embed],
+                    components
+                });
+                return;
+            }
+
+            // Navigation - Last page
+            if (action === 'craft_nav_last') {
+                if (!checkButtonOwnership(interaction, 'craft_nav_last', null, false)) {
+                    return interaction.reply({ 
+                        content: "❌ You can't use someone else's button.", 
+                        ephemeral: true 
+                    });
+                }
+
+                const craftType = additionalData?.type || 'item';
+                const userData = await getUserCraftData(userId, craftType);
+                const recipes = getAllRecipes(craftType);
+                const pages = craftType === 'item' 
+                    ? CRAFT_CATEGORIES.ITEM.tiers 
+                    : CRAFT_CATEGORIES.POTION.categories;
+                const currentPage = pages.length - 1;
+
+                const pageData = createCraftCategoryEmbed(craftType, currentPage, recipes, userData);
+                const navButtons = createCraftNavigationButtons(userId, craftType, currentPage, pages.length, userData.queue.length);
+                const selectMenu = createCraftItemSelectMenu(userId, craftType, pageData.items);
+
+                const components = [...navButtons];
+                if (selectMenu) components.push(selectMenu);
+
+                await interaction.update({
+                    embeds: [pageData.embed],
+                    components
+                });
+                return;
+            }
+
+            // Navigation - Return to main menu
+            if (action === 'craft_nav_return') {
+                if (!checkButtonOwnership(interaction, 'craft_nav_return', null, false)) {
+                    return interaction.reply({ 
+                        content: "❌ You can't use someone else's button.", 
+                        ephemeral: true 
+                    });
+                }
+
+                const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+                const { buildSecureCustomId } = require('../../Middleware/buttonOwnership');
+
+                const embed = new EmbedBuilder()
+                    .setTitle('🛠️ Crafting Menu')
+                    .setDescription(
+                        '**Welcome to the Crafting System!**\n\n' +
+                        'Select a crafting category below to view available recipes.\n\n' +
+                        '📊 **Queue Status:** Use the Queue button to view your crafting progress.\n' +
+                        '⚠️ **Limit:** You can have up to 5 items crafting at once.\n\n' +
+                        '**Categories:**\n' +
+                        '💊 **Potions** - Boost your coin, gem, and income production\n' +
+                        '🧰 **Items** - Craft powerful tools and materials\n' +
+                        '🧸 **Fumos** - Coming soon!\n' +
+                        '🌟 **Blessings** - Coming soon!'
+                    )
+                    .setColor('Random')
+                    .setFooter({ text: 'Select a category to begin crafting!' })
+                    .setTimestamp();
+
+                const buttons = new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId(buildSecureCustomId('craft_menu_potion', userId))
+                            .setLabel('💊 Potions')
+                            .setStyle(ButtonStyle.Primary),
+                        new ButtonBuilder()
+                            .setCustomId(buildSecureCustomId('craft_menu_item', userId))
+                            .setLabel('🧰 Items')
+                            .setStyle(ButtonStyle.Primary),
+                        new ButtonBuilder()
+                            .setCustomId(buildSecureCustomId('craft_menu_fumo', userId))
+                            .setLabel('🧸 Fumos')
+                            .setStyle(ButtonStyle.Secondary)
+                            .setDisabled(true),
+                        new ButtonBuilder()
+                            .setCustomId(buildSecureCustomId('craft_menu_blessing', userId))
+                            .setLabel('🌟 Blessings')
+                            .setStyle(ButtonStyle.Secondary)
+                            .setDisabled(true),
+                        new ButtonBuilder()
+                            .setCustomId(buildSecureCustomId('craft_menu_queue', userId))
+                            .setLabel('📋 Queue')
+                            .setStyle(ButtonStyle.Success)
+                    );
+
+                await interaction.update({
+                    embeds: [embed],
+                    components: [buttons]
+                });
+                return;
+            }
+
+            // Confirm craft
+            if (action === 'craft_confirm') {
+                if (!checkButtonOwnership(interaction, 'craft_confirm', null, false)) {
+                    return interaction.reply({ 
+                        content: "❌ You can't use someone else's button.", 
+                        ephemeral: true 
+                    });
                 }
 
                 const craftData = client.craftConfirmData?.get(userId);
                 if (!craftData) {
-                    await interaction.reply({ 
+                    return interaction.reply({ 
                         content: '❌ Session expired.', 
                         ephemeral: true 
                     });
-                    return;
                 }
 
                 try {
@@ -327,7 +315,7 @@ module.exports = (client) => {
                         userId,
                         craftData.itemName,
                         craftData.amount,
-                        'item',
+                        craftData.craftType,
                         craftData.recipe,
                         craftData.totalCoins,
                         craftData.totalGems
@@ -382,9 +370,9 @@ module.exports = (client) => {
                         ephemeral: true 
                     });
                     
-                    // Refresh queue view if exists
+                    // Refresh queue view
                     const queueItems = await getQueueItems(userId);
-                    const queueData = createQueueEmbed(queueItems, { userId });
+                    const queueData = createQueueEmbed(queueItems, userId);
                     
                     if (interaction.message) {
                         await interaction.message.edit({
@@ -394,7 +382,7 @@ module.exports = (client) => {
                     }
                 } catch (error) {
                     await interaction.reply({ 
-                        content: '❌ Failed to claim item. It may have already been claimed.', 
+                        content: '❌ Failed to claim item. It may not be ready yet.', 
                         ephemeral: true 
                     });
                 }
@@ -404,7 +392,7 @@ module.exports = (client) => {
             // Refresh queue
             if (action === 'craft_queue_refresh') {
                 const queueItems = await getQueueItems(userId);
-                const queueData = createQueueEmbed(queueItems, { userId });
+                const queueData = createQueueEmbed(queueItems, userId);
                 await interaction.update({ 
                     embeds: [queueData.embed], 
                     components: queueData.buttons 
@@ -412,18 +400,144 @@ module.exports = (client) => {
                 return;
             }
 
-            // Back to crafting
-            if (action === 'craft_back') {
-                await interaction.update({ 
-                    content: 'Use `.itemCraft` or `.ic` to open the crafting menu again.', 
-                    embeds: [], 
-                    components: [] 
+        } catch (err) {
+            console.error('[itemCraft/buttons] Error:', err);
+            await interaction.reply({ 
+                content: '❌ An error occurred.', 
+                ephemeral: true 
+            }).catch(() => {});
+        }
+    });
+
+    // String select menu handler for item selection
+    client.on('interactionCreate', async (interaction) => {
+        try {
+            if (!interaction.isStringSelectMenu()) return;
+            
+            const { action, additionalData } = parseCustomId(interaction.customId);
+            
+            if (action !== 'craft_select_item') return;
+
+            const userId = interaction.user.id;
+            const itemName = interaction.values[0];
+            const craftType = additionalData?.type || 'item';
+
+            const updatedUserData = await getUserCraftData(userId, craftType);
+            const validation = validateFullCraft(itemName, 1, craftType, updatedUserData);
+            
+            if (!validation.valid) {
+                const errorEmbed = createErrorEmbed(validation.error, {
+                    ...validation,
+                    itemName,
+                    max: CRAFT_CONFIG.MAX_CRAFT_AMOUNT
                 });
+                await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
                 return;
             }
 
+            // Calculate max craftable
+            const maxCraftable = Math.min(
+                require('../../Service/CraftService/CraftValidationService').calculateMaxCraftable(
+                    validation.recipe,
+                    updatedUserData.inventory,
+                    updatedUserData.coins,
+                    updatedUserData.gems
+                ),
+                CRAFT_CONFIG.MAX_CRAFT_AMOUNT
+            );
+
+            const modal = createAmountModal(itemName, userId, maxCraftable);
+            
+            // Store item data for modal submission
+            client.craftModalData = client.craftModalData || new Map();
+            client.craftModalData.set(userId, { 
+                itemName, 
+                maxCraftable,
+                recipe: validation.recipe,
+                craftType
+            });
+            
+            await interaction.showModal(modal);
+
         } catch (err) {
-            console.error('[craftButtons] Error:', err);
+            console.error('[itemCraft/select] Error:', err);
+            await interaction.reply({ 
+                content: '❌ An error occurred.', 
+                ephemeral: true 
+            }).catch(() => {});
+        }
+    });
+
+    // Modal submission handler
+    client.on('interactionCreate', async (interaction) => {
+        try {
+            if (!interaction.isModalSubmit()) return;
+            if (!interaction.customId.startsWith('craft_amount_')) return;
+
+            const userId = interaction.user.id;
+            const modalData = client.craftModalData?.get(userId);
+            
+            if (!modalData) {
+                return interaction.reply({ 
+                    content: '❌ Session expired. Please try again.', 
+                    ephemeral: true 
+                });
+            }
+
+            const amount = parseInt(interaction.fields.getTextInputValue('amount'));
+            
+            if (isNaN(amount) || amount < 1 || amount > modalData.maxCraftable) {
+                return interaction.reply({ 
+                    content: `❌ Invalid amount. Please enter 1-${modalData.maxCraftable}`, 
+                    ephemeral: true 
+                });
+            }
+
+            // Get fresh user data
+            const userData = await getUserCraftData(userId, modalData.craftType);
+            const validation = validateFullCraft(modalData.itemName, amount, modalData.craftType, userData);
+            
+            if (!validation.valid) {
+                const errorEmbed = createErrorEmbed(validation.error, {
+                    ...validation,
+                    itemName: modalData.itemName,
+                    max: CRAFT_CONFIG.MAX_CRAFT_AMOUNT
+                });
+                return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+            }
+
+            // Show confirmation
+            const confirmEmbed = createConfirmEmbed(
+                modalData.itemName,
+                amount,
+                validation.recipe,
+                validation.totalCoins,
+                validation.totalGems,
+                userData,
+                modalData.craftType
+            );
+
+            const confirmButtons = createConfirmButtons(userId, modalData.itemName, amount);
+
+            // Store craft data
+            client.craftConfirmData = client.craftConfirmData || new Map();
+            client.craftConfirmData.set(userId, {
+                itemName: modalData.itemName,
+                amount,
+                recipe: validation.recipe,
+                totalCoins: validation.totalCoins,
+                totalGems: validation.totalGems,
+                craftType: modalData.craftType
+            });
+
+            await interaction.reply({ 
+                embeds: [confirmEmbed], 
+                components: [confirmButtons],
+                ephemeral: true 
+            });
+
+        } catch (err) {
+            console.error('[craftModal] Error:', err);
             await interaction.reply({ 
                 content: '❌ An error occurred.', 
                 ephemeral: true 
