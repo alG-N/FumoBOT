@@ -1,6 +1,5 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require('discord.js');
 const { buildSecureCustomId } = require('../../../Middleware/buttonOwnership');
-const { chunkArray } = require('../../../Ultility/itemUtils');
 const LibraryDataService = require('./LibraryDataService');
 
 class LibraryUIService {
@@ -14,14 +13,15 @@ class LibraryUIService {
         let currentPage = 0;
         const embed = this.buildEmbed(libraryData, pages, currentPage);
         const buttons = this.buildButtons(message.author.id, currentPage, pages.length);
+        const selectMenu = this.buildRaritySelect(message.author.id, pages, currentPage);
 
         const sentMessage = await message.channel.send({ 
             embeds: [embed], 
-            components: [buttons] 
+            components: [selectMenu, buttons] 
         });
 
         const collector = sentMessage.createMessageComponentCollector({ 
-            time: 120000 
+            time: 300000 
         });
 
         collector.on('collect', async (interaction) => {
@@ -32,15 +32,42 @@ class LibraryUIService {
                 });
             }
 
+            if (interaction.isStringSelectMenu()) {
+                const selectedPage = parseInt(interaction.values[0]);
+                currentPage = selectedPage;
+
+                const newEmbed = this.buildEmbed(libraryData, pages, currentPage);
+                const newButtons = this.buildButtons(message.author.id, currentPage, pages.length);
+                const newSelectMenu = this.buildRaritySelect(message.author.id, pages, currentPage);
+
+                return interaction.update({ 
+                    embeds: [newEmbed], 
+                    components: [newSelectMenu, newButtons] 
+                });
+            }
+
             const action = this.parseAction(interaction.customId);
+
+            if (action === 'INFO') {
+                const statsEmbed = this.buildDetailedStats(
+                    libraryData.stats, 
+                    libraryData.discovered
+                );
+                return interaction.reply({ 
+                    embeds: [statsEmbed], 
+                    ephemeral: true 
+                });
+            }
+
             currentPage = this.calculateNewPage(action, currentPage, pages.length);
 
             const newEmbed = this.buildEmbed(libraryData, pages, currentPage);
             const newButtons = this.buildButtons(message.author.id, currentPage, pages.length);
+            const newSelectMenu = this.buildRaritySelect(message.author.id, pages, currentPage);
 
             await interaction.update({ 
                 embeds: [newEmbed], 
-                components: [newButtons] 
+                components: [newSelectMenu, newButtons] 
             });
         });
 
@@ -65,13 +92,18 @@ class LibraryUIService {
         const { stats } = libraryData;
         const page = pages[currentPage];
 
+        const categoryStats = this.getCategoryStats(page.fumos);
+        const completionBadge = categoryStats.percentage === 100 ? ' ✅' : 
+                               categoryStats.percentage >= 75 ? ' 🌟' : 
+                               categoryStats.percentage >= 50 ? ' ⭐' : '';
+
         const embed = new EmbedBuilder()
             .setTitle('📚 Fumo Library - Your Collection')
             .setDescription(this.buildDescription(stats))
             .setColor(this.getRarityColor(page.rarity));
 
         const rarityEmoji = LibraryDataService.getRarityEmoji(page.rarity);
-        const chunked = chunkArray(page.fumos, 15);
+        const chunked = this.chunkArray(page.fumos, 15);
 
         chunked.forEach((chunk, idx) => {
             const lines = chunk.map(f => 
@@ -79,7 +111,7 @@ class LibraryUIService {
             );
 
             embed.addFields({
-                name: idx === 0 ? `${rarityEmoji} ${page.rarity}` : `${page.rarity} (cont.)`,
+                name: idx === 0 ? `${rarityEmoji} ${page.rarity}${completionBadge} (${categoryStats.discovered}/${categoryStats.total})` : `${page.rarity} (cont.)`,
                 value: lines.join('\n'),
                 inline: true
             });
@@ -87,22 +119,30 @@ class LibraryUIService {
 
         embed.addFields(
             {
-                name: '📊 Collection Progress',
+                name: '📊 Overall Collection Progress',
                 value: this.buildProgressBar(stats.discoveredCount, stats.totalFumos),
                 inline: false
             },
             {
-                name: '✨ Variants Collected',
-                value: `${this.buildProgressBar(stats.shinyCount, stats.totalFumos, '✨ SHINY')}\n${this.buildProgressBar(stats.algCount, stats.totalFumos, '🌟 alG')}`,
+                name: '✨ Variant Collection',
+                value: `${this.buildProgressBar(stats.shinyCount, stats.discoveredCount, 'SHINY')}\n` +
+                       `${this.buildProgressBar(stats.algCount, stats.discoveredCount, 'alG')}`,
                 inline: false
             }
         );
 
         embed.setFooter({ 
-            text: `Page ${currentPage + 1}/${pages.length} • ${this.getMotivation(stats.percentage)}` 
+            text: `Page ${currentPage + 1}/${pages.length} • ${this.getMotivation(stats.percentage)} • Click ℹ️ for details` 
         });
 
         return embed;
+    }
+
+    static getCategoryStats(fumos) {
+        const discovered = fumos.filter(f => f.hasBase).length;
+        const total = fumos.length;
+        const percentage = total > 0 ? Math.round((discovered / total) * 100) : 0;
+        return { discovered, total, percentage };
     }
 
     static buildDescription(stats) {
@@ -135,6 +175,68 @@ class LibraryUIService {
         return `${prefix}${bar} ${percentage}% (${safeCurrent}/${safeTotal})`;
     }
 
+    static buildDetailedStats(stats, discovered) {
+        const embed = new EmbedBuilder()
+            .setTitle('📊 Detailed Collection Statistics')
+            .setColor(0x5865F2)
+            .setDescription('Complete breakdown of your Fumo collection progress');
+
+        embed.addFields(
+            {
+                name: '🎯 Base Collection',
+                value: `${this.buildProgressBar(stats.discoveredCount, stats.totalFumos)}\n` +
+                       `Unique fumos owned: **${stats.discoveredCount}** / ${stats.totalFumos}`,
+                inline: false
+            },
+            {
+                name: '✨ Shiny Variants',
+                value: `${this.buildProgressBar(stats.shinyCount, stats.discoveredCount)}\n` +
+                       `Shinies collected: **${stats.shinyCount}** / ${stats.discoveredCount} discovered`,
+                inline: false
+            },
+            {
+                name: '🌟 alG Variants',
+                value: `${this.buildProgressBar(stats.algCount, stats.discoveredCount)}\n` +
+                       `alGs collected: **${stats.algCount}** / ${stats.discoveredCount} discovered`,
+                inline: false
+            }
+        );
+
+        const categoryBreakdown = Object.entries(discovered)
+            .filter(([_, data]) => data.base)
+            .reduce((acc, [name, data]) => {
+                const variants = [];
+                if (data.base) variants.push('Base');
+                if (data.shiny) variants.push('✨');
+                if (data.alg) variants.push('🌟');
+                acc.push(`${name}: ${variants.join(' ')}`);
+                return acc;
+            }, []);
+
+        if (categoryBreakdown.length > 0) {
+            const chunks = this.chunkArray(categoryBreakdown, 10);
+            chunks.forEach((chunk, idx) => {
+                embed.addFields({
+                    name: idx === 0 ? '📋 Variant Overview' : '📋 Variant Overview (cont.)',
+                    value: chunk.join('\n'),
+                    inline: false
+                });
+            });
+        }
+
+        embed.setFooter({ text: 'Tip: Shinies and alGs are variants of fumos you already own!' });
+
+        return embed;
+    }
+
+    static chunkArray(array, size) {
+        const chunks = [];
+        for (let i = 0; i < array.length; i += size) {
+            chunks.push(array.slice(i, i + size));
+        }
+        return chunks;
+    }
+
     static getMotivation(percentage) {
         if (percentage === 100) return "🎉 Perfect Collection! You're a true collector!";
         if (percentage >= 90) return "🔥 Almost there! Just a few more!";
@@ -142,6 +244,29 @@ class LibraryUIService {
         if (percentage >= 50) return "💪 Halfway there! Keep going!";
         if (percentage >= 25) return "🌟 Good start! Keep collecting!";
         return "🚀 Your journey begins!";
+    }
+
+    static buildRaritySelect(userId, pages, currentPage) {
+        const options = pages.map((page, idx) => {
+            const stats = this.getCategoryStats(page.fumos);
+            const emoji = LibraryDataService.getRarityEmoji(page.rarity);
+            const badge = stats.percentage === 100 ? ' ✅' : '';
+            
+            return {
+                label: `${page.rarity}${badge}`,
+                description: `${stats.discovered}/${stats.total} collected (${stats.percentage}%)`,
+                value: idx.toString(),
+                emoji: emoji,
+                default: idx === currentPage
+            };
+        });
+
+        return new ActionRowBuilder().addComponents(
+            new StringSelectMenuBuilder()
+                .setCustomId(buildSecureCustomId('lib_select', userId))
+                .setPlaceholder('📂 Jump to rarity category...')
+                .addOptions(options)
+        );
     }
 
     static buildButtons(userId, currentPage, totalPages) {
@@ -179,6 +304,7 @@ class LibraryUIService {
         if (customId.includes('last')) return 'LAST';
         if (customId.includes('prev')) return 'PREV';
         if (customId.includes('next')) return 'NEXT';
+        if (customId.includes('info')) return 'INFO';
         return 'INFO';
     }
 

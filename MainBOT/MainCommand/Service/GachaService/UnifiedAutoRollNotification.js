@@ -1,5 +1,12 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Colors } = require('discord.js');
 const { formatNumber } = require('../../Ultility/formatting');
+const { 
+    shouldNotifyNormalGacha, 
+    shouldNotifyEventGacha 
+} = require('../GachaService/NotificationPreferenceService');
+const { 
+    addDisableNotificationButton 
+} = require('../GachaService/NotificationButtonsService');
 
 function createUnifiedRestorationEmbed(normalState, eventState, userId) {
     const embed = new EmbedBuilder()
@@ -258,18 +265,44 @@ function createDetailsButtons(userId, hasNormal, hasEvent) {
 
 async function notifyUserUnifiedAutoRoll(client, userId, normalState, eventState) {
     try {
+        const shouldNotifyNormal = normalState && shouldNotifyNormalGacha(userId);
+        const shouldNotifyEvent = eventState && shouldNotifyEventGacha(userId);
+        
+        if (!shouldNotifyNormal && !shouldNotifyEvent) {
+            console.log(`🔕 User ${userId} has disabled all auto-roll notifications`);
+            return false;
+        }
+
         const user = await client.users.fetch(userId).catch(() => null);
         if (!user) {
             console.warn(`⚠️ Could not fetch user ${userId} for notification`);
             return false;
         }
 
-        const embed = createUnifiedRestorationEmbed(normalState, eventState, userId);
-        const buttons = createDetailsButtons(userId, !!normalState, !!eventState);
+        const stateToShow = {
+            normal: shouldNotifyNormal ? normalState : null,
+            event: shouldNotifyEvent ? eventState : null
+        };
+
+        const embed = createUnifiedRestorationEmbed(stateToShow.normal, stateToShow.event, userId);
+        let buttonRow = createDetailsButtons(userId, shouldNotifyNormal, shouldNotifyEvent);
+        
+        const components = [];
+        if (buttonRow) {
+            if (shouldNotifyNormal) {
+                const rows = addDisableNotificationButton(buttonRow, userId, 'normal');
+                components.push(...rows);
+            } else if (shouldNotifyEvent) {
+                const rows = addDisableNotificationButton(buttonRow, userId, 'event');
+                components.push(...rows);
+            } else {
+                components.push(buttonRow);
+            }
+        }
 
         const messageOptions = { embeds: [embed] };
-        if (buttons) {
-            messageOptions.components = [buttons];
+        if (components.length > 0) {
+            messageOptions.components = components;
         }
 
         await user.send(messageOptions);

@@ -238,6 +238,8 @@ async function displayMultiRollResults(interaction, fumosBought, bestFumo, rollC
 }
 
 function createAutoRollSummary(summary, userId) {
+    const { updateSummaryWithNotificationButton } = require('../../Service/GachaService/NotificationButtonsService');
+    
     const rarityOrder = ['TRANSCENDENT', 'ETERNAL', 'INFINITE', 'CELESTIAL', 'ASTRAL', '???'];
     
     let bestFumoText = 'None (N/A)';
@@ -341,7 +343,10 @@ function createAutoRollSummary(summary, userId) {
             .setStyle(ButtonStyle.Success)
     );
 
-    return { embed, components: [row] };
+    let components = [row];
+    components = updateSummaryWithNotificationButton(components, userId, 'normal');
+
+    return { embed, components };
 }
 
 module.exports = {

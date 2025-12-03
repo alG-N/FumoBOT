@@ -302,6 +302,34 @@ registerCodeRedemption(client);
 client.on('interactionCreate', async interaction => {
     if (interaction.isButton()) {
         console.log('🔘 Button interaction received:', interaction.customId);
+        
+        const { 
+            handleDisableNotificationButton,
+            handleConfirmDisableNotification,
+            handleCancelDisableNotification,
+            handleEnableNotification
+        } = require('./MainCommand/Service/GachaService/NotificationButtonsService');
+        
+        if (interaction.customId.startsWith('disableNotification_')) {
+            await handleDisableNotificationButton(interaction);
+            return;
+        }
+        
+        if (interaction.customId.startsWith('confirmDisableNotif_')) {
+            await handleConfirmDisableNotification(interaction);
+            return;
+        }
+        
+        if (interaction.customId.startsWith('cancelDisableNotif_')) {
+            await handleCancelDisableNotification(interaction);
+            return;
+        }
+        
+        if (interaction.customId.startsWith('enableNotification_')) {
+            await handleEnableNotification(interaction);
+            return;
+        }
+        
         if (interaction.customId.startsWith('show_post_') ||
             interaction.customId.startsWith('gallery_') ||
             interaction.customId.startsWith('back_to_list_') ||
