@@ -305,13 +305,18 @@ async function handleBaseFumoSelection(interaction) {
     try {
         const valueWithIndex = interaction.values[0];
         const baseFumoName = valueWithIndex.split('_').slice(0, -1).join('_');
+        
         const parts = interaction.customId.split('_');
-        const userId = parts[2];
-        const rarity = parts[3];
+        const userId = parts[3];
+        const rarity = parts.slice(4).join('_');
 
         const variants = await getAvailableVariants(userId, baseFumoName);
 
         if (variants.length === 0) {
+            const allUserFumos = await all(
+                `SELECT fumoName FROM userInventory WHERE userId = ? LIMIT 10`,
+                [userId]
+            );            
             return interaction.update({
                 content: `❌ You don't have any copies of **${baseFumoName}**.`,
                 components: []
