@@ -1,6 +1,6 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const { getCoinMarket, getGemMarket } = require('./MarketCacheService');
-const { getAllGlobalListings, getUserGlobalListings, addGlobalListing, removeGlobalListing } = require('./MarketStorageService');
+const { getAllGlobalListings, getUserGlobalListings, addGlobalListing, removeGlobalListing, notifySellerOfSale } = require('./MarketStorageService');
 const { validateShopPurchase, processShopPurchase, validateGlobalPurchase, processGlobalPurchase } = require('./MarketPurchaseService');
 const {
     createMainShopEmbed,
@@ -61,8 +61,32 @@ async function handleGlobalShop(interaction) {
 
         const embed = createGlobalShopEmbed(display);
         const buttons = createGlobalShopButtons(interaction.user.id);
+        
+        const selectMenu = new StringSelectMenuBuilder()
+            .setCustomId(`global_purchase_select_${interaction.user.id}`)
+            .setPlaceholder('Select a fumo to purchase')
+            .setDisabled(display.length === 0);
 
-        await interaction.update({ embeds: [embed], components: [buttons] });
+        if (display.length > 0) {
+            const options = display.map((listing, idx) => {
+                const currencyEmoji = listing.currency === 'coins' ? '🪙' : '💎';
+                return {
+                    label: listing.fumoName.substring(0, 100),
+                    value: `${listing.id}`,
+                    description: `${currencyEmoji} ${listing.price.toLocaleString()}`.substring(0, 100)
+                };
+            });
+            selectMenu.addOptions(options);
+        } else {
+            selectMenu.addOptions({
+                label: 'No listings available',
+                value: 'none'
+            });
+        }
+
+        const selectRow = new ActionRowBuilder().addComponents(selectMenu);
+
+        await interaction.update({ embeds: [embed], components: [selectRow, buttons] });
     } catch (error) {
         console.error('Global shop error:', error);
         await interaction.reply({ content: '❌ Failed to load global shop.', ephemeral: true });
@@ -638,10 +662,165 @@ async function handleRefreshGlobal(interaction) {
 
         const embed = createGlobalShopEmbed(display);
         const buttons = createGlobalShopButtons(interaction.user.id);
+        
+        const selectMenu = new StringSelectMenuBuilder()
+            .setCustomId(`global_purchase_select_${interaction.user.id}`)
+            .setPlaceholder('Select a fumo to purchase')
+            .setDisabled(display.length === 0);
 
-        await interaction.update({ embeds: [embed], components: [buttons] });
+        if (display.length > 0) {
+            const options = display.map((listing, idx) => {
+                const currencyEmoji = listing.currency === 'coins' ? '🪙' : '💎';
+                return {
+                    label: listing.fumoName.substring(0, 100),
+                    value: `${listing.id}`,
+                    description: `${currencyEmoji} ${listing.price.toLocaleString()}`.substring(0, 100)
+                };
+            });
+            selectMenu.addOptions(options);
+        } else {
+            selectMenu.addOptions({
+                label: 'No listings available',
+                value: 'none'
+            });
+        }
+
+        const selectRow = new ActionRowBuilder().addComponents(selectMenu);
+
+        await interaction.update({ embeds: [embed], components: [selectRow, buttons] });
     } catch (error) {
         console.error('Refresh global error:', error);
+    }
+}
+
+async function handleGlobalPurchaseSelect(interaction) {
+    try {
+        const listingId = parseInt(interaction.values[0]);
+
+        if (isNaN(listingId)) {
+            return interaction.reply({
+                content: '❌ Invalid selection.',
+                ephemeral: true
+            });
+        }
+
+        const listing = await get(
+            `SELECT * FROM globalMarket WHERE id = ?`,
+            [listingId]
+        );
+
+        if (!listing) {
+            return interaction.reply({
+                content: '❌ This listing is no longer available.',
+                ephemeral: true
+            });
+        }
+
+        if (listing.userId === interaction.user.id) {
+            return interaction.reply({
+                content: '❌ You cannot buy your own listing.',
+                ephemeral: true
+            });
+        }
+
+        const validation = await validateGlobalPurchase(interaction.user.id, listing);
+
+        if (!validation.valid) {
+            return interaction.reply({
+                embeds: [createErrorEmbed(validation.error, validation)],
+                ephemeral: true
+            });
+        }
+
+        const confirmEmbed = createPurchaseConfirmEmbed(
+            { name: listing.fumoName, price: listing.price },
+            1,
+            listing.price,
+            listing.currency
+        );
+
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId(`confirm_global_purchase_${listingId}_${interaction.user.id}`)
+                .setLabel('✅ Confirm Purchase')
+                .setStyle(ButtonStyle.Success),
+            new ButtonBuilder()
+                .setCustomId(`cancel_purchase_${interaction.user.id}`)
+                .setLabel('❌ Cancel')
+                .setStyle(ButtonStyle.Danger)
+        );
+
+        await interaction.reply({
+            embeds: [confirmEmbed],
+            components: [row],
+            ephemeral: true
+        });
+
+    } catch (error) {
+        console.error('Global purchase select error:', error);
+        await interaction.reply({
+            content: '❌ An error occurred.',
+            ephemeral: true
+        });
+    }
+}
+
+async function handleConfirmGlobalPurchase(interaction) {
+    try {
+        const parts = interaction.customId.split('_');
+        const listingId = parseInt(parts[3]);
+
+        const listing = await get(
+            `SELECT * FROM globalMarket WHERE id = ?`,
+            [listingId]
+        );
+
+        if (!listing) {
+            return interaction.update({
+                content: '❌ This listing is no longer available.',
+                embeds: [],
+                components: []
+            });
+        }
+
+        const validation = await validateGlobalPurchase(interaction.user.id, listing);
+
+        if (!validation.valid) {
+            return interaction.update({
+                embeds: [createErrorEmbed(validation.error, validation)],
+                components: []
+            });
+        }
+
+        const { remainingBalance } = await processGlobalPurchase(interaction.user.id, listing);
+
+        await notifySellerOfSale(
+            interaction.client,
+            listing.userId,
+            listing.fumoName,
+            listing.price,
+            listing.currency,
+            interaction.user.username
+        );
+
+        const successEmbed = createPurchaseSuccessEmbed(
+            { name: listing.fumoName, price: listing.price },
+            1,
+            remainingBalance,
+            listing.currency
+        );
+
+        await interaction.update({
+            embeds: [successEmbed],
+            components: []
+        });
+
+    } catch (error) {
+        console.error('Confirm global purchase error:', error);
+        await interaction.update({
+            embeds: [createErrorEmbed('PROCESSING_ERROR')],
+            components: []
+        });
     }
 }
 
@@ -662,5 +841,7 @@ module.exports = {
     handleConfirmListing,
     handleRemoveListing,
     handleRemoveListingSelect,
-    handleRefreshGlobal
+    handleRefreshGlobal,
+    handleGlobalPurchaseSelect,
+    handleConfirmGlobalPurchase
 };

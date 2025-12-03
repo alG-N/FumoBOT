@@ -1,11 +1,23 @@
 const { get, all, run } = require('../../../Core/database');
 
 async function addGlobalListing(userId, fumoName, price, currency) {
-    await run(
-        `INSERT INTO globalMarket (userId, fumoName, price, currency, listedAt)
-         VALUES (?, ?, ?, ?, ?)`,
-        [userId, fumoName, price, currency, Date.now()]
+    const existing = await get(
+        `SELECT id FROM globalMarket WHERE userId = ? AND fumoName = ? AND currency = ?`,
+        [userId, fumoName, currency]
     );
+
+    if (existing) {
+        await run(
+            `UPDATE globalMarket SET price = ?, listedAt = ? WHERE id = ?`,
+            [price, Date.now(), existing.id]
+        );
+    } else {
+        await run(
+            `INSERT INTO globalMarket (userId, fumoName, price, currency, listedAt)
+             VALUES (?, ?, ?, ?, ?)`,
+            [userId, fumoName, price, currency, Date.now()]
+        );
+    }
 }
 
 async function removeGlobalListing(userId, listingId) {
@@ -42,10 +54,29 @@ async function purchaseGlobalListing(listingId, buyerId) {
     return listing;
 }
 
+async function notifySellerOfSale(client, sellerId, fumoName, price, currency, buyerUsername) {
+    try {
+        const seller = await client.users.fetch(sellerId).catch(() => null);
+        if (!seller) return;
+
+        const currencyEmoji = currency === 'coins' ? '🪙' : '💎';
+        const message = `✅ **Sale Notification**\n\n` +
+            `Your **${fumoName}** has been purchased!\n\n` +
+            `**Buyer:** ${buyerUsername}\n` +
+            `**Price:** ${currencyEmoji} ${price.toLocaleString()}\n` +
+            `**After Tax (5%):** ${currencyEmoji} ${Math.floor(price * 0.95).toLocaleString()}`;
+
+        await seller.send(message).catch(() => {});
+    } catch (error) {
+        console.error('Failed to notify seller:', error);
+    }
+}
+
 module.exports = {
     addGlobalListing,
     removeGlobalListing,
     getUserGlobalListings,
     getAllGlobalListings,
-    purchaseGlobalListing
+    purchaseGlobalListing,
+    notifySellerOfSale
 };
