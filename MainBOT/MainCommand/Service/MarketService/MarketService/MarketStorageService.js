@@ -1,4 +1,5 @@
 const { get, all, run } = require('../../../Core/database');
+const { formatNumber } = require('../../../Ultility/formatting');
 
 async function addGlobalListing(userId, fumoName, coinPrice, gemPrice) {
     const existing = await get(
@@ -54,17 +55,25 @@ async function purchaseGlobalListing(listingId, buyerId) {
     return listing;
 }
 
-async function notifySellerOfSale(client, sellerId, fumoName, price, currency, buyerUsername) {
+async function notifySellerOfSale(client, sellerId, fumoName, coinPrice, gemPrice, buyerUsername) {
     try {
         const seller = await client.users.fetch(sellerId).catch(() => null);
         if (!seller) return;
 
-        const currencyEmoji = currency === 'coins' ? '🪙' : '💎';
+        const coinTax = Math.floor(coinPrice * 0.05);
+        const gemTax = Math.floor(gemPrice * 0.05);
+        const afterTaxCoins = coinPrice - coinTax;
+        const afterTaxGems = gemPrice - gemTax;
+
         const message = `✅ **Sale Notification**\n\n` +
             `Your **${fumoName}** has been purchased!\n\n` +
-            `**Buyer:** ${buyerUsername}\n` +
-            `**Price:** ${currencyEmoji} ${price.toLocaleString()}\n` +
-            `**After Tax (5%):** ${currencyEmoji} ${Math.floor(price * 0.95).toLocaleString()}`;
+            `**Buyer:** ${buyerUsername}\n\n` +
+            `**Sale Price:**\n` +
+            `🪙 ${formatNumber(coinPrice)} coins\n` +
+            `💎 ${formatNumber(gemPrice)} gems\n\n` +
+            `**After Tax (5%):**\n` +
+            `🪙 ${formatNumber(afterTaxCoins)} coins\n` +
+            `💎 ${formatNumber(afterTaxGems)} gems`;
 
         await seller.send(message).catch(() => {});
     } catch (error) {

@@ -71,17 +71,11 @@ async function processShopPurchase(userId, fumo, amount, totalPrice, currency, s
     return { remainingBalance };
 }
 
-async function validateGlobalPurchase(userId, listing, currency) {
-    const price = currency === 'coins' ? listing.coinPrice : listing.gemPrice;
-    
-    if (!price) {
-        return {
-            valid: false,
-            error: 'PAYMENT_METHOD_UNAVAILABLE'
-        };
-    }
-    
-    const userRow = await get(`SELECT ${currency} FROM userCoins WHERE userId = ?`, [userId]);
+async function validateGlobalPurchase(userId, listing) {
+    const userRow = await get(
+        `SELECT coins, gems FROM userCoins WHERE userId = ?`, 
+        [userId]
+    );
     
     if (!userRow) {
         return { 
@@ -90,31 +84,51 @@ async function validateGlobalPurchase(userId, listing, currency) {
         };
     }
     
-    if (userRow[currency] < price) {
+    if (userRow.coins < listing.coinPrice) {
         return { 
             valid: false, 
-            error: currency === 'coins' ? 'INSUFFICIENT_COINS' : 'INSUFFICIENT_GEMS',
-            required: price,
-            current: userRow[currency]
+            error: 'INSUFFICIENT_COINS',
+            required: listing.coinPrice,
+            current: userRow.coins
+        };
+    }
+    
+    if (userRow.gems < listing.gemPrice) {
+        return { 
+            valid: false, 
+            error: 'INSUFFICIENT_GEMS',
+            required: listing.gemPrice,
+            current: userRow.gems
         };
     }
     
     return { 
         valid: true,
-        currentBalance: userRow[currency]
+        currentCoins: userRow.coins,
+        currentGems: userRow.gems
     };
 }
 
-async function processGlobalPurchase(buyerId, listing, currency) {
-    const price = currency === 'coins' ? listing.coinPrice : listing.gemPrice;
-    const tax = Math.floor(price * 0.05);
-    const sellerReceives = price - tax;
+async function processGlobalPurchase(buyerId, listing) {
+    const coinTax = Math.floor(listing.coinPrice * 0.05);
+    const gemTax = Math.floor(listing.gemPrice * 0.05);
+    const sellerReceivesCoins = listing.coinPrice - coinTax;
+    const sellerReceivesGems = listing.gemPrice - gemTax;
     
-    await run(`UPDATE userCoins SET ${currency} = ${currency} - ? WHERE userId = ?`, [price, buyerId]);
-    await run(`UPDATE userCoins SET ${currency} = ${currency} + ? WHERE userId = ?`, [sellerReceives, listing.userId]);
+    await run(
+        `UPDATE userCoins SET coins = coins - ?, gems = gems - ? WHERE userId = ?`, 
+        [listing.coinPrice, listing.gemPrice, buyerId]
+    );
     
-    const balanceRow = await get(`SELECT ${currency} FROM userCoins WHERE userId = ?`, [buyerId]);
-    const remainingBalance = balanceRow?.[currency] || 0;
+    await run(
+        `UPDATE userCoins SET coins = coins + ?, gems = gems + ? WHERE userId = ?`, 
+        [sellerReceivesCoins, sellerReceivesGems, listing.userId]
+    );
+    
+    const balanceRow = await get(
+        `SELECT coins, gems FROM userCoins WHERE userId = ?`, 
+        [buyerId]
+    );
     
     const luckRow = await get(`SELECT luck FROM userCoins WHERE userId = ?`, [buyerId]);
     const shinyMarkValue = luckRow?.luck || 0;
@@ -129,9 +143,12 @@ async function processGlobalPurchase(buyerId, listing, currency) {
     const removed = purchaseGlobalListing(listing.id, buyerId);
     
     return { 
-        remainingBalance,
-        sellerReceives,
-        tax
+        remainingCoins: balanceRow?.coins || 0,
+        remainingGems: balanceRow?.gems || 0,
+        sellerReceivesCoins,
+        sellerReceivesGems,
+        coinTax,
+        gemTax
     };
 }
 

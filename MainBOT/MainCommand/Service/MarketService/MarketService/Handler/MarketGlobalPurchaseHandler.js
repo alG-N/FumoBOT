@@ -2,7 +2,9 @@ const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { get } = require('../../../../Core/database');
 const { validateGlobalPurchase, processGlobalPurchase } = require('../MarketPurchaseService');
 const { notifySellerOfSale } = require('../MarketStorageService');
-const { createPurchaseConfirmEmbed, createPurchaseSuccessEmbed, createErrorEmbed } = require('../MarketUIService');
+const { createErrorEmbed } = require('../MarketUIService');
+const { EmbedBuilder } = require('discord.js');
+const { formatNumber } = require('../../../../Ultility/formatting');
 
 async function handleGlobalPurchaseSelect(interaction) {
     try {
@@ -34,56 +36,46 @@ async function handleGlobalPurchaseSelect(interaction) {
             });
         }
 
-        const coinValidation = listing.coinPrice ? await validateGlobalPurchase(interaction.user.id, listing, 'coins') : null;
-        const gemValidation = listing.gemPrice ? await validateGlobalPurchase(interaction.user.id, listing, 'gems') : null;
+        const validation = await validateGlobalPurchase(interaction.user.id, listing);
 
-        const canBuyWithCoins = coinValidation?.valid;
-        const canBuyWithGems = gemValidation?.valid;
-
-        if (!canBuyWithCoins && !canBuyWithGems) {
-            const error = coinValidation?.error || gemValidation?.error;
-            const details = coinValidation || gemValidation;
+        if (!validation.valid) {
             return interaction.reply({
-                embeds: [createErrorEmbed(error, details)],
+                embeds: [createErrorEmbed(validation.error, validation)],
                 ephemeral: true
             });
         }
 
-        let confirmText = `**Purchase ${listing.fumoName}**\n\nSelect payment method:\n`;
-        const buttons = [];
+        const coinPrice = listing.coinPrice || 0;
+        const gemPrice = listing.gemPrice || 0;
 
-        if (canBuyWithCoins && listing.coinPrice) {
-            confirmText += `🪙 **Coin Price:** ${listing.coinPrice.toLocaleString()}\n`;
-            buttons.push(
-                new ButtonBuilder()
-                    .setCustomId(`confirm_global_purchase_${listingId}_coins_${interaction.user.id}`)
-                    .setLabel(`Pay 🪙 ${listing.coinPrice.toLocaleString()}`)
-                    .setStyle(ButtonStyle.Success)
-            );
-        }
+        const embed = new EmbedBuilder()
+            .setTitle('🛒 Confirm Purchase')
+            .setDescription(
+                `**Fumo:** ${listing.fumoName}\n\n` +
+                `**Required Payment:**\n` +
+                `🪙 Coins: ${formatNumber(coinPrice)}\n` +
+                `💎 Gems: ${formatNumber(gemPrice)}\n\n` +
+                `**Your Balance:**\n` +
+                `🪙 Coins: ${formatNumber(validation.currentCoins)}\n` +
+                `💎 Gems: ${formatNumber(validation.currentGems)}\n\n` +
+                `⚠️ You must pay **BOTH** currencies to complete this purchase.`
+            )
+            .setColor('#2ECC71');
 
-        if (canBuyWithGems && listing.gemPrice) {
-            confirmText += `💎 **Gem Price:** ${listing.gemPrice.toLocaleString()}\n`;
-            buttons.push(
-                new ButtonBuilder()
-                    .setCustomId(`confirm_global_purchase_${listingId}_gems_${interaction.user.id}`)
-                    .setLabel(`Pay 💎 ${listing.gemPrice.toLocaleString()}`)
-                    .setStyle(ButtonStyle.Success)
-            );
-        }
-
-        buttons.push(
+        const buttons = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId(`confirm_global_purchase_${listingId}_${interaction.user.id}`)
+                .setLabel(`✅ Pay ${formatNumber(coinPrice)} 🪙 & ${formatNumber(gemPrice)} 💎`)
+                .setStyle(ButtonStyle.Success),
             new ButtonBuilder()
                 .setCustomId(`cancel_purchase_${interaction.user.id}`)
                 .setLabel('❌ Cancel')
                 .setStyle(ButtonStyle.Danger)
         );
 
-        const row = new ActionRowBuilder().addComponents(buttons);
-
         await interaction.reply({
-            content: confirmText,
-            components: [row],
+            embeds: [embed],
+            components: [buttons],
             ephemeral: true
         });
 
@@ -100,7 +92,6 @@ async function handleConfirmGlobalPurchase(interaction) {
     try {
         const parts = interaction.customId.split('_');
         const listingId = parseInt(parts[3]);
-        const paymentMethod = parts[4];
 
         const listing = await get(
             `SELECT * FROM globalMarket WHERE id = ?`,
@@ -115,7 +106,7 @@ async function handleConfirmGlobalPurchase(interaction) {
             });
         }
 
-        const validation = await validateGlobalPurchase(interaction.user.id, listing, paymentMethod);
+        const validation = await validateGlobalPurchase(interaction.user.id, listing);
 
         if (!validation.valid) {
             return interaction.update({
@@ -124,23 +115,32 @@ async function handleConfirmGlobalPurchase(interaction) {
             });
         }
 
-        const { remainingBalance } = await processGlobalPurchase(interaction.user.id, listing, paymentMethod);
+        const result = await processGlobalPurchase(interaction.user.id, listing);
+
+        const coinPrice = listing.coinPrice || 0;
+        const gemPrice = listing.gemPrice || 0;
 
         await notifySellerOfSale(
             interaction.client,
             listing.userId,
             listing.fumoName,
-            paymentMethod === 'coins' ? listing.coinPrice : listing.gemPrice,
-            paymentMethod,
+            coinPrice,
+            gemPrice,
             interaction.user.username
         );
 
-        const successEmbed = createPurchaseSuccessEmbed(
-            { name: listing.fumoName, price: paymentMethod === 'coins' ? listing.coinPrice : listing.gemPrice },
-            1,
-            remainingBalance,
-            paymentMethod
-        );
+        const successEmbed = new EmbedBuilder()
+            .setTitle('🎉 Purchase Successful!')
+            .setDescription(
+                `You purchased **${listing.fumoName}**!\n\n` +
+                `**Paid:**\n` +
+                `🪙 ${formatNumber(coinPrice)} coins\n` +
+                `💎 ${formatNumber(gemPrice)} gems\n\n` +
+                `**Remaining Balance:**\n` +
+                `🪙 ${formatNumber(result.remainingCoins)} coins\n` +
+                `💎 ${formatNumber(result.remainingGems)} gems`
+            )
+            .setColor('#2ECC71');
 
         await interaction.update({
             embeds: [successEmbed],

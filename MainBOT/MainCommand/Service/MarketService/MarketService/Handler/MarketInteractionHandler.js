@@ -1,6 +1,7 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const { getCoinMarket, getGemMarket } = require('../MarketCacheService');
 const { getAllGlobalListings } = require('../MarketStorageService');
+const { formatNumber } = require('../../../../Ultility/formatting');
 const {
     createMainShopEmbed,
     createCoinShopEmbed,
@@ -62,14 +63,10 @@ async function handleGlobalShop(interaction) {
 
         if (display.length > 0) {
             const options = display.map((listing, idx) => {
-                let priceText = '';
-                if (listing.coinPrice && listing.gemPrice) {
-                    priceText = `🪙${listing.coinPrice.toLocaleString()} 💎${listing.gemPrice.toLocaleString()}`;
-                } else if (listing.coinPrice) {
-                    priceText = `🪙${listing.coinPrice.toLocaleString()}`;
-                } else if (listing.gemPrice) {
-                    priceText = `💎${listing.gemPrice.toLocaleString()}`;
-                }
+                const coinPrice = listing.coinPrice || 0;
+                const gemPrice = listing.gemPrice || 0;
+                const priceText = `🪙${formatNumber(coinPrice)} 💎${formatNumber(gemPrice)}`;
+                
                 return {
                     label: listing.fumoName.substring(0, 100),
                     value: `${listing.id}`,
@@ -119,14 +116,10 @@ async function handleRefreshGlobal(interaction) {
 
         if (display.length > 0) {
             const options = display.map((listing, idx) => {
-                let priceText = '';
-                if (listing.coinPrice && listing.gemPrice) {
-                    priceText = `🪙${listing.coinPrice.toLocaleString()} 💎${listing.gemPrice.toLocaleString()}`;
-                } else if (listing.coinPrice) {
-                    priceText = `🪙${listing.coinPrice.toLocaleString()}`;
-                } else if (listing.gemPrice) {
-                    priceText = `💎${listing.gemPrice.toLocaleString()}`;
-                }
+                const coinPrice = listing.coinPrice || 0;
+                const gemPrice = listing.gemPrice || 0;
+                const priceText = `🪙${formatNumber(coinPrice)} 💎${formatNumber(gemPrice)}`;
+                
                 return {
                     label: listing.fumoName.substring(0, 100),
                     value: `${listing.id}`,

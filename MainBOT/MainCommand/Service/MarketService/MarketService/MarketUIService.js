@@ -12,7 +12,7 @@ async function createMainShopEmbed(userId) {
             `✨ **Welcome to the market!** ✨\n\n` +
             `**🪙 Coin Shop** - Refreshes hourly\n` +
             `**💎 Gem Shop** - Refreshes every 6 hours\n` +
-            `**🌐 Global Shop** - Player marketplace\n`
+            `**🌐 Global Shop** - Player marketplace (requires BOTH coins & gems)\n`
         )
         .setColor('#f5b042')
         .setThumbnail('https://media.tenor.com/rFFZ4WbQq3EAAAAC/fumo.gif');
@@ -98,8 +98,8 @@ function createGlobalShopEmbed(listings, page = 0) {
             groupedListings[key] = {
                 userId: listing.userId,
                 fumoName: listing.fumoName,
-                coinPrice: listing.coinPrice,
-                gemPrice: listing.gemPrice,
+                coinPrice: listing.coinPrice || 0,
+                gemPrice: listing.gemPrice || 0,
                 id: listing.id
             };
         }
@@ -114,6 +114,7 @@ function createGlobalShopEmbed(listings, page = 0) {
         .setTitle("🌐 Global Player Market")
         .setDescription(
             `Player-to-player marketplace\n` +
+            `⚠️ **All purchases require BOTH coins AND gems**\n` +
             `**Tax:** ${(GLOBAL_SHOP_CONFIG.TAX_RATE * 100).toFixed(0)}% on all sales\n` +
             `**Max Listings:** ${GLOBAL_SHOP_CONFIG.MAX_LISTINGS_PER_USER} per player\n`
         )
@@ -123,14 +124,7 @@ function createGlobalShopEmbed(listings, page = 0) {
         embed.addFields({ name: 'No Listings', value: 'No fumos available right now. Check back later!' });
     } else {
         displayListings.forEach((listing) => {
-            let priceText = '';
-            if (listing.coinPrice && listing.gemPrice) {
-                priceText = `🪙 ${formatNumber(listing.coinPrice)} or 💎 ${formatNumber(listing.gemPrice)}`;
-            } else if (listing.coinPrice) {
-                priceText = `🪙 ${formatNumber(listing.coinPrice)}`;
-            } else if (listing.gemPrice) {
-                priceText = `💎 ${formatNumber(listing.gemPrice)}`;
-            }
+            const priceText = `🪙 ${formatNumber(listing.coinPrice)} **AND** 💎 ${formatNumber(listing.gemPrice)}`;
             
             embed.addFields({
                 name: listing.fumoName,
