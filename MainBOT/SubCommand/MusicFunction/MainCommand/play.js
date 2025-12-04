@@ -8,17 +8,17 @@ const trackResolverService = require('../Service/TrackResolverService');
 const streamService = require('../Service/StreamService');
 const votingService = require('../Service/VotingService');
 
-const embedBuilder = require('./Utility/embedBuilder');
-const logger = require('./Utility/logger');
-const validators = require('./Utility/validators');
+const embedBuilder = require('../Utility/embedBuilder');
+const logger = require('../Utility/logger');
+const validators = require('../Utility/validators');
 
 const { checkVoiceChannel, checkVoicePermissions } = require('../Middleware/voiceChannelCheck');
 const interactionHandler = require('../Middleware/interactionHandler');
 
 const { MAX_TRACK_DURATION, CONFIRMATION_TIMEOUT, PLAYBACK_DELAY, MIN_VOTES_REQUIRED } = require('../Configuration/MusicConfig');
 
-const PlaybackController = require('./Controller/PlaybackController');
-const ControlsController = require('./Controller/ControlsController');
+const PlaybackController = require('../Controller/PlaybackController');
+const ControlsController = require('../Controller/ControlsController');
 
 module.exports = {
     data: new SlashCommandBuilder()
