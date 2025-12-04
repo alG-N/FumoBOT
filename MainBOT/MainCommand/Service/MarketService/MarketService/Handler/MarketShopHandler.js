@@ -1,7 +1,7 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
-const { getCoinMarket, getGemMarket } = require('./MarketCacheService');
-const { validateShopPurchase, processShopPurchase } = require('./MarketPurchaseService');
-const { createPurchaseConfirmEmbed, createPurchaseSuccessEmbed, createErrorEmbed } = require('./MarketUIService');
+const { getCoinMarket, getGemMarket } = require('../MarketCacheService');
+const { validateShopPurchase, processShopPurchase } = require('../MarketPurchaseService');
+const { createPurchaseConfirmEmbed, createPurchaseSuccessEmbed, createErrorEmbed } = require('../MarketUIService');
 
 async function handleFumoSelection(interaction, shopType) {
     try {

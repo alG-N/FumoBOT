@@ -1,6 +1,6 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
-const { getCoinMarket, getGemMarket } = require('./MarketCacheService');
-const { getAllGlobalListings } = require('./MarketStorageService');
+const { getCoinMarket, getGemMarket } = require('../MarketCacheService');
+const { getAllGlobalListings } = require('../MarketStorageService');
 const {
     createMainShopEmbed,
     createCoinShopEmbed,
@@ -10,7 +10,7 @@ const {
     createShopSelectMenu,
     createBackButton,
     createGlobalShopButtons
-} = require('./MarketUIService');
+} = require('../MarketUIService');
 
 const CATEGORIES = [
     'Common', 'UNCOMMON', 'RARE', 'EPIC', 'OTHERWORLDLY',

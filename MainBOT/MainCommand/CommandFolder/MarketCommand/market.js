@@ -11,13 +11,13 @@ const {
     handleGlobalShop,
     handleBackToMain,
     handleRefreshGlobal
-} = require('../../Service/MarketService/MarketService/MarketInteractionHandler');
+} = require('../../Service/MarketService/MarketService/Handler/MarketInteractionHandler');
 
 const {
     handleFumoSelection,
     handleConfirmPurchase,
     handleCancelPurchase
-} = require('../../Service/MarketService/MarketService/MarketShopHandler');
+} = require('../../Service/MarketService/MarketService/Handler/MarketShopHandler');
 
 const {
     handleAddListing,
@@ -29,12 +29,12 @@ const {
     handleConfirmListing,
     handleRemoveListing,
     handleRemoveListingSelect
-} = require('../../Service/MarketService/MarketService/MarketListingHandler');
+} = require('../../Service/MarketService/MarketService/Handler/MarketListingHandler');
 
 const {
     handleGlobalPurchaseSelect,
     handleConfirmGlobalPurchase
-} = require('../../Service/MarketService/MarketService/MarketGlobalPurchaseHandler');
+} = require('../../Service/MarketService/MarketService/Handler/MarketGlobalPurchaseHandler');
 
 module.exports = async (client) => {
     client.on('messageCreate', async (message) => {

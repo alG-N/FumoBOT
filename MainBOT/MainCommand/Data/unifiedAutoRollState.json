@@ -1,7 +1,7 @@
 {
   "845274868697661440": {
     "normal": {
-      "rollCount": 1,
+      "rollCount": 3,
       "autoSell": false,
       "startTime": 1764688357647,
       "bestFumo": {
@@ -5130,10 +5130,10 @@
       ]
     },
     "event": {
-      "rollCount": 2,
+      "rollCount": 6,
       "autoSell": false,
       "startTime": 1764764670724,
-      "totalFumosRolled": 52700,
+      "totalFumosRolled": 53400,
       "totalCoinsFromSales": 0,
       "bestFumo": {
         "name": "Go/jo(???)",
@@ -5439,7 +5439,7 @@
   },
   "1421544451897299024": {
     "normal": {
-      "rollCount": 1,
+      "rollCount": 3,
       "autoSell": true,
       "startTime": 1764666068326,
       "bestFumo": {
@@ -5449,7 +5449,7 @@
       },
       "bestFumoAt": "12/4/2025, 1:17:09 AM",
       "bestFumoRoll": 67,
-      "specialFumoCount": 888,
+      "specialFumoCount": 889,
       "specialFumoFirstAt": "12/2/2025, 4:02:08 PM",
       "specialFumoFirstRoll": 2,
       "lowerSpecialFumos": [
@@ -10702,6 +10702,12 @@
           "rarity": "CELESTIAL",
           "roll": 1,
           "time": "12/4/2025, 11:55:43 AM"
+        },
+        {
+          "name": "HyperSakuya(EXCLUSIVE)",
+          "rarity": "EXCLUSIVE",
+          "roll": 2,
+          "time": "12/4/2025, 11:56:43 AM"
         }
       ]
     },
@@ -10973,7 +10979,7 @@
   },
   "1362450043939979378": {
     "normal": {
-      "rollCount": 1,
+      "rollCount": 3,
       "autoSell": true,
       "startTime": 1764678925507,
       "bestFumo": {
@@ -12444,7 +12450,7 @@
   },
   "1128296349566251068": {
     "normal": {
-      "rollCount": 1,
+      "rollCount": 3,
       "autoSell": true,
       "startTime": 1764702472714,
       "bestFumo": {
