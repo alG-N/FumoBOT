@@ -15,12 +15,13 @@ const listingDataCache = new Map();
 
 async function handleAddListing(interaction) {
     try {
+        await interaction.deferReply({ ephemeral: true });
+
         const userListings = await getUserGlobalListings(interaction.user.id);
 
         if (userListings.length >= GLOBAL_SHOP_CONFIG.MAX_LISTINGS_PER_USER) {
-            return interaction.reply({
-                embeds: [createErrorEmbed('MAX_LISTINGS')],
-                ephemeral: true
+            return interaction.editReply({
+                embeds: [createErrorEmbed('MAX_LISTINGS')]
             });
         }
 
@@ -36,17 +37,22 @@ async function handleAddListing(interaction) {
 
         const row = new ActionRowBuilder().addComponents(selectMenu);
 
-        await interaction.reply({
+        await interaction.editReply({
             content: '**Step 1/5:** Select the rarity of your Fumo',
-            components: [row],
-            ephemeral: true
+            components: [row]
         });
     } catch (error) {
         console.error('Add listing error:', error);
-        await interaction.reply({
-            content: '❌ An error occurred.',
-            ephemeral: true
-        });
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({
+                content: '❌ An error occurred.',
+                ephemeral: true
+            }).catch(() => {});
+        } else {
+            await interaction.editReply({
+                content: '❌ An error occurred.'
+            }).catch(() => {});
+        }
     }
 }
 

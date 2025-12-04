@@ -34,7 +34,6 @@ function saveUnifiedAutoRollState(normalAutoRollMap, eventAutoRollMap) {
                     specialFumoCount: state.specialFumoCount || 0,
                     specialFumoFirstAt: state.specialFumoFirstAt || null,
                     specialFumoFirstRoll: state.specialFumoFirstRoll || null,
-                    lowerSpecialFumos: state.lowerSpecialFumos || []
                 };
             }
             
@@ -56,7 +55,6 @@ function saveUnifiedAutoRollState(normalAutoRollMap, eventAutoRollMap) {
                     specialFumoCount: state.specialFumoCount || 0,
                     specialFumoFirstAt: state.specialFumoFirstAt || null,
                     specialFumoFirstRoll: state.specialFumoFirstRoll || null,
-                    specialFumos: state.specialFumos || []
                 };
             }
             
