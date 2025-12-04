@@ -1,7 +1,7 @@
 {
   "1128296349566251068": {
     "normal": {
-      "rollCount": 2,
+      "rollCount": 1,
       "autoSell": true,
       "startTime": 1764840683301,
       "bestFumo": {
@@ -11,7 +11,7 @@
       },
       "bestFumoAt": "12/4/2025, 5:03:15 PM",
       "bestFumoRoll": 1,
-      "specialFumoCount": 16,
+      "specialFumoCount": 25,
       "specialFumoFirstAt": "12/4/2025, 4:33:38 PM",
       "specialFumoFirstRoll": 3
     },
@@ -19,8 +19,8 @@
       "rollCount": 1,
       "autoSell": true,
       "startTime": 1764825059334,
-      "totalFumosRolled": 48800,
-      "totalCoinsFromSales": 33550,
+      "totalFumosRolled": 48900,
+      "totalCoinsFromSales": 33150,
       "bestFumo": {
         "name": "Go/jo(???)",
         "rarity": "???",
@@ -35,25 +35,25 @@
   },
   "845274868697661440": {
     "normal": {
-      "rollCount": 2,
+      "rollCount": 1,
       "autoSell": false,
       "startTime": 1764843147297,
       "bestFumo": {
-        "name": "Cheshire(ASTRAL)",
-        "rarity": "ASTRAL",
-        "picture": "https://images.tokopedia.net/img/cache/500-square/VqbcmM/2024/2/25/932b310d-4256-42bc-abf7-c7d83869ee0c.jpg"
+        "name": "Mostima(CELESTIAL)",
+        "rarity": "CELESTIAL",
+        "picture": "https://media.discordapp.net/attachments/1372426801472737280/1372427631877685389/mostima-fumo-mostimo-v0-httirpx8ghhb1.png?ex=6826bc55&is=68256ad5&hm=e9511d6de0f908e22eedeb4ab965753e76446ed39a3bdb9ac4af7ef099c62dd6&=&format=webp&quality=lossless&width=1429&height=800"
       },
-      "bestFumoAt": "12/4/2025, 5:18:27 PM",
-      "bestFumoRoll": 4,
-      "specialFumoCount": 6,
+      "bestFumoAt": "12/4/2025, 5:43:06 PM",
+      "bestFumoRoll": 3,
+      "specialFumoCount": 16,
       "specialFumoFirstAt": "12/4/2025, 5:13:27 PM",
       "specialFumoFirstRoll": 2
     },
     "event": {
-      "rollCount": 4,
+      "rollCount": 1,
       "autoSell": false,
       "startTime": 1764843154573,
-      "totalFumosRolled": 2600,
+      "totalFumosRolled": 6200,
       "totalCoinsFromSales": 0,
       "bestFumo": {
         "name": "Go/jo(???)",
@@ -62,7 +62,7 @@
       },
       "bestFumoAt": "12/4/2025, 5:16:58 PM",
       "bestFumoRoll": 4,
-      "specialFumoCount": 3,
+      "specialFumoCount": 5,
       "specialFumoFirstAt": "12/4/2025, 5:16:58 PM",
       "specialFumoFirstRoll": 4
     }

@@ -5,7 +5,7 @@ class LavalinkService {
     constructor() {
         this.shoukaku = null;
         this.client = null;
-        this.players = new Map();
+        this.isReady = false;
     }
 
     initialize(client) {
@@ -15,7 +15,7 @@ class LavalinkService {
             throw new Error('Invalid lavalinkConfig: nodes must be an array with at least one node');
         }
 
-        // Convert config to Shoukaku format
+        // Prepare nodes in Shoukaku v4 format
         const nodes = lavalinkConfig.nodes.map(node => ({
             name: node.id,
             url: `${node.host}:${node.port}`,
@@ -23,8 +23,9 @@ class LavalinkService {
             secure: node.secure || false
         }));
 
-        console.log('[Lavalink] Initializing Shoukaku with nodes:', JSON.stringify(nodes, null, 2));
+        console.log('[Lavalink] Initializing Shoukaku v4 with nodes:', JSON.stringify(nodes, null, 2));
 
+        // Create Shoukaku instance with nodes directly in constructor
         this.shoukaku = new Shoukaku(
             new Connectors.DiscordJS(client),
             nodes,
@@ -36,28 +37,31 @@ class LavalinkService {
                 resume: false,
                 resumeTimeout: 30,
                 resumeByLibrary: false,
-                userAgent: 'MusicBot/1.0.0',
-                structures: {
-                    // Custom player structure can be added here if needed
-                }
+                userAgent: 'MusicBot/1.0.0'
             }
         );
 
+        console.log('[Lavalink] Shoukaku instance created');
+        console.log('[Lavalink] Nodes registered:', this.shoukaku.nodes.size);
+
         // Event handlers
         this.shoukaku.on('ready', (name) => {
-            console.log(`[Lavalink] ✅ Node ${name} is ready`);
+            console.log(`[Lavalink] ✅ Node ${name} is ready and connected`);
+            this.isReady = true;
         });
 
         this.shoukaku.on('error', (name, error) => {
-            console.error(`[Lavalink] ❌ Node ${name} error:`, error.message);
+            console.error(`[Lavalink] ❌ Node ${name} error:`, error);
         });
 
         this.shoukaku.on('close', (name, code, reason) => {
             console.log(`[Lavalink] 🔌 Node ${name} closed: ${code} - ${reason}`);
+            this.isReady = false;
         });
 
         this.shoukaku.on('disconnect', (name, count) => {
             console.log(`[Lavalink] ⚠️ Node ${name} disconnected (${count} players affected)`);
+            this.isReady = false;
         });
 
         this.shoukaku.on('reconnecting', (name, tries) => {
@@ -65,8 +69,7 @@ class LavalinkService {
         });
 
         this.shoukaku.on('debug', (name, info) => {
-            // Uncomment for verbose debugging
-            // console.log(`[Lavalink] 🐛 Node ${name}:`, info);
+            console.log(`[Lavalink] 🐛 Node ${name}:`, info);
         });
 
         return this.shoukaku;
@@ -80,22 +83,28 @@ class LavalinkService {
         if (!this.shoukaku) {
             throw new Error('Shoukaku not initialized');
         }
-        console.log('[Lavalink] ✅ Shoukaku initialized and ready for connections');
+        console.log('[Lavalink] ✅ Shoukaku initialized, waiting for node connection...');
     }
 
     getPlayer(guildId) {
+        if (!this.isReady) {
+            return null;
+        }
         return this.shoukaku.players.get(guildId);
     }
 
     async createPlayer(guildId, voiceChannelId, textChannelId) {
-        // Get the best node
-        const node = this.shoukaku.getIdealNode();
+        if (!this.isReady) {
+            throw new Error('Lavalink is not ready yet. Please wait a moment and try again.');
+        }
+
+        // Get node using Shoukaku's node resolver
+        const node = this.shoukaku.options.nodeResolver(this.shoukaku.nodes);
         
         if (!node) {
             throw new Error('No available Lavalink nodes');
         }
 
-        // Create player
         const player = await node.joinChannel({
             guildId: guildId,
             channelId: voiceChannelId,
@@ -104,87 +113,30 @@ class LavalinkService {
             mute: lavalinkConfig.playerOptions.selfMute
         });
 
-        // Set initial volume
         await player.setGlobalVolume(lavalinkConfig.playerOptions.volume);
 
-        // Store player reference
-        this.players.set(guildId, {
-            player: player,
-            textChannelId: textChannelId,
-            queue: [],
-            current: null,
-            loop: false,
-            volume: lavalinkConfig.playerOptions.volume
-        });
-
-        // Setup player events
-        this.setupPlayerEvents(player, guildId);
-
         return player;
-    }
-
-    setupPlayerEvents(player, guildId) {
-        player.on('start', () => {
-            console.log(`[Lavalink] ▶️ Track started in guild ${guildId}`);
-        });
-
-        player.on('end', (data) => {
-            console.log(`[Lavalink] ⏹️ Track ended in guild ${guildId}:`, data.reason);
-            
-            const playerData = this.players.get(guildId);
-            if (!playerData) return;
-
-            // Handle looping
-            if (playerData.loop && playerData.current) {
-                player.playTrack({ track: { encoded: playerData.current.encoded } });
-                return;
-            }
-
-            // Play next track
-            if (playerData.queue.length > 0) {
-                const nextTrack = playerData.queue.shift();
-                playerData.current = nextTrack;
-                player.playTrack({ track: { encoded: nextTrack.encoded } });
-            } else {
-                playerData.current = null;
-            }
-        });
-
-        player.on('closed', (data) => {
-            console.log(`[Lavalink] 🔌 Player closed in guild ${guildId}:`, data);
-        });
-
-        player.on('exception', (data) => {
-            console.error(`[Lavalink] ❌ Player exception in guild ${guildId}:`, data);
-        });
-
-        player.on('stuck', (data) => {
-            console.warn(`[Lavalink] ⚠️ Track stuck in guild ${guildId}:`, data);
-            // Skip stuck track
-            player.stopTrack();
-        });
-
-        player.on('resumed', () => {
-            console.log(`[Lavalink] ▶️ Player resumed in guild ${guildId}`);
-        });
     }
 
     destroyPlayer(guildId) {
         const player = this.getPlayer(guildId);
         if (player) {
             player.connection.disconnect();
-            this.players.delete(guildId);
         }
     }
 
     async search(query, requester) {
+        if (!this.isReady) {
+            throw new Error('Lavalink is not ready yet. Please wait a moment and try again.');
+        }
+
         let searchQuery = query;
         
         if (!/^https?:\/\//.test(query)) {
             searchQuery = `${lavalinkConfig.defaultSearchPlatform}:${query}`;
         }
 
-        const node = this.shoukaku.getIdealNode();
+        const node = this.shoukaku.options.nodeResolver(this.shoukaku.nodes);
         if (!node) {
             throw new Error('No available Lavalink nodes');
         }
@@ -199,7 +151,6 @@ class LavalinkService {
             throw new Error('LOAD_FAILED');
         }
 
-        // Handle different load types
         let tracks = [];
         if (result.loadType === 'track') {
             tracks = [result.data];
@@ -224,60 +175,6 @@ class LavalinkService {
             requestedBy: requester,
             source: track.info.sourceName || 'YouTube'
         };
-    }
-
-    // Helper methods for queue management
-    getPlayerData(guildId) {
-        return this.players.get(guildId);
-    }
-
-    addToQueue(guildId, track) {
-        const playerData = this.players.get(guildId);
-        if (playerData) {
-            playerData.queue.push(track);
-            return playerData.queue.length;
-        }
-        return 0;
-    }
-
-    setCurrentTrack(guildId, track) {
-        const playerData = this.players.get(guildId);
-        if (playerData) {
-            playerData.current = track;
-        }
-    }
-
-    getCurrentTrack(guildId) {
-        const playerData = this.players.get(guildId);
-        return playerData?.current || null;
-    }
-
-    getQueue(guildId) {
-        const playerData = this.players.get(guildId);
-        return playerData?.queue || [];
-    }
-
-    setLoop(guildId, enabled) {
-        const playerData = this.players.get(guildId);
-        if (playerData) {
-            playerData.loop = enabled;
-            return enabled;
-        }
-        return false;
-    }
-
-    isLooping(guildId) {
-        const playerData = this.players.get(guildId);
-        return playerData?.loop || false;
-    }
-
-    toggleLoop(guildId) {
-        const playerData = this.players.get(guildId);
-        if (playerData) {
-            playerData.loop = !playerData.loop;
-            return playerData.loop;
-        }
-        return false;
     }
 }
 

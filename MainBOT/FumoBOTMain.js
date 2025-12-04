@@ -1,4 +1,4 @@
-const { Collection, Client } = require('discord.js');
+const { Collection } = require('discord.js');
 const { createClient, setPresence, ActivityType } = require('./MainCommand/Configuration/discord');
 const fs = require('fs');
 const path = require('path');
@@ -17,10 +17,10 @@ const { initializePetSystems } = require('./MainCommand/CommandFolder/PetCommand
 const { initializeShop } = require('./MainCommand/Service/MarketService/EggShopService/EggShopCacheService');
 
 // SEASON MODULES
-const { initializeSeasonSystem } = require('./MainCommand/Service/FarmingService/SeasonService/SeasonManagerService')
+const { initializeSeasonSystem } = require('./MainCommand/Service/FarmingService/SeasonService/SeasonManagerService');
 
 // AUTO-ROLL PERSISTENCE MODULE
-const { restoreAutoRolls, shutdownAutoRolls } = require('./MainCommand/Service/GachaService/NormalGachaService/CrateAutoRollService');
+const { shutdownAutoRolls } = require('./MainCommand/Service/GachaService/NormalGachaService/CrateAutoRollService');
 const FumoPool = require('./MainCommand/Data/FumoPool');
 const { LOG_CHANNEL_ID } = require('./MainCommand/Core/logger');
 
@@ -35,12 +35,12 @@ const { registerCodeRedemption } = require('./MainCommand/CommandFolder/UserData
 // INITIALIZE SHARD
 const initializeShardHandler = require('./MainCommand/Service/UserDataService/UseService/ShardInteractionHandler');
 
+// LAVALINK MUSIC - CRITICAL: Must be initialized BEFORE client login
+const lavalinkService = require('./SubCommand/MusicFunction/Service/LavalinkService');
+
 // MAINTENANCE CONFIG
 const { maintenance, developerID } = require("./MainCommand/Configuration/maintenanceConfig");
 console.log(`Maintenance mode is currently: ${maintenance}`);
-
-// LAVALINK MUSIC
-const lavalinkService = require('./SubCommand/MusicFunction/Service/LavalinkService');
 
 // CLIENT INITIALIZATION
 const client = createClient();
@@ -52,7 +52,7 @@ function loadCommandsRecursively(directory, depth = 0) {
     const items = fs.readdirSync(directory, { withFileTypes: true });
     for (const item of items) {
         const fullPath = path.join(directory, item.name);
-        
+
         if (item.isDirectory()) {
             loadCommandsRecursively(fullPath, depth + 1);
         } else if (item.isFile() && item.name.endsWith('.js')) {
@@ -113,11 +113,45 @@ const endFarm = require('./MainCommand/CommandFolder/FarmingCommand/EndFarm');
 const farmCheck = require('./MainCommand/CommandFolder/FarmingCommand/FarmCheck');
 const farmInfo = require('./MainCommand/CommandFolder/FarmingCommand/FarmInfo');
 const InitializeFarming = require('./MainCommand/CommandFolder/FarmingCommand/InitializeFarming');
-const trade = require('./MainCommand/CommandFolder/TradeCommand/trade')
+const trade = require('./MainCommand/CommandFolder/TradeCommand/trade');
+
+// MESSAGE EVENT HANDLERS
+const anime = require('./SubCommand/API-Website/Anime/anime');
+const afk = require('./SubCommand/BasicCommand/afk');
+const reddit = require('./SubCommand/API-Website/Reddit/reddit');
+const pixiv = require('./SubCommand/API-Website/Pixiv/pixiv');
+const steam = require('./SubCommand/API-Website/Steam/steam');
+
+// Manually load API commands
+if (reddit && reddit.data && reddit.data.name) {
+    client.commands.set(reddit.data.name, reddit);
+    console.log('✅ Manually loaded reddit command');
+}
+
+if (pixiv && pixiv.data && pixiv.data.name) {
+    client.commands.set(pixiv.data.name, pixiv);
+    console.log('✅ Manually loaded pixiv command');
+}
+
+if (steam && steam.data && steam.data.name) {
+    client.commands.set(steam.data.name, steam);
+    console.log('✅ Manually loaded steam command');
+}
+
+// CRITICAL: Initialize Lavalink BEFORE client login
+console.log('[Lavalink] Pre-initializing Shoukaku (before client login)...');
+try {
+    lavalinkService.initialize(client);
+    console.log('[Lavalink] Shoukaku pre-initialized successfully');
+} catch (error) {
+    console.error('[Lavalink] Failed to pre-initialize:', error);
+}
 
 // BOT READY EVENT
 client.once('ready', async () => {
     console.log(`✅ Logged in as ${client.user.tag}, status set to: Playing .help and .starter`);
+    
+    // Initialize core systems
     initializeDatabase();
     startIncomeSystem();
     scheduleBackups(client);
@@ -127,9 +161,30 @@ client.once('ready', async () => {
     initializeSeasonSystem(client);
     initializeShop();
     initializeShardHandler(client);
-    lavalinkService.initialize(client);
-    await lavalinkService.connect();
-    console.log('Lavalink connected and ready!');
+
+    // Restore auto-roll systems
+    await restoreAutoRollSystems(client);
+
+    console.log('🚀 Bot is fully operational!');
+    
+    // Test Lavalink connection after bot is ready
+    setTimeout(() => {
+        const manager = lavalinkService.getManager();
+        if (manager && manager.nodes.size > 0) {
+            const node = manager.options.nodeResolver(manager.nodes);
+            if (node) {
+                console.log('[Lavalink] ✅ Node connected:', node.name);
+            } else {
+                console.log('[Lavalink] ⚠️ Node registered but not connected yet');
+            }
+        } else {
+            console.log('[Lavalink] ❌ No nodes registered');
+        }
+    }, 3000);
+});
+
+// ===== AUTO-ROLL RESTORATION FUNCTION =====
+async function restoreAutoRollSystems(client) {
     try {
         console.log('🔄 Checking for auto-rolls to restore...');
         const crateFumos = FumoPool.getForCrate();
@@ -150,9 +205,10 @@ client.once('ready', async () => {
 
         if (allUserIds.length === 0) {
             console.log('ℹ️ No auto-rolls to restore');
-        } else {
-            console.log(`🔄 Found ${allUserIds.length} user(s) with active auto-rolls to restore`);
+            return;
         }
+
+        console.log(`🔄 Found ${allUserIds.length} user(s) with active auto-rolls to restore`);
 
         const results = {
             normal: { restored: 0, failed: 0 },
@@ -162,6 +218,7 @@ client.once('ready', async () => {
         const normalStates = new Map();
         const eventStates = new Map();
 
+        // Restore normal auto-rolls
         const normalResult = await restoreNormalAutoRolls(
             client,
             crateFumos,
@@ -169,18 +226,21 @@ client.once('ready', async () => {
         );
         results.normal = normalResult;
 
+        // Restore event auto-rolls
         const eventResult = await restoreEventAutoRolls(
             client,
             { notifyUsers: false, logChannelId: null }
         );
         results.event = eventResult;
 
+        // Get active auto-roll maps
         const { getAutoRollMap } = require('./MainCommand/Service/GachaService/NormalGachaService/CrateAutoRollService');
         const { getEventAutoRollMap } = require('./MainCommand/Service/GachaService/EventGachaService/EventAutoRollService');
 
         const activeNormalMap = getAutoRollMap();
         const activeEventMap = getEventAutoRollMap();
 
+        // Populate state maps
         for (const userId of allUserIds) {
             const userState = unifiedState[userId];
 
@@ -193,6 +253,7 @@ client.once('ready', async () => {
             }
         }
 
+        // Notify users
         for (const userId of allUserIds) {
             const hasNormal = normalStates.has(userId);
             const hasEvent = eventStates.has(userId);
@@ -213,6 +274,7 @@ client.once('ready', async () => {
 
         await sendUnifiedRestorationSummary(client, results, LOG_CHANNEL_ID);
 
+        // Register details button handler
         const detailsButtonHandler = async (interaction) => {
             if (!interaction.isButton()) return;
 
@@ -241,11 +303,9 @@ client.once('ready', async () => {
     } catch (error) {
         console.error('❌ Error during auto-roll restoration:', error);
     }
+}
 
-    console.log('🚀 Bot is fully operational!');
-});
-
-// REGISTER ALL GAME COMMANDS
+// ===== REGISTER GAME COMMANDS =====
 gacha(client);
 Egacha(client);
 starter(client);
@@ -292,38 +352,40 @@ registerBanSystem(client, developerID);
 registerTicketSystem(client);
 registerCodeRedemption(client);
 
-// INTERACTION HANDLER
+// ===== INTERACTION HANDLER =====
 client.on('interactionCreate', async interaction => {
+    // Handle button interactions
     if (interaction.isButton()) {
         console.log('🔘 Button interaction received:', interaction.customId);
-        
-        const { 
+
+        const {
             handleDisableNotificationButton,
             handleConfirmDisableNotification,
             handleCancelDisableNotification,
             handleEnableNotification
         } = require('./MainCommand/Service/GachaService/NotificationButtonsService');
-        
+
         if (interaction.customId.startsWith('disableNotification_')) {
             await handleDisableNotificationButton(interaction);
             return;
         }
-        
+
         if (interaction.customId.startsWith('confirmDisableNotif_')) {
             await handleConfirmDisableNotification(interaction);
             return;
         }
-        
+
         if (interaction.customId.startsWith('cancelDisableNotif_')) {
             await handleCancelDisableNotification(interaction);
             return;
         }
-        
+
         if (interaction.customId.startsWith('enableNotification_')) {
             await handleEnableNotification(interaction);
             return;
         }
-        
+
+        // Reddit button handler
         if (interaction.customId.startsWith('show_post_') ||
             interaction.customId.startsWith('gallery_') ||
             interaction.customId.startsWith('back_to_list_') ||
@@ -335,20 +397,13 @@ client.on('interactionCreate', async interaction => {
                     await redditCommand.handleButton(interaction);
                 } catch (error) {
                     console.error('Reddit button handler error:', error);
-                    try {
-                        if (!interaction.replied && !interaction.deferred) {
-                            await interaction.reply({ content: 'There was an error processing this button!', ephemeral: true });
-                        }
-                    } catch (e) {
-                        console.error('Failed to send error message:', e);
-                    }
+                    await safeReply(interaction, 'There was an error processing this button!');
                 }
-            } else {
-                console.error('Reddit command or handleButton not found');
             }
             return;
         }
 
+        // Pixiv button handler
         if (interaction.customId.startsWith('pixiv_')) {
             const pixivCommand = client.commands.get('pixiv');
             if (pixivCommand && pixivCommand.handleButton) {
@@ -356,16 +411,8 @@ client.on('interactionCreate', async interaction => {
                     await pixivCommand.handleButton(interaction);
                 } catch (error) {
                     console.error('Pixiv button handler error:', error);
-                    try {
-                        if (!interaction.replied && !interaction.deferred) {
-                            await interaction.reply({ content: 'There was an error processing this button!', ephemeral: true });
-                        }
-                    } catch (e) {
-                        console.error('Failed to send error message:', e);
-                    }
+                    await safeReply(interaction, 'There was an error processing this button!');
                 }
-            } else {
-                console.error('Pixiv command or handleButton not found');
             }
             return;
         }
@@ -373,22 +420,14 @@ client.on('interactionCreate', async interaction => {
         return;
     }
 
+    // Handle slash commands
     if (interaction.isChatInputCommand()) {
         console.log(`🎮 Command received: /${interaction.commandName} from ${interaction.user.tag}`);
-        
+
         const command = client.commands.get(interaction.commandName);
         if (!command) {
-            console.error(`❌ Command not found in collection: ${interaction.commandName}`);
-            console.log(`Available commands: ${Array.from(client.commands.keys()).join(', ')}`);
-            
-            try {
-                await interaction.reply({ 
-                    content: '❌ This command is not available. The bot may need to restart.', 
-                    ephemeral: true 
-                });
-            } catch (e) {
-                console.error('Failed to send command not found message:', e);
-            }
+            console.error(`❌ Command not found: ${interaction.commandName}`);
+            await safeReply(interaction, '❌ This command is not available. The bot may need to restart.');
             return;
         }
 
@@ -396,19 +435,12 @@ client.on('interactionCreate', async interaction => {
             await command.execute(interaction);
         } catch (error) {
             console.error(`❌ Error executing ${interaction.commandName}:`, error);
-            try {
-                if (interaction.replied || interaction.deferred) {
-                    await interaction.followUp({ content: 'There was an error executing this command!', ephemeral: true });
-                } else {
-                    await interaction.reply({ content: 'There was an error executing this command!', ephemeral: true });
-                }
-            } catch (e) {
-                console.error('Failed to send error message:', e);
-            }
+            await safeReply(interaction, 'There was an error executing this command!');
         }
         return;
     }
 
+    // Handle autocomplete
     if (interaction.isAutocomplete()) {
         const command = client.commands.get(interaction.commandName);
 
@@ -423,37 +455,26 @@ client.on('interactionCreate', async interaction => {
     }
 });
 
+// Helper function for safe replies
+async function safeReply(interaction, content) {
+    try {
+        if (interaction.replied || interaction.deferred) {
+            await interaction.followUp({ content, ephemeral: true });
+        } else {
+            await interaction.reply({ content, ephemeral: true });
+        }
+    } catch (error) {
+        console.error('Failed to send error message:', error);
+    }
+}
+
 // MESSAGE EVENT HANDLERS
-const anime = require('./SubCommand/API-Website/Anime/anime');
-const afk = require('./SubCommand/BasicCommand/afk');
-const reddit = require('./SubCommand/API-Website/Reddit/reddit');
-const pixiv = require('./SubCommand/API-Website/Pixiv/pixiv');
-const steam = require('./SubCommand/API-Website/Steam/steam');
-
-if (reddit && reddit.data && reddit.data.name) {
-    client.commands.set(reddit.data.name, reddit);
-    console.log('✅ Manually loaded reddit command');
-}
-
-if (pixiv && pixiv.data && pixiv.data.name) {
-    client.commands.set(pixiv.data.name, pixiv);
-    console.log('✅ Manually loaded pixiv command');
-}
-
-if (steam && steam.data && steam.data.name) {
-    client.commands.set(steam.data.name, steam);
-    console.log('✅ Manually loaded steam command');
-}
-
 client.on('messageCreate', message => {
     afk.onMessage(message, client);
-});
-
-client.on('messageCreate', message => {
     anime.onMessage(message, client);
 });
 
-// GRACEFUL SHUTDOWN HANDLERS
+// ===== GRACEFUL SHUTDOWN HANDLERS =====
 process.on('SIGINT', handleShutdown);
 process.on('SIGTERM', handleShutdown);
 process.on('uncaughtException', handleCrash);
@@ -486,6 +507,7 @@ function handleCrash(error) {
     process.exit(1);
 }
 
-// BOT LOGIN
+// BOT LOGIN - This must be at the very end
 client.login(process.env.BOT_TOKEN);
-// created by alterGolden || golden_exist
+
+// Created by alterGolden || golden_exist

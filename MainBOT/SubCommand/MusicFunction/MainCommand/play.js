@@ -26,6 +26,14 @@ module.exports = {
     async execute(interaction) {
         logger.log(`Command invoked by ${interaction.user.tag} (${interaction.user.id})`, interaction);
 
+        // Check if Lavalink is ready
+        if (!lavalinkService.isReady) {
+            return interaction.reply({
+                embeds: [embedBuilder.buildErrorEmbed("⏳ Music system is starting up. Please try again in a few seconds.")],
+                ephemeral: true
+            });
+        }
+
         if (!await checkVoiceChannel(interaction)) return;
         if (!await checkVoicePermissions(interaction)) return;
 
@@ -42,6 +50,7 @@ module.exports = {
         } catch (e) {
             let msg = "Could not fetch video info. Make sure it's a valid YouTube URL or search query.";
             if (e.message === "NO_RESULTS") msg = "No results found for your search.";
+            if (e.message.includes("not ready")) msg = "⏳ Music system is still starting up. Please try again in a moment.";
             logger.error(`Track resolve error: ${e.message}`, interaction);
             return interaction.editReply({
                 embeds: [embedBuilder.buildErrorEmbed(msg)],
@@ -56,7 +65,7 @@ module.exports = {
         try {
             logger.log(`Ensuring connection`, interaction);
             await voiceService.connect(interaction, guildId);
-            
+
             voiceService.monitorVoiceChannel(guildId, interaction.channel, async (gid) => {
                 await queueService.cleanup(gid);
                 await interaction.channel.send({ embeds: [embedBuilder.buildNoUserVCEmbed()] });
@@ -75,16 +84,16 @@ module.exports = {
         }
 
         const player = lavalinkService.getPlayer(guildId);
-        
+
         player.queue.add(trackData.track);
-        
+
         const position = player.queue.size;
-        
+
         const queuedEmbed = embedBuilder.buildQueuedEmbed(trackData, position, interaction.user);
         await interaction.editReply({ embeds: [queuedEmbed], components: [] });
 
         const queue = queueService.getOrCreateQueue(guildId);
-        
+
         if (!queue._eventsBound) {
             PlaybackController.bindPlayerEvents(guildId, interaction);
         }
@@ -96,7 +105,7 @@ module.exports = {
 
     async handleLongTrackConfirmation(interaction, track) {
         logger.log(`Long video detected: ${track.title} (${track.lengthSeconds}s)`, interaction);
-        
+
         const confirmRow = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId("confirm_yes").setLabel("Yes").setStyle(ButtonStyle.Success),
             new ButtonBuilder().setCustomId("confirm_no").setLabel("No").setStyle(ButtonStyle.Danger)
@@ -112,9 +121,9 @@ module.exports = {
             ["confirm_yes", "confirm_no"].includes(i.customId);
 
         try {
-            const btnInt = await interaction.channel.awaitMessageComponent({ 
-                filter, 
-                time: CONFIRMATION_TIMEOUT 
+            const btnInt = await interaction.channel.awaitMessageComponent({
+                filter,
+                time: CONFIRMATION_TIMEOUT
             });
 
             logger.log(`Confirmation button pressed: ${btnInt.customId}`, interaction);
