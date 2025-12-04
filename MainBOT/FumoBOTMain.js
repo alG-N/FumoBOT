@@ -19,7 +19,7 @@ const { initializeShop } = require('./MainCommand/Service/MarketService/EggShopS
 // SEASON MODULES
 const { initializeSeasonSystem } = require('./MainCommand/Service/FarmingService/SeasonService/SeasonManagerService')
 
-// AUTO-ROLL PERSISTENCE MODULE - NEW
+// AUTO-ROLL PERSISTENCE MODULE
 const { restoreAutoRolls, shutdownAutoRolls } = require('./MainCommand/Service/GachaService/NormalGachaService/CrateAutoRollService');
 const FumoPool = require('./MainCommand/Data/FumoPool');
 const { LOG_CHANNEL_ID } = require('./MainCommand/Core/logger');
@@ -39,22 +39,23 @@ const initializeShardHandler = require('./MainCommand/Service/UserDataService/Us
 const { maintenance, developerID } = require("./MainCommand/Configuration/maintenanceConfig");
 console.log(`Maintenance mode is currently: ${maintenance}`);
 
-// CLIENT INITIALIZATION - Now using the discord.js config
+// CLIENT INITIALIZATION
 const client = createClient();
 client.commands = new Collection();
 
-// LOAD SLASH COMMANDS
+// LOAD SLASH COMMANDS - REMOVED MainMusic.js FILTER
 const commandFolders = fs.readdirSync(path.join(__dirname, 'SubCommand'));
 for (const folder of commandFolders) {
     const commandFiles = fs.readdirSync(path.join(__dirname, 'SubCommand', folder))
-        .filter(file => file.endsWith('.js') && file !== 'MainMusic.js');
+        .filter(file => file.endsWith('.js'));
 
     for (const file of commandFiles) {
         const command = require(path.join(__dirname, 'SubCommand', folder, file));
         if (command && command.data && command.data.name) {
             client.commands.set(command.data.name, command);
+            console.log(`✅ Loaded command: ${command.data.name} from ${folder}/${file}`);
         } else {
-            console.warn(`Command in file ${file} is missing 'data' or 'data.name' property.`);
+            console.warn(`⚠️ Command in file ${file} is missing 'data' or 'data.name' property.`);
         }
     }
 }
@@ -103,7 +104,6 @@ const trade = require('./MainCommand/CommandFolder/TradeCommand/trade')
 // OTHER FUN COMMANDS
 const anime = require('./SubCommand/API-Website/Anime/anime');
 const afk = require('./SubCommand/BasicCommand/afk');
-const musicCommands = require('./SubCommand/MusicFunction/MainMusic');
 const reddit = require('./SubCommand/API-Website/Reddit/reddit');
 const pixiv = require('./SubCommand/API-Website/Pixiv/pixiv');
 const steam = require('./SubCommand/API-Website/Steam/steam');
@@ -423,8 +423,6 @@ client.on('messageCreate', message => {
     anime.onMessage(message, client);
 });
 
-// MUSIC COMMANDS
-musicCommands(client);
 
 // GRACEFUL SHUTDOWN HANDLERS
 process.on('SIGINT', handleShutdown);
