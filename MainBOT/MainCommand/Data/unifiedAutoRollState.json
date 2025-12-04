@@ -1,26 +1,26 @@
 {
   "1128296349566251068": {
     "normal": {
-      "rollCount": 31,
+      "rollCount": 2,
       "autoSell": true,
       "startTime": 1764840683301,
       "bestFumo": {
-        "name": "Mostima(CELESTIAL)",
-        "rarity": "CELESTIAL",
-        "picture": "https://media.discordapp.net/attachments/1372426801472737280/1372427631877685389/mostima-fumo-mostimo-v0-httirpx8ghhb1.png?ex=6826bc55&is=68256ad5&hm=e9511d6de0f908e22eedeb4ab965753e76446ed39a3bdb9ac4af7ef099c62dd6&=&format=webp&quality=lossless&width=1429&height=800"
+        "name": "Rinnosuke(TRANSCENDENT)",
+        "rarity": "TRANSCENDENT",
+        "picture": "https://img1.picmix.com/output/stamp/normal/6/1/0/7/2577016_a2c58.png"
       },
-      "bestFumoAt": "12/4/2025, 4:51:39 PM",
-      "bestFumoRoll": 21,
-      "specialFumoCount": 12,
+      "bestFumoAt": "12/4/2025, 5:03:15 PM",
+      "bestFumoRoll": 1,
+      "specialFumoCount": 14,
       "specialFumoFirstAt": "12/4/2025, 4:33:38 PM",
       "specialFumoFirstRoll": 3
     },
     "event": {
-      "rollCount": 8,
+      "rollCount": 1,
       "autoSell": true,
       "startTime": 1764825059334,
-      "totalFumosRolled": 48700,
-      "totalCoinsFromSales": 311800,
+      "totalFumosRolled": 48800,
+      "totalCoinsFromSales": 33550,
       "bestFumo": {
         "name": "Go/jo(???)",
         "rarity": "???",
@@ -31,6 +31,40 @@
       "specialFumoCount": 19,
       "specialFumoFirstAt": "12/4/2025, 12:43:30 PM",
       "specialFumoFirstRoll": 36
+    }
+  },
+  "845274868697661440": {
+    "normal": {
+      "rollCount": 2,
+      "autoSell": false,
+      "startTime": 1764843147297,
+      "bestFumo": {
+        "name": "GawrGura(???)",
+        "rarity": "???",
+        "picture": "https://pbs.twimg.com/media/FNjhm89X0AEtPcU.jpg"
+      },
+      "bestFumoAt": "12/4/2025, 5:16:27 PM",
+      "bestFumoRoll": 2,
+      "specialFumoCount": 2,
+      "specialFumoFirstAt": "12/4/2025, 5:13:27 PM",
+      "specialFumoFirstRoll": 2
+    },
+    "event": {
+      "rollCount": 3,
+      "autoSell": false,
+      "startTime": 1764843154573,
+      "totalFumosRolled": 800,
+      "totalCoinsFromSales": 0,
+      "bestFumo": {
+        "name": "OneShotCurse(MYTHICAL)",
+        "rarity": "MYTHICAL",
+        "picture": "https://animeislandca.com/cdn/shop/files/jujutsu-kaisen-kyurumaru-mahito-big-plush-toy-anime-island-ca.png?v=1692739157&width=1445"
+      },
+      "bestFumoAt": "12/4/2025, 5:12:34 PM",
+      "bestFumoRoll": 1,
+      "specialFumoCount": 0,
+      "specialFumoFirstAt": null,
+      "specialFumoFirstRoll": null
     }
   }
 }
