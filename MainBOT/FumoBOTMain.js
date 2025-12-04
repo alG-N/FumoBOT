@@ -138,45 +138,55 @@ if (steam && steam.data && steam.data.name) {
     console.log('✅ Manually loaded steam command');
 }
 
-// CRITICAL: Initialize Lavalink BEFORE client login
-console.log('[Lavalink] Pre-initializing Shoukaku (before client login)...');
-try {
-    lavalinkService.initialize(client);
-    console.log('[Lavalink] Shoukaku pre-initialized successfully');
-} catch (error) {
-    console.error('[Lavalink] Failed to pre-initialize:', error);
-}
+// BOT LOGIN - Do this BEFORE initializing Lavalink
+client.login(process.env.BOT_TOKEN);
 
 // BOT READY EVENT
 client.once('ready', async () => {
-    console.log(`✅ Logged in as ${client.user.tag}, status set to: Playing .help and .starter`);
+    console.log(`✅ Logged in as ${client.user.tag}`);
     
-    // Wait for Lavalink nodes to connect
-    console.log('[Lavalink] Waiting for nodes to connect...');
+    // NOW initialize Lavalink AFTER Discord is ready
+    console.log('[Lavalink] Initializing Shoukaku after client ready...');
+    try {
+        lavalinkService.initialize(client);
+        console.log('[Lavalink] Shoukaku initialized - nodes will connect shortly');
+    } catch (error) {
+        console.error('[Lavalink] Failed to initialize:', error);
+    }
+    
+    // Wait for nodes to be added and connect
+    console.log('[Lavalink] Waiting for nodes to register and connect...');
     await new Promise(resolve => setTimeout(resolve, 5000));
     
     const manager = lavalinkService.getManager();
-    const connectionStatus = lavalinkService.getConnectionStatus();
-    
-    console.log('[Lavalink] Connection status:', connectionStatus);
-    
-    if (manager && manager.nodes.size > 0) {
-        const connectedNodes = Array.from(manager.nodes.values()).filter(n => n.state === 2);
-        if (connectedNodes.length > 0) {
-            console.log(`[Lavalink] ✅ ${connectedNodes.length} node(s) connected successfully`);
+    if (manager) {
+        console.log(`[Lavalink] Nodes registered: ${manager.nodes.size}`);
+        
+        if (manager.nodes.size > 0) {
+            const nodes = Array.from(manager.nodes.values());
+            const connectedNodes = nodes.filter(n => n.state === 2);
+            console.log(`[Lavalink] Connected nodes: ${connectedNodes.length}/${nodes.length}`);
+            
+            nodes.forEach(node => {
+                console.log(`[Lavalink] Node "${node.name}" state: ${node.state} (0=DISCONNECTED, 1=CONNECTING, 2=CONNECTED, 3=RECONNECTING)`);
+            });
+            
+            if (connectedNodes.length === 0) {
+                console.error('[Lavalink] ⚠️ Nodes registered but not connected');
+                console.error('[Lavalink] Waiting longer for connection...');
+                
+                await new Promise(resolve => setTimeout(resolve, 5000));
+                
+                const retryNodes = Array.from(manager.nodes.values());
+                const retryConnected = retryNodes.filter(n => n.state === 2);
+                console.log(`[Lavalink] After retry: ${retryConnected.length}/${retryNodes.length} connected`);
+            }
         } else {
-            console.error('[Lavalink] ⚠️ Nodes registered but not connected yet. States:', 
-                Array.from(manager.nodes.values()).map(n => `${n.name}:${n.state}`));
+            console.error('[Lavalink] ❌ No nodes registered - check your configuration');
         }
-    } else {
-        console.error('[Lavalink] ❌ No nodes registered');
-        console.error('[Lavalink] Troubleshooting:');
-        console.error('  1. Make sure Lavalink is running: java -jar Lavalink.jar');
-        console.error('  2. Check if port 2333 is accessible: curl http://localhost:2333/version');
-        console.error('  3. Verify password matches in application.yml and lavalinkConfig.js');
     }
     
-    // Initialize core systems
+    // Continue with other initialization
     initializeDatabase();
     startIncomeSystem();
     scheduleBackups(client);
@@ -187,7 +197,6 @@ client.once('ready', async () => {
     initializeShop();
     initializeShardHandler(client);
 
-    // Restore auto-roll systems
     await restoreAutoRollSystems(client);
 
     console.log('🚀 Bot is fully operational!');
@@ -516,8 +525,5 @@ function handleCrash(error) {
 
     process.exit(1);
 }
-
-// BOT LOGIN - This must be at the very end
-client.login(process.env.BOT_TOKEN);
 
 // Created by alterGolden || golden_exist

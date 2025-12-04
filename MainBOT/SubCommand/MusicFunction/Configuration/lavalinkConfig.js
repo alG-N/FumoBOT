@@ -1,11 +1,10 @@
 module.exports = {
     nodes: [
         {
-            id: 'main-node',
-            host: 'localhost',
-            port: 2333,
-            password: 'youshallnotpass',
-            secure: false  // Important: false for http://
+            name: 'main-node',
+            url: 'localhost:2333',  // ← Remove 'http://' prefix
+            auth: 'youshallnotpass',
+            secure: false  // false = http, true = https
         }
     ],
     clientName: 'MusicBot',
