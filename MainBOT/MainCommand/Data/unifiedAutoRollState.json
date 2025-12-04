@@ -11,7 +11,7 @@
       },
       "bestFumoAt": "12/4/2025, 5:03:15 PM",
       "bestFumoRoll": 1,
-      "specialFumoCount": 14,
+      "specialFumoCount": 16,
       "specialFumoFirstAt": "12/4/2025, 4:33:38 PM",
       "specialFumoFirstRoll": 3
     },
@@ -39,32 +39,32 @@
       "autoSell": false,
       "startTime": 1764843147297,
       "bestFumo": {
-        "name": "GawrGura(???)",
-        "rarity": "???",
-        "picture": "https://pbs.twimg.com/media/FNjhm89X0AEtPcU.jpg"
+        "name": "Cheshire(ASTRAL)",
+        "rarity": "ASTRAL",
+        "picture": "https://images.tokopedia.net/img/cache/500-square/VqbcmM/2024/2/25/932b310d-4256-42bc-abf7-c7d83869ee0c.jpg"
       },
-      "bestFumoAt": "12/4/2025, 5:16:27 PM",
-      "bestFumoRoll": 2,
-      "specialFumoCount": 2,
+      "bestFumoAt": "12/4/2025, 5:18:27 PM",
+      "bestFumoRoll": 4,
+      "specialFumoCount": 6,
       "specialFumoFirstAt": "12/4/2025, 5:13:27 PM",
       "specialFumoFirstRoll": 2
     },
     "event": {
-      "rollCount": 3,
+      "rollCount": 4,
       "autoSell": false,
       "startTime": 1764843154573,
-      "totalFumosRolled": 800,
+      "totalFumosRolled": 2600,
       "totalCoinsFromSales": 0,
       "bestFumo": {
-        "name": "OneShotCurse(MYTHICAL)",
-        "rarity": "MYTHICAL",
-        "picture": "https://animeislandca.com/cdn/shop/files/jujutsu-kaisen-kyurumaru-mahito-big-plush-toy-anime-island-ca.png?v=1692739157&width=1445"
+        "name": "Go/jo(???)",
+        "rarity": "???",
+        "picture": "https://m.media-amazon.com/images/I/41PQuj80tDS._AC_UF894,1000_QL80_.jpg"
       },
-      "bestFumoAt": "12/4/2025, 5:12:34 PM",
-      "bestFumoRoll": 1,
-      "specialFumoCount": 0,
-      "specialFumoFirstAt": null,
-      "specialFumoFirstRoll": null
+      "bestFumoAt": "12/4/2025, 5:16:58 PM",
+      "bestFumoRoll": 4,
+      "specialFumoCount": 3,
+      "specialFumoFirstAt": "12/4/2025, 5:16:58 PM",
+      "specialFumoFirstRoll": 4
     }
   }
 }

@@ -1,12 +1,11 @@
 module.exports = {
     nodes: [
         {
+            id: 'main-node',
             host: 'localhost',
             port: 2333,
             password: 'youshallnotpass',
-            secure: false,
-            retryAmount: 5,
-            retryDelay: 3000
+            secure: false
         }
     ],
     clientName: 'MusicBot',
