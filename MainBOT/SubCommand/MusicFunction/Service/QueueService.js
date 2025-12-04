@@ -1,7 +1,5 @@
 const queueRepository = require('../Repository/QueueRepository');
-const trackRepository = require('../Repository/TrackRepository');
-const audioPlayerService = require('./AudioPlayerService');
-const voiceConnectionRepository = require('../Repository/VoiceConnectionRepository');
+const lavalinkService = require('./LavalinkService');
 const { INACTIVITY_TIMEOUT } = require('../Configuration/MusicConfig');
 
 class QueueService {
@@ -9,59 +7,35 @@ class QueueService {
         return queueRepository.getOrCreate(guildId);
     }
 
-    addTrack(guildId, track) {
-        const queue = this.getOrCreateQueue(guildId);
-        return trackRepository.enqueue(queue, track);
-    }
-
-    getNextTrack(guildId) {
-        const queue = queueRepository.get(guildId);
-        if (!queue) return null;
-        return trackRepository.dequeue(queue);
+    getPlayer(guildId) {
+        return lavalinkService.getPlayer(guildId);
     }
 
     getCurrentTrack(guildId) {
-        const queue = queueRepository.get(guildId);
-        if (!queue) return null;
-        return trackRepository.getCurrentTrack(queue);
-    }
-
-    setCurrentTrack(guildId, track) {
-        const queue = this.getOrCreateQueue(guildId);
-        trackRepository.setCurrentTrack(queue, track);
-        queue.startTime = Date.now();
-    }
-
-    clearCurrentTrack(guildId) {
-        const queue = queueRepository.get(guildId);
-        if (queue) {
-            trackRepository.setCurrentTrack(queue, null);
-            queue.startTime = null;
-        }
+        const player = this.getPlayer(guildId);
+        return player?.queue?.current || null;
     }
 
     getQueueList(guildId) {
-        const queue = queueRepository.get(guildId);
-        if (!queue) return [];
-        return trackRepository.getQueue(queue);
+        const player = this.getPlayer(guildId);
+        return player?.queue || [];
     }
 
     getQueueLength(guildId) {
-        const queue = queueRepository.get(guildId);
-        if (!queue) return 0;
-        return trackRepository.getQueueLength(queue);
-    }
-
-    clearQueue(guildId) {
-        const queue = queueRepository.get(guildId);
-        if (queue) {
-            trackRepository.clearQueue(queue);
-        }
+        const player = this.getPlayer(guildId);
+        return player?.queue?.length || 0;
     }
 
     toggleLoop(guildId) {
         const queue = this.getOrCreateQueue(guildId);
+        const player = this.getPlayer(guildId);
+        
         queue.loop = !queue.loop;
+        
+        if (player) {
+            player.setQueueRepeat(queue.loop);
+        }
+        
         return queue.loop;
     }
 
@@ -72,15 +46,13 @@ class QueueService {
 
     setLoop(guildId, enabled) {
         const queue = this.getOrCreateQueue(guildId);
-        queue.loop = enabled;
-    }
-
-    requeueCurrentTrack(guildId) {
-        const queue = queueRepository.get(guildId);
-        if (!queue || !queue.current) return false;
+        const player = this.getPlayer(guildId);
         
-        trackRepository.insertTrackAtPosition(queue, queue.current, 0);
-        return true;
+        queue.loop = enabled;
+        
+        if (player) {
+            player.setQueueRepeat(enabled);
+        }
     }
 
     setInactivityTimer(guildId, callback) {
@@ -90,7 +62,8 @@ class QueueService {
             clearTimeout(queue.inactivityTimer);
         }
 
-        if (!audioPlayerService.isPlaying(queue) && !audioPlayerService.isPaused(queue)) {
+        const player = this.getPlayer(guildId);
+        if (!player || !player.playing) {
             queue.inactivityTimer = setTimeout(() => callback(guildId), INACTIVITY_TIMEOUT);
         }
     }
@@ -147,12 +120,8 @@ class QueueService {
             queue._vcMonitor = null;
         }
 
-        audioPlayerService.killYtdlpProcess(queue);
-        audioPlayerService.stop(queue);
-        voiceConnectionRepository.destroyConnection(queue);
+        lavalinkService.destroyPlayer(guildId);
         
-        trackRepository.clearQueue(queue);
-        trackRepository.setCurrentTrack(queue, null);
         queue.loop = false;
         queue._eventsBound = false;
     }

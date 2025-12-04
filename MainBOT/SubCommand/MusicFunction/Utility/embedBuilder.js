@@ -2,19 +2,17 @@ const { EmbedBuilder } = require("discord.js");
 const { fmtDur } = require('./formatters');
 
 class EmbedBuilderUtility {
-    buildNowPlayingEmbed(track, volumePct, requester, queue, isLooped) {
-        const nextTrack = queue?.tracks?.length > 0 ? queue.tracks[0] : null;
+    buildNowPlayingEmbed(track, volumePct, requester, player, isLooped) {
+        const nextTrack = player?.queue?.length > 0 ? player.queue[0] : null;
 
         const fields = [
             { name: "📺 Channel", value: track?.author ?? "Unknown", inline: true },
             { name: "🌐 Source", value: track?.source ?? "YouTube", inline: true },
-            { name: "🔎 Search", value: track?.searchInfo ?? "Unknown", inline: true },
-            { name: "👀 Views", value: track?.views?.toLocaleString() ?? "N/A", inline: true },
             { name: "⏱️ Duration", value: `\`${fmtDur(track?.lengthSeconds)}\``, inline: true },
-            { name: "📜 Queue", value: `\`${queue?.tracks?.length ?? 0}\` in line`, inline: true },
+            { name: "📜 Queue", value: `\`${player?.queue?.length ?? 0}\` in line`, inline: true },
             { name: "🔊 Volume", value: `\`${Math.round(volumePct)}%\``, inline: true },
             { name: "🔁 Loop", value: isLooped ? "**Enabled**" : "Not Enabled", inline: true },
-            { name: "⏭️ Next Up", value: nextTrack ? `[${nextTrack.title}](${nextTrack.url})` : "No Next Up", inline: true }
+            { name: "⏭️ Next Up", value: nextTrack ? `[${nextTrack.title}](${nextTrack.uri})` : "No Next Up", inline: true }
         ];
 
         return new EmbedBuilder()

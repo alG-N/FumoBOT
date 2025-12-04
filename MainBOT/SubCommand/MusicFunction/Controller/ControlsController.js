@@ -1,18 +1,16 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { AudioPlayerStatus } = require('@discordjs/voice');
 
 const queueService = require('../Service/QueueService');
-const audioPlayerService = require('../Service/AudioPlayerService');
 const voiceService = require('../Service/VoiceService');
 const votingService = require('../Service/VotingService');
-const streamService = require('../Service/StreamService');
+const lavalinkService = require('../Service/LavalinkService');
 
 const embedBuilder = require('../Utility/embedBuilder');
 const logger = require('../Utility/logger');
 const interactionHandler = require('../Middleware/interactionHandler');
 const { checkSameVoiceChannel } = require('../Middleware/voiceChannelCheck');
 
-const { MIN_VOTES_REQUIRED } = require('../Configuration/MusicConfig');
+const { MIN_VOTES_REQUIRED, VOLUME_STEP } = require('../Configuration/MusicConfig');
 
 class ControlsController {
     buildControlRows(guildId, isPaused, isLooped, trackUrl) {
@@ -57,7 +55,7 @@ class ControlsController {
         return [mainRow, volumeRow];
     }
 
-    setupCollector(queue, guildId, interaction, message) {
+    setupCollector(guildId, interaction, message) {
         const handlers = {
             pause: async (i, gid) => await this.handlePause(i, gid),
             stop: async (i, gid) => await this.handleStop(i, gid),
@@ -70,8 +68,8 @@ class ControlsController {
             
             onEnd: async (reason, msg) => {
                 logger.log(`Collector ended: ${reason}`, interaction);
-                const q = queueService.getOrCreateQueue(guildId);
-                if (q.current) {
+                const current = queueService.getCurrentTrack(guildId);
+                if (current) {
                     await interactionHandler.disableMessageComponents(msg);
                     queueService.clearNowMessage(guildId);
                 }
@@ -82,27 +80,40 @@ class ControlsController {
     }
 
     async handlePause(interaction, guildId) {
-        if (!await checkSameVoiceChannel(interaction, voiceService.getChannelId(queueService.getOrCreateQueue(guildId)))) {
+        if (!await checkSameVoiceChannel(interaction, voiceService.getChannelId(guildId))) {
             return;
         }
 
-        const queue = queueService.getOrCreateQueue(guildId);
+        const player = lavalinkService.getPlayer(guildId);
+        if (!player) {
+            return await interactionHandler.safeReply(interaction, { ephemeral: true, content: "⚠️ Not playing." });
+        }
 
-        if (audioPlayerService.isPlaying(queue)) {
-            audioPlayerService.pause(queue);
+        const currentTrack = queueService.getCurrentTrack(guildId);
+
+        if (player.playing && !player.paused) {
+            player.pause(true);
             logger.log(`Paused`, interaction);
 
             const embed = embedBuilder.buildNowPlayingEmbed(
-                queueService.getCurrentTrack(guildId),
-                audioPlayerService.getVolume(queue) * 100,
-                queue.current?.requestedBy ?? interaction.user,
-                queue,
+                {
+                    title: currentTrack.title,
+                    url: currentTrack.uri,
+                    lengthSeconds: Math.floor(currentTrack.duration / 1000),
+                    thumbnail: currentTrack.thumbnail || currentTrack.displayThumbnail?.(),
+                    author: currentTrack.author,
+                    requestedBy: currentTrack.requester,
+                    source: currentTrack.sourceName || 'YouTube'
+                },
+                player.volume,
+                currentTrack.requester,
+                player,
                 queueService.isLooping(guildId)
             );
 
             const result = await interactionHandler.safeEdit(queueService.getNowMessage(guildId), {
                 embeds: [embed],
-                components: this.buildControlRows(guildId, true, queueService.isLooping(guildId), queue.current?.url)
+                components: this.buildControlRows(guildId, true, queueService.isLooping(guildId), currentTrack.uri)
             });
 
             if (result.fallback) {
@@ -111,21 +122,29 @@ class ControlsController {
 
             await interactionHandler.safeReply(interaction, { ephemeral: true, content: "⏸️ Paused." });
 
-        } else if (audioPlayerService.isPaused(queue)) {
-            audioPlayerService.unpause(queue);
+        } else if (player.paused) {
+            player.pause(false);
             logger.log(`Resumed`, interaction);
 
             const embed = embedBuilder.buildNowPlayingEmbed(
-                queueService.getCurrentTrack(guildId),
-                audioPlayerService.getVolume(queue) * 100,
-                queue.current?.requestedBy ?? interaction.user,
-                queue,
+                {
+                    title: currentTrack.title,
+                    url: currentTrack.uri,
+                    lengthSeconds: Math.floor(currentTrack.duration / 1000),
+                    thumbnail: currentTrack.thumbnail || currentTrack.displayThumbnail?.(),
+                    author: currentTrack.author,
+                    requestedBy: currentTrack.requester,
+                    source: currentTrack.sourceName || 'YouTube'
+                },
+                player.volume,
+                currentTrack.requester,
+                player,
                 queueService.isLooping(guildId)
             );
 
             const result = await interactionHandler.safeEdit(queueService.getNowMessage(guildId), {
                 embeds: [embed],
-                components: this.buildControlRows(guildId, false, queueService.isLooping(guildId), queue.current?.url)
+                components: this.buildControlRows(guildId, false, queueService.isLooping(guildId), currentTrack.uri)
             });
 
             if (result.fallback) {
@@ -139,7 +158,7 @@ class ControlsController {
     }
 
     async handleStop(interaction, guildId) {
-        if (!await checkSameVoiceChannel(interaction, voiceService.getChannelId(queueService.getOrCreateQueue(guildId)))) {
+        if (!await checkSameVoiceChannel(interaction, voiceService.getChannelId(guildId))) {
             return;
         }
 
@@ -153,14 +172,20 @@ class ControlsController {
     }
 
     async handleSkip(interaction, guildId) {
-        if (!await checkSameVoiceChannel(interaction, voiceService.getChannelId(queueService.getOrCreateQueue(guildId)))) {
+        if (!await checkSameVoiceChannel(interaction, voiceService.getChannelId(guildId))) {
             return;
         }
 
-        const queue = queueService.getOrCreateQueue(guildId);
-        const listeners = voiceService.getListeners(queue, interaction.guild);
+        const player = lavalinkService.getPlayer(guildId);
+        if (!player) {
+            return await interactionHandler.safeReply(interaction, { ephemeral: true, content: "⚠️ Nothing to skip." });
+        }
+
+        const listeners = voiceService.getListeners(guildId, interaction.guild);
 
         if (listeners.length >= 3) {
+            const queue = queueService.getOrCreateQueue(guildId);
+            
             if (!votingService.isVoting(queue)) {
                 votingService.startSkipVote(queue, interaction.user.id);
 
@@ -179,12 +204,10 @@ class ControlsController {
                 votingService.setVotingMessage(queue, voteMsg);
 
                 votingService.setVotingTimeout(queue, async () => {
-                    const voteCount = votingService.getVoteCount(queue);
                     const votingMsg = votingService.getVotingMessage(queue);
 
                     if (votingService.hasEnoughVotes(queue)) {
-                        audioPlayerService.killYtdlpProcess(queue);
-                        audioPlayerService.stop(queue, true);
+                        player.stop();
                         await votingMsg.edit({ content: "⏭️ Track skipped by vote.", components: [] });
                         logger.log(`Track skipped by vote`, interaction);
                     } else {
@@ -201,8 +224,8 @@ class ControlsController {
                 });
             }
         } else {
-            if (audioPlayerService.isPlaying(queue) || audioPlayerService.isPaused(queue)) {
-                audioPlayerService.stop(queue, true);
+            if (player.playing || player.paused) {
+                player.stop();
                 logger.log(`Track skipped`, interaction);
                 await interactionHandler.safeReply(interaction, { ephemeral: true, content: "⏭️ Skipped." });
             } else {
@@ -214,18 +237,27 @@ class ControlsController {
     async handleList(interaction, guildId) {
         const { fmtDur } = require('../Utility/formatters');
         const lines = [];
-        const currentTrack = queueService.getCurrentTrack(guildId);
-        const queueList = queueService.getQueueList(guildId);
+        const player = lavalinkService.getPlayer(guildId);
+        
+        if (!player) {
+            return await interactionHandler.safeReply(interaction, { 
+                ephemeral: true, 
+                embeds: [embedBuilder.buildInfoEmbed("🧾 Current Queue", "_Queue is empty._")] 
+            });
+        }
+
+        const currentTrack = player.queue.current;
+        const queueList = player.queue;
 
         if (currentTrack) {
-            lines.push(`**Now** — [${currentTrack.title}](${currentTrack.url}) \`${fmtDur(currentTrack.lengthSeconds)}\``);
+            lines.push(`**Now** — [${currentTrack.title}](${currentTrack.uri}) \`${fmtDur(Math.floor(currentTrack.duration / 1000))}\``);
         }
 
         if (queueList.length === 0) {
             lines.push("_Queue is empty._");
         } else {
             queueList.slice(0, 10).forEach((t, idx) => {
-                lines.push(`**#${idx + 1}** — [${t.title}](${t.url}) \`${fmtDur(t.lengthSeconds)}\` • ${t.author}`);
+                lines.push(`**#${idx + 1}** — [${t.title}](${t.uri}) \`${fmtDur(Math.floor(t.duration / 1000))}\` • ${t.author}`);
             });
             if (queueList.length > 10) {
                 lines.push(`…and **${queueList.length - 10}** more`);
@@ -237,25 +269,39 @@ class ControlsController {
     }
 
     async handleLoop(interaction, guildId) {
-        if (!await checkSameVoiceChannel(interaction, voiceService.getChannelId(queueService.getOrCreateQueue(guildId)))) {
+        if (!await checkSameVoiceChannel(interaction, voiceService.getChannelId(guildId))) {
             return;
+        }
+
+        const player = lavalinkService.getPlayer(guildId);
+        if (!player) {
+            return await interactionHandler.safeReply(interaction, { ephemeral: true, content: "⚠️ Not playing." });
         }
 
         const isLooped = queueService.toggleLoop(guildId);
         logger.log(`Loop toggled: ${isLooped}`, interaction);
 
-        const queue = queueService.getOrCreateQueue(guildId);
+        const currentTrack = player.queue.current;
+
         const embed = embedBuilder.buildNowPlayingEmbed(
-            queueService.getCurrentTrack(guildId) ?? {},
-            audioPlayerService.getVolume(queue) * 100,
-            queue.current?.requestedBy ?? interaction.user,
-            queue,
+            {
+                title: currentTrack.title,
+                url: currentTrack.uri,
+                lengthSeconds: Math.floor(currentTrack.duration / 1000),
+                thumbnail: currentTrack.thumbnail || currentTrack.displayThumbnail?.(),
+                author: currentTrack.author,
+                requestedBy: currentTrack.requester,
+                source: currentTrack.sourceName || 'YouTube'
+            },
+            player.volume,
+            currentTrack.requester,
+            player,
             isLooped
         );
 
         const result = await interactionHandler.safeEdit(queueService.getNowMessage(guildId), {
             embeds: [embed],
-            components: this.buildControlRows(guildId, audioPlayerService.isPaused(queue), isLooped, queue.current?.url)
+            components: this.buildControlRows(guildId, player.paused, isLooped, currentTrack.uri)
         });
 
         if (result.fallback) {
@@ -266,33 +312,49 @@ class ControlsController {
     }
 
     async handleVolumeDown(interaction, guildId) {
-        await this.handleVolumeChange(interaction, guildId, -0.1);
+        await this.handleVolumeChange(interaction, guildId, -VOLUME_STEP);
     }
 
     async handleVolumeUp(interaction, guildId) {
-        await this.handleVolumeChange(interaction, guildId, 0.1);
+        await this.handleVolumeChange(interaction, guildId, VOLUME_STEP);
     }
 
     async handleVolumeChange(interaction, guildId, delta) {
-        if (!await checkSameVoiceChannel(interaction, voiceService.getChannelId(queueService.getOrCreateQueue(guildId)))) {
+        if (!await checkSameVoiceChannel(interaction, voiceService.getChannelId(guildId))) {
             return;
         }
 
-        const queue = queueService.getOrCreateQueue(guildId);
-        const newVolume = audioPlayerService.adjustVolume(queue, delta);
+        const player = lavalinkService.getPlayer(guildId);
+        if (!player) {
+            return await interactionHandler.safeReply(interaction, { ephemeral: true, content: "⚠️ Not playing." });
+        }
+
+        const newVolume = Math.max(0, Math.min(200, player.volume + delta));
+        player.setVolume(newVolume);
+        
         logger.log(`Volume changed: ${newVolume}`, interaction);
 
+        const currentTrack = player.queue.current;
+
         const embed = embedBuilder.buildNowPlayingEmbed(
-            queueService.getCurrentTrack(guildId) ?? {},
-            newVolume * 100,
-            queue.current?.requestedBy ?? interaction.user,
-            queue,
+            {
+                title: currentTrack.title,
+                url: currentTrack.uri,
+                lengthSeconds: Math.floor(currentTrack.duration / 1000),
+                thumbnail: currentTrack.thumbnail || currentTrack.displayThumbnail?.(),
+                author: currentTrack.author,
+                requestedBy: currentTrack.requester,
+                source: currentTrack.sourceName || 'YouTube'
+            },
+            newVolume,
+            currentTrack.requester,
+            player,
             queueService.isLooping(guildId)
         );
 
         const result = await interactionHandler.safeEdit(queueService.getNowMessage(guildId), {
             embeds: [embed],
-            components: this.buildControlRows(guildId, audioPlayerService.isPaused(queue), queueService.isLooping(guildId), queue.current?.url)
+            components: this.buildControlRows(guildId, player.paused, queueService.isLooping(guildId), currentTrack.uri)
         });
 
         if (result.fallback) {
@@ -330,7 +392,12 @@ class ControlsController {
 
         if (votingService.hasEnoughVotes(queue)) {
             const votingMsg = votingService.getVotingMessage(queue);
-            audioPlayerService.stop(queue, true);
+            const player = lavalinkService.getPlayer(guildId);
+            
+            if (player) {
+                player.stop();
+            }
+            
             await votingMsg.edit({ content: "⏭️ Track skipped by vote.", components: [] });
             votingService.endVoting(queue);
             logger.log(`Track skipped by vote (${MIN_VOTES_REQUIRED}+)`, interaction);

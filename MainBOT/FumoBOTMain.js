@@ -39,6 +39,9 @@ const initializeShardHandler = require('./MainCommand/Service/UserDataService/Us
 const { maintenance, developerID } = require("./MainCommand/Configuration/maintenanceConfig");
 console.log(`Maintenance mode is currently: ${maintenance}`);
 
+// LAVALINK MUSIC
+const lavalinkService = require('./SubCommand/MusicFunction/Service/LavalinkService');
+
 // CLIENT INITIALIZATION
 const client = createClient();
 client.commands = new Collection();
@@ -124,7 +127,9 @@ client.once('ready', async () => {
     initializeSeasonSystem(client);
     initializeShop();
     initializeShardHandler(client);
-    
+    lavalinkService.initialize(client);
+    await lavalinkService.connect();
+    console.log('Lavalink connected and ready!');
     try {
         console.log('🔄 Checking for auto-rolls to restore...');
         const crateFumos = FumoPool.getForCrate();

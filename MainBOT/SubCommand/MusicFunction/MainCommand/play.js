@@ -1,24 +1,19 @@
 const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
-const { AudioPlayerStatus } = require("@discordjs/voice");
 
 const queueService = require('../Service/QueueService');
 const voiceService = require('../Service/VoiceService');
-const audioPlayerService = require('../Service/AudioPlayerService');
 const trackResolverService = require('../Service/TrackResolverService');
-const streamService = require('../Service/StreamService');
-const votingService = require('../Service/VotingService');
+const lavalinkService = require('../Service/LavalinkService');
 
 const embedBuilder = require('../Utility/embedBuilder');
 const logger = require('../Utility/logger');
-const validators = require('../Utility/validators');
 
 const { checkVoiceChannel, checkVoicePermissions } = require('../Middleware/voiceChannelCheck');
 const interactionHandler = require('../Middleware/interactionHandler');
 
-const { MAX_TRACK_DURATION, CONFIRMATION_TIMEOUT, PLAYBACK_DELAY, MIN_VOTES_REQUIRED } = require('../Configuration/MusicConfig');
+const { MAX_TRACK_DURATION, CONFIRMATION_TIMEOUT } = require('../Configuration/MusicConfig');
 
 const PlaybackController = require('../Controller/PlaybackController');
-const ControlsController = require('../Controller/ControlsController');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -39,11 +34,11 @@ module.exports = {
 
         await interaction.deferReply();
 
-        let track;
+        let trackData;
         try {
             logger.log(`Resolving track for query: ${query}`, interaction);
-            track = await trackResolverService.resolve(query, interaction.user);
-            logger.log(`Track resolved: ${track.title} (${track.url})`, interaction);
+            trackData = await trackResolverService.resolve(query, interaction.user);
+            logger.log(`Track resolved: ${trackData.title} (${trackData.url})`, interaction);
         } catch (e) {
             let msg = "Could not fetch video info. Make sure it's a valid YouTube URL or search query.";
             if (e.message === "NO_RESULTS") msg = "No results found for your search.";
@@ -53,23 +48,16 @@ module.exports = {
             });
         }
 
-        if (trackResolverService.isLongTrack(track, MAX_TRACK_DURATION)) {
-            const confirmed = await this.handleLongTrackConfirmation(interaction, track);
+        if (trackResolverService.isLongTrack(trackData, MAX_TRACK_DURATION)) {
+            const confirmed = await this.handleLongTrackConfirmation(interaction, trackData);
             if (!confirmed) return;
         }
 
-        const position = queueService.addTrack(guildId, track);
-        
-        const queuedEmbed = embedBuilder.buildQueuedEmbed(track, position, interaction.user);
-        await interaction.editReply({ embeds: [queuedEmbed], components: [] });
-
-        const queue = queueService.getOrCreateQueue(guildId);
-
         try {
             logger.log(`Ensuring connection`, interaction);
-            await voiceService.connect(interaction, queue);
+            await voiceService.connect(interaction, guildId);
             
-            voiceService.monitorVoiceChannel(guildId, interaction.channel, queue, async (gid) => {
+            voiceService.monitorVoiceChannel(guildId, interaction.channel, async (gid) => {
                 await queueService.cleanup(gid);
                 await interaction.channel.send({ embeds: [embedBuilder.buildNoUserVCEmbed()] });
             });
@@ -78,7 +66,7 @@ module.exports = {
             await interaction.followUp({
                 embeds: [
                     embedBuilder.buildErrorEmbed(
-                        err.message === "NO_VC" ? "Join a voice channel." : "Failed to reach Ready state."
+                        err.message === "NO_VC" ? "Join a voice channel." : "Failed to connect to voice channel."
                     ),
                 ],
                 ephemeral: true,
@@ -86,11 +74,24 @@ module.exports = {
             return;
         }
 
+        const player = lavalinkService.getPlayer(guildId);
+        
+        player.queue.add(trackData.track);
+        
+        const position = player.queue.size;
+        
+        const queuedEmbed = embedBuilder.buildQueuedEmbed(trackData, position, interaction.user);
+        await interaction.editReply({ embeds: [queuedEmbed], components: [] });
+
+        const queue = queueService.getOrCreateQueue(guildId);
+        
         if (!queue._eventsBound) {
-            PlaybackController.bindPlayerEvents(queue, guildId, interaction);
+            PlaybackController.bindPlayerEvents(guildId, interaction);
         }
 
-        await PlaybackController.playNext(interaction, guildId);
+        if (!player.playing && !player.paused) {
+            await player.play();
+        }
     },
 
     async handleLongTrackConfirmation(interaction, track) {
