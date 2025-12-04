@@ -16,114 +16,62 @@ function loadCommandsFrom(folderPath) {
         const command = require(path.join(folderPath, file));
         if ("data" in command && "execute" in command) {
             commands.push(command.data.toJSON());
+            console.log(`✅ Loaded: ${file}`);
         } else {
             console.warn(`⚠️ ${file} in ${folderPath} is missing "data" or "execute".`);
         }
     }
 }
 
+/**
+ * Load a single command file
+ */
+function loadCommand(filePath, commandName) {
+    try {
+        const command = require(filePath);
+        if ("data" in command && "execute" in command) {
+            commands.push(command.data.toJSON());
+            console.log(`✅ Loaded: ${commandName}`);
+        } else {
+            console.warn(`⚠️ ${commandName} is missing 'data' or 'execute'.`);
+        }
+    } catch (error) {
+        console.error(`❌ Failed to load ${commandName}:`, error.message);
+    }
+}
+
 // node deploy-commands.js
 // ---------------- Load Commands ---------------- \\
-// Manual single-file commands
-const sayCommand = require("./MainBOT/SubCommand/InteractiveUserCommand/say.js");
-if ("data" in sayCommand && "execute" in sayCommand) {
-    commands.push(sayCommand.data.toJSON());
-} else {
-    console.warn("⚠️ say.js is missing 'data' or 'execute'.");
-}
 
-const afkCommand = require("./MainBOT/SubCommand/BasicCommand/afk.js");
-if ("data" in afkCommand && "execute" in afkCommand) {
-    commands.push(afkCommand.data.toJSON());
-} else {
-    console.warn("⚠️ afk.js is missing 'data' or 'execute'.");
-}
+// Basic Commands
+loadCommand("./MainBOT/SubCommand/BasicCommand/afk.js", "afk");
+loadCommand("./MainBOT/SubCommand/BasicCommand/avatar.js", "avatar");
+loadCommand("./MainBOT/SubCommand/BasicCommand/groupInform.js", "groupInform");
+loadCommand("./MainBOT/SubCommand/BasicCommand/ping.js", "ping");
+loadCommand("./MainBOT/SubCommand/BasicCommand/roleinfo.js", "roleinfo");
+loadCommand("./MainBOT/SubCommand/BasicCommand/tutorialHelp.js", "tutorialHelp");
+loadCommand("./MainBOT/SubCommand/BasicCommand/invite.js", "invite");
 
-const animeCommand = require("./MainBOT/SubCommand/API-Website/Anime/anime.js");
-if ("data" in animeCommand && "execute" in animeCommand) {
-    commands.push(animeCommand.data.toJSON());
-} else {
-    console.warn("⚠️ anime.js is missing 'data' or 'execute'.");
-}
+// Interactive Commands
+loadCommand("./MainBOT/SubCommand/InteractiveUserCommand/say.js", "say");
+loadCommand("./MainBOT/SubCommand/InteractiveUserCommand/deathbattleJJK.js", "deathbattleJJK");
 
-const avatarCommand = require("./MainBOT/SubCommand/BasicCommand/avatar.js");
-if ("data" in avatarCommand && "execute" in avatarCommand) {
-    commands.push(avatarCommand.data.toJSON());
-} else {
-    console.warn("⚠️ avatar.js is missing 'data' or 'execute'.");
-}
+// API/Website Commands
+loadCommand("./MainBOT/SubCommand/API-Website/Anime/anime.js", "anime");
+loadCommand("./MainBOT/SubCommand/API-Website/Reddit/reddit.js", "reddit");
+loadCommand("./MainBOT/SubCommand/API-Website/Pixiv/pixiv.js", "pixiv");
+loadCommand("./MainBOT/SubCommand/API-Website/Steam/steam.js", "steam");
 
-const deathbattleJJKCommand = require("./MainBOT/SubCommand/InteractiveUserCommand/deathbattleJJK.js");
-if ("data" in deathbattleJJKCommand && "execute" in deathbattleJJKCommand) {
-    commands.push(deathbattleJJKCommand.data.toJSON());
-} else {
-    console.warn("⚠️ deathbattleJJK.js is missing 'data' or 'execute'.");
-}
+// Video Command
+loadCommand("./MainBOT/SubCommand/VideoFunction/video.js", "video");
 
-const groupInformCommand = require("./MainBOT/SubCommand/BasicCommand/groupInform.js");
-if ("data" in groupInformCommand && "execute" in groupInformCommand) {
-    commands.push(groupInformCommand.data.toJSON());
-} else {
-    console.warn("⚠️ groupInform.js is missing 'data' or 'execute'.");
-}
+// Music Commands (IMPORTANT!)
+console.log("\n🎵 Loading Music Commands...");
+loadCommand("./MainBOT/SubCommand/MusicFunction/MainCommand/play.js", "play");
+loadCommand("./MainBOT/SubCommand/MusicFunction/MainCommand/stop.js", "stop");
 
-const pingCommand = require("./MainBOT/SubCommand/BasicCommand/ping.js");
-if ("data" in pingCommand && "execute" in pingCommand) {
-    commands.push(pingCommand.data.toJSON());
-} else {
-    console.warn("⚠️ ping.js is missing 'data' or 'execute'.");
-}
-
-const roleinfoCommand = require("./MainBOT/SubCommand/BasicCommand/roleinfo.js");
-if ("data" in roleinfoCommand && "execute" in roleinfoCommand) {
-    commands.push(roleinfoCommand.data.toJSON());
-} else {
-    console.warn("⚠️ roleinfo.js is missing 'data' or 'execute'.");
-}
-
-const tutorialHelpCommand = require("./MainBOT/SubCommand/BasicCommand/tutorialHelp.js");
-if ("data" in tutorialHelpCommand && "execute" in tutorialHelpCommand) {
-    commands.push(tutorialHelpCommand.data.toJSON());
-} else {
-    console.warn("⚠️ tutorialHelp.js is missing 'data' or 'execute'.");
-}
-
-const redditCommand = require("./MainBOT/SubCommand/API-Website/Reddit/reddit.js");
-if ("data" in redditCommand && "execute" in redditCommand) {
-    commands.push(redditCommand.data.toJSON());
-} else {
-    console.warn("⚠️ reddit.js is missing 'data' or 'execute'.");
-}
-
-const videoCommand = require("./MainBOT/SubCommand/VideoFunction/video.js");
-if ("data" in videoCommand && "execute" in videoCommand) {
-    commands.push(videoCommand.data.toJSON());
-} else {
-    console.warn("⚠️ video.js is missing 'data' or 'execute'.");
-}
-
-const inviteCommand = require("./MainBOT/SubCommand/BasicCommand/invite.js");
-if ("data" in inviteCommand && "execute" in inviteCommand) {
-    commands.push(inviteCommand.data.toJSON());
-} else {
-    console.warn("⚠️ invite.js is missing 'data' or 'execute'.");
-}
-
-const pixivCommand = require("./MainBOT/SubCommand/API-Website/Pixiv/pixiv.js");
-if ("data" in pixivCommand && "execute" in pixivCommand) {
-    commands.push(pixivCommand.data.toJSON());
-} else {
-    console.warn("⚠️ pixiv.js is missing 'data' or 'execute'.");
-}
-
-const steamCommand = require("./MainBOT/SubCommand/API-Website/Steam/steam.js");
-if ("data" in steamCommand && "execute" in steamCommand) {
-    commands.push(steamCommand.data.toJSON());
-} else {
-    console.warn("⚠️ steam.js is missing 'data' or 'execute'.");
-}
-
-// Auto-load everything from MusicFunction folder
+// Auto-load any other commands from MusicFunction folder
+console.log("\n🎵 Auto-loading additional music commands...");
 loadCommandsFrom(path.join(__dirname, "../FumoBOT/MainBOT/SubCommand/MusicFunction"));
 
 // ---------------- Deploy Commands ---------------- \\
@@ -131,28 +79,31 @@ const rest = new REST({ version: "10" }).setToken(token);
 
 (async () => {
     try {
-        console.log("🔄 Started refreshing application (/) commands.");
+        console.log(`\n🔄 Started refreshing ${commands.length} application (/) commands.`);
 
         await rest.put(
             Routes.applicationGuildCommands(clientId, guildId), // guild deploy
             { body: commands }
         );
 
-        console.log("✅ Successfully reloaded application (/) commands.");
+        console.log(`✅ Successfully reloaded ${commands.length} application (/) commands.`);
+        console.log("\n📋 Deployed commands:");
+        commands.forEach((cmd, i) => {
+            console.log(`  ${i + 1}. /${cmd.name} - ${cmd.description}`);
+        });
     } catch (error) {
         console.error("❌ Error deploying commands:", error);
     }
 })();
 
+// Uncomment to clear all commands
 // (async () => {
 //     try {
 //         console.log('Clearing guild application (/) commands...');
-
 //         await rest.put(
 //             Routes.applicationGuildCommands(clientId, guildId),
-//             { body: [] }, // <-- empty array clears all
+//             { body: [] },
 //         );
-
 //         console.log(`Successfully cleared all commands in guild ${guildId}.`);
 //     } catch (error) {
 //         console.error(error);
