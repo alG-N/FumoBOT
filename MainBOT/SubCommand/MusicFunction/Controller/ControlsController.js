@@ -68,8 +68,8 @@ class ControlsController {
             
             onEnd: async (reason, msg) => {
                 logger.log(`Collector ended: ${reason}`, interaction);
-                const current = queueService.getCurrentTrack(guildId);
-                if (current) {
+                const player = lavalinkService.getPlayer(guildId);
+                if (player) {
                     await interactionHandler.disableMessageComponents(msg);
                     queueService.clearNowMessage(guildId);
                 }
@@ -89,7 +89,7 @@ class ControlsController {
             return await interactionHandler.safeReply(interaction, { ephemeral: true, content: "⚠️ Not playing." });
         }
 
-        const currentTrack = queueService.getCurrentTrack(guildId);
+        const currentTrack = player.queue.current;
 
         if (player.playing && !player.paused) {
             player.pause(true);
@@ -99,8 +99,8 @@ class ControlsController {
                 {
                     title: currentTrack.title,
                     url: currentTrack.uri,
-                    lengthSeconds: Math.floor(currentTrack.duration / 1000),
-                    thumbnail: currentTrack.thumbnail || currentTrack.displayThumbnail?.(),
+                    lengthSeconds: Math.floor(currentTrack.length / 1000),
+                    thumbnail: currentTrack.thumbnail || currentTrack.artworkUrl,
                     author: currentTrack.author,
                     requestedBy: currentTrack.requester,
                     source: currentTrack.sourceName || 'YouTube'
@@ -130,8 +130,8 @@ class ControlsController {
                 {
                     title: currentTrack.title,
                     url: currentTrack.uri,
-                    lengthSeconds: Math.floor(currentTrack.duration / 1000),
-                    thumbnail: currentTrack.thumbnail || currentTrack.displayThumbnail?.(),
+                    lengthSeconds: Math.floor(currentTrack.length / 1000),
+                    thumbnail: currentTrack.thumbnail || currentTrack.artworkUrl,
                     author: currentTrack.author,
                     requestedBy: currentTrack.requester,
                     source: currentTrack.sourceName || 'YouTube'
@@ -207,7 +207,7 @@ class ControlsController {
                     const votingMsg = votingService.getVotingMessage(queue);
 
                     if (votingService.hasEnoughVotes(queue)) {
-                        player.stop();
+                        player.skip();
                         await votingMsg.edit({ content: "⏭️ Track skipped by vote.", components: [] });
                         logger.log(`Track skipped by vote`, interaction);
                     } else {
@@ -225,7 +225,7 @@ class ControlsController {
             }
         } else {
             if (player.playing || player.paused) {
-                player.stop();
+                player.skip();
                 logger.log(`Track skipped`, interaction);
                 await interactionHandler.safeReply(interaction, { ephemeral: true, content: "⏭️ Skipped." });
             } else {
@@ -250,17 +250,18 @@ class ControlsController {
         const queueList = player.queue;
 
         if (currentTrack) {
-            lines.push(`**Now** — [${currentTrack.title}](${currentTrack.uri}) \`${fmtDur(Math.floor(currentTrack.duration / 1000))}\``);
+            lines.push(`**Now** — [${currentTrack.title}](${currentTrack.uri}) \`${fmtDur(Math.floor(currentTrack.length / 1000))}\``);
         }
 
-        if (queueList.length === 0) {
+        if (queueList.size === 0) {
             lines.push("_Queue is empty._");
         } else {
-            queueList.slice(0, 10).forEach((t, idx) => {
-                lines.push(`**#${idx + 1}** — [${t.title}](${t.uri}) \`${fmtDur(Math.floor(t.duration / 1000))}\` • ${t.author}`);
+            const tracks = queueList.slice(0, 10);
+            tracks.forEach((t, idx) => {
+                lines.push(`**#${idx + 1}** — [${t.title}](${t.uri}) \`${fmtDur(Math.floor(t.length / 1000))}\` • ${t.author}`);
             });
-            if (queueList.length > 10) {
-                lines.push(`…and **${queueList.length - 10}** more`);
+            if (queueList.size > 10) {
+                lines.push(`…and **${queueList.size - 10}** more`);
             }
         }
 
@@ -287,8 +288,8 @@ class ControlsController {
             {
                 title: currentTrack.title,
                 url: currentTrack.uri,
-                lengthSeconds: Math.floor(currentTrack.duration / 1000),
-                thumbnail: currentTrack.thumbnail || currentTrack.displayThumbnail?.(),
+                lengthSeconds: Math.floor(currentTrack.length / 1000),
+                thumbnail: currentTrack.thumbnail || currentTrack.artworkUrl,
                 author: currentTrack.author,
                 requestedBy: currentTrack.requester,
                 source: currentTrack.sourceName || 'YouTube'
@@ -340,8 +341,8 @@ class ControlsController {
             {
                 title: currentTrack.title,
                 url: currentTrack.uri,
-                lengthSeconds: Math.floor(currentTrack.duration / 1000),
-                thumbnail: currentTrack.thumbnail || currentTrack.displayThumbnail?.(),
+                lengthSeconds: Math.floor(currentTrack.length / 1000),
+                thumbnail: currentTrack.thumbnail || currentTrack.artworkUrl,
                 author: currentTrack.author,
                 requestedBy: currentTrack.requester,
                 source: currentTrack.sourceName || 'YouTube'
@@ -395,7 +396,7 @@ class ControlsController {
             const player = lavalinkService.getPlayer(guildId);
             
             if (player) {
-                player.stop();
+                player.skip();
             }
             
             await votingMsg.edit({ content: "⏭️ Track skipped by vote.", components: [] });

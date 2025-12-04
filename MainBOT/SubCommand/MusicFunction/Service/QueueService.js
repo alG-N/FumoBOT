@@ -23,7 +23,7 @@ class QueueService {
 
     getQueueLength(guildId) {
         const player = this.getPlayer(guildId);
-        return player?.queue?.length || 0;
+        return player?.queue?.size || 0;
     }
 
     toggleLoop(guildId) {
@@ -33,7 +33,8 @@ class QueueService {
         queue.loop = !queue.loop;
         
         if (player) {
-            player.setQueueRepeat(queue.loop);
+            // Kazagumo uses setLoop method
+            player.setLoop(queue.loop ? 'queue' : 'none');
         }
         
         return queue.loop;
@@ -51,7 +52,7 @@ class QueueService {
         queue.loop = enabled;
         
         if (player) {
-            player.setQueueRepeat(enabled);
+            player.setLoop(enabled ? 'queue' : 'none');
         }
     }
 

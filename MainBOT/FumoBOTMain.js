@@ -138,54 +138,40 @@ if (steam && steam.data && steam.data.name) {
     console.log('✅ Manually loaded steam command');
 }
 
-// BOT LOGIN - Do this BEFORE initializing Lavalink
+// NOW login
 client.login(process.env.BOT_TOKEN);
 
 // BOT READY EVENT
 client.once('ready', async () => {
     console.log(`✅ Logged in as ${client.user.tag}`);
     
-    // NOW initialize Lavalink AFTER Discord is ready
-    console.log('[Lavalink] Initializing Shoukaku after client ready...');
+    // Initialize Kazagumo AFTER Discord is ready
+    console.log('[Lavalink] Initializing Kazagumo...');
     try {
         lavalinkService.initialize(client);
-        console.log('[Lavalink] Shoukaku initialized - nodes will connect shortly');
-    } catch (error) {
-        console.error('[Lavalink] Failed to initialize:', error);
-    }
-    
-    // Wait for nodes to be added and connect
-    console.log('[Lavalink] Waiting for nodes to register and connect...');
-    await new Promise(resolve => setTimeout(resolve, 5000));
-    
-    const manager = lavalinkService.getManager();
-    if (manager) {
-        console.log(`[Lavalink] Nodes registered: ${manager.nodes.size}`);
         
-        if (manager.nodes.size > 0) {
-            const nodes = Array.from(manager.nodes.values());
-            const connectedNodes = nodes.filter(n => n.state === 2);
-            console.log(`[Lavalink] Connected nodes: ${connectedNodes.length}/${nodes.length}`);
+        // Wait up to 10 seconds for connection
+        for (let i = 0; i < 10; i++) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
             
-            nodes.forEach(node => {
-                console.log(`[Lavalink] Node "${node.name}" state: ${node.state} (0=DISCONNECTED, 1=CONNECTING, 2=CONNECTED, 3=RECONNECTING)`);
-            });
+            const status = lavalinkService.getNodeStatus();
+            console.log(`[Lavalink] Status check ${i + 1}/10:`, status);
             
-            if (connectedNodes.length === 0) {
-                console.error('[Lavalink] ⚠️ Nodes registered but not connected');
-                console.error('[Lavalink] Waiting longer for connection...');
-                
-                await new Promise(resolve => setTimeout(resolve, 5000));
-                
-                const retryNodes = Array.from(manager.nodes.values());
-                const retryConnected = retryNodes.filter(n => n.state === 2);
-                console.log(`[Lavalink] After retry: ${retryConnected.length}/${retryNodes.length} connected`);
+            if (status.ready) {
+                console.log('[Lavalink] ✅ Music system ready!');
+                break;
             }
-        } else {
-            console.error('[Lavalink] ❌ No nodes registered - check your configuration');
+            
+            if (i === 9) {
+                console.error('[Lavalink] ⚠️ Music system not ready after 10 seconds');
+                console.error('[Lavalink] Bot will continue, but music commands may not work');
+                console.error('[Lavalink] Check if Lavalink server is running!');
+            }
         }
+    } catch (error) {
+        console.error('[Lavalink] Initialization error:', error);
     }
-    
+
     // Continue with other initialization
     initializeDatabase();
     startIncomeSystem();
