@@ -33,8 +33,7 @@ class QueueService {
         queue.loop = !queue.loop;
         
         if (player) {
-            // Kazagumo uses setLoop method
-            player.setLoop(queue.loop ? 'queue' : 'none');
+            player.setLoop(queue.loop);
         }
         
         return queue.loop;
@@ -52,7 +51,7 @@ class QueueService {
         queue.loop = enabled;
         
         if (player) {
-            player.setLoop(enabled ? 'queue' : 'none');
+            player.setLoop(enabled);
         }
     }
 
@@ -110,7 +109,7 @@ class QueueService {
         }
     }
 
-    cleanup(guildId) {
+    async cleanup(guildId) {
         const queue = queueRepository.get(guildId);
         if (!queue) return;
 

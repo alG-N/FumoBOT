@@ -43,11 +43,6 @@ console.log(`Maintenance mode is currently: ${maintenance}`);
 const client = createClient();
 client.commands = new Collection();
 
-// ===== LAVALINK INITIALIZATION - MUST BE BEFORE client.login() =====
-console.log('[Lavalink] Initializing music system...');
-const lavalinkService = require('./SubCommand/MusicFunction/Service/LavalinkService');
-lavalinkService.initialize(client);  // ← Initialize HERE, BEFORE login!
-
 // ===== RECURSIVE COMMAND LOADER FUNCTION =====
 function loadCommandsRecursively(directory, depth = 0) {
     const indent = '  '.repeat(depth);
@@ -69,12 +64,6 @@ function loadCommandsRecursively(directory, depth = 0) {
         }
     }
 }
-
-// LOAD ALL SLASH COMMANDS RECURSIVELY
-console.log('🔄 Loading commands from SubCommand folder...');
-const subCommandPath = path.join(__dirname, 'SubCommand');
-loadCommandsRecursively(subCommandPath);
-console.log(`✅ Total commands loaded: ${client.commands.size}`);
 
 // LOAD GAME COMMAND MODULES
 const gacha = require('./MainCommand/CommandFolder/GachaCommand/crategacha');
@@ -140,6 +129,12 @@ if (steam && steam.data && steam.data.name) {
     console.log('✅ Manually loaded steam command');
 }
 
+// LOAD ALL SLASH COMMANDS RECURSIVELY
+console.log('🔄 Loading commands from SubCommand folder...');
+const subCommandPath = path.join(__dirname, 'SubCommand');
+loadCommandsRecursively(subCommandPath);
+console.log(`✅ Total commands loaded: ${client.commands.size}`);
+
 // NOW login - Lavalink is already initialized above
 client.login(process.env.BOT_TOKEN);
 
@@ -147,33 +142,34 @@ client.login(process.env.BOT_TOKEN);
 client.once('ready', async () => {
     console.log(`✅ Logged in as ${client.user.tag}`);
     
-    // Check Lavalink connection status
-    console.log('[Lavalink] Checking connection status...');
+    console.log('[Lavalink] Initializing music system...');
+    const lavalinkService = require('./SubCommand/MusicFunction/Service/LavalinkService');
+    lavalinkService.initialize(client);
+    
+    console.log('[Lavalink] Waiting for connection...');
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    
     const status = lavalinkService.getNodeStatus();
     console.log('[Lavalink] Status:', JSON.stringify(status, null, 2));
     
     if (!status.ready) {
-        console.log('[Lavalink] Waiting for connection...');
-        // Wait up to 30 seconds for connection
-        for (let i = 0; i < 30; i++) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
+        for (let i = 0; i < 10; i++) {
+            await new Promise(resolve => setTimeout(resolve, 2000));
             const newStatus = lavalinkService.getNodeStatus();
             
             if (newStatus.ready) {
-                console.log('[Lavalink] ✅ Connected successfully!');
+                console.log('[Lavalink] ✅ Connected!');
                 break;
             }
             
-            if (i === 29) {
-                console.error('[Lavalink] ⚠️ Still not connected after 30 seconds');
-                console.error('[Lavalink] Check Lavalink server logs for errors');
+            if (i === 9) {
+                console.error('[Lavalink] ⚠️ Still not connected');
             }
         }
     } else {
         console.log('[Lavalink] ✅ Already connected!');
     }
 
-    // Continue with other initialization
     initializeDatabase();
     startIncomeSystem();
     scheduleBackups(client);
@@ -183,7 +179,6 @@ client.once('ready', async () => {
     initializeSeasonSystem(client);
     initializeShop();
     initializeShardHandler(client);
-
     await restoreAutoRollSystems(client);
 
     console.log('🚀 Bot is fully operational!');
