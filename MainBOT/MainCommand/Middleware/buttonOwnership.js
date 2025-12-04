@@ -5,7 +5,6 @@ function verifyButtonOwnership(interaction, expectedAction = null) {
     const parts = interaction.customId.split('_');
     
     if (parts.length < 2) {
-        debugLog('BUTTON_OWNERSHIP', `Invalid customId format: ${interaction.customId}`);
         return false;
     }
     
@@ -27,20 +26,11 @@ function verifyButtonOwnership(interaction, expectedAction = null) {
     
     const action = parts.slice(0, userIdIndex).join('_');
     
-    debugLog('BUTTON_OWNERSHIP', `Parsed: action="${action}", claimedUserId="${claimedUserId}", actualUserId="${actualUserId}"`);
-    
     if (expectedAction && action !== expectedAction) {
-        debugLog('BUTTON_OWNERSHIP', `Action mismatch: expected ${expectedAction}, got ${action}`);
         return false;
     }
     
-    const isOwner = actualUserId === claimedUserId;
-    
-    if (!isOwner) {
-        debugLog('BUTTON_OWNERSHIP', `Ownership failed: user ${actualUserId} tried to use ${claimedUserId}'s button`);
-    }
-    
-    return isOwner;
+    return actualUserId === claimedUserId;
 }
 
 async function sendOwnershipError(interaction, customMessage = null) {
@@ -63,14 +53,8 @@ async function sendOwnershipError(interaction, customMessage = null) {
     }
 }
 
-async function checkButtonOwnership(interaction, expectedAction = null, customErrorMessage = null, autoReply = true) {
-    const isValid = verifyButtonOwnership(interaction, expectedAction);
-    
-    if (!isValid && autoReply) {
-        await sendOwnershipError(interaction, customErrorMessage);
-    }
-    
-    return isValid;
+function checkButtonOwnership(interaction, expectedAction = null, customErrorMessage = null) {
+    return verifyButtonOwnership(interaction, expectedAction);
 }
 
 function getValidatedUserId(interaction) {
@@ -216,7 +200,7 @@ function parseCustomId(customId) {
 
 function createOwnershipMiddleware(expectedAction = null) {
     return async (interaction, next) => {
-        const isValid = await checkButtonOwnership(interaction, expectedAction);
+        const isValid = checkButtonOwnership(interaction, expectedAction);
         
         if (isValid && typeof next === 'function') {
             return next();

@@ -105,8 +105,6 @@ async function handleBackToMain(interaction) {
 
 async function handleRefreshGlobal(interaction) {
     try {
-        await interaction.deferUpdate();
-
         const allListings = await getAllGlobalListings();
         const shuffled = allListings.sort(() => Math.random() - 0.5);
         const display = shuffled.slice(0, 5);
@@ -121,11 +119,18 @@ async function handleRefreshGlobal(interaction) {
 
         if (display.length > 0) {
             const options = display.map((listing, idx) => {
-                const currencyEmoji = listing.currency === 'coins' ? '🪙' : '💎';
+                let priceText = '';
+                if (listing.coinPrice && listing.gemPrice) {
+                    priceText = `🪙${listing.coinPrice.toLocaleString()} 💎${listing.gemPrice.toLocaleString()}`;
+                } else if (listing.coinPrice) {
+                    priceText = `🪙${listing.coinPrice.toLocaleString()}`;
+                } else if (listing.gemPrice) {
+                    priceText = `💎${listing.gemPrice.toLocaleString()}`;
+                }
                 return {
                     label: listing.fumoName.substring(0, 100),
                     value: `${listing.id}`,
-                    description: `${currencyEmoji} ${listing.price.toLocaleString()}`.substring(0, 100)
+                    description: priceText.substring(0, 100)
                 };
             });
             selectMenu.addOptions(options);
@@ -138,7 +143,7 @@ async function handleRefreshGlobal(interaction) {
 
         const selectRow = new ActionRowBuilder().addComponents(selectMenu);
 
-        await interaction.editReply({ embeds: [embed], components: [selectRow, buttons] });
+        await interaction.update({ embeds: [embed], components: [selectRow, buttons] });
     } catch (error) {
         console.error('Refresh global error:', error);
         if (!interaction.replied && !interaction.deferred) {
