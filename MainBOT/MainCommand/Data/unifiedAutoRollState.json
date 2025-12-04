@@ -1,7 +1,7 @@
 {
   "1128296349566251068": {
     "normal": {
-      "rollCount": 5,
+      "rollCount": 8,
       "autoSell": true,
       "startTime": 1764825039939,
       "bestFumo": {
@@ -11,16 +11,16 @@
       },
       "bestFumoAt": "12/4/2025, 2:59:02 PM",
       "bestFumoRoll": 154,
-      "specialFumoCount": 74,
+      "specialFumoCount": 75,
       "specialFumoFirstAt": "12/4/2025, 12:17:46 PM",
       "specialFumoFirstRoll": 1
     },
     "event": {
-      "rollCount": 9,
+      "rollCount": 15,
       "autoSell": true,
       "startTime": 1764825059334,
-      "totalFumosRolled": 39100,
-      "totalCoinsFromSales": 343700,
+      "totalFumosRolled": 39700,
+      "totalCoinsFromSales": 583150,
       "bestFumo": {
         "name": "Go/jo(???)",
         "rarity": "???",
