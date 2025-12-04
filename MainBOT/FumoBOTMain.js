@@ -43,22 +43,33 @@ console.log(`Maintenance mode is currently: ${maintenance}`);
 const client = createClient();
 client.commands = new Collection();
 
-// LOAD SLASH COMMANDS - REMOVED MainMusic.js FILTER
-const commandFolders = fs.readdirSync(path.join(__dirname, 'SubCommand'));
-for (const folder of commandFolders) {
-    const commandFiles = fs.readdirSync(path.join(__dirname, 'SubCommand', folder))
-        .filter(file => file.endsWith('.js'));
-
-    for (const file of commandFiles) {
-        const command = require(path.join(__dirname, 'SubCommand', folder, file));
-        if (command && command.data && command.data.name) {
-            client.commands.set(command.data.name, command);
-            console.log(`✅ Loaded command: ${command.data.name} from ${folder}/${file}`);
-        } else {
-            console.warn(`⚠️ Command in file ${file} is missing 'data' or 'data.name' property.`);
+// ===== RECURSIVE COMMAND LOADER FUNCTION =====
+function loadCommandsRecursively(directory, depth = 0) {
+    const indent = '  '.repeat(depth);
+    const items = fs.readdirSync(directory, { withFileTypes: true });
+    for (const item of items) {
+        const fullPath = path.join(directory, item.name);
+        
+        if (item.isDirectory()) {
+            loadCommandsRecursively(fullPath, depth + 1);
+        } else if (item.isFile() && item.name.endsWith('.js')) {
+            try {
+                const command = require(fullPath);
+                if (command && command.data && command.data.name) {
+                    client.commands.set(command.data.name, command);
+                }
+            } catch (error) {
+                console.error(`${indent}❌ Error loading ${item.name}:`, error.message);
+            }
         }
     }
 }
+
+// LOAD ALL SLASH COMMANDS RECURSIVELY
+console.log('🔄 Loading commands from SubCommand folder...');
+const subCommandPath = path.join(__dirname, 'SubCommand');
+loadCommandsRecursively(subCommandPath);
+console.log(`✅ Total commands loaded: ${client.commands.size}`);
 
 // LOAD GAME COMMAND MODULES
 const gacha = require('./MainCommand/CommandFolder/GachaCommand/crategacha');
@@ -100,28 +111,6 @@ const farmCheck = require('./MainCommand/CommandFolder/FarmingCommand/FarmCheck'
 const farmInfo = require('./MainCommand/CommandFolder/FarmingCommand/FarmInfo');
 const InitializeFarming = require('./MainCommand/CommandFolder/FarmingCommand/InitializeFarming');
 const trade = require('./MainCommand/CommandFolder/TradeCommand/trade')
-
-// OTHER FUN COMMANDS
-const anime = require('./SubCommand/API-Website/Anime/anime');
-const afk = require('./SubCommand/BasicCommand/afk');
-const reddit = require('./SubCommand/API-Website/Reddit/reddit');
-const pixiv = require('./SubCommand/API-Website/Pixiv/pixiv');
-const steam = require('./SubCommand/API-Website/Steam/steam');
-
-if (reddit && reddit.data && reddit.data.name) {
-    client.commands.set(reddit.data.name, reddit);
-    console.log('✅ Manually loaded reddit command');
-}
-
-if (pixiv && pixiv.data && pixiv.data.name) {
-    client.commands.set(pixiv.data.name, pixiv);
-    console.log('✅ Manually loaded pixiv command');
-}
-
-if (steam && steam.data && steam.data.name) {
-    client.commands.set(steam.data.name, steam);
-    console.log('✅ Manually loaded steam command');
-}
 
 // BOT READY EVENT
 client.once('ready', async () => {
@@ -380,13 +369,28 @@ client.on('interactionCreate', async interaction => {
     }
 
     if (interaction.isChatInputCommand()) {
+        console.log(`🎮 Command received: /${interaction.commandName} from ${interaction.user.tag}`);
+        
         const command = client.commands.get(interaction.commandName);
-        if (!command) return;
+        if (!command) {
+            console.error(`❌ Command not found in collection: ${interaction.commandName}`);
+            console.log(`Available commands: ${Array.from(client.commands.keys()).join(', ')}`);
+            
+            try {
+                await interaction.reply({ 
+                    content: '❌ This command is not available. The bot may need to restart.', 
+                    ephemeral: true 
+                });
+            } catch (e) {
+                console.error('Failed to send command not found message:', e);
+            }
+            return;
+        }
 
         try {
             await command.execute(interaction);
         } catch (error) {
-            console.error('Command execution error:', error);
+            console.error(`❌ Error executing ${interaction.commandName}:`, error);
             try {
                 if (interaction.replied || interaction.deferred) {
                     await interaction.followUp({ content: 'There was an error executing this command!', ephemeral: true });
@@ -415,6 +419,27 @@ client.on('interactionCreate', async interaction => {
 });
 
 // MESSAGE EVENT HANDLERS
+const anime = require('./SubCommand/API-Website/Anime/anime');
+const afk = require('./SubCommand/BasicCommand/afk');
+const reddit = require('./SubCommand/API-Website/Reddit/reddit');
+const pixiv = require('./SubCommand/API-Website/Pixiv/pixiv');
+const steam = require('./SubCommand/API-Website/Steam/steam');
+
+if (reddit && reddit.data && reddit.data.name) {
+    client.commands.set(reddit.data.name, reddit);
+    console.log('✅ Manually loaded reddit command');
+}
+
+if (pixiv && pixiv.data && pixiv.data.name) {
+    client.commands.set(pixiv.data.name, pixiv);
+    console.log('✅ Manually loaded pixiv command');
+}
+
+if (steam && steam.data && steam.data.name) {
+    client.commands.set(steam.data.name, steam);
+    console.log('✅ Manually loaded steam command');
+}
+
 client.on('messageCreate', message => {
     afk.onMessage(message, client);
 });
@@ -422,7 +447,6 @@ client.on('messageCreate', message => {
 client.on('messageCreate', message => {
     anime.onMessage(message, client);
 });
-
 
 // GRACEFUL SHUTDOWN HANDLERS
 process.on('SIGINT', handleShutdown);
