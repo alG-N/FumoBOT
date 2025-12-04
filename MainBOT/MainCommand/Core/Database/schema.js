@@ -42,7 +42,7 @@ function createIndexes() {
         // Exchange History
         `CREATE INDEX IF NOT EXISTS idx_exchange_user ON exchangeHistory(userId, date)`,
 
-        // Exchange Cache - NEW
+        // Exchange Cache
         `CREATE INDEX IF NOT EXISTS idx_exchangeCache_expiresAt ON exchangeCache(expiresAt)`,
         `CREATE INDEX IF NOT EXISTS idx_exchangeCache_userId ON exchangeCache(userId)`,
 
@@ -55,7 +55,11 @@ function createIndexes() {
         // Craft
         `CREATE INDEX IF NOT EXISTS idx_craftQueue_user ON craftQueue(userId, completesAt)`,
         `CREATE INDEX IF NOT EXISTS idx_craftQueue_claimed ON craftQueue(claimed)`,
-        `CREATE INDEX IF NOT EXISTS idx_craftHistory_user ON craftHistory(userId, craftedAt DESC)`
+        `CREATE INDEX IF NOT EXISTS idx_craftHistory_user ON craftHistory(userId, craftedAt DESC)`,
+
+        // Global market
+        `CREATE INDEX idx_globalMarket_userId ON globalMarket(userId)`,
+        `CREATE INDEX idx_globalMarket_listedAt ON globalMarket(listedAt)`
     ];
 
     return new Promise((resolve) => {
@@ -498,14 +502,15 @@ function createTables() {
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 userId TEXT NOT NULL,
                 fumoName TEXT NOT NULL,
-                price INTEGER NOT NULL,
-                currency TEXT NOT NULL CHECK(currency IN ('coins', 'gems')),
-                listedAt INTEGER NOT NULL
+                coinPrice INTEGER,
+                gemPrice INTEGER,
+                listedAt INTEGER NOT NULL,
+                CHECK (coinPrice IS NOT NULL OR gemPrice IS NOT NULL)
             )`, (err) => {
                 if (err) {
-                    console.error('Error creating globalMarket table:', err.message);
+                    console.error("Error creating globalMarket table:", err.message);
                 } else {
-                    console.log('✅ Table globalMarket is ready');
+                    console.log("✅ Table globalMarket is ready");
                 }
                 res();
             });

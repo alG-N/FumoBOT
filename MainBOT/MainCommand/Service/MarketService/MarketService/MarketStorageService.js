@@ -1,21 +1,21 @@
 const { get, all, run } = require('../../../Core/database');
 
-async function addGlobalListing(userId, fumoName, price, currency) {
+async function addGlobalListing(userId, fumoName, coinPrice, gemPrice) {
     const existing = await get(
-        `SELECT id FROM globalMarket WHERE userId = ? AND fumoName = ? AND currency = ?`,
-        [userId, fumoName, currency]
+        `SELECT id FROM globalMarket WHERE userId = ? AND fumoName = ?`,
+        [userId, fumoName]
     );
 
     if (existing) {
         await run(
-            `UPDATE globalMarket SET price = ?, listedAt = ? WHERE id = ?`,
-            [price, Date.now(), existing.id]
+            `UPDATE globalMarket SET coinPrice = ?, gemPrice = ?, listedAt = ? WHERE id = ?`,
+            [coinPrice, gemPrice, Date.now(), existing.id]
         );
     } else {
         await run(
-            `INSERT INTO globalMarket (userId, fumoName, price, currency, listedAt)
+            `INSERT INTO globalMarket (userId, fumoName, coinPrice, gemPrice, listedAt)
              VALUES (?, ?, ?, ?, ?)`,
-            [userId, fumoName, price, currency, Date.now()]
+            [userId, fumoName, coinPrice, gemPrice, Date.now()]
         );
     }
 }

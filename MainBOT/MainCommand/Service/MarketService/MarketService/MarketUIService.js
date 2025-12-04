@@ -91,7 +91,6 @@ async function createGemShopEmbed(userId, market, resetTime) {
 function createGlobalShopEmbed(listings, page = 0) {
     const itemsPerPage = 5;
     
-    // Group listings by fumoName and userId to combine coin/gem prices
     const groupedListings = {};
     listings.forEach(listing => {
         const key = `${listing.userId}_${listing.fumoName}`;
@@ -99,18 +98,10 @@ function createGlobalShopEmbed(listings, page = 0) {
             groupedListings[key] = {
                 userId: listing.userId,
                 fumoName: listing.fumoName,
-                coinPrice: null,
-                gemPrice: null,
-                coinId: null,
-                gemId: null
+                coinPrice: listing.coinPrice,
+                gemPrice: listing.gemPrice,
+                id: listing.id
             };
-        }
-        if (listing.currency === 'coins') {
-            groupedListings[key].coinPrice = listing.price;
-            groupedListings[key].coinId = listing.id;
-        } else if (listing.currency === 'gems') {
-            groupedListings[key].gemPrice = listing.price;
-            groupedListings[key].gemId = listing.id;
         }
     });
     
@@ -134,7 +125,7 @@ function createGlobalShopEmbed(listings, page = 0) {
         displayListings.forEach((listing) => {
             let priceText = '';
             if (listing.coinPrice && listing.gemPrice) {
-                priceText = `🪙 ${formatNumber(listing.coinPrice)} | 💎 ${formatNumber(listing.gemPrice)}`;
+                priceText = `🪙 ${formatNumber(listing.coinPrice)} or 💎 ${formatNumber(listing.gemPrice)}`;
             } else if (listing.coinPrice) {
                 priceText = `🪙 ${formatNumber(listing.coinPrice)}`;
             } else if (listing.gemPrice) {
@@ -249,6 +240,7 @@ function createErrorEmbed(errorType, details = {}) {
         INVALID_AMOUNT: `⚠️ Invalid amount. Must be between 1 and ${details.max || 999}.`,
         MAX_LISTINGS: `⚠️ You've reached the maximum of ${GLOBAL_SHOP_CONFIG.MAX_LISTINGS_PER_USER} listings.`,
         NO_INVENTORY: `⚠️ You don't have this Fumo in your inventory.`,
+        PAYMENT_METHOD_UNAVAILABLE: `⚠️ This payment method is not available for this listing.`,
         PROCESSING_ERROR: `❌ An error occurred. Please try again.`
     };
     

@@ -4,14 +4,22 @@ const {
     createMainShopEmbed, 
     createMainShopButtons
 } = require('../../Service/MarketService/MarketService/MarketUIService');
+
 const {
     handleCoinShop,
     handleGemShop,
     handleGlobalShop,
     handleBackToMain,
+    handleRefreshGlobal
+} = require('../../Service/MarketService/MarketService/MarketInteractionHandler');
+
+const {
     handleFumoSelection,
     handleConfirmPurchase,
-    handleCancelPurchase,
+    handleCancelPurchase
+} = require('../../Service/MarketService/MarketService/MarketShopHandler');
+
+const {
     handleAddListing,
     handleRaritySelection,
     handleBaseFumoSelection,
@@ -20,11 +28,13 @@ const {
     handlePriceModal,
     handleConfirmListing,
     handleRemoveListing,
-    handleRemoveListingSelect,
-    handleRefreshGlobal,
+    handleRemoveListingSelect
+} = require('../../Service/MarketService/MarketService/MarketListingHandler');
+
+const {
     handleGlobalPurchaseSelect,
     handleConfirmGlobalPurchase
-} = require('../../Service/MarketService/MarketService/MarketInteractionHandler');
+} = require('../../Service/MarketService/MarketService/MarketGlobalPurchaseHandler');
 
 module.exports = async (client) => {
     client.on('messageCreate', async (message) => {
