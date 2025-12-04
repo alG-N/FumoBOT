@@ -71,8 +71,16 @@ async function processShopPurchase(userId, fumo, amount, totalPrice, currency, s
     return { remainingBalance };
 }
 
-async function validateGlobalPurchase(userId, listing) {
-    const currency = listing.currency;
+async function validateGlobalPurchase(userId, listing, currency) {
+    const price = currency === 'coins' ? listing.coinPrice : listing.gemPrice;
+    
+    if (!price) {
+        return {
+            valid: false,
+            error: 'PAYMENT_METHOD_UNAVAILABLE'
+        };
+    }
+    
     const userRow = await get(`SELECT ${currency} FROM userCoins WHERE userId = ?`, [userId]);
     
     if (!userRow) {
@@ -82,11 +90,11 @@ async function validateGlobalPurchase(userId, listing) {
         };
     }
     
-    if (userRow[currency] < listing.price) {
+    if (userRow[currency] < price) {
         return { 
             valid: false, 
             error: currency === 'coins' ? 'INSUFFICIENT_COINS' : 'INSUFFICIENT_GEMS',
-            required: listing.price,
+            required: price,
             current: userRow[currency]
         };
     }
@@ -97,9 +105,8 @@ async function validateGlobalPurchase(userId, listing) {
     };
 }
 
-async function processGlobalPurchase(buyerId, listing) {
-    const currency = listing.currency;
-    const price = listing.price;
+async function processGlobalPurchase(buyerId, listing, currency) {
+    const price = currency === 'coins' ? listing.coinPrice : listing.gemPrice;
     const tax = Math.floor(price * 0.05);
     const sellerReceives = price - tax;
     
