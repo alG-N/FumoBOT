@@ -12,19 +12,16 @@ class VoiceService {
         let player = lavalinkService.getPlayer(guildId);
         
         if (!player) {
-            player = lavalinkService.createPlayer(
+            player = await lavalinkService.createPlayer(
                 guildId,
                 voiceChannel.id,
                 interaction.channel.id
             );
-        }
-
-        if (player.voiceChannel !== voiceChannel.id) {
-            player.setVoiceChannel(voiceChannel.id);
-        }
-
-        if (!player.connected) {
-            await player.connect();
+        } else {
+            // Update voice channel if changed
+            if (player.voiceId !== voiceChannel.id) {
+                player.setVoiceChannel(voiceChannel.id);
+            }
         }
 
         return player;
@@ -37,12 +34,12 @@ class VoiceService {
 
     isConnected(guildId) {
         const player = lavalinkService.getPlayer(guildId);
-        return player?.connected || false;
+        return player?.state === 'CONNECTED' || false;
     }
 
     getChannelId(guildId) {
         const player = lavalinkService.getPlayer(guildId);
-        return player?.voiceChannel || null;
+        return player?.voiceId || null;
     }
 
     monitorVoiceChannel(guildId, channel, onEmpty) {
@@ -54,9 +51,9 @@ class VoiceService {
 
         queue._vcMonitor = setInterval(async () => {
             const player = lavalinkService.getPlayer(guildId);
-            if (!player || !player.connected) return;
+            if (!player || player.state !== 'CONNECTED') return;
 
-            const vcId = player.voiceChannel;
+            const vcId = player.voiceId;
             const vc = channel.guild.channels.cache.get(vcId);
             
             if (!vc) return;
@@ -88,7 +85,7 @@ class VoiceService {
 
     getListenersCount(guildId, guild) {
         const player = lavalinkService.getPlayer(guildId);
-        const vcId = player?.voiceChannel;
+        const vcId = player?.voiceId;
         if (!vcId) return 0;
 
         const vc = guild.channels.cache.get(vcId);
@@ -100,7 +97,7 @@ class VoiceService {
 
     getListeners(guildId, guild) {
         const player = lavalinkService.getPlayer(guildId);
-        const vcId = player?.voiceChannel;
+        const vcId = player?.voiceId;
         if (!vcId) return [];
 
         const vc = guild.channels.cache.get(vcId);

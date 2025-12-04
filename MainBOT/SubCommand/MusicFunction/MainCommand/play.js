@@ -64,12 +64,32 @@ module.exports = {
 
         try {
             logger.log(`Ensuring connection`, interaction);
-            await voiceService.connect(interaction, guildId);
+            let player = await voiceService.connect(interaction, guildId);
 
             voiceService.monitorVoiceChannel(guildId, interaction.channel, async (gid) => {
                 await queueService.cleanup(gid);
                 await interaction.channel.send({ embeds: [embedBuilder.buildNoUserVCEmbed()] });
             });
+
+            // Add track to queue
+            player.queue.add(trackData.track);
+
+            const position = player.queue.size;
+
+            const queuedEmbed = embedBuilder.buildQueuedEmbed(trackData, position, interaction.user);
+            await interaction.editReply({ embeds: [queuedEmbed], components: [] });
+
+            const queue = queueService.getOrCreateQueue(guildId);
+
+            // Bind events once
+            if (!queue._eventsBound) {
+                PlaybackController.bindPlayerEvents(guildId, interaction);
+            }
+
+            // Start playing if not already playing
+            if (!player.playing && !player.paused) {
+                await player.play();
+            }
         } catch (err) {
             logger.error(`Connection error: ${err.message}`, interaction);
             await interaction.followUp({
@@ -81,25 +101,6 @@ module.exports = {
                 ephemeral: true,
             });
             return;
-        }
-
-        const player = lavalinkService.getPlayer(guildId);
-
-        player.queue.add(trackData.track);
-
-        const position = player.queue.size;
-
-        const queuedEmbed = embedBuilder.buildQueuedEmbed(trackData, position, interaction.user);
-        await interaction.editReply({ embeds: [queuedEmbed], components: [] });
-
-        const queue = queueService.getOrCreateQueue(guildId);
-
-        if (!queue._eventsBound) {
-            PlaybackController.bindPlayerEvents(guildId, interaction);
-        }
-
-        if (!player.playing && !player.paused) {
-            await player.play();
         }
     },
 

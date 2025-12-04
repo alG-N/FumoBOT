@@ -12,8 +12,9 @@ class PlaybackController {
         if (queue._eventsBound) return;
         queue._eventsBound = true;
 
-        manager.on('trackStart', async (player, track) => {
-            if (player.guild !== guildId) return;
+        // Track Start Event
+        manager.on('playerStart', async (player, track) => {
+            if (player.guildId !== guildId) return;
 
             logger.log(`Now playing: ${track.title}`, interaction);
             queueService.clearInactivityTimer(guildId);
@@ -24,8 +25,8 @@ class PlaybackController {
                 {
                     title: track.title,
                     url: track.uri,
-                    lengthSeconds: Math.floor(track.duration / 1000),
-                    thumbnail: track.thumbnail || track.displayThumbnail?.(),
+                    lengthSeconds: Math.floor(track.length / 1000),
+                    thumbnail: track.thumbnail || track.artworkUrl,
                     author: track.author,
                     requestedBy: track.requester,
                     source: track.sourceName || 'YouTube'
@@ -44,8 +45,9 @@ class PlaybackController {
             ControlsController.setupCollector(guildId, interaction, nowMessage);
         });
 
-        manager.on('trackEnd', async (player, track) => {
-            if (player.guild !== guildId) return;
+        // Track End Event
+        manager.on('playerEnd', async (player, track) => {
+            if (player.guildId !== guildId) return;
 
             logger.log(`Track ended: ${track.title}`, interaction);
 
@@ -57,8 +59,9 @@ class PlaybackController {
             });
         });
 
-        manager.on('queueEnd', async (player) => {
-            if (player.guild !== guildId) return;
+        // Queue Empty Event
+        manager.on('playerEmpty', async (player) => {
+            if (player.guildId !== guildId) return;
 
             logger.log(`Queue finished`, interaction);
 
@@ -71,17 +74,33 @@ class PlaybackController {
             });
         });
 
-        manager.on('trackError', async (player, track, error) => {
-            if (player.guild !== guildId) return;
+        // Track Exception Event
+        manager.on('playerException', async (player, data) => {
+            if (player.guildId !== guildId) return;
 
-            logger.error(`Track error: ${error.message}`, interaction);
+            logger.error(`Track error: ${data.exception?.message}`, interaction);
 
             await interaction.channel.send({
-                embeds: [embedBuilder.buildErrorEmbed('Skipping to the next track…')]
+                embeds: [embedBuilder.buildErrorEmbed('Track error occurred. Skipping to next track…')]
             });
 
-            if (player.queue.length > 0) {
-                player.stop();
+            if (player.queue.size > 0) {
+                player.skip();
+            }
+        });
+
+        // Track Stuck Event
+        manager.on('playerStuck', async (player, data) => {
+            if (player.guildId !== guildId) return;
+
+            logger.warn(`Track stuck for ${data.thresholdMs}ms`, interaction);
+
+            await interaction.channel.send({
+                embeds: [embedBuilder.buildErrorEmbed('Track stuck. Skipping to next…')]
+            });
+
+            if (player.queue.size > 0) {
+                player.skip();
             }
         });
     }

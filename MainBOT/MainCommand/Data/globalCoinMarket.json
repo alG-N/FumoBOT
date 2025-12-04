@@ -1,17 +1,10 @@
 {
   "market": [
     {
-      "name": "Reimu(Common)",
-      "price": 125,
-      "rarity": "Common",
-      "stock": 5,
-      "picture": null
-    },
-    {
       "name": "Marisa(Common)",
       "price": 125,
       "rarity": "Common",
-      "stock": 8,
+      "stock": 9,
       "picture": null
     },
     {
@@ -22,19 +15,19 @@
       "picture": null
     },
     {
-      "name": "Ran(EPIC)",
-      "price": 765,
-      "rarity": "EPIC",
-      "stock": 2,
+      "name": "Sakuya(UNCOMMON)",
+      "price": 200,
+      "rarity": "UNCOMMON",
+      "stock": 4,
       "picture": null
     },
     {
-      "name": "Satori(EPIC)",
-      "price": 765,
-      "rarity": "EPIC",
-      "stock": 5,
+      "name": "Meiling(UNCOMMON)",
+      "price": 200,
+      "rarity": "UNCOMMON",
+      "stock": 6,
       "picture": null
     }
   ],
-  "resetTime": 1764846000000
+  "resetTime": 1764856800000
 }

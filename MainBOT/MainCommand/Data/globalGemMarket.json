@@ -1,23 +1,30 @@
 {
   "market": [
     {
-      "name": "Satori(EPIC)",
-      "price": 76,
+      "name": "Youmu(RARE)",
+      "price": 35,
+      "rarity": "RARE",
+      "stock": 4,
+      "picture": null
+    },
+    {
+      "name": "Kasen(EPIC)",
+      "price": 90,
       "rarity": "EPIC",
       "stock": 2,
       "picture": null
     },
     {
-      "name": "Yukari(LEGENDARY)",
-      "price": 1250,
+      "name": "Flandere(LEGENDARY)",
+      "price": 1750,
       "rarity": "LEGENDARY",
-      "stock": 2,
+      "stock": 1,
       "picture": null
     },
     {
-      "name": "Athena(ASTRAL)",
-      "price": 7594000,
-      "rarity": "ASTRAL",
+      "name": "Junko(MYTHICAL)",
+      "price": 150000,
+      "rarity": "MYTHICAL",
       "stock": 1,
       "picture": null
     },
@@ -25,30 +32,16 @@
       "name": "Tenshi(MYTHICAL)",
       "price": 97500,
       "rarity": "MYTHICAL",
-      "stock": 1,
-      "picture": null
-    },
-    {
-      "name": "Yuuka(MYTHICAL)",
-      "price": 150000,
-      "rarity": "MYTHICAL",
       "stock": 2,
       "picture": null
     },
     {
-      "name": "SkibidiToilet(???)",
-      "price": 5725000,
-      "rarity": "???",
-      "stock": 1,
-      "picture": null
-    },
-    {
-      "name": "Miku-Senbonzakura,version(???)",
-      "price": 6215000,
-      "rarity": "???",
-      "stock": 1,
+      "name": "Eirin(MYTHICAL)",
+      "price": 135000,
+      "rarity": "MYTHICAL",
+      "stock": 2,
       "picture": null
     }
   ],
-  "resetTime": 1764849600000
+  "resetTime": 1764871200000
 }
