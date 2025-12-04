@@ -3,24 +3,24 @@
     "normal": {
       "rollCount": 1,
       "autoSell": true,
-      "startTime": 1764825039939,
+      "startTime": 1764840683301,
       "bestFumo": {
-        "name": "UltraKillV2(ETERNAL)",
-        "rarity": "ETERNAL",
-        "picture": "https://th.bing.com/th/id/OIP.0rsVamUgjh_eW_1Ep5NDfAAAAA?cb=iwp2&rs=1&pid=ImgDetMain"
+        "name": "Flandere(LEGENDARY)",
+        "rarity": "LEGENDARY",
+        "picture": "https://i.imgur.com/q7f9gh2.png"
       },
-      "bestFumoAt": "12/4/2025, 2:59:02 PM",
-      "bestFumoRoll": 154,
-      "specialFumoCount": 91,
-      "specialFumoFirstAt": "12/4/2025, 12:17:46 PM",
-      "specialFumoFirstRoll": 1
+      "bestFumoAt": "12/4/2025, 4:31:37 PM",
+      "bestFumoRoll": 1,
+      "specialFumoCount": 0,
+      "specialFumoFirstAt": null,
+      "specialFumoFirstRoll": null
     },
     "event": {
-      "rollCount": 1,
+      "rollCount": 8,
       "autoSell": true,
       "startTime": 1764825059334,
-      "totalFumosRolled": 47500,
-      "totalCoinsFromSales": 30250,
+      "totalFumosRolled": 48700,
+      "totalCoinsFromSales": 311800,
       "bestFumo": {
         "name": "Go/jo(???)",
         "rarity": "???",
