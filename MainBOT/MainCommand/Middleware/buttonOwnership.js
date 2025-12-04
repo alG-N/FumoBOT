@@ -51,13 +51,13 @@ async function sendOwnershipError(interaction, customMessage = null) {
             return interaction.followUp({
                 content: message,
                 ephemeral: true
-            });
+            }).catch(() => {});
         }
         
         return interaction.reply({
             content: message,
             ephemeral: true
-        });
+        }).catch(() => {});
     } catch (error) {
         debugLog('BUTTON_OWNERSHIP', `Failed to send ownership error: ${error.message}`);
     }

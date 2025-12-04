@@ -58,8 +58,8 @@ function createIndexes() {
         `CREATE INDEX IF NOT EXISTS idx_craftHistory_user ON craftHistory(userId, craftedAt DESC)`,
 
         // Global market
-        `CREATE INDEX idx_globalMarket_userId ON globalMarket(userId)`,
-        `CREATE INDEX idx_globalMarket_listedAt ON globalMarket(listedAt)`
+        `CREATE INDEX IF NOT EXISTS idx_globalMarket_userId ON globalMarket(userId)`,
+        `CREATE INDEX IF NOT EXISTS idx_globalMarket_listedAt ON globalMarket(listedAt)`
     ];
 
     return new Promise((resolve) => {

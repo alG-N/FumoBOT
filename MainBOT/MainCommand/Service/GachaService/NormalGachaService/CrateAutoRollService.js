@@ -130,8 +130,7 @@ async function startAutoRoll(userId, fumos, autoSell = false) {
         bestFumoRoll: null,
         specialFumoCount: 0,
         specialFumoFirstAt: null,
-        specialFumoFirstRoll: null,
-        lowerSpecialFumos: []
+        specialFumoFirstRoll: null
     };
 
     async function autoRollLoop() {
@@ -159,15 +158,6 @@ async function startAutoRoll(userId, fumos, autoSell = false) {
                     if (!current.specialFumoFirstAt) {
                         current.specialFumoFirstAt = timeStr;
                         current.specialFumoFirstRoll = rollCount;
-                    }
-
-                    if (current.bestFumo && compareFumos(result, current.bestFumo) < 0) {
-                        current.lowerSpecialFumos.push({
-                            name: result.name,
-                            rarity: result.rarity,
-                            roll: rollCount,
-                            time: timeStr
-                        });
                     }
                 }
             }

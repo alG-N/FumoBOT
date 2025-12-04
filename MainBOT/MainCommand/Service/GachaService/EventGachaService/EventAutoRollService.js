@@ -200,13 +200,6 @@ async function startEventAutoRoll(userId, autoSell = false) {
                                 current.specialFumoFirstAt = timeStr;
                                 current.specialFumoFirstRoll = rollCount;
                             }
-
-                            current.specialFumos.push({
-                                name: fumo.name,
-                                rarity: fumo.rarity,
-                                roll: rollCount,
-                                time: timeStr
-                            });
                         }
                     }
                 }
@@ -242,7 +235,6 @@ async function startEventAutoRoll(userId, autoSell = false) {
         specialFumoCount: 0,
         specialFumoFirstAt: null,
         specialFumoFirstRoll: null,
-        specialFumos: [],
         stoppedReason: null,
         autoSell,
         startTime: Date.now()
