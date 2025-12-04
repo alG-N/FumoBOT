@@ -1,62 +1,62 @@
-const { joinVoiceChannel, VoiceConnectionStatus, entersState } = require("@discordjs/voice");
-const voiceConnectionRepository = require('../Repository/VoiceConnectionRepository');
-const { connectionOptions, connectionTimeout } = require('../Configuration/playerConfig');
+const lavalinkService = require('./LavalinkService');
 const { VC_CHECK_INTERVAL } = require('../Configuration/MusicConfig');
 const queueRepository = require('../Repository/QueueRepository');
 
 class VoiceService {
-    async connect(interaction, queue) {
+    async connect(interaction, guildId) {
         const voiceChannel = interaction.member.voice?.channel;
         if (!voiceChannel) {
-            throw new Error("NO_VC");
+            throw new Error('NO_VC');
         }
 
-        if (!voiceConnectionRepository.hasConnection(queue)) {
-            const connection = joinVoiceChannel({
-                channelId: voiceChannel.id,
-                guildId: interaction.guild.id,
-                adapterCreator: voiceChannel.guild.voiceAdapterCreator,
-                ...connectionOptions
-            });
-
-            try {
-                await entersState(connection, VoiceConnectionStatus.Ready, connectionTimeout);
-            } catch (error) {
-                connection.destroy();
-                throw new Error("CONNECTION_READY_TIMEOUT");
-            }
-
-            voiceConnectionRepository.setConnection(queue, connection);
-            voiceConnectionRepository.subscribe(queue, queue.player);
-
-            console.log('[VoiceService] Connected to voice channel');
+        let player = lavalinkService.getPlayer(guildId);
+        
+        if (!player) {
+            player = lavalinkService.createPlayer(
+                guildId,
+                voiceChannel.id,
+                interaction.channel.id
+            );
         }
 
-        return voiceConnectionRepository.getConnection(queue);
+        if (player.voiceChannel !== voiceChannel.id) {
+            player.setVoiceChannel(voiceChannel.id);
+        }
+
+        if (!player.connected) {
+            await player.connect();
+        }
+
+        return player;
     }
 
-    disconnect(queue) {
-        voiceConnectionRepository.destroyConnection(queue);
+    disconnect(guildId) {
+        lavalinkService.destroyPlayer(guildId);
         console.log('[VoiceService] Disconnected from voice channel');
     }
 
-    isConnected(queue) {
-        return voiceConnectionRepository.isConnected(queue);
+    isConnected(guildId) {
+        const player = lavalinkService.getPlayer(guildId);
+        return player?.connected || false;
     }
 
-    getChannelId(queue) {
-        return voiceConnectionRepository.getChannelId(queue);
+    getChannelId(guildId) {
+        const player = lavalinkService.getPlayer(guildId);
+        return player?.voiceChannel || null;
     }
 
-    monitorVoiceChannel(guildId, channel, queue, onEmpty) {
+    monitorVoiceChannel(guildId, channel, onEmpty) {
+        const queue = queueRepository.getOrCreate(guildId);
+        
         if (queue._vcMonitor) {
             clearInterval(queue._vcMonitor);
         }
 
         queue._vcMonitor = setInterval(async () => {
-            if (!queue.connection) return;
+            const player = lavalinkService.getPlayer(guildId);
+            if (!player || !player.connected) return;
 
-            const vcId = voiceConnectionRepository.getChannelId(queue);
+            const vcId = player.voiceChannel;
             const vc = channel.guild.channels.cache.get(vcId);
             
             if (!vc) return;
@@ -78,15 +78,17 @@ class VoiceService {
         }, VC_CHECK_INTERVAL);
     }
 
-    stopMonitoring(queue) {
-        if (queue._vcMonitor) {
+    stopMonitoring(guildId) {
+        const queue = queueRepository.get(guildId);
+        if (queue?._vcMonitor) {
             clearInterval(queue._vcMonitor);
             queue._vcMonitor = null;
         }
     }
 
-    getListenersCount(queue, guild) {
-        const vcId = voiceConnectionRepository.getChannelId(queue);
+    getListenersCount(guildId, guild) {
+        const player = lavalinkService.getPlayer(guildId);
+        const vcId = player?.voiceChannel;
         if (!vcId) return 0;
 
         const vc = guild.channels.cache.get(vcId);
@@ -96,8 +98,9 @@ class VoiceService {
         return listeners.length;
     }
 
-    getListeners(queue, guild) {
-        const vcId = voiceConnectionRepository.getChannelId(queue);
+    getListeners(guildId, guild) {
+        const player = lavalinkService.getPlayer(guildId);
+        const vcId = player?.voiceChannel;
         if (!vcId) return [];
 
         const vc = guild.channels.cache.get(vcId);

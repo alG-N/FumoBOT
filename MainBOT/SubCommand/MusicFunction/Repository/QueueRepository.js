@@ -1,6 +1,3 @@
-const { createAudioPlayer } = require("@discordjs/voice");
-const { DEFAULT_VOLUME } = require('../Configuration/MusicConfig');
-
 class QueueRepository {
     constructor() {
         this.queues = new Map();
@@ -9,24 +6,15 @@ class QueueRepository {
     getOrCreate(guildId) {
         if (!this.queues.has(guildId)) {
             this.queues.set(guildId, {
-                connection: null,
-                player: createAudioPlayer(),
-                volume: DEFAULT_VOLUME,
                 nowMessage: null,
-                current: null,
-                tracks: [],
                 loop: false,
-                startTime: null,
-                elapsed: 0,
-                _eventsBound: false,
-                _collectorBound: false,
                 skipVotes: new Set(),
                 skipVoting: false,
                 skipVotingTimeout: null,
                 skipVotingMsg: null,
                 inactivityTimer: null,
-                currentYtdlpProcess: null,
-                _vcMonitor: null
+                _vcMonitor: null,
+                _eventsBound: false
             });
         }
         return this.queues.get(guildId);

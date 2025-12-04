@@ -1,43 +1,38 @@
-const searchService = require('./SearchService');
+const lavalinkService = require('./LavalinkService');
 
 class TrackResolverService {
-    async resolve(query, user, forceAlt = false) {
-        const searchResult = await searchService.search(query);
+    async resolve(query, user) {
+        const result = await lavalinkService.search(query, user);
 
+        if (!result || result.loadType === 'NO_MATCHES') {
+            throw new Error('NO_RESULTS');
+        }
+
+        if (result.loadType === 'LOAD_FAILED') {
+            throw new Error('LOAD_FAILED');
+        }
+
+        const track = result.tracks[0];
+        
         return {
-            url: searchResult.url,
-            title: searchResult.title,
-            lengthSeconds: Number(searchResult.lengthSeconds),
-            thumbnail: searchResult.thumbnail,
-            author: searchResult.author,
+            track: track,
+            url: track.uri,
+            title: track.title,
+            lengthSeconds: Math.floor(track.duration / 1000),
+            thumbnail: track.thumbnail || track.displayThumbnail?.() || null,
+            author: track.author,
             requestedBy: user,
-            views: searchResult.views,
-            searchInfo: searchResult.searchInfo,
-            source: searchResult.source
+            source: track.sourceName || 'YouTube'
         };
     }
 
-    createTrackFromData(data, user) {
-        return {
-            url: data.url,
-            title: data.title,
-            lengthSeconds: data.lengthSeconds,
-            thumbnail: data.thumbnail,
-            author: data.author,
-            requestedBy: user,
-            views: data.views || null,
-            searchInfo: data.searchInfo || "Unknown",
-            source: data.source || "YouTube"
-        };
+    isLongTrack(trackData, maxDuration) {
+        return trackData.lengthSeconds > maxDuration;
     }
 
-    isLongTrack(track, maxDuration) {
-        return track.lengthSeconds > maxDuration;
-    }
-
-    validateTrack(track) {
-        if (!track.url || !track.title) {
-            throw new Error("INVALID_TRACK_DATA");
+    validateTrack(trackData) {
+        if (!trackData.url || !trackData.title) {
+            throw new Error('INVALID_TRACK_DATA');
         }
         return true;
     }
