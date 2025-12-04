@@ -1,33 +1,33 @@
 {
   "1128296349566251068": {
     "normal": {
-      "rollCount": 2,
+      "rollCount": 1,
       "autoSell": true,
       "startTime": 1764825039939,
       "bestFumo": {
-        "name": "Yuuka(MYTHICAL)",
-        "rarity": "MYTHICAL",
-        "picture": "https://fumo.website/img/685.jpg"
+        "name": "Cheshire(ASTRAL)",
+        "rarity": "ASTRAL",
+        "picture": "https://images.tokopedia.net/img/cache/500-square/VqbcmM/2024/2/25/932b310d-4256-42bc-abf7-c7d83869ee0c.jpg"
       },
-      "bestFumoAt": "12/4/2025, 12:14:15 PM",
+      "bestFumoAt": "12/4/2025, 12:18:47 PM",
       "bestFumoRoll": 2,
-      "specialFumoCount": 0,
-      "specialFumoFirstAt": null,
-      "specialFumoFirstRoll": null
+      "specialFumoCount": 5,
+      "specialFumoFirstAt": "12/4/2025, 12:17:46 PM",
+      "specialFumoFirstRoll": 1
     },
     "event": {
-      "rollCount": 3,
+      "rollCount": 2,
       "autoSell": true,
       "startTime": 1764825059334,
-      "totalFumosRolled": 300,
-      "totalCoinsFromSales": 109300,
+      "totalFumosRolled": 2500,
+      "totalCoinsFromSales": 90700,
       "bestFumo": {
-        "name": "Gambler(LEGENDARY)[✨SHINY]",
-        "rarity": "LEGENDARY",
-        "picture": "https://ih1.redbubble.net/image.5028045676.6139/flat,750x,075,f-pad,750x1000,f8f8f8.jpg"
+        "name": "OneShotCurse(MYTHICAL)[✨SHINY]",
+        "rarity": "MYTHICAL",
+        "picture": "https://animeislandca.com/cdn/shop/files/jujutsu-kaisen-kyurumaru-mahito-big-plush-toy-anime-island-ca.png?v=1692739157&width=1445"
       },
-      "bestFumoAt": "12/4/2025, 12:14:16 PM",
-      "bestFumoRoll": 3,
+      "bestFumoAt": "12/4/2025, 12:24:19 PM",
+      "bestFumoRoll": 5,
       "specialFumoCount": 0,
       "specialFumoFirstAt": null,
       "specialFumoFirstRoll": null

@@ -43,15 +43,15 @@ async function handleAddListing(interaction) {
         });
     } catch (error) {
         console.error('Add listing error:', error);
-        if (!interaction.replied && !interaction.deferred) {
+        if (interaction.deferred) {
+            await interaction.editReply({
+                content: '❌ An error occurred.'
+            });
+        } else if (!interaction.replied) {
             await interaction.reply({
                 content: '❌ An error occurred.',
                 ephemeral: true
-            }).catch(() => {});
-        } else {
-            await interaction.editReply({
-                content: '❌ An error occurred.'
-            }).catch(() => {});
+            });
         }
     }
 }
@@ -404,12 +404,13 @@ async function handleConfirmListing(interaction) {
 
 async function handleRemoveListing(interaction) {
     try {
+        await interaction.deferReply({ ephemeral: true });
+
         const userListings = await getUserGlobalListings(interaction.user.id);
 
         if (userListings.length === 0) {
-            return interaction.reply({
-                content: '⚠️ You have no active listings.',
-                ephemeral: true
+            return interaction.editReply({
+                content: '⚠️ You have no active listings.'
             });
         }
 
@@ -437,17 +438,22 @@ async function handleRemoveListing(interaction) {
 
         const row = new ActionRowBuilder().addComponents(selectMenu);
 
-        await interaction.reply({
+        await interaction.editReply({
             content: 'Select a listing to remove:',
-            components: [row],
-            ephemeral: true
+            components: [row]
         });
     } catch (error) {
         console.error('Remove listing error:', error);
-        await interaction.reply({
-            content: '❌ An error occurred.',
-            ephemeral: true
-        });
+        if (interaction.deferred) {
+            await interaction.editReply({
+                content: '❌ An error occurred.'
+            });
+        } else if (!interaction.replied) {
+            await interaction.reply({
+                content: '❌ An error occurred.',
+                ephemeral: true
+            });
+        }
     }
 }
 

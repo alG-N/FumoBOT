@@ -1,7 +1,7 @@
 const { checkRestrictions } = require('../../Middleware/restrictions');
 const { checkButtonOwnership } = require('../../Middleware/buttonOwnership');
-const { 
-    createMainShopEmbed, 
+const {
+    createMainShopEmbed,
     createMainShopButtons
 } = require('../../Service/MarketService/MarketService/MarketUIService');
 
@@ -41,7 +41,7 @@ module.exports = async (client) => {
         if (message.author.bot) return;
 
         const isMarketCommand = message.content === '.market' || message.content === '.m';
-        
+
         if (!isMarketCommand) return;
 
         const restriction = checkRestrictions(message.author.id);
@@ -55,69 +55,112 @@ module.exports = async (client) => {
     client.on('interactionCreate', async (interaction) => {
         if (!interaction.isButton() && !interaction.isStringSelectMenu() && !interaction.isModalSubmit()) return;
 
-        const userId = interaction.user.id;
-
         try {
             if (interaction.customId.startsWith('coin_shop_')) {
-                if (!checkButtonOwnership(interaction, 'coin_shop')) return;
+                if (!checkButtonOwnership(interaction, 'coin_shop')) {
+                    return interaction.reply({
+                        content: "❌ You can't use someone else's button. Run `.market` yourself.",
+                        ephemeral: true
+                    }).catch(() => { });
+                }
                 await handleCoinShop(interaction);
-            } 
+            }
             else if (interaction.customId.startsWith('gem_shop_')) {
-                if (!checkButtonOwnership(interaction, 'gem_shop')) return;
+                if (!checkButtonOwnership(interaction, 'gem_shop')) {
+                    return interaction.reply({
+                        content: "❌ You can't use someone else's button. Run `.market` yourself.",
+                        ephemeral: true
+                    }).catch(() => { });
+                }
                 await handleGemShop(interaction);
-            } 
+            }
             else if (interaction.customId.startsWith('global_shop_')) {
-                if (!checkButtonOwnership(interaction, 'global_shop')) return;
+                if (!checkButtonOwnership(interaction, 'global_shop')) {
+                    return interaction.reply({
+                        content: "❌ You can't use someone else's button. Run `.market` yourself.",
+                        ephemeral: true
+                    }).catch(() => { });
+                }
                 await handleGlobalShop(interaction);
-            } 
+            }
             else if (interaction.customId.startsWith('back_main_')) {
-                if (!checkButtonOwnership(interaction, 'back_main')) return;
+                if (!checkButtonOwnership(interaction, 'back_main')) {
+                    return interaction.reply({
+                        content: "❌ You can't use someone else's button. Run `.market` yourself.",
+                        ephemeral: true
+                    }).catch(() => { });
+                }
                 await handleBackToMain(interaction);
-            } 
+            }
             else if (interaction.customId.startsWith('select_fumo_coin_')) {
-                if (!checkButtonOwnership(interaction, 'select_fumo_coin')) return;
+                if (!checkButtonOwnership(interaction, 'select_fumo_coin')) {
+                    return interaction.reply({
+                        content: "❌ You can't use someone else's dropdown. Run `.market` yourself.",
+                        ephemeral: true
+                    }).catch(() => { });
+                }
                 await handleFumoSelection(interaction, 'coin');
-            } 
+            }
             else if (interaction.customId.startsWith('select_fumo_gem_')) {
-                if (!checkButtonOwnership(interaction, 'select_fumo_gem')) return;
+                if (!checkButtonOwnership(interaction, 'select_fumo_gem')) {
+                    return interaction.reply({
+                        content: "❌ You can't use someone else's dropdown. Run `.market` yourself.",
+                        ephemeral: true
+                    }).catch(() => { });
+                }
                 await handleFumoSelection(interaction, 'gem');
-            } 
+            }
             else if (interaction.customId.startsWith('confirm_purchase_')) {
                 await handleConfirmPurchase(interaction);
-            } 
+            }
             else if (interaction.customId.startsWith('cancel_purchase_')) {
                 await handleCancelPurchase(interaction);
-            } 
+            }
             else if (interaction.customId.startsWith('add_listing_')) {
-                if (!checkButtonOwnership(interaction, 'add_listing')) return;
+                if (!checkButtonOwnership(interaction, 'add_listing')) {
+                    return interaction.reply({
+                        content: "❌ You can't use someone else's button. Run `.market` yourself.",
+                        ephemeral: true
+                    }).catch(() => { });
+                }
                 await handleAddListing(interaction);
-            } 
+            }
             else if (interaction.customId.startsWith('remove_listing_')) {
-                if (!checkButtonOwnership(interaction, 'remove_listing')) return;
+                if (!checkButtonOwnership(interaction, 'remove_listing')) {
+                    return interaction.reply({
+                        content: "❌ You can't use someone else's button. Run `.market` yourself.",
+                        ephemeral: true
+                    }).catch(() => { });
+                }
                 await handleRemoveListing(interaction);
-            } 
+            }
             else if (interaction.customId.startsWith('refresh_global_')) {
-                if (!checkButtonOwnership(interaction, 'refresh_global')) return;
+                if (!checkButtonOwnership(interaction, 'refresh_global')) {
+                    return interaction.reply({
+                        content: "❌ You can't use someone else's button. Run `.market` yourself.",
+                        ephemeral: true
+                    }).catch(() => { });
+                }
                 await handleRefreshGlobal(interaction);
-            } 
+            }
             else if (interaction.customId.startsWith('select_rarity_')) {
                 await handleRaritySelection(interaction);
-            } 
+            }
             else if (interaction.customId.startsWith('select_base_fumo_')) {
                 await handleBaseFumoSelection(interaction);
             }
             else if (interaction.customId.startsWith('select_variant_')) {
                 await handleVariantSelection(interaction);
-            } 
+            }
             else if (interaction.customId.startsWith('select_currency_')) {
                 await handleCurrencySelection(interaction);
-            } 
+            }
             else if (interaction.customId.startsWith('price_modal_')) {
                 await handlePriceModal(interaction);
-            } 
+            }
             else if (interaction.customId.startsWith('confirm_listing_')) {
                 await handleConfirmListing(interaction);
-            } 
+            }
             else if (interaction.customId.startsWith('select_remove_listing_')) {
                 await handleRemoveListingSelect(interaction);
             }
@@ -129,18 +172,18 @@ module.exports = async (client) => {
             }
         } catch (error) {
             console.error('Market interaction error:', error);
-            
+
             try {
                 if (!interaction.replied && !interaction.deferred) {
                     await interaction.reply({
                         content: '❌ An error occurred while processing your request.',
                         ephemeral: true
-                    });
+                    }).catch(() => { });
                 } else {
                     await interaction.followUp({
                         content: '❌ An error occurred while processing your request.',
                         ephemeral: true
-                    });
+                    }).catch(() => { });
                 }
             } catch (err) {
                 console.error('Failed to send error message:', err);
