@@ -16,21 +16,23 @@ class LavalinkService {
             return this.kazagumo;
         }
 
+        if (!client || !client.user) {
+            console.error('[Lavalink] ❌ Client not ready! Must call after client.login() completes');
+            throw new Error('Discord client must be logged in before initializing Lavalink');
+        }
+
         this.client = client;
         
+        console.log('[Lavalink] ✅ Client is ready:', client.user.tag);
         console.log('[Lavalink] Initializing Kazagumo...');
-        console.log('[Lavalink] Config:', JSON.stringify(lavalinkConfig.nodes, null, 2));
+        console.log('[Lavalink] Node config:', JSON.stringify(lavalinkConfig.nodes, null, 2));
 
-        // Create Kazagumo instance
+        // CORRECT Kazagumo initialization
+        // new Kazagumo(client, nodes, shoukakuOptions, kazagumoOptions)
         this.kazagumo = new Kazagumo(
             {
-                plugins: [
-                    new Plugins.PlayerMoved(client)
-                ],
-                send: (guildId, payload) => {
-                    const guild = client.guilds.cache.get(guildId);
-                    if (guild) guild.shard.send(payload);
-                }
+                plugins: [new Plugins.PlayerMoved(client)],
+                defaultSearchEngine: lavalinkConfig.defaultSearchPlatform || 'youtube'
             },
             new Connectors.DiscordJS(client),
             lavalinkConfig.nodes,
@@ -45,26 +47,34 @@ class LavalinkService {
             }
         );
 
-        console.log('[Lavalink] Kazagumo instance created');
+        console.log('[Lavalink] ✅ Kazagumo instance created');
+        console.log('[Lavalink] Shoukaku nodes:', this.kazagumo.shoukaku.nodes.size);
 
         // Setup event handlers
         this.setupEventHandlers();
 
-        // Set a timeout to check connection status
+        // Set timeout
         this.connectionTimeout = setTimeout(() => {
             if (!this.isReady) {
                 console.error('[Lavalink] ❌ Connection timeout after 30 seconds');
-                console.error('[Lavalink] Troubleshooting:');
-                console.error('   1. Is Lavalink running? Run: java -jar Lavalink.jar');
-                console.error('   2. Check lavalinkConfig.js - verify host/port/password');
-                console.error('   3. Check application.yml password matches config');
-                console.error('   4. Try restarting both Lavalink and the bot');
-                console.error('\n[Lavalink] Current nodes:');
+                console.error('[Lavalink] Current node status:');
+                
                 if (this.kazagumo?.shoukaku?.nodes) {
                     this.kazagumo.shoukaku.nodes.forEach((node, name) => {
-                        console.error(`   - ${name}: state=${node.state} (0=DISCONNECTED, 1=CONNECTING, 2=CONNECTED, 3=RECONNECTING)`);
+                        console.error(`   Node "${name}":`);
+                        console.error(`     - State: ${node.state} (0=DISCONNECTED, 1=CONNECTING, 2=CONNECTED, 3=RECONNECTING)`);
+                        console.error(`     - URL: ${node.url}`);
+                        console.error(`     - Stats:`, node.stats);
                     });
+                } else {
+                    console.error('   No nodes found!');
                 }
+                
+                console.error('\n[Lavalink] Troubleshooting checklist:');
+                console.error('   1. Is Lavalink running? Run: java -jar Lavalink.jar');
+                console.error('   2. Check if port 2333 is accessible');
+                console.error('   3. Verify lavalinkConfig.js matches application.yml');
+                console.error('   4. Check Lavalink console for errors');
             }
         }, 30000);
 
@@ -74,7 +84,7 @@ class LavalinkService {
     setupEventHandlers() {
         const shoukaku = this.kazagumo.shoukaku;
 
-        // Node ready event - THIS IS THE KEY EVENT
+        // Node ready event
         shoukaku.on('ready', (name) => {
             console.log(`[Lavalink] ✅ Node "${name}" connected successfully!`);
             this.isReady = true;
@@ -84,16 +94,16 @@ class LavalinkService {
                 this.connectionTimeout = null;
             }
             
-            console.log(`[Lavalink] 📊 Status:`);
+            console.log(`[Lavalink] 📊 Final status:`);
             console.log(`   - Total nodes: ${shoukaku.nodes.size}`);
-            console.log(`   - Node names:`, Array.from(shoukaku.nodes.keys()));
-            console.log(`[Lavalink] 🎵 Music system is now fully operational!`);
+            console.log(`   - Connected nodes:`, Array.from(shoukaku.nodes.keys()));
+            console.log(`[Lavalink] 🎵 Music system operational!`);
         });
 
         // Node error event
         shoukaku.on('error', (name, error) => {
             console.error(`[Lavalink] ❌ Node "${name}" error:`, error.message);
-            console.error(`[Lavalink] Full error:`, error);
+            console.error('[Lavalink] Stack:', error.stack);
         });
 
         // Node close event
@@ -118,13 +128,12 @@ class LavalinkService {
             console.log(`[Lavalink] 🔄 Node "${name}" reconnecting (attempt ${tries}/5)`);
         });
 
-        // Debug event - VERY USEFUL FOR TROUBLESHOOTING
+        // Debug event
         shoukaku.on('debug', (name, info) => {
-            // Uncomment for verbose debugging
             console.log(`[Lavalink] 🐛 Node "${name}":`, info);
         });
 
-        // Kazagumo player events
+        // Kazagumo events
         this.kazagumo.on('playerStart', (player, track) => {
             console.log(`[Lavalink] 🎵 Started: ${track.title} in guild ${player.guildId}`);
         });
@@ -143,10 +152,6 @@ class LavalinkService {
 
         this.kazagumo.on('playerStuck', (player, data) => {
             console.warn(`[Lavalink] ⚠️ Player stuck in guild ${player.guildId}, threshold: ${data.thresholdMs}ms`);
-        });
-
-        this.kazagumo.on('playerResolveError', (player, track, message) => {
-            console.error(`[Lavalink] ❌ Resolve error for ${track?.title}:`, message);
         });
     }
 
@@ -226,7 +231,6 @@ class LavalinkService {
         };
     }
 
-    // Helper method to check node status
     getNodeStatus() {
         if (!this.kazagumo?.shoukaku?.nodes) {
             return { ready: false, nodes: [] };
@@ -235,7 +239,8 @@ class LavalinkService {
         const nodes = Array.from(this.kazagumo.shoukaku.nodes.entries()).map(([name, node]) => ({
             name,
             state: node.state,
-            stateText: ['DISCONNECTED', 'CONNECTING', 'CONNECTED', 'RECONNECTING'][node.state] || 'UNKNOWN'
+            stateText: ['DISCONNECTED', 'CONNECTING', 'CONNECTED', 'RECONNECTING'][node.state] || 'UNKNOWN',
+            url: node.url
         }));
 
         return {

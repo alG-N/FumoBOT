@@ -35,9 +35,6 @@ const { registerCodeRedemption } = require('./MainCommand/CommandFolder/UserData
 // INITIALIZE SHARD
 const initializeShardHandler = require('./MainCommand/Service/UserDataService/UseService/ShardInteractionHandler');
 
-// LAVALINK MUSIC - CRITICAL: Must be initialized BEFORE client login
-const lavalinkService = require('./SubCommand/MusicFunction/Service/LavalinkService');
-
 // MAINTENANCE CONFIG
 const { maintenance, developerID } = require("./MainCommand/Configuration/maintenanceConfig");
 console.log(`Maintenance mode is currently: ${maintenance}`);
@@ -45,6 +42,11 @@ console.log(`Maintenance mode is currently: ${maintenance}`);
 // CLIENT INITIALIZATION
 const client = createClient();
 client.commands = new Collection();
+
+// ===== LAVALINK INITIALIZATION - MUST BE BEFORE client.login() =====
+console.log('[Lavalink] Initializing music system...');
+const lavalinkService = require('./SubCommand/MusicFunction/Service/LavalinkService');
+lavalinkService.initialize(client);  // ← Initialize HERE, BEFORE login!
 
 // ===== RECURSIVE COMMAND LOADER FUNCTION =====
 function loadCommandsRecursively(directory, depth = 0) {
@@ -138,38 +140,37 @@ if (steam && steam.data && steam.data.name) {
     console.log('✅ Manually loaded steam command');
 }
 
-// NOW login
+// NOW login - Lavalink is already initialized above
 client.login(process.env.BOT_TOKEN);
 
 // BOT READY EVENT
 client.once('ready', async () => {
     console.log(`✅ Logged in as ${client.user.tag}`);
     
-    // Initialize Kazagumo AFTER Discord is ready
-    console.log('[Lavalink] Initializing Kazagumo...');
-    try {
-        lavalinkService.initialize(client);
-        
-        // Wait up to 10 seconds for connection
-        for (let i = 0; i < 10; i++) {
+    // Check Lavalink connection status
+    console.log('[Lavalink] Checking connection status...');
+    const status = lavalinkService.getNodeStatus();
+    console.log('[Lavalink] Status:', JSON.stringify(status, null, 2));
+    
+    if (!status.ready) {
+        console.log('[Lavalink] Waiting for connection...');
+        // Wait up to 30 seconds for connection
+        for (let i = 0; i < 30; i++) {
             await new Promise(resolve => setTimeout(resolve, 1000));
+            const newStatus = lavalinkService.getNodeStatus();
             
-            const status = lavalinkService.getNodeStatus();
-            console.log(`[Lavalink] Status check ${i + 1}/10:`, status);
-            
-            if (status.ready) {
-                console.log('[Lavalink] ✅ Music system ready!');
+            if (newStatus.ready) {
+                console.log('[Lavalink] ✅ Connected successfully!');
                 break;
             }
             
-            if (i === 9) {
-                console.error('[Lavalink] ⚠️ Music system not ready after 10 seconds');
-                console.error('[Lavalink] Bot will continue, but music commands may not work');
-                console.error('[Lavalink] Check if Lavalink server is running!');
+            if (i === 29) {
+                console.error('[Lavalink] ⚠️ Still not connected after 30 seconds');
+                console.error('[Lavalink] Check Lavalink server logs for errors');
             }
         }
-    } catch (error) {
-        console.error('[Lavalink] Initialization error:', error);
+    } else {
+        console.log('[Lavalink] ✅ Already connected!');
     }
 
     // Continue with other initialization
