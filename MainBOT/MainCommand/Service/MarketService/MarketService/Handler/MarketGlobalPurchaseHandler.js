@@ -1,8 +1,8 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { get } = require('../../../Core/database');
-const { validateGlobalPurchase, processGlobalPurchase } = require('./MarketPurchaseService');
-const { notifySellerOfSale } = require('./MarketStorageService');
-const { createPurchaseConfirmEmbed, createPurchaseSuccessEmbed, createErrorEmbed } = require('./MarketUIService');
+const { get } = require('../../../../Core/database');
+const { validateGlobalPurchase, processGlobalPurchase } = require('../MarketPurchaseService');
+const { notifySellerOfSale } = require('../MarketStorageService');
+const { createPurchaseConfirmEmbed, createPurchaseSuccessEmbed, createErrorEmbed } = require('../MarketUIService');
 
 async function handleGlobalPurchaseSelect(interaction) {
     try {

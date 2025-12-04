@@ -1,9 +1,9 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
-const { getUserGlobalListings, addGlobalListing, removeGlobalListing } = require('./MarketStorageService');
-const { get, run, all } = require('../../../Core/database');
-const { GLOBAL_SHOP_CONFIG } = require('../../../Configuration/marketConfig');
-const { validateUserHasFumo, getFumoIdForRemoval, getAvailableVariants } = require('./MarketInventoryValidator');
-const { createErrorEmbed } = require('./MarketUIService');
+const { getUserGlobalListings, addGlobalListing, removeGlobalListing } = require('../MarketStorageService');
+const { get, run, all } = require('../../../../Core/database');
+const { GLOBAL_SHOP_CONFIG } = require('../../../../Configuration/marketConfig');
+const { validateUserHasFumo, getFumoIdForRemoval, getAvailableVariants } = require('../MarketInventoryValidator');
+const { createErrorEmbed } = require('../MarketUIService');
 
 const CATEGORIES = [
     'Common', 'UNCOMMON', 'RARE', 'EPIC', 'OTHERWORLDLY',
