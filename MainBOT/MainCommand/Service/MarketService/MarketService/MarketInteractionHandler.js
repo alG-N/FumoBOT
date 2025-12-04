@@ -392,13 +392,13 @@ async function handleVariantSelection(interaction) {
             .addOptions([
                 { label: '🪙 Coins', value: 'coins' },
                 { label: '💎 Gems', value: 'gems' },
-                { label: '🪙💎 Both', value: 'both' }
+                { label: '🪙💎 Both (creates 2 listings)', value: 'both' }
             ]);
 
         const row = new ActionRowBuilder().addComponents(selectMenu);
 
         await interaction.update({
-            content: `**Step 4/5:** Select currency for **${fumoName}**`,
+            content: `**Step 4/5:** Select currency for **${fumoName}**\n\n⚠️ **Note:** Selecting "Both" will create TWO separate listings (one for coins, one for gems) and will require TWO copies of this fumo.`,
             components: [row]
         });
     } catch (error) {
@@ -416,6 +416,18 @@ async function handleCurrencySelection(interaction) {
         const parts = interaction.customId.split('_');
         const userId = parts[2];
         const fumoName = decodeURIComponent(parts[3]);
+
+        if (currencyType === 'both') {
+            const validation = await validateUserHasFumo(userId, fumoName);
+            const totalCopies = validation.variants.reduce((sum, v) => sum + v.count, 0);
+            
+            if (totalCopies < 2) {
+                return interaction.update({
+                    content: `❌ You need at least 2 copies of **${fumoName}** to list with both currencies. You have ${totalCopies}.`,
+                    components: []
+                });
+            }
+        }
 
         const modal = new ModalBuilder()
             .setCustomId(`price_modal_${userId}_${encodeURIComponent(fumoName)}_${currencyType}`)
@@ -510,8 +522,15 @@ async function handlePriceModal(interaction) {
         );
 
         let confirmText = `**Confirm Listing:**\n**Fumo:** ${fumoName}\n`;
-        if (coinPrice) confirmText += `**Coin Price:** 🪙 ${coinPrice.toLocaleString()}\n`;
-        if (gemPrice) confirmText += `**Gem Price:** 💎 ${gemPrice.toLocaleString()}\n`;
+        if (coinPrice && gemPrice) {
+            confirmText += `\n⚠️ **This will create 2 separate listings and use 2 copies of your fumo:**\n`;
+            confirmText += `**Coin Listing:** 🪙 ${coinPrice.toLocaleString()}\n`;
+            confirmText += `**Gem Listing:** 💎 ${gemPrice.toLocaleString()}\n`;
+        } else if (coinPrice) {
+            confirmText += `**Coin Price:** 🪙 ${coinPrice.toLocaleString()}\n`;
+        } else if (gemPrice) {
+            confirmText += `**Gem Price:** 💎 ${gemPrice.toLocaleString()}\n`;
+        }
 
         await interaction.reply({
             content: confirmText,
@@ -544,27 +563,50 @@ async function handleConfirmListing(interaction) {
             });
         }
 
-        const fumoId = await getFumoIdForRemoval(userId, fumoName);
+        const totalCopies = validation.variants.reduce((sum, v) => sum + v.count, 0);
+        const requiredCopies = (coinPrice && gemPrice) ? 2 : 1;
 
-        if (!fumoId) {
+        if (totalCopies < requiredCopies) {
             return interaction.update({
-                content: `❌ Could not find **${fumoName}** in your inventory.`,
+                content: `❌ You need ${requiredCopies} copies but only have ${totalCopies} of **${fumoName}**.`,
                 components: []
             });
         }
 
-        await run(`DELETE FROM userInventory WHERE id = ?`, [fumoId]);
-
         if (coinPrice) {
+            const fumoId = await getFumoIdForRemoval(userId, fumoName);
+            if (!fumoId) {
+                return interaction.update({
+                    content: `❌ Could not find **${fumoName}** in your inventory.`,
+                    components: []
+                });
+            }
+            await run(`DELETE FROM userInventory WHERE id = ?`, [fumoId]);
             await addGlobalListing(userId, fumoName, coinPrice, 'coins');
         }
+
         if (gemPrice) {
+            const fumoId = await getFumoIdForRemoval(userId, fumoName);
+            if (!fumoId) {
+                return interaction.update({
+                    content: `❌ Could not find **${fumoName}** in your inventory.`,
+                    components: []
+                });
+            }
+            await run(`DELETE FROM userInventory WHERE id = ?`, [fumoId]);
             await addGlobalListing(userId, fumoName, gemPrice, 'gems');
         }
 
         let successText = `✅ Listed **${fumoName}**!\n`;
-        if (coinPrice) successText += `🪙 Coin Price: ${coinPrice.toLocaleString()}\n`;
-        if (gemPrice) successText += `💎 Gem Price: ${gemPrice.toLocaleString()}`;
+        if (coinPrice && gemPrice) {
+            successText += `\n🪙 Coin Listing: ${coinPrice.toLocaleString()}\n`;
+            successText += `💎 Gem Listing: ${gemPrice.toLocaleString()}\n`;
+            successText += `\n(2 copies used, 2 listings created)`;
+        } else if (coinPrice) {
+            successText += `🪙 Coin Price: ${coinPrice.toLocaleString()}`;
+        } else if (gemPrice) {
+            successText += `💎 Gem Price: ${gemPrice.toLocaleString()}`;
+        }
 
         await interaction.update({
             content: successText,
@@ -591,8 +633,8 @@ async function handleRemoveListing(interaction) {
         }
 
         const options = userListings.map((listing, idx) => ({
-            label: listing.fumoName,
-            description: `${listing.price} ${listing.currency}`,
+            label: listing.fumoName.substring(0, 100),
+            description: `${listing.currency === 'coins' ? '🪙' : '💎'} ${listing.price}`,
             value: `${listing.id}_${idx}`
         }));
 
@@ -642,7 +684,7 @@ async function handleRemoveListingSelect(interaction) {
         );
 
         await interaction.update({
-            content: `✅ Removed listing for **${listing.fumoName}**. It has been returned to your inventory.`,
+            content: `✅ Removed listing for **${listing.fumoName}** (${listing.currency === 'coins' ? '🪙' : '💎'} ${listing.price}). It has been returned to your inventory.`,
             components: []
         });
     } catch (error) {
@@ -656,6 +698,8 @@ async function handleRemoveListingSelect(interaction) {
 
 async function handleRefreshGlobal(interaction) {
     try {
+        await interaction.deferUpdate();
+
         const allListings = await getAllGlobalListings();
         const shuffled = allListings.sort(() => Math.random() - 0.5);
         const display = shuffled.slice(0, 5);
@@ -687,9 +731,12 @@ async function handleRefreshGlobal(interaction) {
 
         const selectRow = new ActionRowBuilder().addComponents(selectMenu);
 
-        await interaction.update({ embeds: [embed], components: [selectRow, buttons] });
+        await interaction.editReply({ embeds: [embed], components: [selectRow, buttons] });
     } catch (error) {
         console.error('Refresh global error:', error);
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({ content: '❌ Failed to refresh.', ephemeral: true });
+        }
     }
 }
 

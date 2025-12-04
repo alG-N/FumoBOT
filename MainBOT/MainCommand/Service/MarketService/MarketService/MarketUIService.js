@@ -90,9 +90,34 @@ async function createGemShopEmbed(userId, market, resetTime) {
 
 function createGlobalShopEmbed(listings, page = 0) {
     const itemsPerPage = 5;
+    
+    // Group listings by fumoName and userId to combine coin/gem prices
+    const groupedListings = {};
+    listings.forEach(listing => {
+        const key = `${listing.userId}_${listing.fumoName}`;
+        if (!groupedListings[key]) {
+            groupedListings[key] = {
+                userId: listing.userId,
+                fumoName: listing.fumoName,
+                coinPrice: null,
+                gemPrice: null,
+                coinId: null,
+                gemId: null
+            };
+        }
+        if (listing.currency === 'coins') {
+            groupedListings[key].coinPrice = listing.price;
+            groupedListings[key].coinId = listing.id;
+        } else if (listing.currency === 'gems') {
+            groupedListings[key].gemPrice = listing.price;
+            groupedListings[key].gemId = listing.id;
+        }
+    });
+    
+    const combinedListings = Object.values(groupedListings);
     const start = page * itemsPerPage;
     const end = start + itemsPerPage;
-    const displayListings = listings.slice(start, end);
+    const displayListings = combinedListings.slice(start, end);
     
     const embed = new EmbedBuilder()
         .setTitle("🌐 Global Player Market")
@@ -106,19 +131,25 @@ function createGlobalShopEmbed(listings, page = 0) {
     if (displayListings.length === 0) {
         embed.addFields({ name: 'No Listings', value: 'No fumos available right now. Check back later!' });
     } else {
-        displayListings.forEach((listing, idx) => {
-            const currencyEmoji = listing.currency === 'coins' ? '🪙' : '💎';
-            // The variant info is already in the fumoName (e.g., "Reimu(RARE)[✨SHINY]")
-            // No need to add it separately
+        displayListings.forEach((listing) => {
+            let priceText = '';
+            if (listing.coinPrice && listing.gemPrice) {
+                priceText = `🪙 ${formatNumber(listing.coinPrice)} | 💎 ${formatNumber(listing.gemPrice)}`;
+            } else if (listing.coinPrice) {
+                priceText = `🪙 ${formatNumber(listing.coinPrice)}`;
+            } else if (listing.gemPrice) {
+                priceText = `💎 ${formatNumber(listing.gemPrice)}`;
+            }
+            
             embed.addFields({
-                name: `${listing.fumoName}`,
-                value: `${currencyEmoji} ${formatNumber(listing.price)} | Seller: <@${listing.userId}>`,
+                name: listing.fumoName,
+                value: `${priceText} | Seller: <@${listing.userId}>`,
                 inline: false
             });
         });
     }
     
-    embed.setFooter({ text: `Page ${page + 1}/${Math.ceil(listings.length / itemsPerPage) || 1}` });
+    embed.setFooter({ text: `Page ${page + 1}/${Math.ceil(combinedListings.length / itemsPerPage) || 1}` });
     
     return embed;
 }
