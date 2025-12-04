@@ -5,7 +5,7 @@ module.exports = {
             host: 'localhost',
             port: 2333,
             password: 'youshallnotpass',
-            secure: false
+            secure: false  // Important: false for http://
         }
     ],
     clientName: 'MusicBot',

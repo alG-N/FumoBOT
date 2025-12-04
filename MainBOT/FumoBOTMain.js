@@ -151,6 +151,31 @@ try {
 client.once('ready', async () => {
     console.log(`✅ Logged in as ${client.user.tag}, status set to: Playing .help and .starter`);
     
+    // Wait for Lavalink nodes to connect
+    console.log('[Lavalink] Waiting for nodes to connect...');
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    
+    const manager = lavalinkService.getManager();
+    const connectionStatus = lavalinkService.getConnectionStatus();
+    
+    console.log('[Lavalink] Connection status:', connectionStatus);
+    
+    if (manager && manager.nodes.size > 0) {
+        const connectedNodes = Array.from(manager.nodes.values()).filter(n => n.state === 2);
+        if (connectedNodes.length > 0) {
+            console.log(`[Lavalink] ✅ ${connectedNodes.length} node(s) connected successfully`);
+        } else {
+            console.error('[Lavalink] ⚠️ Nodes registered but not connected yet. States:', 
+                Array.from(manager.nodes.values()).map(n => `${n.name}:${n.state}`));
+        }
+    } else {
+        console.error('[Lavalink] ❌ No nodes registered');
+        console.error('[Lavalink] Troubleshooting:');
+        console.error('  1. Make sure Lavalink is running: java -jar Lavalink.jar');
+        console.error('  2. Check if port 2333 is accessible: curl http://localhost:2333/version');
+        console.error('  3. Verify password matches in application.yml and lavalinkConfig.js');
+    }
+    
     // Initialize core systems
     initializeDatabase();
     startIncomeSystem();
@@ -166,21 +191,6 @@ client.once('ready', async () => {
     await restoreAutoRollSystems(client);
 
     console.log('🚀 Bot is fully operational!');
-    
-    // Test Lavalink connection after bot is ready
-    setTimeout(() => {
-        const manager = lavalinkService.getManager();
-        if (manager && manager.nodes.size > 0) {
-            const node = manager.options.nodeResolver(manager.nodes);
-            if (node) {
-                console.log('[Lavalink] ✅ Node connected:', node.name);
-            } else {
-                console.log('[Lavalink] ⚠️ Node registered but not connected yet');
-            }
-        } else {
-            console.log('[Lavalink] ❌ No nodes registered');
-        }
-    }, 3000);
 });
 
 // ===== AUTO-ROLL RESTORATION FUNCTION =====

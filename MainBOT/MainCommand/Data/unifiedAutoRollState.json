@@ -11,7 +11,7 @@
       },
       "bestFumoAt": "12/4/2025, 5:03:15 PM",
       "bestFumoRoll": 1,
-      "specialFumoCount": 25,
+      "specialFumoCount": 38,
       "specialFumoFirstAt": "12/4/2025, 4:33:38 PM",
       "specialFumoFirstRoll": 3
     },
@@ -19,8 +19,8 @@
       "rollCount": 1,
       "autoSell": true,
       "startTime": 1764825059334,
-      "totalFumosRolled": 48900,
-      "totalCoinsFromSales": 33150,
+      "totalFumosRolled": 49000,
+      "totalCoinsFromSales": 38450,
       "bestFumo": {
         "name": "Go/jo(???)",
         "rarity": "???",
@@ -39,13 +39,13 @@
       "autoSell": false,
       "startTime": 1764843147297,
       "bestFumo": {
-        "name": "Mostima(CELESTIAL)",
-        "rarity": "CELESTIAL",
-        "picture": "https://media.discordapp.net/attachments/1372426801472737280/1372427631877685389/mostima-fumo-mostimo-v0-httirpx8ghhb1.png?ex=6826bc55&is=68256ad5&hm=e9511d6de0f908e22eedeb4ab965753e76446ed39a3bdb9ac4af7ef099c62dd6&=&format=webp&quality=lossless&width=1429&height=800"
+        "name": "UltraKillV2(ETERNAL)",
+        "rarity": "ETERNAL",
+        "picture": "https://th.bing.com/th/id/OIP.0rsVamUgjh_eW_1Ep5NDfAAAAA?cb=iwp2&rs=1&pid=ImgDetMain"
       },
-      "bestFumoAt": "12/4/2025, 5:43:06 PM",
+      "bestFumoAt": "12/4/2025, 6:31:37 PM",
       "bestFumoRoll": 3,
-      "specialFumoCount": 16,
+      "specialFumoCount": 30,
       "specialFumoFirstAt": "12/4/2025, 5:13:27 PM",
       "specialFumoFirstRoll": 2
     },
@@ -53,7 +53,7 @@
       "rollCount": 1,
       "autoSell": false,
       "startTime": 1764843154573,
-      "totalFumosRolled": 6200,
+      "totalFumosRolled": 14000,
       "totalCoinsFromSales": 0,
       "bestFumo": {
         "name": "Go/jo(???)",
@@ -62,7 +62,7 @@
       },
       "bestFumoAt": "12/4/2025, 5:16:58 PM",
       "bestFumoRoll": 4,
-      "specialFumoCount": 5,
+      "specialFumoCount": 9,
       "specialFumoFirstAt": "12/4/2025, 5:16:58 PM",
       "specialFumoFirstRoll": 4
     }
