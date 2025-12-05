@@ -17,11 +17,6 @@ class VoiceService {
                 voiceChannel.id,
                 interaction.channel.id
             );
-        } else {
-            // Update voice channel if changed
-            if (player.voiceId !== voiceChannel.id) {
-                player.setVoiceChannel(voiceChannel.id);
-            }
         }
 
         return player;
@@ -34,12 +29,12 @@ class VoiceService {
 
     isConnected(guildId) {
         const player = lavalinkService.getPlayer(guildId);
-        return player?.state === 'CONNECTED' || false;
+        return !!player;
     }
 
     getChannelId(guildId) {
         const player = lavalinkService.getPlayer(guildId);
-        return player?.voiceId || null;
+        return player?.connection?.channelId || null;
     }
 
     monitorVoiceChannel(guildId, channel, onEmpty) {
@@ -51,9 +46,9 @@ class VoiceService {
 
         queue._vcMonitor = setInterval(async () => {
             const player = lavalinkService.getPlayer(guildId);
-            if (!player || player.state !== 'CONNECTED') return;
+            if (!player) return;
 
-            const vcId = player.voiceId;
+            const vcId = player.connection?.channelId;
             const vc = channel.guild.channels.cache.get(vcId);
             
             if (!vc) return;
@@ -85,7 +80,7 @@ class VoiceService {
 
     getListenersCount(guildId, guild) {
         const player = lavalinkService.getPlayer(guildId);
-        const vcId = player?.voiceId;
+        const vcId = player?.connection?.channelId;
         if (!vcId) return 0;
 
         const vc = guild.channels.cache.get(vcId);
@@ -97,7 +92,7 @@ class VoiceService {
 
     getListeners(guildId, guild) {
         const player = lavalinkService.getPlayer(guildId);
-        const vcId = player?.voiceId;
+        const vcId = player?.connection?.channelId;
         if (!vcId) return [];
 
         const vc = guild.channels.cache.get(vcId);

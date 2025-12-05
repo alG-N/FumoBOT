@@ -1,7 +1,7 @@
 {
   "1128296349566251068": {
     "normal": {
-      "rollCount": 9,
+      "rollCount": 1,
       "autoSell": true,
       "startTime": 1764840683301,
       "bestFumo": {
@@ -11,7 +11,7 @@
       },
       "bestFumoAt": "12/4/2025, 5:03:15 PM",
       "bestFumoRoll": 1,
-      "specialFumoCount": 109,
+      "specialFumoCount": 372,
       "specialFumoFirstAt": "12/4/2025, 4:33:38 PM",
       "specialFumoFirstRoll": 3
     },
@@ -19,8 +19,8 @@
       "rollCount": 1,
       "autoSell": true,
       "startTime": 1764825059334,
-      "totalFumosRolled": 49300,
-      "totalCoinsFromSales": 32700,
+      "totalFumosRolled": 49500,
+      "totalCoinsFromSales": 38300,
       "bestFumo": {
         "name": "Go/jo(???)",
         "rarity": "???",
@@ -35,17 +35,17 @@
   },
   "845274868697661440": {
     "normal": {
-      "rollCount": 9,
+      "rollCount": 1,
       "autoSell": false,
       "startTime": 1764843147297,
       "bestFumo": {
-        "name": "UltraKillV2(ETERNAL)",
-        "rarity": "ETERNAL",
-        "picture": "https://th.bing.com/th/id/OIP.0rsVamUgjh_eW_1Ep5NDfAAAAA?cb=iwp2&rs=1&pid=ImgDetMain"
+        "name": "Rinnosuke(TRANSCENDENT)[✨SHINY]",
+        "rarity": "TRANSCENDENT",
+        "picture": "https://img1.picmix.com/output/stamp/normal/6/1/0/7/2577016_a2c58.png"
       },
-      "bestFumoAt": "12/4/2025, 6:31:37 PM",
-      "bestFumoRoll": 3,
-      "specialFumoCount": 110,
+      "bestFumoAt": "12/5/2025, 10:39:25 AM",
+      "bestFumoRoll": 719,
+      "specialFumoCount": 344,
       "specialFumoFirstAt": "12/4/2025, 5:13:27 PM",
       "specialFumoFirstRoll": 2
     },
@@ -53,7 +53,7 @@
       "rollCount": 1,
       "autoSell": false,
       "startTime": 1764855794969,
-      "totalFumosRolled": 7800,
+      "totalFumosRolled": 8000,
       "totalCoinsFromSales": 0,
       "bestFumo": {
         "name": "Go/jo(???)",
