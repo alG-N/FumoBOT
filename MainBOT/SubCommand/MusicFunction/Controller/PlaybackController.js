@@ -12,70 +12,74 @@ class PlaybackController {
         if (queue._eventsBound) return;
         queue._eventsBound = true;
 
-        // Track Start Event
-        manager.on('playerStart', async (player, track) => {
+        const handleTrackStart = async (player, track) => {
             if (player.guildId !== guildId) return;
 
-            logger.log(`Now playing: ${track.title}`, interaction);
+            const currentTrack = queueService.getCurrentTrack(guildId);
+            if (!currentTrack) return;
+
+            logger.log(`Now playing: ${currentTrack.title}`, interaction);
             queueService.clearInactivityTimer(guildId);
 
             await queueService.disableNowMessageControls(guildId);
 
             const embed = embedBuilder.buildNowPlayingEmbed(
                 {
-                    title: track.title,
-                    url: track.uri,
-                    lengthSeconds: Math.floor(track.length / 1000),
-                    thumbnail: track.thumbnail || track.artworkUrl,
-                    author: track.author,
-                    requestedBy: track.requester,
-                    source: track.sourceName || 'YouTube'
+                    title: currentTrack.title,
+                    url: currentTrack.url,
+                    lengthSeconds: currentTrack.lengthSeconds,
+                    thumbnail: currentTrack.thumbnail,
+                    author: currentTrack.author,
+                    requestedBy: currentTrack.requestedBy,
+                    source: currentTrack.source
                 },
                 player.volume,
-                track.requester,
+                currentTrack.requestedBy,
                 player,
                 queueService.isLooping(guildId)
             );
 
-            const rows = ControlsController.buildControlRows(guildId, player.paused, queueService.isLooping(guildId), track.uri);
+            const rows = ControlsController.buildControlRows(guildId, player.paused, queueService.isLooping(guildId), currentTrack.url);
 
             const nowMessage = await interaction.channel.send({ embeds: [embed], components: rows });
             queueService.setNowMessage(guildId, nowMessage);
 
             ControlsController.setupCollector(guildId, interaction, nowMessage);
-        });
+        };
 
-        // Track End Event
-        manager.on('playerEnd', async (player, track) => {
+        const handleTrackEnd = async (player, track) => {
             if (player.guildId !== guildId) return;
 
-            logger.log(`Track ended: ${track.title}`, interaction);
+            const currentTrack = queueService.getCurrentTrack(guildId);
+            if (currentTrack) {
+                logger.log(`Track ended: ${currentTrack.title}`, interaction);
 
-            await interaction.channel.send({ 
-                embeds: [embedBuilder.buildSongFinishedEmbed({
-                    title: track.title,
-                    url: track.uri
-                })] 
-            });
-        });
+                await interaction.channel.send({ 
+                    embeds: [embedBuilder.buildSongFinishedEmbed({
+                        title: currentTrack.title,
+                        url: currentTrack.url
+                    })] 
+                });
+            }
 
-        // Queue Empty Event
-        manager.on('playerEmpty', async (player) => {
-            if (player.guildId !== guildId) return;
+            const nextTrack = queueService.nextTrack(guildId);
+            
+            if (nextTrack) {
+                await player.playTrack({ track: { encoded: nextTrack.track.encoded } });
+            } else {
+                logger.log(`Queue finished`, interaction);
 
-            logger.log(`Queue finished`, interaction);
+                await queueService.disableNowMessageControls(guildId);
+                await interaction.channel.send({ embeds: [embedBuilder.buildQueueFinishedEmbed()] });
 
-            await queueService.disableNowMessageControls(guildId);
-            await interaction.channel.send({ embeds: [embedBuilder.buildQueueFinishedEmbed()] });
+                queueService.setInactivityTimer(guildId, async (id) => {
+                    await queueService.cleanup(id);
+                    await interaction.channel.send({ embeds: [embedBuilder.buildDisconnectedEmbed()] });
+                });
+            }
+        };
 
-            queueService.setInactivityTimer(guildId, async (id) => {
-                await queueService.cleanup(id);
-                await interaction.channel.send({ embeds: [embedBuilder.buildDisconnectedEmbed()] });
-            });
-        });
-
-        // Track Exception Event
-        manager.on('playerException', async (player, data) => {
+        const handleTrackException = async (player, data) => {
             if (player.guildId !== guildId) return;
 
             logger.error(`Track error: ${data.exception?.message}`, interaction);
@@ -84,13 +88,13 @@ class PlaybackController {
                 embeds: [embedBuilder.buildErrorEmbed('Track error occurred. Skipping to next track…')]
             });
 
-            if (player.queue.size > 0) {
-                player.skip();
+            const nextTrack = queueService.nextTrack(guildId);
+            if (nextTrack) {
+                await player.playTrack({ track: { encoded: nextTrack.track.encoded } });
             }
-        });
+        };
 
-        // Track Stuck Event
-        manager.on('playerStuck', async (player, data) => {
+        const handleTrackStuck = async (player, data) => {
             if (player.guildId !== guildId) return;
 
             logger.warn(`Track stuck for ${data.thresholdMs}ms`, interaction);
@@ -99,10 +103,16 @@ class PlaybackController {
                 embeds: [embedBuilder.buildErrorEmbed('Track stuck. Skipping to next…')]
             });
 
-            if (player.queue.size > 0) {
-                player.skip();
+            const nextTrack = queueService.nextTrack(guildId);
+            if (nextTrack) {
+                await player.playTrack({ track: { encoded: nextTrack.track.encoded } });
             }
-        });
+        };
+
+        manager.on('trackStart', handleTrackStart);
+        manager.on('trackEnd', handleTrackEnd);
+        manager.on('trackException', handleTrackException);
+        manager.on('trackStuck', handleTrackStuck);
     }
 }
 

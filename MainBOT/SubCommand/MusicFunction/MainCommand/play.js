@@ -26,7 +26,6 @@ module.exports = {
     async execute(interaction) {
         logger.log(`Command invoked by ${interaction.user.tag} (${interaction.user.id})`, interaction);
 
-        // Check if Lavalink is ready
         if (!lavalinkService.isReady) {
             return interaction.reply({
                 embeds: [embedBuilder.buildErrorEmbed("⏳ Music system is starting up. Please try again in a few seconds.")],
@@ -71,24 +70,22 @@ module.exports = {
                 await interaction.channel.send({ embeds: [embedBuilder.buildNoUserVCEmbed()] });
             });
 
-            // Add track to queue
-            player.queue.add(trackData.track);
-
-            const position = player.queue.size;
+            const position = queueService.addTrack(guildId, trackData);
 
             const queuedEmbed = embedBuilder.buildQueuedEmbed(trackData, position, interaction.user);
             await interaction.editReply({ embeds: [queuedEmbed], components: [] });
 
             const queue = queueService.getOrCreateQueue(guildId);
 
-            // Bind events once
             if (!queue._eventsBound) {
                 PlaybackController.bindPlayerEvents(guildId, interaction);
             }
 
-            // Start playing if not already playing
-            if (!player.playing && !player.paused) {
-                await player.play();
+            if (!player.track && !player.paused) {
+                const nextTrack = queueService.nextTrack(guildId);
+                if (nextTrack) {
+                    await player.playTrack({ track: { encoded: nextTrack.track.encoded } });
+                }
             }
         } catch (err) {
             logger.error(`Connection error: ${err.message}`, interaction);

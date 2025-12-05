@@ -3,16 +3,19 @@ const { fmtDur } = require('./formatters');
 
 class EmbedBuilderUtility {
     buildNowPlayingEmbed(track, volumePct, requester, player, isLooped) {
-        const nextTrack = player?.queue?.length > 0 ? player.queue[0] : null;
+        const queueService = require('../Service/QueueService');
+        const guildId = player.guildId;
+        const queueList = queueService.getQueueList(guildId);
+        const nextTrack = queueList.length > 0 ? queueList[0] : null;
 
         const fields = [
             { name: "📺 Channel", value: track?.author ?? "Unknown", inline: true },
             { name: "🌐 Source", value: track?.source ?? "YouTube", inline: true },
             { name: "⏱️ Duration", value: `\`${fmtDur(track?.lengthSeconds)}\``, inline: true },
-            { name: "📜 Queue", value: `\`${player?.queue?.length ?? 0}\` in line`, inline: true },
+            { name: "📜 Queue", value: `\`${queueList.length}\` in line`, inline: true },
             { name: "🔊 Volume", value: `\`${Math.round(volumePct)}%\``, inline: true },
             { name: "🔁 Loop", value: isLooped ? "**Enabled**" : "Not Enabled", inline: true },
-            { name: "⏭️ Next Up", value: nextTrack ? `[${nextTrack.title}](${nextTrack.uri})` : "No Next Up", inline: true }
+            { name: "⏭️ Next Up", value: nextTrack ? `[${nextTrack.title}](${nextTrack.url})` : "No Next Up", inline: true }
         ];
 
         return new EmbedBuilder()

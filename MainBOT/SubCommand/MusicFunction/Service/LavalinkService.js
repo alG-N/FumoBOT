@@ -1,18 +1,17 @@
-const { Kazagumo } = require('kazagumo');
-const { Connectors } = require('shoukaku');
+const { Shoukaku, Connectors } = require('shoukaku');
 const lavalinkConfig = require('../Configuration/lavalinkConfig');
 
 class LavalinkService {
     constructor() {
-        this.kazagumo = null;
+        this.shoukaku = null;
         this.client = null;
         this.isReady = false;
     }
 
     initialize(client) {
-        if (this.kazagumo) {
+        if (this.shoukaku) {
             console.log('[Lavalink] Already initialized');
-            return this.kazagumo;
+            return this.shoukaku;
         }
 
         if (!client || !client.user) {
@@ -24,19 +23,13 @@ class LavalinkService {
         console.log('[Lavalink] Node configuration:', JSON.stringify(lavalinkConfig.nodes, null, 2));
 
         try {
-            this.kazagumo = new Kazagumo(
-                {
-                    defaultSearchEngine: lavalinkConfig.defaultSearchPlatform || 'youtube',
-                    send: (guildId, payload) => {
-                        const guild = client.guilds.cache.get(guildId);
-                        if (guild) guild.shard.send(payload);
-                    }
-                },
+            this.shoukaku = new Shoukaku(
                 new Connectors.DiscordJS(client),
-                lavalinkConfig.nodes
+                lavalinkConfig.nodes,
+                lavalinkConfig.shoukakuOptions
             );
 
-            console.log('[Lavalink] Kazagumo instance created successfully');
+            console.log('[Lavalink] Shoukaku instance created successfully');
             this.setupEventHandlers();
             
         } catch (error) {
@@ -45,103 +38,82 @@ class LavalinkService {
             throw error;
         }
 
-        return this.kazagumo;
+        return this.shoukaku;
     }
 
     setupEventHandlers() {
         console.log('[Lavalink] Setting up event handlers...');
 
-        this.kazagumo.on('ready', (name) => {
+        this.shoukaku.on('ready', (name) => {
             console.log(`[Lavalink] ✅ NODE READY: "${name}"`);
             this.isReady = true;
         });
 
-        this.kazagumo.on('error', (name, error) => {
+        this.shoukaku.on('error', (name, error) => {
             console.error(`[Lavalink] ❌ NODE ERROR: "${name}"`);
             console.error(`[Lavalink] Error message:`, error.message);
             console.error(`[Lavalink] Error stack:`, error.stack);
-            console.error(`[Lavalink] Full error object:`, JSON.stringify(error, null, 2));
         });
 
-        this.kazagumo.on('close', (name, code, reason) => {
+        this.shoukaku.on('close', (name, code, reason) => {
             console.log(`[Lavalink] 🔌 NODE CLOSED: "${name}"`);
             console.log(`[Lavalink] Close code: ${code}`);
             console.log(`[Lavalink] Close reason: ${reason}`);
-        });
-
-        this.kazagumo.on('disconnect', (name, reason) => {
-            console.log(`[Lavalink] ⚠️ NODE DISCONNECTED: "${name}"`);
-            console.log(`[Lavalink] Disconnect reason:`, reason);
             this.isReady = false;
         });
 
-        this.kazagumo.on('reconnecting', (name, reconnectsLeft, reconnectInterval) => {
+        this.shoukaku.on('disconnect', (name, count) => {
+            console.log(`[Lavalink] ⚠️ NODE DISCONNECTED: "${name}"`);
+            console.log(`[Lavalink] Players: ${count}`);
+            this.isReady = false;
+        });
+
+        this.shoukaku.on('reconnecting', (name, reconnectsLeft, reconnectInterval) => {
             console.log(`[Lavalink] 🔄 NODE RECONNECTING: "${name}"`);
             console.log(`[Lavalink] Attempts left: ${reconnectsLeft}, Interval: ${reconnectInterval}ms`);
         });
 
-        this.kazagumo.on('debug', (name, info) => {
+        this.shoukaku.on('debug', (name, info) => {
             console.log(`[Lavalink] 🐛 DEBUG [${name}]:`, info);
-        });
-
-        this.kazagumo.on('playerStart', (player, track) => {
-            console.log(`[Lavalink] ▶️ Playing: ${track.title} in guild ${player.guildId}`);
-        });
-
-        this.kazagumo.on('playerEnd', (player) => {
-            console.log(`[Lavalink] ⏹️ Track ended in guild ${player.guildId}`);
-        });
-
-        this.kazagumo.on('playerEmpty', (player) => {
-            console.log(`[Lavalink] 📭 Queue empty in guild ${player.guildId}`);
-        });
-
-        this.kazagumo.on('playerException', (player, data) => {
-            console.error(`[Lavalink] ❌ PLAYER EXCEPTION in guild ${player.guildId}`);
-            console.error(`[Lavalink] Exception:`, data.exception?.message);
-            console.error(`[Lavalink] Full exception data:`, JSON.stringify(data, null, 2));
-        });
-
-        this.kazagumo.on('playerStuck', (player, data) => {
-            console.warn(`[Lavalink] ⏸️ PLAYER STUCK in guild ${player.guildId}`);
-            console.warn(`[Lavalink] Threshold: ${data.thresholdMs}ms`);
         });
 
         console.log('[Lavalink] Event handlers registered');
     }
 
     getManager() {
-        return this.kazagumo;
+        return this.shoukaku;
     }
 
     getPlayer(guildId) {
-        return this.kazagumo?.players.get(guildId) || null;
+        return this.shoukaku?.players.get(guildId) || null;
     }
 
     async createPlayer(guildId, voiceChannelId, textChannelId) {
-        if (!this.kazagumo) {
-            console.error('[Lavalink] Cannot create player: Kazagumo not initialized');
-            throw new Error('Kazagumo not initialized');
+        if (!this.shoukaku) {
+            console.error('[Lavalink] Cannot create player: Shoukaku not initialized');
+            throw new Error('Shoukaku not initialized');
         }
         
         if (!this.isReady) {
             console.error('[Lavalink] Cannot create player: Lavalink not ready');
-            console.error('[Lavalink] Current ready state:', this.isReady);
             throw new Error('Lavalink not ready');
         }
 
         console.log(`[Lavalink] Creating player for guild ${guildId}`);
-        console.log(`[Lavalink] Voice channel: ${voiceChannelId}`);
-        console.log(`[Lavalink] Text channel: ${textChannelId}`);
+
+        const node = this.shoukaku.options.nodeResolver ? this.shoukaku.options.nodeResolver(this.shoukaku.nodes) : [...this.shoukaku.nodes.values()].sort((a, b) => a.penalties - b.penalties).shift();
+
+        if (!node) throw new Error('No nodes available');
 
         try {
-            const player = await this.kazagumo.createPlayer({
-                guildId,
-                textId: textChannelId,
-                voiceId: voiceChannelId,
-                volume: lavalinkConfig.playerOptions?.volume || 100,
+            const player = await this.shoukaku.joinVoiceChannel({
+                guildId: guildId,
+                channelId: voiceChannelId,
+                shardId: this.client.guilds.cache.get(guildId)?.shardId || 0,
                 deaf: lavalinkConfig.playerOptions?.selfDeafen || true
             });
+
+            await player.setGlobalVolume(lavalinkConfig.playerOptions?.volume || 100);
 
             console.log(`[Lavalink] ✅ Player created successfully for guild ${guildId}`);
             return player;
@@ -149,7 +121,6 @@ class LavalinkService {
         } catch (error) {
             console.error(`[Lavalink] ❌ FAILED to create player for guild ${guildId}`);
             console.error(`[Lavalink] Error:`, error.message);
-            console.error(`[Lavalink] Stack:`, error.stack);
             throw error;
         }
     }
@@ -158,7 +129,7 @@ class LavalinkService {
         const player = this.getPlayer(guildId);
         if (player) {
             console.log(`[Lavalink] Destroying player for guild ${guildId}`);
-            player.destroy();
+            this.shoukaku.leaveVoiceChannel(guildId);
             console.log(`[Lavalink] ✅ Player destroyed for guild ${guildId}`);
         } else {
             console.log(`[Lavalink] No player found for guild ${guildId}`);
@@ -166,9 +137,9 @@ class LavalinkService {
     }
 
     async search(query, requester) {
-        if (!this.kazagumo) {
-            console.error('[Lavalink] Cannot search: Kazagumo not initialized');
-            throw new Error('Kazagumo not initialized');
+        if (!this.shoukaku) {
+            console.error('[Lavalink] Cannot search: Shoukaku not initialized');
+            throw new Error('Shoukaku not initialized');
         }
         
         if (!this.isReady) {
@@ -183,27 +154,31 @@ class LavalinkService {
 
         console.log(`[Lavalink] Searching: ${searchQuery}`);
 
-        try {
-            const result = await this.kazagumo.search(searchQuery, { requester });
+        const node = this.shoukaku.options.nodeResolver ? this.shoukaku.options.nodeResolver(this.shoukaku.nodes) : [...this.shoukaku.nodes.values()].sort((a, b) => a.penalties - b.penalties).shift();
 
-            if (!result || result.tracks.length === 0) {
+        if (!node) throw new Error('No nodes available');
+
+        try {
+            const result = await node.rest.resolve(searchQuery);
+
+            if (!result || !result.tracks || result.tracks.length === 0) {
                 console.log(`[Lavalink] No results found for: ${searchQuery}`);
                 throw new Error('NO_RESULTS');
             }
 
             const track = result.tracks[0];
-            console.log(`[Lavalink] ✅ Found track: ${track.title}`);
+            console.log(`[Lavalink] ✅ Found track: ${track.info.title}`);
 
             return {
                 track: track,
                 encoded: track.encoded,
-                url: track.uri,
-                title: track.title,
-                lengthSeconds: Math.floor(track.length / 1000),
-                thumbnail: track.thumbnail || track.artworkUrl || null,
-                author: track.author,
+                url: track.info.uri,
+                title: track.info.title,
+                lengthSeconds: Math.floor(track.info.length / 1000),
+                thumbnail: track.info.artworkUrl || null,
+                author: track.info.author,
                 requestedBy: requester,
-                source: track.sourceName || 'YouTube'
+                source: track.info.sourceName || 'YouTube'
             };
             
         } catch (error) {
@@ -214,17 +189,18 @@ class LavalinkService {
     }
 
     getNodeStatus() {
-        if (!this.kazagumo) {
-            console.log('[Lavalink] Status check: Kazagumo not initialized');
+        if (!this.shoukaku) {
+            console.log('[Lavalink] Status check: Shoukaku not initialized');
             return { ready: false, activeConnections: 0, error: 'Not initialized' };
         }
 
         const status = {
             ready: this.isReady,
-            activeConnections: this.kazagumo.players.size,
-            players: Array.from(this.kazagumo.players.values()).map(p => ({
+            activeConnections: this.shoukaku.players.size,
+            players: Array.from(this.shoukaku.players.values()).map(p => ({
                 guildId: p.guildId,
-                state: p.state
+                paused: p.paused,
+                track: p.track
             }))
         };
 

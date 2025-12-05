@@ -12,30 +12,64 @@ class QueueService {
     }
 
     getCurrentTrack(guildId) {
-        const player = this.getPlayer(guildId);
-        return player?.queue?.current || null;
+        const queue = queueRepository.get(guildId);
+        return queue?.currentTrack || null;
     }
 
     getQueueList(guildId) {
-        const player = this.getPlayer(guildId);
-        return player?.queue || [];
+        const queue = queueRepository.get(guildId);
+        return queue?.tracks || [];
     }
 
     getQueueLength(guildId) {
-        const player = this.getPlayer(guildId);
-        return player?.queue?.size || 0;
+        const queue = queueRepository.get(guildId);
+        return queue?.tracks?.length || 0;
+    }
+
+    addTrack(guildId, track) {
+        const queue = this.getOrCreateQueue(guildId);
+        queue.tracks.push(track);
+        return queue.tracks.length;
+    }
+
+    removeTrack(guildId, index) {
+        const queue = queueRepository.get(guildId);
+        if (queue && queue.tracks[index]) {
+            return queue.tracks.splice(index, 1)[0];
+        }
+        return null;
+    }
+
+    clearTracks(guildId) {
+        const queue = queueRepository.get(guildId);
+        if (queue) {
+            queue.tracks = [];
+            queue.currentTrack = null;
+        }
+    }
+
+    nextTrack(guildId) {
+        const queue = queueRepository.get(guildId);
+        if (!queue) return null;
+
+        const isLooped = queue.loop && queue.currentTrack;
+        
+        if (isLooped) {
+            return queue.currentTrack;
+        }
+
+        queue.currentTrack = queue.tracks.shift() || null;
+        return queue.currentTrack;
+    }
+
+    setCurrentTrack(guildId, track) {
+        const queue = this.getOrCreateQueue(guildId);
+        queue.currentTrack = track;
     }
 
     toggleLoop(guildId) {
         const queue = this.getOrCreateQueue(guildId);
-        const player = this.getPlayer(guildId);
-        
         queue.loop = !queue.loop;
-        
-        if (player) {
-            player.setLoop(queue.loop);
-        }
-        
         return queue.loop;
     }
 
@@ -46,13 +80,7 @@ class QueueService {
 
     setLoop(guildId, enabled) {
         const queue = this.getOrCreateQueue(guildId);
-        const player = this.getPlayer(guildId);
-        
         queue.loop = enabled;
-        
-        if (player) {
-            player.setLoop(enabled);
-        }
     }
 
     setInactivityTimer(guildId, callback) {
@@ -63,7 +91,7 @@ class QueueService {
         }
 
         const player = this.getPlayer(guildId);
-        if (!player || !player.playing) {
+        if (!player || player.paused || !player.track) {
             queue.inactivityTimer = setTimeout(() => callback(guildId), INACTIVITY_TIMEOUT);
         }
     }
@@ -123,6 +151,8 @@ class QueueService {
         lavalinkService.destroyPlayer(guildId);
         
         queue.loop = false;
+        queue.tracks = [];
+        queue.currentTrack = null;
         queue._eventsBound = false;
     }
 

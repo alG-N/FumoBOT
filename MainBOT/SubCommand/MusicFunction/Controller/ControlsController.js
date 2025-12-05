@@ -65,7 +65,7 @@ class ControlsController {
             volDown: async (i, gid) => await this.handleVolumeDown(i, gid),
             volUp: async (i, gid) => await this.handleVolumeUp(i, gid),
             vote_skip: async (i, gid) => await this.handleVoteSkip(i, gid),
-            
+
             onEnd: async (reason, msg) => {
                 logger.log(`Collector ended: ${reason}`, interaction);
                 const player = lavalinkService.getPlayer(guildId);
@@ -89,31 +89,34 @@ class ControlsController {
             return await interactionHandler.safeReply(interaction, { ephemeral: true, content: "⚠️ Not playing." });
         }
 
-        const currentTrack = player.queue.current;
+        const currentTrack = queueService.getCurrentTrack(guildId);
+        if (!currentTrack) {
+            return await interactionHandler.safeReply(interaction, { ephemeral: true, content: "⚠️ Not playing." });
+        }
 
-        if (player.playing && !player.paused) {
-            player.pause(true);
+        if (!player.paused) {
+            await player.setPaused(true);
             logger.log(`Paused`, interaction);
 
             const embed = embedBuilder.buildNowPlayingEmbed(
                 {
                     title: currentTrack.title,
-                    url: currentTrack.uri,
-                    lengthSeconds: Math.floor(currentTrack.length / 1000),
-                    thumbnail: currentTrack.thumbnail || currentTrack.artworkUrl,
+                    url: currentTrack.url,
+                    lengthSeconds: currentTrack.lengthSeconds,
+                    thumbnail: currentTrack.thumbnail,
                     author: currentTrack.author,
-                    requestedBy: currentTrack.requester,
-                    source: currentTrack.sourceName || 'YouTube'
+                    requestedBy: currentTrack.requestedBy,
+                    source: currentTrack.source
                 },
                 player.volume,
-                currentTrack.requester,
+                currentTrack.requestedBy,
                 player,
                 queueService.isLooping(guildId)
             );
 
             const result = await interactionHandler.safeEdit(queueService.getNowMessage(guildId), {
                 embeds: [embed],
-                components: this.buildControlRows(guildId, true, queueService.isLooping(guildId), currentTrack.uri)
+                components: this.buildControlRows(guildId, true, queueService.isLooping(guildId), currentTrack.url)
             });
 
             if (result.fallback) {
@@ -122,29 +125,29 @@ class ControlsController {
 
             await interactionHandler.safeReply(interaction, { ephemeral: true, content: "⏸️ Paused." });
 
-        } else if (player.paused) {
-            player.pause(false);
-            logger.log(`Resumed`, interaction);
+        } else {
+            await player.setPaused(false);
+            logger.log(Resumed, interaction);
 
             const embed = embedBuilder.buildNowPlayingEmbed(
                 {
                     title: currentTrack.title,
-                    url: currentTrack.uri,
-                    lengthSeconds: Math.floor(currentTrack.length / 1000),
-                    thumbnail: currentTrack.thumbnail || currentTrack.artworkUrl,
+                    url: currentTrack.url,
+                    lengthSeconds: currentTrack.lengthSeconds,
+                    thumbnail: currentTrack.thumbnail,
                     author: currentTrack.author,
-                    requestedBy: currentTrack.requester,
-                    source: currentTrack.sourceName || 'YouTube'
+                    requestedBy: currentTrack.requestedBy,
+                    source: currentTrack.source
                 },
                 player.volume,
-                currentTrack.requester,
+                currentTrack.requestedBy,
                 player,
                 queueService.isLooping(guildId)
             );
 
             const result = await interactionHandler.safeEdit(queueService.getNowMessage(guildId), {
                 embeds: [embed],
-                components: this.buildControlRows(guildId, false, queueService.isLooping(guildId), currentTrack.uri)
+                components: this.buildControlRows(guildId, false, queueService.isLooping(guildId), currentTrack.url)
             });
 
             if (result.fallback) {
@@ -152,8 +155,6 @@ class ControlsController {
             }
 
             await interactionHandler.safeReply(interaction, { ephemeral: true, content: "▶️ Resumed." });
-        } else {
-            await interactionHandler.safeReply(interaction, { ephemeral: true, content: "⚠️ Not playing." });
         }
     }
 
@@ -165,9 +166,9 @@ class ControlsController {
         logger.log(`Stopped`, interaction);
         await queueService.cleanup(guildId);
         await queueService.disableNowMessageControls(guildId);
-        await interactionHandler.safeReply(interaction, { 
-            ephemeral: true, 
-            content: "🛑 Stopped playback, disabled loop, cleared the queue, and left the VC." 
+        await interactionHandler.safeReply(interaction, {
+            ephemeral: true,
+            content: "🛑 Stopped playback, disabled loop, cleared the queue, and left the VC."
         });
     }
 
@@ -185,7 +186,7 @@ class ControlsController {
 
         if (listeners.length >= 3) {
             const queue = queueService.getOrCreateQueue(guildId);
-            
+
             if (!votingService.isVoting(queue)) {
                 votingService.startSkipVote(queue, interaction.user.id);
 
@@ -207,25 +208,25 @@ class ControlsController {
                     const votingMsg = votingService.getVotingMessage(queue);
 
                     if (votingService.hasEnoughVotes(queue)) {
-                        player.skip();
+                        await player.stopTrack();
                         await votingMsg.edit({ content: "⏭️ Track skipped by vote.", components: [] });
                         logger.log(`Track skipped by vote`, interaction);
                     } else {
                         await votingMsg.edit({ content: "⏭️ Not enough votes to skip.", components: [] });
                         logger.log(`Not enough votes to skip`, interaction);
                     }
-                    
+
                     votingService.endVoting(queue);
                 });
             } else {
-                await interactionHandler.safeReply(interaction, { 
-                    ephemeral: true, 
-                    content: "Skip vote already in progress." 
+                await interactionHandler.safeReply(interaction, {
+                    ephemeral: true,
+                    content: "Skip vote already in progress."
                 });
             }
         } else {
-            if (player.playing || player.paused) {
-                player.skip();
+            if (player.track) {
+                await player.stopTrack();
                 logger.log(`Track skipped`, interaction);
                 await interactionHandler.safeReply(interaction, { ephemeral: true, content: "⏭️ Skipped." });
             } else {
@@ -238,30 +239,30 @@ class ControlsController {
         const { fmtDur } = require('../Utility/formatters');
         const lines = [];
         const player = lavalinkService.getPlayer(guildId);
-        
+
         if (!player) {
-            return await interactionHandler.safeReply(interaction, { 
-                ephemeral: true, 
-                embeds: [embedBuilder.buildInfoEmbed("🧾 Current Queue", "_Queue is empty._")] 
+            return await interactionHandler.safeReply(interaction, {
+                ephemeral: true,
+                embeds: [embedBuilder.buildInfoEmbed("🧾 Current Queue", "_Queue is empty._")]
             });
         }
 
-        const currentTrack = player.queue.current;
-        const queueList = player.queue;
+        const currentTrack = queueService.getCurrentTrack(guildId);
+        const queueList = queueService.getQueueList(guildId);
 
         if (currentTrack) {
-            lines.push(`**Now** — [${currentTrack.title}](${currentTrack.uri}) \`${fmtDur(Math.floor(currentTrack.length / 1000))}\``);
+            lines.push(`**Now** — [${currentTrack.title}](${currentTrack.url}) \`${fmtDur(currentTrack.lengthSeconds)}\``);
         }
 
-        if (queueList.size === 0) {
+        if (queueList.length === 0) {
             lines.push("_Queue is empty._");
         } else {
             const tracks = queueList.slice(0, 10);
             tracks.forEach((t, idx) => {
-                lines.push(`**#${idx + 1}** — [${t.title}](${t.uri}) \`${fmtDur(Math.floor(t.length / 1000))}\` • ${t.author}`);
+                lines.push(`**#${idx + 1}** — [${t.title}](${t.url}) \`${fmtDur(t.lengthSeconds)}\` • ${t.author}`);
             });
-            if (queueList.size > 10) {
-                lines.push(`…and **${queueList.size - 10}** more`);
+            if (queueList.length > 10) {
+                lines.push(`…and **${queueList.length - 10}** more`);
             }
         }
 
@@ -282,27 +283,28 @@ class ControlsController {
         const isLooped = queueService.toggleLoop(guildId);
         logger.log(`Loop toggled: ${isLooped}`, interaction);
 
-        const currentTrack = player.queue.current;
+        const currentTrack = queueService.getCurrentTrack(guildId);
+        if (!currentTrack) return;
 
         const embed = embedBuilder.buildNowPlayingEmbed(
             {
                 title: currentTrack.title,
-                url: currentTrack.uri,
-                lengthSeconds: Math.floor(currentTrack.length / 1000),
-                thumbnail: currentTrack.thumbnail || currentTrack.artworkUrl,
+                url: currentTrack.url,
+                lengthSeconds: currentTrack.lengthSeconds,
+                thumbnail: currentTrack.thumbnail,
                 author: currentTrack.author,
-                requestedBy: currentTrack.requester,
-                source: currentTrack.sourceName || 'YouTube'
+                requestedBy: currentTrack.requestedBy,
+                source: currentTrack.source
             },
             player.volume,
-            currentTrack.requester,
+            currentTrack.requestedBy,
             player,
             isLooped
         );
 
         const result = await interactionHandler.safeEdit(queueService.getNowMessage(guildId), {
             embeds: [embed],
-            components: this.buildControlRows(guildId, player.paused, isLooped, currentTrack.uri)
+            components: this.buildControlRows(guildId, player.paused, isLooped, currentTrack.url)
         });
 
         if (result.fallback) {
@@ -331,31 +333,32 @@ class ControlsController {
         }
 
         const newVolume = Math.max(0, Math.min(200, player.volume + delta));
-        player.setVolume(newVolume);
-        
+        await player.setGlobalVolume(newVolume);
+
         logger.log(`Volume changed: ${newVolume}`, interaction);
 
-        const currentTrack = player.queue.current;
+        const currentTrack = queueService.getCurrentTrack(guildId);
+        if (!currentTrack) return;
 
         const embed = embedBuilder.buildNowPlayingEmbed(
             {
                 title: currentTrack.title,
-                url: currentTrack.uri,
-                lengthSeconds: Math.floor(currentTrack.length / 1000),
-                thumbnail: currentTrack.thumbnail || currentTrack.artworkUrl,
+                url: currentTrack.url,
+                lengthSeconds: currentTrack.lengthSeconds,
+                thumbnail: currentTrack.thumbnail,
                 author: currentTrack.author,
-                requestedBy: currentTrack.requester,
-                source: currentTrack.sourceName || 'YouTube'
+                requestedBy: currentTrack.requestedBy,
+                source: currentTrack.source
             },
             newVolume,
-            currentTrack.requester,
+            currentTrack.requestedBy,
             player,
             queueService.isLooping(guildId)
         );
 
         const result = await interactionHandler.safeEdit(queueService.getNowMessage(guildId), {
             embeds: [embed],
-            components: this.buildControlRows(guildId, player.paused, queueService.isLooping(guildId), currentTrack.uri)
+            components: this.buildControlRows(guildId, player.paused, queueService.isLooping(guildId), currentTrack.url)
         });
 
         if (result.fallback) {
@@ -369,9 +372,9 @@ class ControlsController {
         const queue = queueService.getOrCreateQueue(guildId);
 
         if (!votingService.isVoting(queue)) {
-            await interactionHandler.safeReply(interaction, { 
-                ephemeral: true, 
-                content: "No skip vote in progress." 
+            await interactionHandler.safeReply(interaction, {
+                ephemeral: true,
+                content: "No skip vote in progress."
             });
             return;
         }
@@ -379,26 +382,26 @@ class ControlsController {
         const result = votingService.addSkipVote(queue, interaction.user.id);
 
         if (!result.added) {
-            await interactionHandler.safeReply(interaction, { 
-                ephemeral: true, 
-                content: "You already voted or voting ended." 
+            await interactionHandler.safeReply(interaction, {
+                ephemeral: true,
+                content: "You already voted or voting ended."
             });
             return;
         }
 
-        await interactionHandler.safeReply(interaction, { 
-            ephemeral: true, 
-            content: "Your vote to skip has been counted." 
+        await interactionHandler.safeReply(interaction, {
+            ephemeral: true,
+            content: "Your vote to skip has been counted."
         });
 
         if (votingService.hasEnoughVotes(queue)) {
             const votingMsg = votingService.getVotingMessage(queue);
             const player = lavalinkService.getPlayer(guildId);
-            
+
             if (player) {
-                player.skip();
+                await player.stopTrack();
             }
-            
+
             await votingMsg.edit({ content: "⏭️ Track skipped by vote.", components: [] });
             votingService.endVoting(queue);
             logger.log(`Track skipped by vote (${MIN_VOTES_REQUIRED}+)`, interaction);
