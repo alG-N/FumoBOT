@@ -1,47 +1,54 @@
 {
   "market": [
     {
-      "name": "Satori(EPIC)",
-      "price": 76,
-      "rarity": "EPIC",
-      "stock": 3,
+      "name": "Remilia(RARE)",
+      "price": 30,
+      "rarity": "RARE",
+      "stock": 2,
       "picture": null
     },
     {
-      "name": "Kasen(EPIC)",
-      "price": 90,
-      "rarity": "EPIC",
-      "stock": 3,
+      "name": "Youmu(RARE)",
+      "price": 35,
+      "rarity": "RARE",
+      "stock": 4,
       "picture": null
     },
     {
-      "name": "TankReisen(OTHERWORLDLY)",
-      "price": 1000,
-      "rarity": "OTHERWORLDLY",
+      "name": "BlueReimu(EXCLUSIVE)",
+      "price": 275000,
+      "rarity": "EXCLUSIVE",
       "stock": 1,
       "picture": null
     },
     {
-      "name": "GawrGura(???)",
-      "price": 6020300,
+      "name": "Mostima(CELESTIAL)",
+      "price": 12455000,
+      "rarity": "CELESTIAL",
+      "stock": 1,
+      "picture": null
+    },
+    {
+      "name": "Grani(CELESTIAL)",
+      "price": 13957500,
+      "rarity": "CELESTIAL",
+      "stock": 1,
+      "picture": null
+    },
+    {
+      "name": "ImSorryOfficerFumo(???)",
+      "price": 5415000,
       "rarity": "???",
       "stock": 1,
       "picture": null
     },
     {
-      "name": "Yukari(LEGENDARY)",
-      "price": 1250,
-      "rarity": "LEGENDARY",
-      "stock": 1,
-      "picture": null
-    },
-    {
-      "name": "Mima(INFINITE)",
-      "price": 10000000,
-      "rarity": "INFINITE",
+      "name": "Tenshi(MYTHICAL)",
+      "price": 97500,
+      "rarity": "MYTHICAL",
       "stock": 1,
       "picture": null
     }
   ],
-  "resetTime": 1764936000000
+  "resetTime": 1764957600000
 }
