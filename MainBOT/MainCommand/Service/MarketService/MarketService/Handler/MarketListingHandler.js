@@ -4,6 +4,7 @@ const { get, run, all } = require('../../../../Core/database');
 const { GLOBAL_SHOP_CONFIG } = require('../../../../Configuration/marketConfig');
 const { validateUserHasFumo, getFumoIdForRemoval, getAvailableVariants } = require('../MarketInventoryValidator');
 const { createErrorEmbed } = require('../MarketUIService');
+const { formatNumber } = require('../../../../Ultility/formatting')
 
 const CATEGORIES = [
     'Common', 'UNCOMMON', 'RARE', 'EPIC', 'OTHERWORLDLY',
@@ -104,11 +105,12 @@ async function handleRaritySelection(interaction) {
         const rarity = valueWithIndex.split('_').slice(0, -1).join('_');
 
         const baseFumos = await all(
-            `SELECT REPLACE(REPLACE(REPLACE(fumoName, '[✨SHINY]', ''), '[🌟alG]', ''), TRIM(fumoName), '') as baseName,
-                COUNT(*) as variantCount
-                FROM userInventory
-                WHERE userId = ? AND fumoName LIKE ?
-                GROUP BY REPLACE(REPLACE(REPLACE(fumoName, '[✨SHINY]', ''), '[🌟alG]', ''), TRIM(fumoName), '')`,
+            `SELECT 
+                REPLACE(REPLACE(REPLACE(fumoName, '[✨SHINY]', ''), '[🌟alG]', ''), TRIM(fumoName), '') AS baseName,
+                COUNT(*) AS variantCount
+            FROM userInventory
+            WHERE userId = ? AND fumoName LIKE ?
+            GROUP BY REPLACE(REPLACE(REPLACE(fumoName, '[✨SHINY]', ''), '[🌟alG]', ''), TRIM(fumoName), '')`,
             [interaction.user.id, `%(${rarity})%`]
         );
 
@@ -119,12 +121,22 @@ async function handleRaritySelection(interaction) {
             });
         }
 
+        // ✅ Remove empty names (the "250 variants" item)
+        const filtered = baseFumos.filter(f => f.baseName.trim() !== "");
+
+        if (filtered.length === 0) {
+            return interaction.update({
+                content: `❌ No valid fumos found for **${rarity}**.`,
+                components: []
+            });
+        }
+
         const selectMenu = new StringSelectMenuBuilder()
             .setCustomId(`select_base_fumo_${interaction.user.id}_${rarity}`)
             .setPlaceholder('Select Your Fumo')
             .addOptions(
-                baseFumos.slice(0, 25).map((f, idx) => ({
-                    label: `${f.baseName.trim()} (${f.variantCount} variant${f.variantCount > 1 ? 's' : ''})`,
+                filtered.slice(0, 25).map((f, idx) => ({
+                    label: `${f.baseName.trim()} (${f.variantCount} total)`,  // <-- 🔥 changed variants → total
                     value: `${f.baseName.trim()}_${idx}`
                 }))
             );
@@ -162,29 +174,41 @@ async function handleBaseFumoSelection(interaction) {
             });
         }
 
+        const uniqueVariants = [];
+        const seen = new Set();
+
+        for (const v of variants) {
+            const key = v.fumoName;
+            if (!seen.has(key)) {
+                seen.add(key);
+                uniqueVariants.push(v);
+            }
+        }
+
         const selectMenu = new StringSelectMenuBuilder()
             .setCustomId(`select_variant_${userId}_${Buffer.from(baseFumoName).toString('base64').substring(0, 30)}`)
-            .setPlaceholder('Select Variant (Base, SHINY, or alG)')
+            .setPlaceholder('Select version to list')
             .addOptions(
-                variants.map((v, idx) => {
-                    let variantLabel = 'Base';
-                    if (v.fumoName.includes('[✨SHINY]')) variantLabel = '✨ SHINY';
-                    if (v.fumoName.includes('[🌟alG]')) variantLabel = '🌟 alG';
+                uniqueVariants.map((v, idx) => {
+                    const cleanName = v.fumoName.replace(/\(.*?\)/, '').trim();
+                    let displayName = cleanName;
+                    if (v.fumoName.includes('[✨SHINY]')) displayName = `${cleanName}`;
+                    if (v.fumoName.includes('[🌟alG]')) displayName = `${cleanName}`;
 
                     return {
-                        label: `${variantLabel} (x${v.count})`,
+                        label: `${displayName} (x${v.count})`,
                         value: `${idx}`,
-                        description: v.fumoName.substring(0, 100)
+                        description: `List this version for sale`.substring(0, 100)
                     };
                 })
             );
 
         const row = new ActionRowBuilder().addComponents(selectMenu);
 
-        listingDataCache.set(userId, { variants, baseFumoName });
+        listingDataCache.set(userId, { variants: uniqueVariants, baseFumoName });
 
         await interaction.update({
-            content: `**Step 3/4:** Select variant for **${baseFumoName}**`,
+            content: `**Step 3/4:** Select which version to list`,
             components: [row]
         });
     } catch (error) {
@@ -293,8 +317,8 @@ async function handlePriceModal(interaction) {
         );
 
         const confirmText = `**Confirm Listing:**\n**Fumo:** ${fumoName}\n` +
-            `**Coin Price:** 🪙 ${coinPrice.toLocaleString()}\n` +
-            `**Gem Price:** 💎 ${gemPrice.toLocaleString()}\n\n` +
+            `**Coin Price:** 🪙 ${formatNumber(coinPrice)}\n` +
+            `**Gem Price:** 💎 ${formatNumber(gemPrice)}\n\n` +
             `✨ Buyers must pay **BOTH** currencies to purchase this fumo.`;
 
         await interaction.reply({
