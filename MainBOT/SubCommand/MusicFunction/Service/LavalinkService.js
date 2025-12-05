@@ -30,10 +30,10 @@ class LavalinkService {
         try {
             const connector = new Connectors.DiscordJS(client);
             this.shoukaku = new Shoukaku(connector, nodes, lavalinkConfig.shoukakuOptions);
-            
+
             console.log('[Lavalink] Shoukaku pre-initialized successfully');
             this.setupEventHandlers();
-            
+
         } catch (error) {
             console.error('[Lavalink] ❌ PRE-INITIALIZATION ERROR:', error);
             console.error('[Lavalink] Error stack:', error.stack);
@@ -47,7 +47,7 @@ class LavalinkService {
         console.log('[Lavalink] Finalizing connection to nodes...');
         console.log('[Lavalink] Client user ID:', this.client.user.id);
         console.log('[Lavalink] Total nodes:', this.shoukaku.nodes.size);
-        
+
         for (const [name, node] of this.shoukaku.nodes) {
             console.log(`[Lavalink] Node "${name}": state=${node.state}`);
         }
@@ -112,7 +112,7 @@ class LavalinkService {
             console.error('[Lavalink] Cannot create player: Shoukaku not initialized');
             throw new Error('Shoukaku not initialized');
         }
-        
+
         if (!this.isReady) {
             console.error('[Lavalink] Cannot create player: Lavalink not ready');
             throw new Error('Lavalink not ready');
@@ -136,7 +136,7 @@ class LavalinkService {
 
             console.log(`[Lavalink] ✅ Player created successfully for guild ${guildId}`);
             return player;
-            
+
         } catch (error) {
             console.error(`[Lavalink] ❌ FAILED to create player for guild ${guildId}`);
             console.error(`[Lavalink] Error:`, error.message);
@@ -160,14 +160,27 @@ class LavalinkService {
             console.error('[Lavalink] Cannot search: Shoukaku not initialized');
             throw new Error('Shoukaku not initialized');
         }
-        
+
         if (!this.isReady) {
             console.error('[Lavalink] Cannot search: Lavalink not ready');
             throw new Error('Lavalink not ready');
         }
 
+        // Clean up YouTube URLs - remove tracking parameters
         let searchQuery = query;
-        if (!/^https?:\/\//.test(query)) {
+        if (/^https?:\/\//.test(query)) {
+            try {
+                const url = new URL(query);
+                // Remove common tracking parameters
+                url.searchParams.delete('si');
+                url.searchParams.delete('feature');
+                searchQuery = url.toString();
+                console.log(`[Lavalink] Cleaned URL: ${searchQuery}`);
+            } catch (e) {
+                console.log('[Lavalink] Failed to parse URL, using original');
+            }
+        } else {
+            // For search queries, add platform prefix
             searchQuery = `${lavalinkConfig.defaultSearchPlatform}:${query}`;
         }
 
@@ -175,18 +188,70 @@ class LavalinkService {
 
         const node = [...this.shoukaku.nodes.values()].find(n => n.state === 2);
 
-        if (!node) throw new Error('No available nodes');
+        if (!node) {
+            console.error('[Lavalink] No available nodes');
+            throw new Error('No available nodes');
+        }
+
+        console.log(`[Lavalink] Using node: ${node.name}, State: ${node.state}`);
 
         try {
             const result = await node.rest.resolve(searchQuery);
 
-            if (!result || !result.tracks || result.tracks.length === 0) {
-                console.log(`[Lavalink] No results found for: ${searchQuery}`);
+            console.log(`[Lavalink] Raw result:`, {
+                loadType: result?.loadType,
+                hasData: !!result?.data,
+                dataType: typeof result?.data,
+                isArray: Array.isArray(result?.data),
+                trackCount: result?.data?.tracks?.length || (Array.isArray(result?.data) ? result?.data.length : 0)
+            });
+
+            // Handle different response formats
+            if (!result) {
+                console.error('[Lavalink] No result returned');
                 throw new Error('NO_RESULTS');
             }
 
-            const track = result.tracks[0];
-            console.log(`[Lavalink] ✅ Found track: ${track.info.title}`);
+            // Handle error load type
+            if (result.loadType === 'error') {
+                console.error('[Lavalink] Load error:', result.data);
+                throw new Error(result.data?.message || 'LOAD_FAILED');
+            }
+
+            // Handle empty results
+            if (result.loadType === 'empty') {
+                console.log(`[Lavalink] Empty result for: ${searchQuery}`);
+                throw new Error('NO_RESULTS');
+            }
+
+            // Extract track based on load type
+            let track;
+            if (result.loadType === 'track') {
+                // Single track result
+                track = result.data;
+            } else if (result.loadType === 'search') {
+                // Search results - take first track
+                track = result.data?.[0];
+            } else if (result.loadType === 'playlist') {
+                // Playlist - take first track
+                track = result.data?.tracks?.[0];
+            } else {
+                // Fallback - try to find track in data
+                track = result.data?.tracks?.[0] || result.data?.[0] || result.tracks?.[0];
+            }
+
+            if (!track || !track.info) {
+                console.error('[Lavalink] No valid track found in result');
+                console.error('[Lavalink] Result structure:', JSON.stringify(result, null, 2));
+                throw new Error('NO_RESULTS');
+            }
+
+            console.log(`[Lavalink] ✅ Found track: ${track.info.title} by ${track.info.author}`);
+
+            // Extract YouTube ID for thumbnail if needed
+            const youtubeId = this.extractYouTubeId(track.info.uri);
+            const thumbnail = track.info.artworkUrl ||
+                (youtubeId ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg` : null);
 
             return {
                 track: track,
@@ -194,17 +259,24 @@ class LavalinkService {
                 url: track.info.uri,
                 title: track.info.title,
                 lengthSeconds: Math.floor(track.info.length / 1000),
-                thumbnail: track.info.artworkUrl || null,
+                thumbnail: thumbnail,
                 author: track.info.author,
                 requestedBy: requester,
                 source: track.info.sourceName || 'YouTube'
             };
-            
+
         } catch (error) {
             console.error(`[Lavalink] ❌ Search failed for: ${searchQuery}`);
             console.error(`[Lavalink] Error:`, error.message);
+            console.error(`[Lavalink] Stack:`, error.stack);
             throw error;
         }
+    }
+
+    extractYouTubeId(url) {
+        if (!url) return null;
+        const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/);
+        return match ? match[1] : null;
     }
 
     getNodeStatus() {
