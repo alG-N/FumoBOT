@@ -20,6 +20,30 @@ class TrackResolverService {
         };
     }
 
+    async resolvePlaylist(query, user) {
+        const result = await lavalinkService.searchPlaylist(query, user);
+
+        if (!result || !result.tracks || result.tracks.length === 0) {
+            throw new Error('NO_RESULTS');
+        }
+
+        return {
+            name: result.playlistName,
+            tracks: result.tracks,
+            trackCount: result.tracks.length
+        };
+    }
+
+    isPlaylistUrl(query) {
+        if (query.includes('youtube.com') && query.includes('list=')) {
+            return true;
+        }
+        if (query.includes('spotify.com/playlist/')) {
+            return true;
+        }
+        return false;
+    }
+
     isLongTrack(trackData, maxDuration) {
         return trackData.lengthSeconds > maxDuration;
     }
