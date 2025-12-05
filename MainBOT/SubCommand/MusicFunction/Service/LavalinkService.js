@@ -6,34 +6,36 @@ class LavalinkService {
         this.shoukaku = null;
         this.client = null;
         this.isReady = false;
+        this.readyNodes = new Set();
     }
 
-    initialize(client) {
+    preInitialize(client) {
         if (this.shoukaku) {
             console.log('[Lavalink] Already initialized');
             return this.shoukaku;
         }
 
-        if (!client || !client.user) {
-            throw new Error('Discord client must be logged in');
-        }
-
         this.client = client;
-        console.log('[Lavalink] Initializing for', client.user.tag);
-        console.log('[Lavalink] Node configuration:', JSON.stringify(lavalinkConfig.nodes, null, 2));
+        console.log('[Lavalink] Pre-initializing Shoukaku (before login)...');
+
+        const nodes = lavalinkConfig.nodes.map(node => ({
+            name: node.name,
+            url: node.url,
+            auth: node.auth,
+            secure: node.secure || false
+        }));
+
+        console.log('[Lavalink] Nodes configuration:', JSON.stringify(nodes, null, 2));
 
         try {
-            this.shoukaku = new Shoukaku(
-                new Connectors.DiscordJS(client),
-                lavalinkConfig.nodes,
-                lavalinkConfig.shoukakuOptions
-            );
-
-            console.log('[Lavalink] Shoukaku instance created successfully');
+            const connector = new Connectors.DiscordJS(client);
+            this.shoukaku = new Shoukaku(connector, nodes, lavalinkConfig.shoukakuOptions);
+            
+            console.log('[Lavalink] Shoukaku pre-initialized successfully');
             this.setupEventHandlers();
             
         } catch (error) {
-            console.error('[Lavalink] ❌ INITIALIZATION ERROR:', error);
+            console.error('[Lavalink] ❌ PRE-INITIALIZATION ERROR:', error);
             console.error('[Lavalink] Error stack:', error.stack);
             throw error;
         }
@@ -41,11 +43,22 @@ class LavalinkService {
         return this.shoukaku;
     }
 
+    finalize() {
+        console.log('[Lavalink] Finalizing connection to nodes...');
+        console.log('[Lavalink] Client user ID:', this.client.user.id);
+        console.log('[Lavalink] Total nodes:', this.shoukaku.nodes.size);
+        
+        for (const [name, node] of this.shoukaku.nodes) {
+            console.log(`[Lavalink] Node "${name}": state=${node.state}`);
+        }
+    }
+
     setupEventHandlers() {
         console.log('[Lavalink] Setting up event handlers...');
 
         this.shoukaku.on('ready', (name) => {
             console.log(`[Lavalink] ✅ NODE READY: "${name}"`);
+            this.readyNodes.add(name);
             this.isReady = true;
         });
 
@@ -59,13 +72,19 @@ class LavalinkService {
             console.log(`[Lavalink] 🔌 NODE CLOSED: "${name}"`);
             console.log(`[Lavalink] Close code: ${code}`);
             console.log(`[Lavalink] Close reason: ${reason}`);
-            this.isReady = false;
+            this.readyNodes.delete(name);
+            if (this.readyNodes.size === 0) {
+                this.isReady = false;
+            }
         });
 
         this.shoukaku.on('disconnect', (name, count) => {
             console.log(`[Lavalink] ⚠️ NODE DISCONNECTED: "${name}"`);
-            console.log(`[Lavalink] Players: ${count}`);
-            this.isReady = false;
+            console.log(`[Lavalink] Moved players: ${count}`);
+            this.readyNodes.delete(name);
+            if (this.readyNodes.size === 0) {
+                this.isReady = false;
+            }
         });
 
         this.shoukaku.on('reconnecting', (name, reconnectsLeft, reconnectInterval) => {
@@ -101,9 +120,9 @@ class LavalinkService {
 
         console.log(`[Lavalink] Creating player for guild ${guildId}`);
 
-        const node = this.shoukaku.options.nodeResolver ? this.shoukaku.options.nodeResolver(this.shoukaku.nodes) : [...this.shoukaku.nodes.values()].sort((a, b) => a.penalties - b.penalties).shift();
+        const node = [...this.shoukaku.nodes.values()].find(n => n.state === 2);
 
-        if (!node) throw new Error('No nodes available');
+        if (!node) throw new Error('No available nodes');
 
         try {
             const player = await this.shoukaku.joinVoiceChannel({
@@ -154,9 +173,9 @@ class LavalinkService {
 
         console.log(`[Lavalink] Searching: ${searchQuery}`);
 
-        const node = this.shoukaku.options.nodeResolver ? this.shoukaku.options.nodeResolver(this.shoukaku.nodes) : [...this.shoukaku.nodes.values()].sort((a, b) => a.penalties - b.penalties).shift();
+        const node = [...this.shoukaku.nodes.values()].find(n => n.state === 2);
 
-        if (!node) throw new Error('No nodes available');
+        if (!node) throw new Error('No available nodes');
 
         try {
             const result = await node.rest.resolve(searchQuery);
@@ -194,9 +213,16 @@ class LavalinkService {
             return { ready: false, activeConnections: 0, error: 'Not initialized' };
         }
 
+        const nodes = Array.from(this.shoukaku.nodes.values()).map(node => ({
+            name: node.name,
+            state: node.state,
+            stats: node.stats
+        }));
+
         const status = {
             ready: this.isReady,
             activeConnections: this.shoukaku.players.size,
+            nodes: nodes,
             players: Array.from(this.shoukaku.players.values()).map(p => ({
                 guildId: p.guildId,
                 paused: p.paused,
