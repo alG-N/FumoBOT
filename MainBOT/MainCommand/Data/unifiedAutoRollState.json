@@ -1,7 +1,7 @@
 {
   "1128296349566251068": {
     "normal": {
-      "rollCount": 2,
+      "rollCount": 5,
       "autoSell": true,
       "startTime": 1764840683301,
       "bestFumo": {
@@ -11,7 +11,7 @@
       },
       "bestFumoAt": "12/4/2025, 5:03:15 PM",
       "bestFumoRoll": 1,
-      "specialFumoCount": 379,
+      "specialFumoCount": 399,
       "specialFumoFirstAt": "12/4/2025, 4:33:38 PM",
       "specialFumoFirstRoll": 3
     },
@@ -19,8 +19,8 @@
       "rollCount": 1,
       "autoSell": true,
       "startTime": 1764825059334,
-      "totalFumosRolled": 49500,
-      "totalCoinsFromSales": 38300,
+      "totalFumosRolled": 49700,
+      "totalCoinsFromSales": 35450,
       "bestFumo": {
         "name": "Go/jo(???)",
         "rarity": "???",
@@ -35,25 +35,25 @@
   },
   "845274868697661440": {
     "normal": {
-      "rollCount": 2,
+      "rollCount": 5,
       "autoSell": false,
-      "startTime": 1764843147297,
+      "startTime": 1764913481868,
       "bestFumo": {
-        "name": "Rinnosuke(TRANSCENDENT)[✨SHINY]",
-        "rarity": "TRANSCENDENT",
-        "picture": "https://img1.picmix.com/output/stamp/normal/6/1/0/7/2577016_a2c58.png"
+        "name": "Athena(ASTRAL)",
+        "rarity": "ASTRAL",
+        "picture": "https://media.discordapp.net/attachments/1372426801472737280/1372426818594017311/OIP.png?ex=6826bb94&is=68256a14&hm=eb47a890b02dc810beefb84938f01c70b98522c1fe3c4a2ccb96de9293da28ac&=&format=webp&quality=lossless&width=309&height=309"
       },
-      "bestFumoAt": "12/5/2025, 10:39:25 AM",
-      "bestFumoRoll": 719,
-      "specialFumoCount": 346,
-      "specialFumoFirstAt": "12/4/2025, 5:13:27 PM",
+      "bestFumoAt": "12/5/2025, 12:52:35 PM",
+      "bestFumoRoll": 3,
+      "specialFumoCount": 3,
+      "specialFumoFirstAt": "12/5/2025, 12:45:58 PM",
       "specialFumoFirstRoll": 2
     },
     "event": {
       "rollCount": 1,
       "autoSell": false,
       "startTime": 1764855794969,
-      "totalFumosRolled": 8000,
+      "totalFumosRolled": 8200,
       "totalCoinsFromSales": 0,
       "bestFumo": {
         "name": "Go/jo(???)",
