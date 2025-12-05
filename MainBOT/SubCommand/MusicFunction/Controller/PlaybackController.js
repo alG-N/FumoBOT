@@ -21,15 +21,17 @@ class PlaybackController {
         this.boundGuilds.add(guildId);
         console.log(`[PlaybackController] Added guild ${guildId} to bound set`);
 
-        const manager = lavalinkService.getManager();
-        console.log(`[PlaybackController] Manager exists?`, !!manager);
+        const player = lavalinkService.getPlayer(guildId);
+        console.log(`[PlaybackController] Player exists?`, !!player);
 
-        const handleTrackStart = async (player, track) => {
-            console.log(`[PlaybackController] trackStart event fired for guild ${player.guildId}`);
-            console.log(`[PlaybackController] Target guild: ${guildId}, Event guild: ${player.guildId}`);
-            console.log(`[PlaybackController] Match?`, player.guildId === guildId);
-            
-            if (player.guildId !== guildId) return;
+        if (!player) {
+            console.error(`[PlaybackController] No player found for guild ${guildId}`);
+            return;
+        }
+
+        const handleTrackStart = async (data) => {
+            console.log(`[PlaybackController] start event fired for guild ${guildId}`);
+            console.log(`[PlaybackController] Event data:`, data);
 
             const currentTrack = queueService.getCurrentTrack(guildId);
             console.log(`[PlaybackController] Current track:`, currentTrack?.title);
@@ -72,11 +74,9 @@ class PlaybackController {
             ControlsController.setupCollector(guildId, interaction, nowMessage);
         };
 
-        const handleTrackEnd = async (player, track, reason) => {
-            console.log(`[PlaybackController] trackEnd event fired for guild ${player.guildId}, reason: ${reason}`);
+        const handleTrackEnd = async (data) => {
+            console.log(`[PlaybackController] end event fired for guild ${guildId}, reason:`, data?.reason);
             
-            if (player.guildId !== guildId) return;
-
             const currentTrack = queueService.getCurrentTrack(guildId);
             if (currentTrack) {
                 logger.log(`Track ended: ${currentTrack.title}`, interaction);
@@ -89,7 +89,7 @@ class PlaybackController {
                 });
             }
 
-            if (reason === 'stopped' || reason === 'replaced') {
+            if (data?.reason === 'stopped' || data?.reason === 'replaced') {
                 console.log(`[PlaybackController] Track was stopped/replaced, not playing next`);
                 return;
             }
@@ -113,11 +113,9 @@ class PlaybackController {
             }
         };
 
-        const handleTrackException = async (player, data) => {
-            console.log(`[PlaybackController] trackException event fired for guild ${player.guildId}`);
+        const handleTrackException = async (data) => {
+            console.log(`[PlaybackController] exception event fired for guild ${guildId}`);
             
-            if (player.guildId !== guildId) return;
-
             logger.error(`Track error: ${data.exception?.message}`, interaction);
 
             await interaction.channel.send({
@@ -130,11 +128,9 @@ class PlaybackController {
             }
         };
 
-        const handleTrackStuck = async (player, data) => {
-            console.log(`[PlaybackController] trackStuck event fired for guild ${player.guildId}`);
+        const handleTrackStuck = async (data) => {
+            console.log(`[PlaybackController] stuck event fired for guild ${guildId}`);
             
-            if (player.guildId !== guildId) return;
-
             logger.warn(`Track stuck for ${data.thresholdMs}ms`, interaction);
 
             await interaction.channel.send({
@@ -147,16 +143,26 @@ class PlaybackController {
             }
         };
 
-        console.log(`[PlaybackController] Registering event listeners...`);
-        manager.on('trackStart', handleTrackStart);
-        manager.on('trackEnd', handleTrackEnd);
-        manager.on('trackException', handleTrackException);
-        manager.on('trackStuck', handleTrackStuck);
+        console.log(`[PlaybackController] Registering event listeners on player...`);
+        player.on('start', handleTrackStart);
+        player.on('end', handleTrackEnd);
+        player.on('exception', handleTrackException);
+        player.on('stuck', handleTrackStuck);
         console.log(`[PlaybackController] Event listeners registered!`);
     }
 
     unbindPlayerEvents(guildId) {
         console.log(`[PlaybackController] Unbinding events for guild ${guildId}`);
+        
+        const player = lavalinkService.getPlayer(guildId);
+        if (player) {
+            // Remove all listeners for these events
+            player.removeAllListeners('start');
+            player.removeAllListeners('end');
+            player.removeAllListeners('exception');
+            player.removeAllListeners('stuck');
+        }
+        
         this.boundGuilds.delete(guildId);
     }
 }
