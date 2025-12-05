@@ -4,37 +4,37 @@
       "name": "Reimu(Common)",
       "price": 125,
       "rarity": "Common",
-      "stock": 5,
+      "stock": 7,
       "picture": null
     },
     {
-      "name": "Cirno(Common)",
+      "name": "Marisa(Common)",
       "price": 125,
       "rarity": "Common",
       "stock": 10,
       "picture": null
     },
     {
-      "name": "Sakuya(UNCOMMON)",
-      "price": 200,
-      "rarity": "UNCOMMON",
+      "name": "Cirno(Common)",
+      "price": 125,
+      "rarity": "Common",
       "stock": 7,
       "picture": null
     },
     {
-      "name": "Patchouli(UNCOMMON)",
-      "price": 215,
-      "rarity": "UNCOMMON",
-      "stock": 5,
+      "name": "Sanae(Common)",
+      "price": 125,
+      "rarity": "Common",
+      "stock": 10,
       "picture": null
     },
     {
-      "name": "Yukari(LEGENDARY)",
-      "price": 12500,
-      "rarity": "LEGENDARY",
-      "stock": 3,
+      "name": "Meiling(UNCOMMON)",
+      "price": 200,
+      "rarity": "UNCOMMON",
+      "stock": 4,
       "picture": null
     }
   ],
-  "resetTime": 1764943200000
+  "resetTime": 1764946800000
 }

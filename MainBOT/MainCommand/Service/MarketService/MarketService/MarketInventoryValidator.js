@@ -19,22 +19,48 @@ function extractTrait(fumoName) {
 
 async function validateUserHasFumo(userId, fumoName) {
     const baseWithRarity = getBaseFumoNameWithRarity(fumoName);
+    const requestedTrait = extractTrait(fumoName);
     
     debugLog('MARKET_VALIDATOR', `Checking inventory for ${fumoName}`);
     debugLog('MARKET_VALIDATOR', `  Base: ${baseWithRarity}`);
+    debugLog('MARKET_VALIDATOR', `  Requested trait: ${requestedTrait || 'Base'}`);
     
-    const rows = await all(
-        `SELECT id, fumoName, COUNT(*) as count 
-         FROM userInventory 
-         WHERE userId = ? 
-         AND (
-             fumoName = ? OR
-             fumoName = ? OR
-             fumoName = ?
-         )
-         GROUP BY fumoName`,
-        [userId, baseWithRarity, `${baseWithRarity}[✨SHINY]`, `${baseWithRarity}[🌟alG]`]
-    );
+    let rows;
+    
+    if (requestedTrait === 'alG') {
+        rows = await all(
+            `SELECT id, fumoName, COUNT(*) as count 
+             FROM userInventory 
+             WHERE userId = ? 
+             AND fumoName LIKE ?
+             AND fumoName LIKE '%[🌟alG]%'
+             GROUP BY fumoName`,
+            [userId, `${baseWithRarity}%`]
+        );
+    } else if (requestedTrait === 'SHINY') {
+        rows = await all(
+            `SELECT id, fumoName, COUNT(*) as count 
+             FROM userInventory 
+             WHERE userId = ? 
+             AND fumoName LIKE ?
+             AND fumoName LIKE '%[✨SHINY]%'
+             GROUP BY fumoName`,
+            [userId, `${baseWithRarity}%`]
+        );
+    } else {
+        rows = await all(
+            `SELECT id, fumoName, COUNT(*) as count 
+             FROM userInventory 
+             WHERE userId = ? 
+             AND (
+                 fumoName = ? OR
+                 fumoName = ? OR
+                 fumoName = ?
+             )
+             GROUP BY fumoName`,
+            [userId, baseWithRarity, `${baseWithRarity}[✨SHINY]`, `${baseWithRarity}[🌟alG]`]
+        );
+    }
     
     if (!rows || rows.length === 0) {
         debugLog('MARKET_VALIDATOR', `  ❌ Not found in inventory`);
@@ -63,16 +89,43 @@ async function validateUserHasFumo(userId, fumoName) {
 
 async function getFumoIdForRemoval(userId, fumoName) {
     const baseWithRarity = getBaseFumoNameWithRarity(fumoName);
+    const requestedTrait = extractTrait(fumoName);
     
-    const exactMatch = await all(
-        `SELECT id FROM userInventory 
-         WHERE userId = ? AND fumoName = ? 
-         LIMIT 1`,
-        [userId, fumoName]
-    );
+    debugLog('MARKET_VALIDATOR', `[getFumoIdForRemoval] Looking for: ${fumoName}`);
+    debugLog('MARKET_VALIDATOR', `  Base: ${baseWithRarity}`);
+    debugLog('MARKET_VALIDATOR', `  Trait: ${requestedTrait || 'Base'}`);
+    
+    let exactMatch;
+    
+    if (requestedTrait === 'alG') {
+        exactMatch = await all(
+            `SELECT id, fumoName FROM userInventory 
+             WHERE userId = ? 
+             AND fumoName LIKE ?
+             AND fumoName LIKE '%[🌟alG]%'
+             LIMIT 1`,
+            [userId, `${baseWithRarity}%`]
+        );
+    } else if (requestedTrait === 'SHINY') {
+        exactMatch = await all(
+            `SELECT id, fumoName FROM userInventory 
+             WHERE userId = ? 
+             AND fumoName LIKE ?
+             AND fumoName LIKE '%[✨SHINY]%'
+             LIMIT 1`,
+            [userId, `${baseWithRarity}%`]
+        );
+    } else {
+        exactMatch = await all(
+            `SELECT id, fumoName FROM userInventory 
+             WHERE userId = ? AND fumoName = ? 
+             LIMIT 1`,
+            [userId, fumoName]
+        );
+    }
     
     if (exactMatch && exactMatch.length > 0) {
-        debugLog('MARKET_VALIDATOR', `Found exact match for ${fumoName}`);
+        debugLog('MARKET_VALIDATOR', `✅ Found exact match: ${exactMatch[0].fumoName}`);
         return exactMatch[0].id;
     }
     
@@ -106,12 +159,15 @@ async function getAvailableVariants(userId, baseFumoName) {
          WHERE userId = ? 
          AND (
              fumoName = ? OR
-             fumoName = ? OR
-             fumoName = ?
+             fumoName LIKE ? OR
+             fumoName LIKE ?
          )
          GROUP BY fumoName`,
         [userId, baseWithRarity, `${baseWithRarity}[✨SHINY]`, `${baseWithRarity}[🌟alG]`]
     );
+    
+    debugLog('MARKET_VALIDATOR', `[getAvailableVariants] Found variants for ${baseWithRarity}:`);
+    rows.forEach(r => debugLog('MARKET_VALIDATOR', `  - ${r.fumoName} x${r.count}`));
     
     return rows || [];
 }
