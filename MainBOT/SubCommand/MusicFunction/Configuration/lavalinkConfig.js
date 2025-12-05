@@ -18,11 +18,10 @@ module.exports = {
         resume: false,
         resumeTimeout: 30,
         resumeByLibrary: false,
-        reconnectTries: 3,
-        reconnectInterval: 5,
-        restTimeout: 60,
+        reconnectTries: 5,
+        reconnectInterval: 5000,
+        restTimeout: 60000,
         moveOnDisconnect: false,
-        userAgent: 'MusicBot/1.0',
-        structures: {}
+        userAgent: 'MusicBot/1.0'
     }
 };

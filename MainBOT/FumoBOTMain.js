@@ -4,46 +4,32 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 
-// DATABASE MODULES
 const { initializeDatabase } = require('./MainCommand/Core/Database/schema');
 const { startIncomeSystem } = require('./MainCommand/Core/Database/PassiveIncome/income');
 const { scheduleBackups } = require('./MainCommand/Core/Database/backup');
-
-// UTILITY MODULES
 const { initializeErrorHandlers } = require('./MainCommand/Ultility/errorHandler');
-
-// PET MODULES
 const { initializePetSystems } = require('./MainCommand/CommandFolder/PetCommand/Passive/petAging');
 const { initializeShop } = require('./MainCommand/Service/MarketService/EggShopService/EggShopCacheService');
-
-// SEASON MODULES
 const { initializeSeasonSystem } = require('./MainCommand/Service/FarmingService/SeasonService/SeasonManagerService');
-
-// AUTO-ROLL PERSISTENCE MODULE
 const { shutdownAutoRolls } = require('./MainCommand/Service/GachaService/NormalGachaService/CrateAutoRollService');
 const FumoPool = require('./MainCommand/Data/FumoPool');
 const { LOG_CHANNEL_ID } = require('./MainCommand/Core/logger');
-
-// ADMIN MODULES
 const { registerAdminCommands } = require('./MainCommand/Administrator/adminCommands');
 const { registerBanSystem } = require('./MainCommand/Administrator/banSystem');
 const { registerTicketSystem } = require('./MainCommand/Administrator/ticketSystem');
-
-// USER DATA MODULES
 const { registerCodeRedemption } = require('./MainCommand/CommandFolder/UserDataCommand/UsuableCommand/codeRedemption');
-
-// INITIALIZE SHARD
 const initializeShardHandler = require('./MainCommand/Service/UserDataService/UseService/ShardInteractionHandler');
-
-// MAINTENANCE CONFIG
 const { maintenance, developerID } = require("./MainCommand/Configuration/maintenanceConfig");
+
 console.log(`Maintenance mode is currently: ${maintenance}`);
 
-// CLIENT INITIALIZATION
 const client = createClient();
 client.commands = new Collection();
 
-// ===== RECURSIVE COMMAND LOADER FUNCTION =====
+const lavalinkService = require('./SubCommand/MusicFunction/Service/LavalinkService');
+console.log('[Lavalink] Pre-initializing before client login...');
+lavalinkService.preInitialize(client);
+
 function loadCommandsRecursively(directory, depth = 0) {
     const indent = '  '.repeat(depth);
     const items = fs.readdirSync(directory, { withFileTypes: true });
@@ -65,7 +51,6 @@ function loadCommandsRecursively(directory, depth = 0) {
     }
 }
 
-// LOAD GAME COMMAND MODULES
 const gacha = require('./MainCommand/CommandFolder/GachaCommand/crategacha');
 const help = require('./MainCommand/CommandFolder/TutorialCommand/help');
 const inventory = require('./MainCommand/CommandFolder/UserDataCommand/UserBalance/Storage');
@@ -106,14 +91,12 @@ const farmInfo = require('./MainCommand/CommandFolder/FarmingCommand/FarmInfo');
 const InitializeFarming = require('./MainCommand/CommandFolder/FarmingCommand/InitializeFarming');
 const trade = require('./MainCommand/CommandFolder/TradeCommand/trade');
 
-// MESSAGE EVENT HANDLERS
 const anime = require('./SubCommand/API-Website/Anime/anime');
 const afk = require('./SubCommand/BasicCommand/afk');
 const reddit = require('./SubCommand/API-Website/Reddit/reddit');
 const pixiv = require('./SubCommand/API-Website/Pixiv/pixiv');
 const steam = require('./SubCommand/API-Website/Steam/steam');
 
-// Manually load API commands
 if (reddit && reddit.data && reddit.data.name) {
     client.commands.set(reddit.data.name, reddit);
     console.log('✅ Manually loaded reddit command');
@@ -129,45 +112,29 @@ if (steam && steam.data && steam.data.name) {
     console.log('✅ Manually loaded steam command');
 }
 
-// LOAD ALL SLASH COMMANDS RECURSIVELY
 console.log('🔄 Loading commands from SubCommand folder...');
 const subCommandPath = path.join(__dirname, 'SubCommand');
 loadCommandsRecursively(subCommandPath);
 console.log(`✅ Total commands loaded: ${client.commands.size}`);
 
-// NOW login - Lavalink is already initialized above
 client.login(process.env.BOT_TOKEN);
 
-// BOT READY EVENT
 client.once('ready', async () => {
     console.log(`✅ Logged in as ${client.user.tag}`);
     
-    console.log('[Lavalink] Initializing music system...');
-    const lavalinkService = require('./SubCommand/MusicFunction/Service/LavalinkService');
-    lavalinkService.initialize(client);
+    console.log('[Lavalink] Finalizing music system initialization...');
+    lavalinkService.finalize();
     
     console.log('[Lavalink] Waiting for connection...');
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    await new Promise(resolve => setTimeout(resolve, 5000));
     
     const status = lavalinkService.getNodeStatus();
     console.log('[Lavalink] Status:', JSON.stringify(status, null, 2));
     
     if (!status.ready) {
-        for (let i = 0; i < 10; i++) {
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            const newStatus = lavalinkService.getNodeStatus();
-            
-            if (newStatus.ready) {
-                console.log('[Lavalink] ✅ Connected!');
-                break;
-            }
-            
-            if (i === 9) {
-                console.error('[Lavalink] ⚠️ Still not connected');
-            }
-        }
+        console.log('[Lavalink] ⚠️ Music system not ready');
     } else {
-        console.log('[Lavalink] ✅ Already connected!');
+        console.log('[Lavalink] ✅ Music system ready!');
     }
 
     initializeDatabase();
@@ -184,7 +151,6 @@ client.once('ready', async () => {
     console.log('🚀 Bot is fully operational!');
 });
 
-// ===== AUTO-ROLL RESTORATION FUNCTION =====
 async function restoreAutoRollSystems(client) {
     try {
         console.log('🔄 Checking for auto-rolls to restore...');
@@ -219,7 +185,6 @@ async function restoreAutoRollSystems(client) {
         const normalStates = new Map();
         const eventStates = new Map();
 
-        // Restore normal auto-rolls
         const normalResult = await restoreNormalAutoRolls(
             client,
             crateFumos,
@@ -227,21 +192,18 @@ async function restoreAutoRollSystems(client) {
         );
         results.normal = normalResult;
 
-        // Restore event auto-rolls
         const eventResult = await restoreEventAutoRolls(
             client,
             { notifyUsers: false, logChannelId: null }
         );
         results.event = eventResult;
 
-        // Get active auto-roll maps
         const { getAutoRollMap } = require('./MainCommand/Service/GachaService/NormalGachaService/CrateAutoRollService');
         const { getEventAutoRollMap } = require('./MainCommand/Service/GachaService/EventGachaService/EventAutoRollService');
 
         const activeNormalMap = getAutoRollMap();
         const activeEventMap = getEventAutoRollMap();
 
-        // Populate state maps
         for (const userId of allUserIds) {
             const userState = unifiedState[userId];
 
@@ -254,7 +216,6 @@ async function restoreAutoRollSystems(client) {
             }
         }
 
-        // Notify users
         for (const userId of allUserIds) {
             const hasNormal = normalStates.has(userId);
             const hasEvent = eventStates.has(userId);
@@ -275,7 +236,6 @@ async function restoreAutoRollSystems(client) {
 
         await sendUnifiedRestorationSummary(client, results, LOG_CHANNEL_ID);
 
-        // Register details button handler
         const detailsButtonHandler = async (interaction) => {
             if (!interaction.isButton()) return;
 
@@ -306,7 +266,6 @@ async function restoreAutoRollSystems(client) {
     }
 }
 
-// ===== REGISTER GAME COMMANDS =====
 gacha(client);
 Egacha(client);
 starter(client);
@@ -347,15 +306,12 @@ eggcheck(client);
 equipPet(client);
 trade(client);
 
-// REGISTER ADMIN & USER SYSTEMS
 registerAdminCommands(client);
 registerBanSystem(client, developerID);
 registerTicketSystem(client);
 registerCodeRedemption(client);
 
-// ===== INTERACTION HANDLER =====
 client.on('interactionCreate', async interaction => {
-    // Handle button interactions
     if (interaction.isButton()) {
         console.log('🔘 Button interaction received:', interaction.customId);
 
@@ -386,7 +342,6 @@ client.on('interactionCreate', async interaction => {
             return;
         }
 
-        // Reddit button handler
         if (interaction.customId.startsWith('show_post_') ||
             interaction.customId.startsWith('gallery_') ||
             interaction.customId.startsWith('back_to_list_') ||
@@ -404,7 +359,6 @@ client.on('interactionCreate', async interaction => {
             return;
         }
 
-        // Pixiv button handler
         if (interaction.customId.startsWith('pixiv_')) {
             const pixivCommand = client.commands.get('pixiv');
             if (pixivCommand && pixivCommand.handleButton) {
@@ -421,7 +375,6 @@ client.on('interactionCreate', async interaction => {
         return;
     }
 
-    // Handle slash commands
     if (interaction.isChatInputCommand()) {
         console.log(`🎮 Command received: /${interaction.commandName} from ${interaction.user.tag}`);
 
@@ -441,7 +394,6 @@ client.on('interactionCreate', async interaction => {
         return;
     }
 
-    // Handle autocomplete
     if (interaction.isAutocomplete()) {
         const command = client.commands.get(interaction.commandName);
 
@@ -456,7 +408,6 @@ client.on('interactionCreate', async interaction => {
     }
 });
 
-// Helper function for safe replies
 async function safeReply(interaction, content) {
     try {
         if (interaction.replied || interaction.deferred) {
@@ -469,13 +420,11 @@ async function safeReply(interaction, content) {
     }
 }
 
-// MESSAGE EVENT HANDLERS
 client.on('messageCreate', message => {
     afk.onMessage(message, client);
     anime.onMessage(message, client);
 });
 
-// ===== GRACEFUL SHUTDOWN HANDLERS =====
 process.on('SIGINT', handleShutdown);
 process.on('SIGTERM', handleShutdown);
 process.on('uncaughtException', handleCrash);
@@ -507,5 +456,3 @@ function handleCrash(error) {
 
     process.exit(1);
 }
-
-// Created by alterGolden || golden_exist
