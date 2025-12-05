@@ -104,11 +104,11 @@ async function handleRaritySelection(interaction) {
         const rarity = valueWithIndex.split('_').slice(0, -1).join('_');
 
         const baseFumos = await all(
-            `SELECT REPLACE(REPLACE(fumoName, '[✨SHINY]', ''), '[🌟alG]', '') as baseName,
+            `SELECT REPLACE(REPLACE(REPLACE(fumoName, '[✨SHINY]', ''), '[🌟alG]', ''), TRIM(fumoName), '') as baseName,
                 COUNT(*) as variantCount
                 FROM userInventory
                 WHERE userId = ? AND fumoName LIKE ?
-                GROUP BY baseName`,
+                GROUP BY REPLACE(REPLACE(REPLACE(fumoName, '[✨SHINY]', ''), '[🌟alG]', ''), TRIM(fumoName), '')`,
             [interaction.user.id, `%(${rarity})%`]
         );
 

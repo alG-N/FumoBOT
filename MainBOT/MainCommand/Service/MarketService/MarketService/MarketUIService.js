@@ -7,20 +7,26 @@ async function createMainShopEmbed(userId) {
     const row = await get(`SELECT coins, gems FROM userCoins WHERE userId = ?`, [userId]);
     
     const embed = new EmbedBuilder()
-        .setTitle("🎪 Golden's Market Extravaganza 🎪")
+        .setTitle("✨ Golden's Marketplace")
         .setDescription(
-            `✨ **Welcome to the market!** ✨\n\n` +
-            `**🪙 Coin Shop** - Refreshes hourly\n` +
-            `**💎 Gem Shop** - Refreshes every 6 hours\n` +
-            `**🌐 Global Shop** - Player marketplace (requires BOTH coins & gems)\n`
+            `Welcome to the premier fumo trading hub!\n\n` +
+            `┌─────────────────────────────────┐\n` +
+            `│ 🪙 **Coin Shop** · Hourly Refresh\n` +
+            `│ 💎 **Gem Shop** · 6-Hour Refresh\n` +
+            `│ 🌐 **Global Market** · Player Trading\n` +
+            `└─────────────────────────────────┘`
         )
-        .setColor('#f5b042')
-        .setThumbnail('https://media.tenor.com/rFFZ4WbQq3EAAAAC/fumo.gif');
+        .setColor('#FFB347')
+        .setThumbnail('https://media.tenor.com/rFFZ4WbQq3EAAAAC/fumo.gif')
+        .setFooter({ text: 'Select a shop below to start browsing' });
     
     if (row) {
         embed.addFields(
-            { name: '🪙 Your Coins', value: `\`${formatNumber(row.coins)}\``, inline: true },
-            { name: '💎 Your Gems', value: `\`${formatNumber(row.gems)}\``, inline: true }
+            { 
+                name: '\u200B', 
+                value: `**Your Wallet**\n🪙 ${formatNumber(row.coins)} Coins\n💎 ${formatNumber(row.gems)} Gems`,
+                inline: false 
+            }
         );
     }
     
@@ -34,24 +40,37 @@ async function createCoinShopEmbed(userId, market, resetTime) {
     const embed = new EmbedBuilder()
         .setTitle("🪙 Coin Shop")
         .setDescription(
-            `Use the dropdown to select a Fumo to purchase!\n` +
-            `⏳ **Resets in:** \`${remainingTime} minute(s)\`\n`
+            `Premium fumos available for coins • Select from dropdown below\n` +
+            `⏰ Refreshes in **${remainingTime}** minutes\n\n` +
+            `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
         )
         .setColor('#FFD700');
     
+    const groupedByRarity = {};
     rarityLevels.forEach(rarity => {
         const fumos = market.filter(f => f.rarity === rarity.name);
-        if (fumos.length === 0) return;
-        
-        const fumoText = fumos.map(fumo =>
-            `**${fumo.name}** - 💵 ${formatNumber(fumo.price)} | 📦 Stock: ${fumo.stock}`
+        if (fumos.length > 0) {
+            groupedByRarity[rarity.name] = {
+                emoji: rarity.emoji,
+                fumos: fumos
+            };
+        }
+    });
+    
+    Object.entries(groupedByRarity).forEach(([rarityName, data]) => {
+        const fumoList = data.fumos.map(fumo => 
+            `▸ **${fumo.name}**\n  └ 💰 ${formatNumber(fumo.price)} · 📦 ${fumo.stock} in stock`
         ).join('\n');
         
-        embed.addFields({ name: `${rarity.emoji} ${rarity.name}`, value: fumoText });
+        embed.addFields({ 
+            name: `${data.emoji} ${rarityName}`, 
+            value: fumoList,
+            inline: false 
+        });
     });
     
     if (row) {
-        embed.addFields({ name: '🪙 Your Coins', value: `\`${formatNumber(row.coins)}\`` });
+        embed.setFooter({ text: `Your Balance: ${formatNumber(row.coins)} coins` });
     }
     
     return embed;
@@ -65,24 +84,37 @@ async function createGemShopEmbed(userId, market, resetTime) {
     const embed = new EmbedBuilder()
         .setTitle("💎 Gem Shop")
         .setDescription(
-            `Premium Fumos available for gems!\n` +
-            `⏳ **Resets in:** \`${remainingHours}h ${remainingMinutes}m\`\n`
+            `Exclusive fumos for premium currency • Select from dropdown below\n` +
+            `⏰ Refreshes in **${remainingHours}h ${remainingMinutes}m**\n\n` +
+            `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
         )
         .setColor('#9B59B6');
     
+    const groupedByRarity = {};
     gemShopRarityLevels.forEach(rarity => {
         const fumos = market.filter(f => f.rarity === rarity.name);
-        if (fumos.length === 0) return;
-        
-        const fumoText = fumos.map(fumo =>
-            `**${fumo.name}** - 💎 ${formatNumber(fumo.price)} | 📦 Stock: ${fumo.stock}`
+        if (fumos.length > 0) {
+            groupedByRarity[rarity.name] = {
+                emoji: rarity.emoji,
+                fumos: fumos
+            };
+        }
+    });
+    
+    Object.entries(groupedByRarity).forEach(([rarityName, data]) => {
+        const fumoList = data.fumos.map(fumo => 
+            `▸ **${fumo.name}**\n  └ 💎 ${formatNumber(fumo.price)} · 📦 ${fumo.stock} in stock`
         ).join('\n');
         
-        embed.addFields({ name: `${rarity.emoji} ${rarity.name}`, value: fumoText });
+        embed.addFields({ 
+            name: `${data.emoji} ${rarityName}`, 
+            value: fumoList,
+            inline: false 
+        });
     });
     
     if (row) {
-        embed.addFields({ name: '💎 Your Gems', value: `\`${formatNumber(row.gems)}\`` });
+        embed.setFooter({ text: `Your Balance: ${formatNumber(row.gems)} gems` });
     }
     
     return embed;
@@ -113,28 +145,37 @@ function createGlobalShopEmbed(listings, page = 0) {
     const embed = new EmbedBuilder()
         .setTitle("🌐 Global Player Market")
         .setDescription(
-            `Player-to-player marketplace\n` +
-            `⚠️ **All purchases require BOTH coins AND gems**\n` +
-            `**Tax:** ${(GLOBAL_SHOP_CONFIG.TAX_RATE * 100).toFixed(0)}% on all sales\n` +
-            `**Max Listings:** ${GLOBAL_SHOP_CONFIG.MAX_LISTINGS_PER_USER} per player\n`
+            `Player-to-player marketplace • All trades require both currencies\n\n` +
+            `┌─ **Market Rules** ─────────────┐\n` +
+            `│ 💸 Tax Rate: ${(GLOBAL_SHOP_CONFIG.TAX_RATE * 100).toFixed(0)}% per sale\n` +
+            `│ 📋 Max Listings: ${GLOBAL_SHOP_CONFIG.MAX_LISTINGS_PER_USER} per player\n` +
+            `│ ⚠️ Requires BOTH coins & gems\n` +
+            `└────────────────────────────────┘\n\n` +
+            `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
         )
         .setColor('#3498DB');
     
     if (displayListings.length === 0) {
-        embed.addFields({ name: 'No Listings', value: 'No fumos available right now. Check back later!' });
+        embed.addFields({ 
+            name: '📭 No Active Listings', 
+            value: 'The marketplace is currently empty. Be the first to list a fumo!' 
+        });
     } else {
-        displayListings.forEach((listing) => {
-            const priceText = `🪙 ${formatNumber(listing.coinPrice)} **AND** 💎 ${formatNumber(listing.gemPrice)}`;
+        displayListings.forEach((listing, index) => {
+            const divider = index < displayListings.length - 1 ? '\n─────────────────────────' : '';
             
             embed.addFields({
-                name: listing.fumoName,
-                value: `${priceText} | Seller: <@${listing.userId}>`,
+                name: `${listing.fumoName}`,
+                value: 
+                    `**Price:** 🪙 ${formatNumber(listing.coinPrice)} + 💎 ${formatNumber(listing.gemPrice)}\n` +
+                    `**Seller:** <@${listing.userId}>${divider}`,
                 inline: false
             });
         });
     }
     
-    embed.setFooter({ text: `Page ${page + 1}/${Math.ceil(combinedListings.length / itemsPerPage) || 1}` });
+    const totalPages = Math.ceil(combinedListings.length / itemsPerPage) || 1;
+    embed.setFooter({ text: `Page ${page + 1} of ${totalPages} • ${combinedListings.length} total listings` });
     
     return embed;
 }
@@ -143,30 +184,38 @@ function createMainShopButtons(userId) {
     return new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId(`coin_shop_${userId}`)
-            .setLabel('🪙 Coin Shop')
+            .setLabel('Coin Shop')
+            .setEmoji('🪙')
             .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
             .setCustomId(`gem_shop_${userId}`)
-            .setLabel('💎 Gem Shop')
+            .setLabel('Gem Shop')
+            .setEmoji('💎')
             .setStyle(ButtonStyle.Success),
         new ButtonBuilder()
             .setCustomId(`global_shop_${userId}`)
-            .setLabel('🌐 Global Shop')
+            .setLabel('Global Market')
+            .setEmoji('🌐')
             .setStyle(ButtonStyle.Secondary)
     );
 }
 
 function createShopSelectMenu(userId, market, type) {
-    const options = market.map((fumo, index) => ({
-        label: fumo.name,
-        description: `${type === 'coin' ? '🪙' : '💎'} ${formatNumber(fumo.price)} | Stock: ${fumo.stock}`,
-        value: `${index}`
-    }));
+    const options = market.map((fumo, index) => {
+        const rarityMatch = fumo.name.match(/\(([^)]+)\)$/);
+        const rarityText = rarityMatch ? ` • ${rarityMatch[1]}` : '';
+        
+        return {
+            label: fumo.name.length > 80 ? fumo.name.substring(0, 77) + '...' : fumo.name,
+            description: `${type === 'coin' ? '🪙' : '💎'} ${formatNumber(fumo.price)} • Stock: ${fumo.stock}${rarityText}`,
+            value: `${index}`
+        };
+    });
     
     return new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
             .setCustomId(`select_fumo_${type}_${userId}`)
-            .setPlaceholder('Select a Fumo to purchase')
+            .setPlaceholder('🛒 Choose a fumo to purchase')
             .addOptions(options)
     );
 }
@@ -175,7 +224,8 @@ function createBackButton(userId) {
     return new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId(`back_main_${userId}`)
-            .setLabel('← Back')
+            .setLabel('Back to Main')
+            .setEmoji('◀️')
             .setStyle(ButtonStyle.Secondary)
     );
 }
@@ -184,63 +234,107 @@ function createGlobalShopButtons(userId) {
     return new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId(`add_listing_${userId}`)
-            .setLabel('➕ Add Listing')
+            .setLabel('List Fumo')
+            .setEmoji('➕')
             .setStyle(ButtonStyle.Success),
         new ButtonBuilder()
             .setCustomId(`remove_listing_${userId}`)
-            .setLabel('➖ Remove Listing')
+            .setLabel('Remove')
+            .setEmoji('➖')
             .setStyle(ButtonStyle.Danger),
         new ButtonBuilder()
             .setCustomId(`refresh_global_${userId}`)
-            .setLabel('🔄 Refresh')
+            .setLabel('Refresh')
+            .setEmoji('🔄')
             .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
             .setCustomId(`back_main_${userId}`)
-            .setLabel('← Back')
+            .setLabel('Back')
+            .setEmoji('◀️')
             .setStyle(ButtonStyle.Secondary)
     );
 }
 
 function createPurchaseConfirmEmbed(fumo, amount, totalPrice, currency) {
     const currencyEmoji = currency === 'coins' ? '🪙' : '💎';
+    const currencyName = currency === 'coins' ? 'Coins' : 'Gems';
+    
     return new EmbedBuilder()
         .setTitle('🛒 Confirm Purchase')
         .setDescription(
-            `**Fumo:** ${fumo.name}\n` +
-            `**Quantity:** ${amount}\n` +
-            `**Total:** ${currencyEmoji} ${formatNumber(totalPrice)}\n\n` +
-            `Click **Confirm** to complete the purchase.`
+            `You're about to purchase:\n\n` +
+            `**${fumo.name}**\n\n` +
+            `┌─ **Transaction Details** ──────┐\n` +
+            `│ Quantity: **${amount}x**\n` +
+            `│ Unit Price: ${currencyEmoji} ${formatNumber(fumo.price)}\n` +
+            `│ Total Cost: ${currencyEmoji} **${formatNumber(totalPrice)}**\n` +
+            `└────────────────────────────────┘\n\n` +
+            `Click **Confirm** to complete your purchase.`
         )
         .setColor('#2ECC71');
 }
 
 function createPurchaseSuccessEmbed(fumo, amount, remainingBalance, currency) {
     const currencyEmoji = currency === 'coins' ? '🪙' : '💎';
+    const currencyName = currency === 'coins' ? 'coins' : 'gems';
+    
     return new EmbedBuilder()
-        .setTitle('🎉 Purchase Successful!')
+        .setTitle('✅ Purchase Complete!')
         .setDescription(
-            `You purchased **${amount}x ${fumo.name}**!\n\n` +
-            `${currencyEmoji} Remaining: ${formatNumber(remainingBalance)}`
+            `Successfully purchased **${amount}x ${fumo.name}**\n\n` +
+            `**Remaining Balance**\n` +
+            `${currencyEmoji} ${formatNumber(remainingBalance)} ${currencyName}\n\n` +
+            `Check your inventory to view your new fumo!`
         )
-        .setColor('#2ECC71');
+        .setColor('#2ECC71')
+        .setFooter({ text: 'Thank you for your purchase!' });
 }
 
 function createErrorEmbed(errorType, details = {}) {
     const errorMessages = {
-        NOT_FOUND: `⚠️ This Fumo is no longer available.`,
-        INSUFFICIENT_STOCK: `⚠️ Only ${details.stock} left, but you requested ${details.requested}.`,
-        INSUFFICIENT_COINS: `⚠️ Not enough coins! Need ${formatNumber(details.required)}, have ${formatNumber(details.current)}.`,
-        INSUFFICIENT_GEMS: `⚠️ Not enough gems! Need ${formatNumber(details.required)}, have ${formatNumber(details.current)}.`,
-        INVALID_AMOUNT: `⚠️ Invalid amount. Must be between 1 and ${details.max || 999}.`,
-        MAX_LISTINGS: `⚠️ You've reached the maximum of ${GLOBAL_SHOP_CONFIG.MAX_LISTINGS_PER_USER} listings.`,
-        NO_INVENTORY: `⚠️ You don't have this Fumo in your inventory.`,
-        PAYMENT_METHOD_UNAVAILABLE: `⚠️ This payment method is not available for this listing.`,
-        PROCESSING_ERROR: `❌ An error occurred. Please try again.`
+        NOT_FOUND: {
+            title: '⚠️ Item Not Found',
+            desc: `This fumo is no longer available in the shop.`
+        },
+        INSUFFICIENT_STOCK: {
+            title: '⚠️ Insufficient Stock',
+            desc: `Only **${details.stock}** remaining, but you requested **${details.requested}**.`
+        },
+        INSUFFICIENT_COINS: {
+            title: '⚠️ Not Enough Coins',
+            desc: `You need **${formatNumber(details.required)}** coins, but you only have **${formatNumber(details.current)}**.`
+        },
+        INSUFFICIENT_GEMS: {
+            title: '⚠️ Not Enough Gems',
+            desc: `You need **${formatNumber(details.required)}** gems, but you only have **${formatNumber(details.current)}**.`
+        },
+        INVALID_AMOUNT: {
+            title: '⚠️ Invalid Amount',
+            desc: `Please enter a valid amount between **1** and **${details.max || 999}**.`
+        },
+        MAX_LISTINGS: {
+            title: '⚠️ Listing Limit Reached',
+            desc: `You've reached the maximum of **${GLOBAL_SHOP_CONFIG.MAX_LISTINGS_PER_USER}** active listings.`
+        },
+        NO_INVENTORY: {
+            title: '⚠️ Not In Inventory',
+            desc: `You don't have this fumo in your inventory.`
+        },
+        PAYMENT_METHOD_UNAVAILABLE: {
+            title: '⚠️ Payment Unavailable',
+            desc: `This payment method is not available for this listing.`
+        },
+        PROCESSING_ERROR: {
+            title: '❌ Error',
+            desc: `Something went wrong while processing your request. Please try again.`
+        }
     };
     
+    const error = errorMessages[errorType] || errorMessages.PROCESSING_ERROR;
+    
     return new EmbedBuilder()
-        .setTitle('Error')
-        .setDescription(errorMessages[errorType] || errorMessages.PROCESSING_ERROR)
+        .setTitle(error.title)
+        .setDescription(error.desc)
         .setColor('#E74C3C');
 }
 
