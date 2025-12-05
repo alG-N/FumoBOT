@@ -21,8 +21,8 @@ module.exports = {
             option.setName('method')
                 .setDescription('Delivery method')
                 .addChoices(
-                    { name: 'Auto (Embed if possible, download otherwise)', value: 'auto' },
-                    { name: 'Direct Link', value: 'link' },
+                    { name: 'Auto (Download and upload)', value: 'auto' },
+                    { name: 'Direct Link (may expire quickly)', value: 'link' },
                     { name: 'Download File', value: 'download' }
                 )
                 .setRequired(false)
@@ -42,7 +42,7 @@ module.exports = {
         const loadingEmbed = videoEmbedBuilder.buildLoadingEmbed(platform.name);
         await interaction.editReply({ embeds: [loadingEmbed] });
 
-        if (method === 'auto' || method === 'link') {
+        if (method === 'link') {
             const directInfo = await videoDownloadService.getDirectUrl(url);
             
             if (directInfo) {
@@ -54,20 +54,18 @@ module.exports = {
                 );
 
                 await interaction.editReply({ 
-                    content: `${directInfo.directUrl}`,
+                    content: `⚠️ Direct links expire quickly!\n${directInfo.directUrl}`,
                     embeds: [embed]
                 });
                 return;
             }
 
-            if (method === 'link') {
-                const errorEmbed = videoEmbedBuilder.buildDirectLinkNotAvailableEmbed();
-                await interaction.editReply({ embeds: [errorEmbed] });
-                return;
-            }
+            const errorEmbed = videoEmbedBuilder.buildDirectLinkNotAvailableEmbed();
+            await interaction.editReply({ embeds: [errorEmbed] });
+            return;
         }
 
-        console.log('📥 Falling back to download method...');
+        console.log('📥 Downloading video...');
         
         try {
             const result = await videoDownloadService.downloadVideo(url);

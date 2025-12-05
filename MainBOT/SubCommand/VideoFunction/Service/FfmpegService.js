@@ -1,72 +1,94 @@
-const { EmbedBuilder } = require('discord.js');
+const fs = require('fs');
+const path = require('path');
+const { spawn } = require('child_process');
+const videoConfig = require('../Configuration/videoConfig');
 
-class VideoEmbedBuilder {
-    buildLoadingEmbed(platform) {
-        return new EmbedBuilder()
-            .setTitle('🎬 Downloading Video...')
-            .setDescription(`**Platform:** ${platform}\n\n⏳ Please wait, this may take a moment...`)
-            .setColor('#3498DB')
-            .setTimestamp();
+class FFmpegService {
+    constructor() {
+        this.ffmpegBinary = 'ffmpeg';
     }
 
-    buildErrorEmbed(title, description, footer = null) {
-        const embed = new EmbedBuilder()
-            .setTitle(title)
-            .setDescription(description)
-            .setColor('#FF0000')
-            .setTimestamp();
+    async initialize() {
+        return new Promise((resolve) => {
+            const process = spawn(this.ffmpegBinary, ['-version'], {
+                windowsHide: true,
+                stdio: 'pipe'
+            });
 
-        if (footer) {
-            embed.setFooter({ text: footer });
+            process.on('close', (code) => {
+                if (code === 0) {
+                    console.log('✅ FFmpeg is available');
+                } else {
+                    console.log('⚠️ FFmpeg not found');
+                }
+                resolve();
+            });
+
+            process.on('error', () => {
+                console.log('⚠️ FFmpeg not found');
+                resolve();
+            });
+        });
+    }
+
+    async compressVideo(inputPath, targetSizeMB) {
+        const stats = fs.statSync(inputPath);
+        const currentSizeMB = stats.size / (1024 * 1024);
+
+        if (currentSizeMB <= targetSizeMB) {
+            console.log(`✅ Video is already under ${targetSizeMB}MB (${currentSizeMB.toFixed(2)}MB)`);
+            return inputPath;
         }
 
-        return embed;
-    }
+        console.log(`🔄 Compressing video from ${currentSizeMB.toFixed(2)}MB to ~${targetSizeMB}MB...`);
 
-    buildInvalidUrlEmbed() {
-        return this.buildErrorEmbed(
-            '❌ Invalid URL',
-            'Please provide a valid URL starting with `http://` or `https://`'
-        );
-    }
+        const outputPath = inputPath.replace(/(\.[^.]+)$/, '_compressed$1');
 
-    buildDownloadFailedEmbed(error) {
-        return this.buildErrorEmbed(
-            '❌ Download Failed',
-            error,
-            'Make sure the video is public and available'
-        );
-    }
+        return new Promise((resolve, reject) => {
+            const args = [
+                '-i', inputPath,
+                '-c:v', 'libx264',
+                '-preset', videoConfig.FFMPEG_PRESET,
+                '-crf', '28',
+                '-c:a', 'aac',
+                '-b:a', videoConfig.AUDIO_BITRATE,
+                '-movflags', '+faststart',
+                '-y',
+                outputPath
+            ];
 
-    buildUploadFailedEmbed() {
-        return this.buildErrorEmbed(
-            '❌ Upload Failed',
-            'Failed to upload to Discord. The file might be corrupted or Discord is having issues.'
-        );
-    }
+            const process = spawn(this.ffmpegBinary, args, {
+                windowsHide: true,
+                stdio: 'pipe'
+            });
 
-    buildFileTooLargeEmbed(sizeMB, maxMB = 25) {
-        return this.buildErrorEmbed(
-            '❌ File Too Large',
-            `Video is ${sizeMB.toFixed(2)}MB (Discord limit: ${maxMB}MB)\n\n**Suggestions:**\n• Try a shorter clip\n• Use a boosted server (50-100 MB limit)\n• Upload to a file host and share the link`
-        );
-    }
+            let stderr = '';
 
-    buildDirectLinkEmbed(title, url, size, thumbnail) {
-        return new EmbedBuilder()
-            .setTitle('✅ Video Ready!')
-            .setDescription(`**${title}**\n\n[Click here to watch](${url})\n\n*Size: ${size} MB*`)
-            .setColor('#00FF00')
-            .setThumbnail(thumbnail)
-            .setTimestamp();
-    }
+            process.stderr.on('data', (data) => {
+                stderr += data.toString();
+            });
 
-    buildDirectLinkNotAvailableEmbed() {
-        return this.buildErrorEmbed(
-            '❌ Direct Link Not Available',
-            'Could not get a direct link. Try using **Download File** method instead.'
-        );
+            process.on('close', (code) => {
+                if (code === 0 && fs.existsSync(outputPath)) {
+                    try {
+                        fs.unlinkSync(inputPath);
+                    } catch (e) {}
+
+                    const compressedStats = fs.statSync(outputPath);
+                    const compressedSizeMB = compressedStats.size / (1024 * 1024);
+                    console.log(`✅ Compressed to ${compressedSizeMB.toFixed(2)}MB`);
+
+                    resolve(outputPath);
+                } else {
+                    reject(new Error(`FFmpeg compression failed: ${stderr.trim()}`));
+                }
+            });
+
+            process.on('error', (error) => {
+                reject(error);
+            });
+        });
     }
 }
 
-module.exports = new VideoEmbedBuilder();
+module.exports = new FFmpegService();
