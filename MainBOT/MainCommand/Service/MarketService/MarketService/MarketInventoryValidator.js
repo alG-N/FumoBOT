@@ -154,15 +154,21 @@ async function getAvailableVariants(userId, baseFumoName) {
     const baseWithRarity = getBaseFumoNameWithRarity(baseFumoName);
     
     const rows = await all(
-        `SELECT fumoName, COUNT(*) as count 
+        `SELECT fumoName, SUM(quantity) as count 
          FROM userInventory 
          WHERE userId = ? 
          AND (
              fumoName = ? OR
-             fumoName LIKE ? OR
-             fumoName LIKE ?
+             fumoName = ? OR
+             fumoName = ?
          )
-         GROUP BY fumoName`,
+         GROUP BY fumoName
+         ORDER BY 
+             CASE 
+                 WHEN fumoName LIKE '%[🌟alG]%' THEN 1
+                 WHEN fumoName LIKE '%[✨SHINY]%' THEN 2
+                 ELSE 3
+             END`,
         [userId, baseWithRarity, `${baseWithRarity}[✨SHINY]`, `${baseWithRarity}[🌟alG]`]
     );
     
