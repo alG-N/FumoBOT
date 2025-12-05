@@ -136,23 +136,23 @@ class LavalinkService {
 
             console.log(`[Lavalink] ✅ Player created successfully for guild ${guildId}`);
             console.log(`[Lavalink] Setting up player event logging for debugging...`);
-            
+
             player.on('start', () => {
                 console.log(`[Lavalink] PLAYER EVENT: start fired for guild ${guildId}`);
             });
-            
+
             player.on('end', (data) => {
                 console.log(`[Lavalink] PLAYER EVENT: end fired for guild ${guildId}, reason:`, data?.reason);
             });
-            
+
             player.on('exception', (data) => {
                 console.log(`[Lavalink] PLAYER EVENT: exception fired for guild ${guildId}`);
             });
-            
+
             player.on('stuck', (data) => {
                 console.log(`[Lavalink] PLAYER EVENT: stuck fired for guild ${guildId}`);
             });
-            
+
             player.on('update', (data) => {
                 console.log(`[Lavalink] PLAYER EVENT: update fired for guild ${guildId}`);
             });
@@ -287,6 +287,81 @@ class LavalinkService {
         if (!url) return null;
         const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/);
         return match ? match[1] : null;
+    }
+
+    async searchPlaylist(query, requester) {
+        if (!this.shoukaku) {
+            console.error('[Lavalink] Cannot search playlist: Shoukaku not initialized');
+            throw new Error('Shoukaku not initialized');
+        }
+
+        if (!this.isReady) {
+            console.error('[Lavalink] Cannot search playlist: Lavalink not ready');
+            throw new Error('Lavalink not ready');
+        }
+
+        let searchQuery = query;
+        if (!/^https?:\/\//.test(query)) {
+            searchQuery = `${lavalinkConfig.defaultSearchPlatform}:${query}`;
+        }
+
+        console.log(`[Lavalink] Searching playlist: ${searchQuery}`);
+
+        const node = [...this.shoukaku.nodes.values()].find(n => n.state === 2);
+
+        if (!node) {
+            console.error('[Lavalink] No available nodes');
+            throw new Error('No available nodes');
+        }
+
+        try {
+            const result = await node.rest.resolve(searchQuery);
+
+            console.log(`[Lavalink] Playlist result:`, {
+                loadType: result?.loadType,
+                isPlaylist: result?.loadType === 'playlist',
+                trackCount: result?.data?.tracks?.length || 0
+            });
+
+            if (!result || result.loadType === 'error' || result.loadType === 'empty') {
+                throw new Error('NO_RESULTS');
+            }
+
+            if (result.loadType === 'playlist') {
+                const playlistData = result.data;
+                const tracks = playlistData.tracks.map(track => {
+                    const youtubeId = this.extractYouTubeId(track.info.uri);
+                    const thumbnail = track.info.artworkUrl ||
+                        (youtubeId ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg` : null);
+
+                    return {
+                        track: track,
+                        encoded: track.encoded,
+                        url: track.info.uri,
+                        title: track.info.title,
+                        lengthSeconds: Math.floor(track.info.length / 1000),
+                        thumbnail: thumbnail,
+                        author: track.info.author,
+                        requestedBy: requester,
+                        source: track.info.sourceName || 'YouTube'
+                    };
+                });
+
+                console.log(`[Lavalink] ✅ Found playlist: ${playlistData.info.name} with ${tracks.length} tracks`);
+
+                return {
+                    playlistName: playlistData.info.name,
+                    tracks: tracks
+                };
+            }
+
+            throw new Error('NOT_A_PLAYLIST');
+
+        } catch (error) {
+            console.error(`[Lavalink] ❌ Playlist search failed for: ${searchQuery}`);
+            console.error(`[Lavalink] Error:`, error.message);
+            throw error;
+        }
     }
 
     getNodeStatus() {

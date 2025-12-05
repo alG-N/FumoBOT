@@ -18,9 +18,9 @@ const PlaybackController = require('../Controller/PlaybackController');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("play")
-        .setDescription("Play a song in your voice channel by name or URL")
+        .setDescription("Play a song or playlist in your voice channel")
         .addStringOption(o =>
-            o.setName("query").setDescription("Song name or YouTube URL").setRequired(true)
+            o.setName("query").setDescription("Song name, YouTube URL, or Playlist URL").setRequired(true)
         ),
 
     async execute(interaction) {
@@ -41,6 +41,16 @@ module.exports = {
 
         await interaction.deferReply();
 
+        const isPlaylist = trackResolverService.isPlaylistUrl(query);
+
+        if (isPlaylist) {
+            return await this.handlePlaylist(interaction, query, guildId);
+        } else {
+            return await this.handleSingleTrack(interaction, query, guildId);
+        }
+    },
+
+    async handleSingleTrack(interaction, query, guildId) {
         let trackData;
         try {
             logger.log(`Resolving track for query: ${query}`, interaction);
@@ -66,7 +76,6 @@ module.exports = {
             console.log(`[Play Command] Connecting to voice channel...`);
             let player = await voiceService.connect(interaction, guildId);
             console.log(`[Play Command] Player obtained:`, !!player);
-            console.log(`[Play Command] Player track:`, player.track);
 
             voiceService.monitorVoiceChannel(guildId, interaction.channel, async (gid) => {
                 await queueService.cleanup(gid);
@@ -77,7 +86,6 @@ module.exports = {
             PlaybackController.bindPlayerEvents(guildId, interaction);
 
             const wasPlaying = player.track !== null;
-            console.log(`[Play Command] Was already playing?`, wasPlaying);
 
             const position = queueService.addTrack(guildId, trackData);
             console.log(`[Play Command] Track added at position ${position}`);
@@ -88,23 +96,89 @@ module.exports = {
             if (!wasPlaying) {
                 console.log(`[Play Command] Nothing was playing, starting playback...`);
                 const nextTrack = queueService.nextTrack(guildId);
-                console.log(`[Play Command] Next track after calling nextTrack():`, nextTrack?.title);
-                console.log(`[Play Command] Current track in queue:`, queueService.getCurrentTrack(guildId)?.title);
                 
                 if (nextTrack) {
                     logger.log(`Starting first track: ${nextTrack.title}`, interaction);
-                    console.log(`[Play Command] About to call playTrack...`);
                     await player.playTrack({ track: { encoded: nextTrack.track.encoded } });
-                    console.log(`[Play Command] playTrack called, waiting for trackStart event...`);
-                } else {
-                    console.log(`[Play Command] ERROR: No next track found!`);
                 }
-            } else {
-                console.log(`[Play Command] Already playing, track added to queue`);
             }
         } catch (err) {
             logger.error(`Connection error: ${err.message}`, interaction);
-            console.error(`[Play Command] Full error:`, err);
+            await interaction.followUp({
+                embeds: [
+                    embedBuilder.buildErrorEmbed(
+                        err.message === "NO_VC" ? "Join a voice channel." : "Failed to connect to voice channel."
+                    ),
+                ],
+                ephemeral: true,
+            });
+            return;
+        }
+    },
+
+    async handlePlaylist(interaction, query, guildId) {
+        let playlistData;
+        try {
+            logger.log(`Resolving playlist for query: ${query}`, interaction);
+            playlistData = await trackResolverService.resolvePlaylist(query, interaction.user);
+            logger.log(`Playlist resolved: ${playlistData.name} with ${playlistData.trackCount} tracks`, interaction);
+        } catch (e) {
+            let msg = "Could not fetch playlist info. Make sure it's a valid playlist URL.";
+            if (e.message === "NO_RESULTS") msg = "No tracks found in the playlist.";
+            if (e.message === "NOT_A_PLAYLIST") msg = "The provided URL is not a playlist.";
+            if (e.message.includes("not ready")) msg = "⏳ Music system is still starting up. Please try again in a moment.";
+            logger.error(`Playlist resolve error: ${e.message}`, interaction);
+            return interaction.editReply({
+                embeds: [embedBuilder.buildErrorEmbed(msg)],
+            });
+        }
+
+        const MAX_PLAYLIST_SIZE = 100;
+        if (playlistData.trackCount > MAX_PLAYLIST_SIZE) {
+            playlistData.tracks = playlistData.tracks.slice(0, MAX_PLAYLIST_SIZE);
+            playlistData.trackCount = MAX_PLAYLIST_SIZE;
+        }
+
+        try {
+            logger.log(`Connecting to voice channel for playlist`, interaction);
+            let player = await voiceService.connect(interaction, guildId);
+
+            voiceService.monitorVoiceChannel(guildId, interaction.channel, async (gid) => {
+                await queueService.cleanup(gid);
+                await interaction.channel.send({ embeds: [embedBuilder.buildNoUserVCEmbed()] });
+            });
+
+            PlaybackController.bindPlayerEvents(guildId, interaction);
+
+            const wasPlaying = player.track !== null;
+
+            let addedCount = 0;
+            for (const track of playlistData.tracks) {
+                queueService.addTrack(guildId, track);
+                addedCount++;
+            }
+
+            logger.log(`Added ${addedCount} tracks from playlist`, interaction);
+
+            const playlistEmbed = embedBuilder.buildPlaylistQueuedEmbed(
+                playlistData.name, 
+                addedCount, 
+                interaction.user,
+                playlistData.tracks[0]
+            );
+            await interaction.editReply({ embeds: [playlistEmbed], components: [] });
+
+            if (!wasPlaying) {
+                console.log(`[Play Command] Nothing was playing, starting playlist...`);
+                const nextTrack = queueService.nextTrack(guildId);
+                
+                if (nextTrack) {
+                    logger.log(`Starting first track from playlist: ${nextTrack.title}`, interaction);
+                    await player.playTrack({ track: { encoded: nextTrack.track.encoded } });
+                }
+            }
+        } catch (err) {
+            logger.error(`Playlist connection error: ${err.message}`, interaction);
             await interaction.followUp({
                 embeds: [
                     embedBuilder.buildErrorEmbed(

@@ -35,6 +35,25 @@ class EmbedBuilderUtility {
             .setTimestamp();
     }
 
+    buildPlaylistQueuedEmbed(playlistName, trackCount, requester, firstTrack) {
+        const { EmbedBuilder } = require("discord.js");
+
+        return new EmbedBuilder()
+            .setColor(0x9333EA)
+            .setTitle("📑 Playlist Added to Queue")
+            .setDescription(`**${playlistName}**\n${trackCount} tracks have been added to the queue!`)
+            .setThumbnail(firstTrack?.thumbnail || null)
+            .addFields(
+                { name: "📊 Total Tracks", value: `${trackCount}`, inline: true },
+                { name: "🎵 First Track", value: firstTrack?.title || "Unknown", inline: true },
+            )
+            .setFooter({
+                text: `Playlist queued by ${requester.tag}`,
+                iconURL: requester.displayAvatarURL()
+            })
+            .setTimestamp();
+    }
+
     buildQueuedEmbed(track, position, requester) {
         return new EmbedBuilder()
             .setColor(0x6EE7B7)
