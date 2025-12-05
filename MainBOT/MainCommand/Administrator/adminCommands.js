@@ -2,10 +2,49 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelect
 const db = require('../Core/Database/dbSetting');
 const FumoPool = require('../Data/FumoPool');
 const { RARITY_PRIORITY } = require('../Configuration/rarity');
+const { SEASONS, WEATHER_EVENTS, getSeasonDescription, getWeatherDuration } = require('../Configuration/seasonConfig');
+const { forceWeatherEvent, stopWeatherEvent } = require('../Service/FarmingService/SeasonService/SeasonManagerService');
 
 const ALLOWED_ADMINS = ['1128296349566251068', '1362450043939979378'];
 
 const pendingActions = new Map();
+const pendingCurrency = new Map(); // Added separate Map for currency operations
+
+// Helper function to parse amounts with suffixes (K, M, B, T, etc.)
+function parseAmount(input, max = Infinity) {
+    const suffixes = {
+        'k': 1e3,
+        'm': 1e6,
+        'b': 1e9,
+        't': 1e12,
+        'qa': 1e15,
+        'qi': 1e18,
+        'sx': 1e21,
+        'sp': 1e24,
+        'oc': 1e27,
+        'no': 1e30,
+        'dc': 1e33,
+        'ud': 1e36,
+        'dd': 1e39,
+        'td': 1e42,
+        'qad': 1e45,
+        'qid': 1e48
+    };
+
+    const match = input.toLowerCase().trim().match(/^(\d+(?:\.\d+)?)\s*([a-z]+)?$/);
+    if (!match) return NaN;
+
+    const [, numStr, suffix] = match;
+    let num = parseFloat(numStr);
+
+    if (suffix && suffixes[suffix]) {
+        num *= suffixes[suffix];
+    } else if (suffix) {
+        return NaN; // Invalid suffix
+    }
+
+    return Math.min(num, max);
+}
 
 async function handleAddItem(message) {
     const allowedUsers = ['1128296349566251068'];
@@ -55,8 +94,8 @@ async function handleAddItem(message) {
         { label: 'Mythical (M)', value: 'M' },
         { label: 'Divine (D)', value: 'D' },
         { label: 'Secret (?)', value: '?' },
-        { label: 'Unknown (Un)', value: 'Un'},
-        { label: 'Prime (P)', value: 'P'}
+        { label: 'Unknown (Un)', value: 'Un' },
+        { label: 'Prime (P)', value: 'P' }
     ];
 
     const rarityMenu = new ActionRowBuilder().addComponents(
@@ -149,8 +188,8 @@ async function handleItemRaritySelection(interaction) {
         });
     }
 
-    const pending = pendingActions.get(adminId);
-    if (!pending || pending.type !== 'additem') {
+    const pendingAction = pendingActions.get(adminId);
+    if (!pendingAction || pendingAction.type !== 'additem') {
         return interaction.reply({
             content: '❌ No pending item addition found.',
             ephemeral: true
@@ -158,14 +197,14 @@ async function handleItemRaritySelection(interaction) {
     }
 
     const rarity = interaction.values[0];
-    const fullItemName = `${pending.itemName}(${rarity})`;
+    const fullItemName = `${pendingAction.itemName}(${rarity})`;
 
     const embed = new EmbedBuilder()
         .setColor('Blue')
         .setTitle('🎁 Add Item - Step 2')
         .setDescription(
             `**Item:** ${fullItemName}\n` +
-            `**User:** <@${pending.userId}>\n\n` +
+            `**User:** <@${pendingAction.userId}>\n\n` +
             `Reply with the quantity to add (or "cancel" to cancel):`
         );
 
@@ -175,7 +214,7 @@ async function handleItemRaritySelection(interaction) {
     });
 
     pendingActions.set(adminId, {
-        ...pending,
+        ...pendingAction,
         fullItemName,
         awaitingQuantity: true
     });
@@ -190,8 +229,8 @@ async function handleFumoRaritySelection(interaction) {
         });
     }
 
-    const pending = pendingActions.get(adminId);
-    if (!pending || pending.type !== 'addfumo') {
+    const pendingAction = pendingActions.get(adminId);
+    if (!pendingAction || pendingAction.type !== 'addfumo') {
         return interaction.reply({
             content: '❌ No pending fumo addition found.',
             ephemeral: true
@@ -233,7 +272,7 @@ async function handleFumoRaritySelection(interaction) {
     const embed = new EmbedBuilder()
         .setColor('Blue')
         .setTitle('🎭 Add Fumo - Step 2')
-        .setDescription(`**User:** <@${pending.userId}>\n**Rarity:** ${rarity}\n\nSelect the fumo:`);
+        .setDescription(`**User:** <@${pendingAction.userId}>\n**Rarity:** ${rarity}\n\nSelect the fumo:`);
 
     await interaction.update({
         embeds: [embed],
@@ -241,7 +280,7 @@ async function handleFumoRaritySelection(interaction) {
     });
 
     pendingActions.set(adminId, {
-        ...pending,
+        ...pendingAction,
         rarity
     });
 }
@@ -255,8 +294,8 @@ async function handleFumoSelection(interaction) {
         });
     }
 
-    const pending = pendingActions.get(adminId);
-    if (!pending || pending.type !== 'addfumo') {
+    const pendingAction = pendingActions.get(adminId);
+    if (!pendingAction || pendingAction.type !== 'addfumo') {
         return interaction.reply({
             content: '❌ No pending fumo addition found.',
             ephemeral: true
@@ -282,7 +321,7 @@ async function handleFumoSelection(interaction) {
         .setColor('Blue')
         .setTitle('🎭 Add Fumo - Step 3')
         .setDescription(
-            `**User:** <@${pending.userId}>\n` +
+            `**User:** <@${pendingAction.userId}>\n` +
             `**Fumo:** ${baseFumoName}\n\n` +
             `Select a trait for this fumo:`
         );
@@ -293,7 +332,7 @@ async function handleFumoSelection(interaction) {
     });
 
     pendingActions.set(adminId, {
-        ...pending,
+        ...pendingAction,
         baseFumoName
     });
 }
@@ -307,8 +346,8 @@ async function handleFumoTraitSelection(interaction) {
         });
     }
 
-    const pending = pendingActions.get(adminId);
-    if (!pending || pending.type !== 'addfumo') {
+    const pendingAction = pendingActions.get(adminId);
+    if (!pendingAction || pendingAction.type !== 'addfumo') {
         return interaction.reply({
             content: '❌ No pending fumo addition found.',
             ephemeral: true
@@ -316,7 +355,7 @@ async function handleFumoTraitSelection(interaction) {
     }
 
     const trait = interaction.values[0];
-    let fullFumoName = `${pending.baseFumoName}(${pending.rarity})`;
+    let fullFumoName = `${pendingAction.baseFumoName}(${pendingAction.rarity})`;
 
     if (trait === 'shiny') {
         fullFumoName += '[✨SHINY]';
@@ -329,7 +368,7 @@ async function handleFumoTraitSelection(interaction) {
         .setTitle('🎭 Add Fumo - Step 4')
         .setDescription(
             `**Fumo:** ${fullFumoName}\n` +
-            `**User:** <@${pending.userId}>\n\n` +
+            `**User:** <@${pendingAction.userId}>\n\n` +
             `Reply with the quantity to add (or "cancel" to cancel):`
         );
 
@@ -339,15 +378,15 @@ async function handleFumoTraitSelection(interaction) {
     });
 
     pendingActions.set(adminId, {
-        ...pending,
+        ...pendingAction,
         fullFumoName,
         awaitingQuantity: true
     });
 }
 
 async function handleQuantityInput(message) {
-    const pending = pendingActions.get(message.author.id);
-    if (!pending || !pending.awaitingQuantity) return;
+    const pendingAction = pendingActions.get(message.author.id);
+    if (!pendingAction || !pendingAction.awaitingQuantity) return;
 
     if (message.content.toLowerCase() === 'cancel') {
         pendingActions.delete(message.author.id);
@@ -373,10 +412,10 @@ async function handleQuantityInput(message) {
         });
     }
 
-    if (pending.type === 'additem') {
-        await executeAddItem(message, pending.userId, pending.fullItemName, quantity);
-    } else if (pending.type === 'addfumo') {
-        await executeAddFumo(message, pending.userId, pending.fullFumoName, quantity);
+    if (pendingAction.type === 'additem') {
+        await executeAddItem(message, pendingAction.userId, pendingAction.fullItemName, quantity);
+    } else if (pendingAction.type === 'addfumo') {
+        await executeAddFumo(message, pendingAction.userId, pendingAction.fullFumoName, quantity);
     }
 
     pendingActions.delete(message.author.id);
@@ -475,21 +514,364 @@ async function executeAddFumo(message, userId, fumoName, quantity) {
     });
 }
 
+async function handleWeatherCommand(message, client) {
+    if (!ALLOWED_ADMINS.includes(message.author.id)) {
+        return message.reply({
+            embeds: [
+                new EmbedBuilder()
+                    .setColor('Red')
+                    .setTitle('❌ Access Denied')
+                    .setDescription('You do not have permission to use this command.')
+            ]
+        });
+    }
+
+    const args = message.content.trim().split(' ').slice(1);
+
+    if (args.length === 0) {
+        const weatherList = WEATHER_EVENTS.map(w => {
+            const season = SEASONS[w];
+            return `• **${w}** - ${season.emoji} ${season.name}`;
+        }).join('\n');
+
+        return message.reply({
+            embeds: [
+                new EmbedBuilder()
+                    .setColor('Blue')
+                    .setTitle('🌤️ Weather Command Usage')
+                    .setDescription(
+                        '**Usage:** `.weather <weather_name> [duration_minutes]`\n\n' +
+                        '**Available Weather Events:**\n' +
+                        weatherList + '\n\n' +
+                        '**Examples:**\n' +
+                        '`.weather DAWN_DAYLIGHT` - Start with default duration\n' +
+                        '`.weather GOLDEN_HOUR 30` - Start for 30 minutes\n' +
+                        '`.weather stop STORM` - Stop a weather event'
+                    )
+            ]
+        });
+    }
+
+    const [action, weatherName, durationArg] = args[0].toLowerCase() === 'stop'
+        ? ['stop', args[1]?.toUpperCase(), null]
+        : ['start', args[0]?.toUpperCase(), args[1]];
+
+    if (action === 'stop') {
+        if (!weatherName || !WEATHER_EVENTS.includes(weatherName)) {
+            return message.reply({
+                embeds: [
+                    new EmbedBuilder()
+                        .setColor('Red')
+                        .setTitle('❌ Invalid Weather Type')
+                        .setDescription('Please provide a valid weather event name to stop.')
+                ]
+            });
+        }
+
+        await stopWeatherEvent(weatherName, client);
+
+        return message.reply({
+            embeds: [
+                new EmbedBuilder()
+                    .setColor('Green')
+                    .setTitle('✅ Weather Stopped')
+                    .setDescription(`Successfully stopped **${weatherName}**`)
+            ]
+        });
+    }
+
+    if (!weatherName || !WEATHER_EVENTS.includes(weatherName)) {
+        return message.reply({
+            embeds: [
+                new EmbedBuilder()
+                    .setColor('Red')
+                    .setTitle('❌ Invalid Weather Type')
+                    .setDescription(
+                        'Please provide a valid weather event name.\n' +
+                        'Use `.weather` to see the list of available events.'
+                    )
+            ]
+        });
+    }
+
+    let duration = getWeatherDuration(weatherName);
+    if (durationArg) {
+        const minutes = parseInt(durationArg, 10);
+        if (!isNaN(minutes) && minutes > 0 && minutes <= 10080) {
+            duration = minutes * 60 * 1000;
+        }
+    }
+
+    const result = await forceWeatherEvent(weatherName, duration, client);
+
+    if (!result.success) {
+        return message.reply({
+            embeds: [
+                new EmbedBuilder()
+                    .setColor('Red')
+                    .setTitle('❌ Failed to Start Weather')
+                    .setDescription('An error occurred while starting the weather event.')
+            ]
+        });
+    }
+
+    const description = getSeasonDescription(weatherName);
+    const season = SEASONS[weatherName];
+
+    return message.reply({
+        embeds: [
+            new EmbedBuilder()
+                .setColor('Green')
+                .setTitle('✅ Weather Event Started')
+                .setDescription(
+                    `${description}\n\n` +
+                    `**Duration:** ${Math.floor(duration / 60000)} minutes\n` +
+                    `**Coin Multiplier:** x${season.coinMultiplier}\n` +
+                    `**Gem Multiplier:** x${season.gemMultiplier}`
+                )
+        ]
+    });
+}
+
+async function handleAddCurrency(message) {
+    if (!ALLOWED_ADMINS.includes(message.author.id)) {
+        return message.reply({
+            embeds: [
+                new EmbedBuilder()
+                    .setColor('Red')
+                    .setTitle('❌ Access Denied')
+                    .setDescription('You do not have permission to use this command.')
+            ]
+        });
+    }
+
+    const args = message.content.trim().split(' ').slice(1);
+    if (args.length < 1) {
+        return message.reply({
+            embeds: [
+                new EmbedBuilder()
+                    .setColor('Orange')
+                    .setTitle('Usage')
+                    .setDescription('`.addcurrency <userId>`\n\nYou will then select currency type and amount.')
+            ]
+        });
+    }
+
+    const userId = args[0];
+    if (!/^\d{17,19}$/.test(userId)) {
+        return message.reply({
+            embeds: [
+                new EmbedBuilder()
+                    .setColor('Red')
+                    .setTitle('❌ Invalid User ID')
+                    .setDescription('Please provide a valid Discord user ID.')
+            ]
+        });
+    }
+
+    const currencyMenu = new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+            .setCustomId(`admin_currency_type_${message.author.id}`)
+            .setPlaceholder('Select currency type')
+            .addOptions([
+                { label: 'Coins 💰', value: 'coins' },
+                { label: 'Gems 💎', value: 'gems' }
+            ])
+    );
+
+    const embed = new EmbedBuilder()
+        .setColor('Blue')
+        .setTitle('💰 Add Currency - Step 1')
+        .setDescription(`**User:** <@${userId}>\n\nSelect the currency type:`);
+
+    const msg = await message.reply({
+        embeds: [embed],
+        components: [currencyMenu]
+    });
+
+    pendingCurrency.set(message.author.id, {
+        userId,
+        messageId: msg.id
+    });
+}
+
+async function handleCurrencyTypeSelection(interaction) {
+    const adminId = interaction.customId.split('_').pop();
+    if (interaction.user.id !== adminId) {
+        return interaction.reply({
+            content: '❌ This is not your selection menu.',
+            ephemeral: true
+        });
+    }
+
+    const pendingCurr = pendingCurrency.get(adminId);
+    if (!pendingCurr) {
+        return interaction.reply({
+            content: '❌ No pending currency addition found.',
+            ephemeral: true
+        });
+    }
+
+    const currencyType = interaction.values[0];
+
+    const embed = new EmbedBuilder()
+        .setColor('Blue')
+        .setTitle('💰 Add Currency - Step 2')
+        .setDescription(
+            `**User:** <@${pendingCurr.userId}>\n` +
+            `**Currency:** ${currencyType === 'coins' ? '💰 Coins' : '💎 Gems'}\n\n` +
+            `Reply with the amount to add (supports K, M, B, T, Qa, Qi, Sx, Sp, Oc, No, Dc, etc.)\n` +
+            `Examples: 1000, 1K, 1.5M, 2B, 5Qa\n\n` +
+            `Or type "cancel" to cancel.`
+        );
+
+    await interaction.update({
+        embeds: [embed],
+        components: []
+    });
+
+    pendingCurrency.set(adminId, {
+        ...pendingCurr,
+        currencyType,
+        awaitingAmount: true
+    });
+}
+
+async function handleAmountInput(message) {
+    const pendingCurr = pendingCurrency.get(message.author.id);
+    if (!pendingCurr || !pendingCurr.awaitingAmount) return;
+
+    if (message.content.toLowerCase() === 'cancel') {
+        pendingCurrency.delete(message.author.id);
+        return message.reply({
+            embeds: [
+                new EmbedBuilder()
+                    .setColor('Grey')
+                    .setTitle('❌ Cancelled')
+                    .setDescription('Currency addition cancelled.')
+            ]
+        });
+    }
+
+    const amount = parseAmount(message.content, Infinity);
+    if (isNaN(amount) || amount <= 0) {
+        return message.reply({
+            embeds: [
+                new EmbedBuilder()
+                    .setColor('Red')
+                    .setTitle('❌ Invalid Amount')
+                    .setDescription('Please enter a valid positive number or use suffixes like K, M, B, T, Qa, etc.')
+            ]
+        });
+    }
+
+    await executeAddCurrency(message, pendingCurr.userId, pendingCurr.currencyType, amount);
+    pendingCurrency.delete(message.author.id);
+}
+
+async function executeAddCurrency(message, userId, currencyType, amount) {
+    const column = currencyType === 'coins' ? 'coins' : 'gems';
+
+    db.get(
+        `SELECT ${column} FROM userCoins WHERE userId = ?`,
+        [userId],
+        (err, row) => {
+            if (err) {
+                return message.reply({
+                    embeds: [
+                        new EmbedBuilder()
+                            .setColor('Red')
+                            .setTitle('⚠️ Error')
+                            .setDescription('Failed to add currency.')
+                    ]
+                });
+            }
+
+            if (row) {
+                db.run(
+                    `UPDATE userCoins SET ${column} = ${column} + ? WHERE userId = ?`,
+                    [amount, userId],
+                    function (err) {
+                        if (err) {
+                            return message.reply({
+                                embeds: [
+                                    new EmbedBuilder()
+                                        .setColor('Red')
+                                        .setTitle('⚠️ Error')
+                                        .setDescription('Failed to update currency.')
+                                ]
+                            });
+                        }
+                        message.reply({
+                            embeds: [
+                                new EmbedBuilder()
+                                    .setColor('Green')
+                                    .setTitle('✅ Currency Added')
+                                    .setDescription(
+                                        `Added **${amount.toLocaleString()}** ${currencyType === 'coins' ? '💰' : '💎'} to user \`${userId}\`.`
+                                    )
+                            ]
+                        });
+                    }
+                );
+            } else {
+                db.run(
+                    `INSERT INTO userCoins (userId, coins, gems) VALUES (?, ?, ?)`,
+                    [userId, currencyType === 'coins' ? amount : 0, currencyType === 'gems' ? amount : 0],
+                    function (err) {
+                        if (err) {
+                            return message.reply({
+                                embeds: [
+                                    new EmbedBuilder()
+                                        .setColor('Red')
+                                        .setTitle('⚠️ Error')
+                                        .setDescription('Failed to add currency.')
+                                ]
+                            });
+                        }
+                        message.reply({
+                            embeds: [
+                                new EmbedBuilder()
+                                    .setColor('Green')
+                                    .setTitle('✅ Currency Added')
+                                    .setDescription(
+                                        `Added **${amount.toLocaleString()}** ${currencyType === 'coins' ? '💰' : '💎'} to user \`${userId}\`.`
+                                    )
+                            ]
+                        });
+                    }
+                );
+            }
+        }
+    );
+}
+
 function registerAdminCommands(client) {
     client.on('messageCreate', async (message) => {
         if (message.author.bot) return;
 
         const content = message.content.trim();
 
-        const pending = pendingActions.get(message.author.id);
-        if (pending && pending.awaitingQuantity) {
+        // Check for pending actions (items/fumos)
+        const pendingAction = pendingActions.get(message.author.id);
+        if (pendingAction && pendingAction.awaitingQuantity) {
             return handleQuantityInput(message);
+        }
+
+        // Check for pending currency
+        const pendingCurr = pendingCurrency.get(message.author.id);
+        if (pendingCurr && pendingCurr.awaitingAmount) {
+            return handleAmountInput(message);
         }
 
         if (content.startsWith('.additem')) {
             await handleAddItem(message);
         } else if (content.startsWith('.addfumo')) {
             await handleAddFumo(message);
+        } else if (content.startsWith('.weather')) {
+            await handleWeatherCommand(message, client);
+        } else if (content.startsWith('.addcurrency')) {
+            await handleAddCurrency(message);
         }
     });
 
@@ -504,6 +886,8 @@ function registerAdminCommands(client) {
             await handleFumoSelection(interaction);
         } else if (interaction.customId.startsWith('admin_fumo_trait_')) {
             await handleFumoTraitSelection(interaction);
+        } else if (interaction.customId.startsWith('admin_currency_type_')) {
+            await handleCurrencyTypeSelection(interaction);
         }
     });
 }
