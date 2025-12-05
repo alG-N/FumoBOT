@@ -63,32 +63,48 @@ module.exports = {
 
         try {
             logger.log(`Ensuring connection`, interaction);
+            console.log(`[Play Command] Connecting to voice channel...`);
             let player = await voiceService.connect(interaction, guildId);
+            console.log(`[Play Command] Player obtained:`, !!player);
+            console.log(`[Play Command] Player track:`, player.track);
 
             voiceService.monitorVoiceChannel(guildId, interaction.channel, async (gid) => {
                 await queueService.cleanup(gid);
                 await interaction.channel.send({ embeds: [embedBuilder.buildNoUserVCEmbed()] });
             });
 
+            console.log(`[Play Command] Binding player events...`);
+            PlaybackController.bindPlayerEvents(guildId, interaction);
+
+            const wasPlaying = player.track !== null;
+            console.log(`[Play Command] Was already playing?`, wasPlaying);
+
             const position = queueService.addTrack(guildId, trackData);
+            console.log(`[Play Command] Track added at position ${position}`);
 
             const queuedEmbed = embedBuilder.buildQueuedEmbed(trackData, position, interaction.user);
             await interaction.editReply({ embeds: [queuedEmbed], components: [] });
 
-            const queue = queueService.getOrCreateQueue(guildId);
-
-            if (!queue._eventsBound) {
-                PlaybackController.bindPlayerEvents(guildId, interaction);
-            }
-
-            if (!player.track && !player.paused) {
+            if (!wasPlaying) {
+                console.log(`[Play Command] Nothing was playing, starting playback...`);
                 const nextTrack = queueService.nextTrack(guildId);
+                console.log(`[Play Command] Next track after calling nextTrack():`, nextTrack?.title);
+                console.log(`[Play Command] Current track in queue:`, queueService.getCurrentTrack(guildId)?.title);
+                
                 if (nextTrack) {
+                    logger.log(`Starting first track: ${nextTrack.title}`, interaction);
+                    console.log(`[Play Command] About to call playTrack...`);
                     await player.playTrack({ track: { encoded: nextTrack.track.encoded } });
+                    console.log(`[Play Command] playTrack called, waiting for trackStart event...`);
+                } else {
+                    console.log(`[Play Command] ERROR: No next track found!`);
                 }
+            } else {
+                console.log(`[Play Command] Already playing, track added to queue`);
             }
         } catch (err) {
             logger.error(`Connection error: ${err.message}`, interaction);
+            console.error(`[Play Command] Full error:`, err);
             await interaction.followUp({
                 embeds: [
                     embedBuilder.buildErrorEmbed(

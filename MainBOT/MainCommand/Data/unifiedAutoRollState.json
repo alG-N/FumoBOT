@@ -1,7 +1,7 @@
 {
   "1128296349566251068": {
     "normal": {
-      "rollCount": 8,
+      "rollCount": 2,
       "autoSell": true,
       "startTime": 1764840683301,
       "bestFumo": {
@@ -11,7 +11,7 @@
       },
       "bestFumoAt": "12/4/2025, 5:03:15 PM",
       "bestFumoRoll": 1,
-      "specialFumoCount": 400,
+      "specialFumoCount": 476,
       "specialFumoFirstAt": "12/4/2025, 4:33:38 PM",
       "specialFumoFirstRoll": 3
     },
@@ -19,8 +19,8 @@
       "rollCount": 1,
       "autoSell": true,
       "startTime": 1764825059334,
-      "totalFumosRolled": 49700,
-      "totalCoinsFromSales": 35450,
+      "totalFumosRolled": 50100,
+      "totalCoinsFromSales": 38000,
       "bestFumo": {
         "name": "Go/jo(???)",
         "rarity": "???",
@@ -35,25 +35,21 @@
   },
   "845274868697661440": {
     "normal": {
-      "rollCount": 8,
+      "rollCount": 0,
       "autoSell": false,
-      "startTime": 1764913481868,
-      "bestFumo": {
-        "name": "Athena(ASTRAL)",
-        "rarity": "ASTRAL",
-        "picture": "https://media.discordapp.net/attachments/1372426801472737280/1372426818594017311/OIP.png?ex=6826bb94&is=68256a14&hm=eb47a890b02dc810beefb84938f01c70b98522c1fe3c4a2ccb96de9293da28ac&=&format=webp&quality=lossless&width=309&height=309"
-      },
-      "bestFumoAt": "12/5/2025, 12:52:35 PM",
-      "bestFumoRoll": 3,
-      "specialFumoCount": 3,
-      "specialFumoFirstAt": "12/5/2025, 12:45:58 PM",
-      "specialFumoFirstRoll": 2
+      "startTime": 1764934715535,
+      "bestFumo": null,
+      "bestFumoAt": null,
+      "bestFumoRoll": null,
+      "specialFumoCount": 0,
+      "specialFumoFirstAt": null,
+      "specialFumoFirstRoll": null
     },
     "event": {
       "rollCount": 1,
       "autoSell": false,
       "startTime": 1764855794969,
-      "totalFumosRolled": 8200,
+      "totalFumosRolled": 8600,
       "totalCoinsFromSales": 0,
       "bestFumo": {
         "name": "Go/jo(???)",
