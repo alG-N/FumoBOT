@@ -1,33 +1,40 @@
 {
   "market": [
     {
-      "name": "Remilia(RARE)",
-      "price": 300,
-      "rarity": "RARE",
-      "stock": 4,
+      "name": "Reimu(Common)",
+      "price": 125,
+      "rarity": "Common",
+      "stock": 9,
       "picture": null
     },
     {
       "name": "Marisa(Common)",
       "price": 125,
       "rarity": "Common",
-      "stock": 8,
+      "stock": 7,
       "picture": null
     },
     {
-      "name": "Tenshi(MYTHICAL)",
-      "price": 975000,
-      "rarity": "MYTHICAL",
-      "stock": 1,
+      "name": "Cirno(Common)",
+      "price": 125,
+      "rarity": "Common",
+      "stock": 10,
       "picture": null
     },
     {
-      "name": "Eirin(MYTHICAL)",
-      "price": 1350000,
-      "rarity": "MYTHICAL",
+      "name": "Sanae(Common)",
+      "price": 125,
+      "rarity": "Common",
+      "stock": 10,
+      "picture": null
+    },
+    {
+      "name": "Mostima(CELESTIAL)",
+      "price": 124550000,
+      "rarity": "CELESTIAL",
       "stock": 1,
       "picture": null
     }
   ],
-  "resetTime": 1764860400000
+  "resetTime": 1764932400000
 }

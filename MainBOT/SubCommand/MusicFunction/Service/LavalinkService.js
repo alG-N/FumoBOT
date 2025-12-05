@@ -135,6 +135,28 @@ class LavalinkService {
             await player.setGlobalVolume(lavalinkConfig.playerOptions?.volume || 100);
 
             console.log(`[Lavalink] ✅ Player created successfully for guild ${guildId}`);
+            console.log(`[Lavalink] Setting up player event logging for debugging...`);
+            
+            player.on('start', () => {
+                console.log(`[Lavalink] PLAYER EVENT: start fired for guild ${guildId}`);
+            });
+            
+            player.on('end', (data) => {
+                console.log(`[Lavalink] PLAYER EVENT: end fired for guild ${guildId}, reason:`, data?.reason);
+            });
+            
+            player.on('exception', (data) => {
+                console.log(`[Lavalink] PLAYER EVENT: exception fired for guild ${guildId}`);
+            });
+            
+            player.on('stuck', (data) => {
+                console.log(`[Lavalink] PLAYER EVENT: stuck fired for guild ${guildId}`);
+            });
+            
+            player.on('update', (data) => {
+                console.log(`[Lavalink] PLAYER EVENT: update fired for guild ${guildId}`);
+            });
+
             return player;
 
         } catch (error) {
@@ -166,12 +188,10 @@ class LavalinkService {
             throw new Error('Lavalink not ready');
         }
 
-        // Clean up YouTube URLs - remove tracking parameters
         let searchQuery = query;
         if (/^https?:\/\//.test(query)) {
             try {
                 const url = new URL(query);
-                // Remove common tracking parameters
                 url.searchParams.delete('si');
                 url.searchParams.delete('feature');
                 searchQuery = url.toString();
@@ -180,7 +200,6 @@ class LavalinkService {
                 console.log('[Lavalink] Failed to parse URL, using original');
             }
         } else {
-            // For search queries, add platform prefix
             searchQuery = `${lavalinkConfig.defaultSearchPlatform}:${query}`;
         }
 
@@ -206,37 +225,29 @@ class LavalinkService {
                 trackCount: result?.data?.tracks?.length || (Array.isArray(result?.data) ? result?.data.length : 0)
             });
 
-            // Handle different response formats
             if (!result) {
                 console.error('[Lavalink] No result returned');
                 throw new Error('NO_RESULTS');
             }
 
-            // Handle error load type
             if (result.loadType === 'error') {
                 console.error('[Lavalink] Load error:', result.data);
                 throw new Error(result.data?.message || 'LOAD_FAILED');
             }
 
-            // Handle empty results
             if (result.loadType === 'empty') {
                 console.log(`[Lavalink] Empty result for: ${searchQuery}`);
                 throw new Error('NO_RESULTS');
             }
 
-            // Extract track based on load type
             let track;
             if (result.loadType === 'track') {
-                // Single track result
                 track = result.data;
             } else if (result.loadType === 'search') {
-                // Search results - take first track
                 track = result.data?.[0];
             } else if (result.loadType === 'playlist') {
-                // Playlist - take first track
                 track = result.data?.tracks?.[0];
             } else {
-                // Fallback - try to find track in data
                 track = result.data?.tracks?.[0] || result.data?.[0] || result.tracks?.[0];
             }
 
@@ -248,7 +259,6 @@ class LavalinkService {
 
             console.log(`[Lavalink] ✅ Found track: ${track.info.title} by ${track.info.author}`);
 
-            // Extract YouTube ID for thumbnail if needed
             const youtubeId = this.extractYouTubeId(track.info.uri);
             const thumbnail = track.info.artworkUrl ||
                 (youtubeId ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg` : null);

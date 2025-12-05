@@ -150,10 +150,12 @@ class QueueService {
 
         lavalinkService.destroyPlayer(guildId);
         
+        const PlaybackController = require('../Controller/PlaybackController');
+        PlaybackController.unbindPlayerEvents(guildId);
+        
         queue.loop = false;
         queue.tracks = [];
         queue.currentTrack = null;
-        queue._eventsBound = false;
     }
 
     fullCleanup(guildId) {
