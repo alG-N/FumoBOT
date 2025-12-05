@@ -127,7 +127,7 @@ class ControlsController {
 
         } else {
             await player.setPaused(false);
-            logger.log(Resumed, interaction);
+            logger.log(`Resumed`, interaction);
 
             const embed = embedBuilder.buildNowPlayingEmbed(
                 {
@@ -208,9 +208,15 @@ class ControlsController {
                     const votingMsg = votingService.getVotingMessage(queue);
 
                     if (votingService.hasEnoughVotes(queue)) {
+                        const nextTrack = queueService.nextTrack(guildId);
+                        
                         await player.stopTrack();
                         await votingMsg.edit({ content: "⏭️ Track skipped by vote.", components: [] });
                         logger.log(`Track skipped by vote`, interaction);
+                        
+                        if (nextTrack) {
+                            await player.playTrack({ track: { encoded: nextTrack.track.encoded } });
+                        }
                     } else {
                         await votingMsg.edit({ content: "⏭️ Not enough votes to skip.", components: [] });
                         logger.log(`Not enough votes to skip`, interaction);
@@ -226,9 +232,15 @@ class ControlsController {
             }
         } else {
             if (player.track) {
+                const nextTrack = queueService.nextTrack(guildId);
+                
                 await player.stopTrack();
                 logger.log(`Track skipped`, interaction);
                 await interactionHandler.safeReply(interaction, { ephemeral: true, content: "⏭️ Skipped." });
+                
+                if (nextTrack) {
+                    await player.playTrack({ track: { encoded: nextTrack.track.encoded } });
+                }
             } else {
                 await interactionHandler.safeReply(interaction, { ephemeral: true, content: "⚠️ Nothing to skip." });
             }
@@ -399,14 +411,20 @@ class ControlsController {
             const player = lavalinkService.getPlayer(guildId);
 
             if (player) {
+                const nextTrack = queueService.nextTrack(guildId);
+                
                 await player.stopTrack();
+                await votingMsg.edit({ content: "⏭️ Track skipped by vote.", components: [] });
+                
+                if (nextTrack) {
+                    await player.playTrack({ track: { encoded: nextTrack.track.encoded } });
+                }
             }
 
-            await votingMsg.edit({ content: "⏭️ Track skipped by vote.", components: [] });
             votingService.endVoting(queue);
             logger.log(`Track skipped by vote (${MIN_VOTES_REQUIRED}+)`, interaction);
         }
     }
 }
 
-module.exports = new ControlsController();
+module.exports = new ControlsController()
