@@ -44,11 +44,6 @@ function createOverviewPage(targetUser, userData, farmingFumos, activeBoosts) {
                 inline: true
             },
             {
-                name: '\u200B',
-                value: '\u200B',
-                inline: true
-            },
-            {
                 name: '🌸 Fumo Tokens',
                 value: `🌸 ${formatNumber(userData.spiritTokens)}`,
                 inline: true
