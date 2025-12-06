@@ -420,6 +420,96 @@ async function safeReply(interaction, content) {
     }
 }
 
+const messageHandlers = [];
+
+const originalOn = client.on.bind(client);
+client.on = function(event, handler) {
+    if (event === 'messageCreate') {
+        // Capture the EXACT moment and file where .on() is called
+        const error = new Error();
+        const fullStack = error.stack;
+        
+        // Try multiple methods to find the caller
+        const stackLines = fullStack.split('\n');
+        let callerFile = 'unknown';
+        let callerLine = 'unknown';
+        
+        console.log('\n🔍 New messageCreate handler registered:');
+        console.log('Full stack:', stackLines.slice(1, 6).join('\n'));
+        
+        for (let i = 1; i < Math.min(stackLines.length, 10); i++) {
+            const line = stackLines[i];
+            console.log(`  Checking line ${i}: ${line}`);
+            
+            // Look for file paths
+            const fileMatch = line.match(/\(([^)]+\.js):(\d+):\d+\)/) || line.match(/at ([^:]+\.js):(\d+):\d+/);
+            if (fileMatch) {
+                const fullPath = fileMatch[1];
+                callerLine = fileMatch[2];
+                
+                if (fullPath.includes('MainBOT') || fullPath.includes('SubCommand')) {
+                    callerFile = fullPath.split(/[\/\\]/).slice(-3).join('/');
+                    console.log(`  ✅ Found caller: ${callerFile}:${callerLine}`);
+                    break;
+                }
+            }
+        }
+        
+        const handlerInfo = {
+            file: callerFile,
+            line: callerLine,
+            handler: handler,
+            registeredAt: new Date().toISOString()
+        };
+        
+        messageHandlers.push(handlerInfo);
+        console.log(`✅ Registered handler #${messageHandlers.length - 1} from ${callerFile}:${callerLine}\n`);
+        
+        // Wrap the handler to track execution
+        const wrappedHandler = async function(message) {
+            if (!message.author.bot && !message.content.startsWith('.')) {
+                const index = messageHandlers.findIndex(h => h.handler === handler);
+                console.log(`\n📝 [Handler #${index}] from "${handlerInfo.file}:${handlerInfo.line}" processing: "${message.content}"`);
+            }
+            
+            // Intercept reply to catch ban messages
+            const originalReply = message.reply;
+            message.reply = async function(content) {
+                if (typeof content === 'object' && content.embeds) {
+                    const embed = content.embeds[0];
+                    const title = embed?.title || embed?.data?.title || '';
+                    
+                    if (title.includes('Banned') || title.includes('Maintenance')) {
+                        const index = messageHandlers.findIndex(h => h.handler === handler);
+                        console.error('\n🚨 ==================== BAN TRIGGERED ====================');
+                        console.error(`📂 File: ${handlerInfo.file}`);
+                        console.error(`📍 Line: ${handlerInfo.line}`);
+                        console.error(`🔢 Handler Index: #${index}`);
+                        console.error(`✉️  Message: "${message.content}"`);
+                        console.error(`👤 User: ${message.author.tag} (${message.author.id})`);
+                        console.error(`📋 Embed Title: ${title}`);
+                        console.error(`⏰ Handler registered at: ${handlerInfo.registeredAt}`);
+                        console.error('🚨 ======================================================\n');
+                    }
+                }
+                return originalReply.call(this, content);
+            };
+            
+            try {
+                return await handler.call(this, message);
+            } catch (error) {
+                console.error(`❌ Error in handler from ${handlerInfo.file}:`, error);
+                throw error;
+            }
+        };
+        
+        return originalOn(event, wrappedHandler);
+    }
+    return originalOn(event, handler);
+};
+
+console.log('🔍 Enhanced debug tracker enabled\n');
+
 client.on('messageCreate', message => {
     afk.onMessage(message, client);
     anime.onMessage(message, client);

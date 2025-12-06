@@ -1,7 +1,7 @@
 {
   "1128296349566251068": {
     "normal": {
-      "rollCount": 1,
+      "rollCount": 2,
       "autoSell": true,
       "startTime": 1764840683301,
       "bestFumo": {
@@ -11,7 +11,7 @@
       },
       "bestFumoAt": "12/4/2025, 5:03:15 PM",
       "bestFumoRoll": 1,
-      "specialFumoCount": 1033,
+      "specialFumoCount": 1040,
       "specialFumoFirstAt": "12/4/2025, 4:33:38 PM",
       "specialFumoFirstRoll": 3
     },
@@ -19,8 +19,8 @@
       "rollCount": 1,
       "autoSell": true,
       "startTime": 1764825059334,
-      "totalFumosRolled": 51100,
-      "totalCoinsFromSales": 31700,
+      "totalFumosRolled": 51200,
+      "totalCoinsFromSales": 37300,
       "bestFumo": {
         "name": "Go/jo(???)",
         "rarity": "???",
@@ -35,7 +35,7 @@
   },
   "845274868697661440": {
     "normal": {
-      "rollCount": 6,
+      "rollCount": 2,
       "autoSell": false,
       "startTime": 1764929355312,
       "bestFumo": {
@@ -45,22 +45,26 @@
       },
       "bestFumoAt": "12/5/2025, 6:18:45 PM",
       "bestFumoRoll": 37,
-      "specialFumoCount": 571,
+      "specialFumoCount": 579,
       "specialFumoFirstAt": "12/5/2025, 5:09:29 PM",
       "specialFumoFirstRoll": 1
     },
     "event": {
-      "rollCount": 0,
+      "rollCount": 3,
       "autoSell": false,
-      "startTime": 1765028007845,
-      "totalFumosRolled": 0,
+      "startTime": 1765021555985,
+      "totalFumosRolled": 24800,
       "totalCoinsFromSales": 0,
-      "bestFumo": null,
-      "bestFumoAt": null,
-      "bestFumoRoll": null,
-      "specialFumoCount": 0,
-      "specialFumoFirstAt": null,
-      "specialFumoFirstRoll": null
+      "bestFumo": {
+        "name": "Go/jo(???)",
+        "rarity": "???",
+        "picture": "https://m.media-amazon.com/images/I/41PQuj80tDS._AC_UF894,1000_QL80_.jpg"
+      },
+      "bestFumoAt": "12/6/2025, 7:27:22 PM",
+      "bestFumoRoll": 13,
+      "specialFumoCount": 7,
+      "specialFumoFirstAt": "12/6/2025, 6:47:26 PM",
+      "specialFumoFirstRoll": 4
     }
   }
 }

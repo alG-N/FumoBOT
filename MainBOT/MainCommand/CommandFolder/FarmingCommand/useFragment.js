@@ -17,6 +17,7 @@ db.runAsync = (...args) => new Promise((resolve, reject) => {
         else resolve(this);
     });
 });
+
 const client = new Client({
     intents: [
         GatewayIntentBits.GuildMessages,
@@ -27,55 +28,16 @@ const client = new Client({
     partials: [Partials.Message, Partials.Channel, Partials.Reaction]
 });
 client.setMaxListeners(150);
-const { maintenance, developerID } = require("../../Configuration/maintenanceConfig");
-const { isBanned } = require('../../Administrator/BannedList/BanUtils');
+
+const { checkRestrictions } = require('../../Middleware/restrictions');
+
 module.exports = async (client) => {
     client.on('messageCreate', async message => {
         if (message.author.bot || (!message.content.startsWith('.usefragment') && !message.content.startsWith('.uf'))) return;
 
-        const banData = isBanned(message.author.id);
-        if ((maintenance === "yes" && message.author.id !== developerID) || banData) {
-            let description = '';
-            let footerText = '';
-
-            if (maintenance === "yes" && message.author.id !== developerID) {
-                description = "The bot is currently in maintenance mode. Please try again later.\nFumoBOT's Developer: alterGolden";
-                footerText = "Thank you for your patience";
-            } else if (banData) {
-                description = `You are banned from using this bot.\n\n**Reason:** ${banData.reason || 'No reason provided'}`;
-
-                if (banData.expiresAt) {
-                    const remaining = banData.expiresAt - Date.now();
-                    const seconds = Math.floor((remaining / 1000) % 60);
-                    const minutes = Math.floor((remaining / (1000 * 60)) % 60);
-                    const hours = Math.floor((remaining / (1000 * 60 * 60)) % 24);
-                    const days = Math.floor(remaining / (1000 * 60 * 60 * 24));
-
-                    const timeString = [
-                        days ? `${days}d` : '',
-                        hours ? `${hours}h` : '',
-                        minutes ? `${minutes}m` : '',
-                        seconds ? `${seconds}s` : ''
-                    ].filter(Boolean).join(' ');
-
-                    description += `\n**Time Remaining:** ${timeString}`;
-                } else {
-                    description += `\n**Ban Type:** Permanent`;
-                }
-
-                footerText = "Ban enforced by developer";
-            }
-
-            const embed = new EmbedBuilder()
-                .setColor('#FF0000')
-                .setTitle(maintenance === "yes" ? '🚧 Maintenance Mode' : '⛔ You Are Banned')
-                .setDescription(description)
-                .setFooter({ text: footerText })
-                .setTimestamp();
-
-            console.log(`[${new Date().toISOString()}] Blocked user (${message.author.id}) due to ${maintenance === "yes" ? "maintenance" : "ban"}.`);
-
-            return message.reply({ embeds: [embed] });
+        const restriction = checkRestrictions(message.author.id);
+        if (restriction.blocked) {
+            return message.reply({ embeds: [restriction.embed] });
         }
 
         const userId = message.author.id;
@@ -120,7 +82,7 @@ module.exports = async (client) => {
                 return message.reply({
                     embeds: [new EmbedBuilder()
                         .setColor('Red')
-                        .setDescription('⚠️ You’ve already reached the maximum of 30 farming limit upgrades using fragments.')]
+                        .setDescription('⚠️ You\'ve already reached the maximum of 30 farming limit upgrades using fragments.')]
                 });
             }
 
@@ -168,5 +130,3 @@ module.exports = async (client) => {
         }
     });
 };
-
-
