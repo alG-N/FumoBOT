@@ -3,6 +3,7 @@ const lavalinkService = require('../Service/LavalinkService');
 const embedBuilder = require('../Utility/embedBuilder');
 const logger = require('../Utility/logger');
 const ControlsController = require('./ControlsController');
+const { TRACK_TRANSITION_DELAY } = require('../Configuration/MusicConfig');
 
 class PlaybackController {
     constructor() {
@@ -55,7 +56,8 @@ class PlaybackController {
                     thumbnail: currentTrack.thumbnail,
                     author: currentTrack.author,
                     requestedBy: currentTrack.requestedBy,
-                    source: currentTrack.source
+                    source: currentTrack.source,
+                    viewCount: currentTrack.viewCount
                 },
                 player.volume,
                 currentTrack.requestedBy,
@@ -99,6 +101,16 @@ class PlaybackController {
             console.log(`[PlaybackController] Next track:`, nextTrack?.title);
             
             if (nextTrack) {
+                console.log(`[PlaybackController] Waiting ${TRACK_TRANSITION_DELAY}ms before playing next track...`);
+                
+                await new Promise(resolve => setTimeout(resolve, TRACK_TRANSITION_DELAY));
+                
+                const playerCheck = lavalinkService.getPlayer(guildId);
+                if (!playerCheck) {
+                    console.log(`[PlaybackController] Player no longer exists, skipping next track`);
+                    return;
+                }
+                
                 logger.log(`Starting next track: ${nextTrack.title}`, interaction);
                 await player.playTrack({ track: { encoded: nextTrack.track.encoded } });
             } else {
@@ -125,7 +137,14 @@ class PlaybackController {
 
             const nextTrack = queueService.nextTrack(guildId);
             if (nextTrack) {
-                await player.playTrack({ track: { encoded: nextTrack.track.encoded } });
+                console.log(`[PlaybackController] Waiting ${TRACK_TRANSITION_DELAY}ms before playing next track after error...`);
+                
+                await new Promise(resolve => setTimeout(resolve, TRACK_TRANSITION_DELAY));
+                
+                const playerCheck = lavalinkService.getPlayer(guildId);
+                if (playerCheck) {
+                    await player.playTrack({ track: { encoded: nextTrack.track.encoded } });
+                }
             }
         };
 
@@ -140,7 +159,14 @@ class PlaybackController {
 
             const nextTrack = queueService.nextTrack(guildId);
             if (nextTrack) {
-                await player.playTrack({ track: { encoded: nextTrack.track.encoded } });
+                console.log(`[PlaybackController] Waiting ${TRACK_TRANSITION_DELAY}ms before playing next track after stuck...`);
+                
+                await new Promise(resolve => setTimeout(resolve, TRACK_TRANSITION_DELAY));
+                
+                const playerCheck = lavalinkService.getPlayer(guildId);
+                if (playerCheck) {
+                    await player.playTrack({ track: { encoded: nextTrack.track.encoded } });
+                }
             }
         };
 

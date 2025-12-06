@@ -1,5 +1,5 @@
 const { EmbedBuilder } = require("discord.js");
-const { fmtDur } = require('./formatters');
+const { fmtDur, formatViewCount } = require('./formatters');
 
 class EmbedBuilderUtility {
     buildNowPlayingEmbed(track, volumePct, requester, player, isLooped, isShuffled) {
@@ -14,9 +14,10 @@ class EmbedBuilderUtility {
             { name: "⏱️ Duration", value: `\`${fmtDur(track?.lengthSeconds)}\``, inline: true },
             { name: "📜 Queue", value: `\`${queueList.length}\` in line`, inline: true },
             { name: "🔊 Volume", value: `\`${Math.round(volumePct)}%\``, inline: true },
+            { name: "👁️ Views", value: track?.viewCount ? `\`${formatViewCount(track.viewCount)}\`` : "`N/A`", inline: true },
             { name: "🔁 Loop", value: isLooped ? "**Enabled**" : "Not Enabled", inline: true },
             { name: "🔀 Shuffle", value: isShuffled ? "**Enabled**" : "Not Enabled", inline: true },
-            { name: "⏭️ Next Up", value: nextTrack ? `[${nextTrack.title}](${nextTrack.url})` : "No Next Up", inline: true }
+            { name: "⏭️ Next Up", value: nextTrack ? `[${nextTrack.title}](${nextTrack.url})` : "No Next Up", inline: false }
         ];
 
         return new EmbedBuilder()
@@ -56,16 +57,22 @@ class EmbedBuilderUtility {
     }
 
     buildQueuedEmbed(track, position, requester) {
+        const fields = [
+            { name: "Channel", value: track.author, inline: true },
+            { name: "Duration", value: fmtDur(track.lengthSeconds), inline: true },
+            { name: "Position", value: `#${position}`, inline: true }
+        ];
+
+        if (track.viewCount) {
+            fields.push({ name: "Views", value: formatViewCount(track.viewCount), inline: true });
+        }
+
         return new EmbedBuilder()
             .setColor(0x6EE7B7)
             .setTitle("✅ Added to queue")
             .setDescription(`[${track.title}](${track.url})`)
             .setThumbnail(track.thumbnail)
-            .addFields(
-                { name: "Channel", value: track.author, inline: true },
-                { name: "Duration", value: fmtDur(track.lengthSeconds), inline: true },
-                { name: "Position", value: `#${position}`, inline: true },
-            )
+            .addFields(fields)
             .setFooter({ text: `Queued by ${requester.tag}`, iconURL: requester.displayAvatarURL() });
     }
 

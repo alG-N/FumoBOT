@@ -137,7 +137,7 @@ module.exports = {
             });
         }
 
-        const MAX_PLAYLIST_SIZE = 500;
+        const MAX_PLAYLIST_SIZE = 250;
         if (playlistData.trackCount > MAX_PLAYLIST_SIZE) {
             playlistData.tracks = playlistData.tracks.slice(0, MAX_PLAYLIST_SIZE);
             playlistData.trackCount = MAX_PLAYLIST_SIZE;

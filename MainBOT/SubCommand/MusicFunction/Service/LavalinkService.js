@@ -261,10 +261,16 @@ class LavalinkService {
             }
 
             console.log(`[Lavalink] ✅ Found track: ${track.info.title} by ${track.info.author}`);
+            console.log(`[Lavalink] Track plugin info:`, track.pluginInfo);
 
             const youtubeId = this.extractYouTubeId(track.info.uri);
             const thumbnail = track.info.artworkUrl ||
                 (youtubeId ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg` : null);
+
+            const viewCount = track.pluginInfo?.viewCount || 
+                            track.pluginInfo?.playCount || 
+                            track.info?.viewCount ||
+                            null;
 
             return {
                 track: track,
@@ -275,7 +281,8 @@ class LavalinkService {
                 thumbnail: thumbnail,
                 author: track.info.author,
                 requestedBy: requester,
-                source: track.info.sourceName || 'Unknown'
+                source: track.info.sourceName || 'Unknown',
+                viewCount: viewCount
             };
 
         } catch (error) {
@@ -343,6 +350,11 @@ class LavalinkService {
                     const thumbnail = track.info.artworkUrl ||
                         (youtubeId ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg` : null);
 
+                    const viewCount = track.pluginInfo?.viewCount || 
+                                    track.pluginInfo?.playCount || 
+                                    track.info?.viewCount ||
+                                    null;
+
                     return {
                         track: track,
                         encoded: track.encoded,
@@ -352,7 +364,8 @@ class LavalinkService {
                         thumbnail: thumbnail,
                         author: track.info.author,
                         requestedBy: requester,
-                        source: track.info.sourceName || 'Unknown'
+                        source: track.info.sourceName || 'Unknown',
+                        viewCount: viewCount
                     };
                 });
 
