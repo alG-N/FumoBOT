@@ -1,4 +1,4 @@
-const { DAILY_QUESTS, WEEKLY_QUESTS, ACHIEVEMENTS } = require('../../Configuration/questConfig');
+const { DAILY_QUESTS, WEEKLY_QUESTS, ACHIEVEMENTS } = require('../../../Configuration/questConfig');
 const QuestProgressService = require('./QuestProgressService');
 
 class QuestValidationService {

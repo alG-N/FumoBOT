@@ -1,5 +1,5 @@
-const db = require('../../Core/Database/dbSetting');
-const { getWeekIdentifier } = require('../../Ultility/timeUtils');
+const db = require('../../../Core/Database/dbSetting');
+const { getWeekIdentifier } = require('../../../Ultility/timeUtils');
 
 class QuestProgressService {
     static async updateDailyProgress(userId, questId, increment = 1, goal) {

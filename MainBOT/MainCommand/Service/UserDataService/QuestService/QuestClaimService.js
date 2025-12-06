@@ -1,8 +1,8 @@
-const db = require('../../Core/Database/dbSetting');
-const { getWeekIdentifier } = require('../../Ultility/timeUtils');
+const db = require('../../../Core/Database/dbSetting');
+const { getWeekIdentifier } = require('../../../Ultility/timeUtils');
 const QuestProgressService = require('./QuestProgressService');
 const QuestRewardService = require('./QuestRewardService');
-const { DAILY_QUESTS, WEEKLY_QUESTS } = require('../../Configuration/questConfig');
+const { DAILY_QUESTS, WEEKLY_QUESTS } = require('../../../Configuration/questConfig');
 
 class QuestClaimService {
     static async claimDaily(userId) {

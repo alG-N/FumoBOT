@@ -1,5 +1,5 @@
 const { EmbedBuilder } = require('discord.js');
-const { formatNumber } = require('../../Ultility/formatting');
+const { formatNumber } = require('../../../Ultility/formatting');
 
 class QuestNotificationService {
     static async sendQuestCompleted(channel, userId, questName, rewards) {
