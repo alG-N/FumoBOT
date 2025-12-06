@@ -4,28 +4,42 @@
       "name": "Remilia(RARE)",
       "price": 30,
       "rarity": "RARE",
-      "stock": 2,
-      "picture": null
-    },
-    {
-      "name": "Youmu(RARE)",
-      "price": 35,
-      "rarity": "RARE",
       "stock": 4,
       "picture": null
     },
     {
-      "name": "BlueReimu(EXCLUSIVE)",
-      "price": 275000,
-      "rarity": "EXCLUSIVE",
+      "name": "Satori(EPIC)",
+      "price": 76,
+      "rarity": "EPIC",
+      "stock": 2,
+      "picture": null
+    },
+    {
+      "name": "TankReisen(OTHERWORLDLY)",
+      "price": 1000,
+      "rarity": "OTHERWORLDLY",
       "stock": 1,
       "picture": null
     },
     {
-      "name": "Mostima(CELESTIAL)",
-      "price": 12455000,
-      "rarity": "CELESTIAL",
+      "name": "Tenshi(MYTHICAL)",
+      "price": 97500,
+      "rarity": "MYTHICAL",
+      "stock": 2,
+      "picture": null
+    },
+    {
+      "name": "SkibidiToilet(???)",
+      "price": 5725000,
+      "rarity": "???",
       "stock": 1,
+      "picture": null
+    },
+    {
+      "name": "Ran(EPIC)",
+      "price": 76,
+      "rarity": "EPIC",
+      "stock": 2,
       "picture": null
     },
     {
@@ -34,21 +48,7 @@
       "rarity": "CELESTIAL",
       "stock": 1,
       "picture": null
-    },
-    {
-      "name": "ImSorryOfficerFumo(???)",
-      "price": 5415000,
-      "rarity": "???",
-      "stock": 1,
-      "picture": null
-    },
-    {
-      "name": "Tenshi(MYTHICAL)",
-      "price": 97500,
-      "rarity": "MYTHICAL",
-      "stock": 1,
-      "picture": null
     }
   ],
-  "resetTime": 1764957600000
+  "resetTime": 1764979200000
 }
