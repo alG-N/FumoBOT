@@ -67,6 +67,40 @@ class VotingService {
     hasUserVoted(queue, userId) {
         return queue.skipVotes.has(userId);
     }
+
+    startPriorityVote(queue, userId) {
+        queue.priorityVoting = true;
+        queue.priorityVotes = new Set([userId]);
+        return queue.priorityVotes.size;
+    }
+
+    addPriorityVote(queue, userId) {
+        if (!queue.priorityVoting) {
+            return { added: false, count: 0 };
+        }
+
+        if (queue.priorityVotes.has(userId)) {
+            return { added: false, count: queue.priorityVotes.size };
+        }
+
+        queue.priorityVotes.add(userId);
+        return { added: true, count: queue.priorityVotes.size };
+    }
+
+    hasEnoughPriorityVotes(queue) {
+        return queue.priorityVotes.size >= MIN_VOTES_REQUIRED;
+    }
+
+    isPriorityVoting(queue) {
+        return queue.priorityVoting;
+    }
+
+    endPriorityVoting(queue) {
+        queue.priorityVoting = false;
+        const voteCount = queue.priorityVotes?.size || 0;
+        queue.priorityVotes = new Set();
+        return voteCount;
+    }
 }
 
 module.exports = new VotingService();

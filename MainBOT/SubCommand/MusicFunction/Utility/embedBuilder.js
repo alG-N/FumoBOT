@@ -76,6 +76,41 @@ class EmbedBuilderUtility {
             .setFooter({ text: `Queued by ${requester.tag}`, iconURL: requester.displayAvatarURL() });
     }
 
+    buildPriorityQueuedEmbed(track, requester) {
+        const fields = [
+            { name: "Channel", value: track.author, inline: true },
+            { name: "Duration", value: fmtDur(track.lengthSeconds), inline: true },
+            { name: "Position", value: "⏭️ Next", inline: true }
+        ];
+
+        if (track.viewCount) {
+            fields.push({ name: "Views", value: formatViewCount(track.viewCount), inline: true });
+        }
+
+        return new EmbedBuilder()
+            .setColor(0xFBBF24)
+            .setTitle("⚡ Priority Track - Playing Next!")
+            .setDescription(`[${track.title}](${track.url})`)
+            .setThumbnail(track.thumbnail)
+            .addFields(fields)
+            .setFooter({ text: `Priority requested by ${requester.tag}`, iconURL: requester.displayAvatarURL() });
+    }
+
+    buildPriorityVoteEmbed(track, requester) {
+        const { MIN_VOTES_REQUIRED } = require('../Configuration/MusicConfig');
+        
+        return new EmbedBuilder()
+            .setColor(0xFBBF24)
+            .setTitle("🗳️ Priority Vote")
+            .setDescription(`**${requester.tag}** wants to play this track next!\n\n[${track.title}](${track.url})\n\nVote below! Need at least **${MIN_VOTES_REQUIRED}** votes to approve.`)
+            .setThumbnail(track.thumbnail)
+            .addFields(
+                { name: "Channel", value: track.author, inline: true },
+                { name: "Duration", value: fmtDur(track.lengthSeconds), inline: true }
+            )
+            .setTimestamp();
+    }
+
     buildInfoEmbed(title, desc) {
         return new EmbedBuilder()
             .setColor(0xFBBF24)
