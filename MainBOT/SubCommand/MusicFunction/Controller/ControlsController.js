@@ -13,7 +13,7 @@ const { checkSameVoiceChannel } = require('../Middleware/voiceChannelCheck');
 const { MIN_VOTES_REQUIRED, VOLUME_STEP } = require('../Configuration/MusicConfig');
 
 class ControlsController {
-    buildControlRows(guildId, isPaused, isLooped, trackUrl) {
+    buildControlRows(guildId, isPaused, isLooped, isShuffled, trackUrl) {
         const mainRow = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId(`pause:${guildId}`)
@@ -47,6 +47,10 @@ class ControlsController {
                 .setLabel("🔊 +")
                 .setStyle(ButtonStyle.Secondary),
             new ButtonBuilder()
+                .setCustomId(`shuffle:${guildId}`)
+                .setLabel(isShuffled ? "🔀 Unshuffle" : "🔀 Shuffle")
+                .setStyle(isShuffled ? ButtonStyle.Success : ButtonStyle.Secondary),
+            new ButtonBuilder()
                 .setLabel("🔗 Link")
                 .setStyle(ButtonStyle.Link)
                 .setURL(trackUrl || "https://youtube.com")
@@ -62,6 +66,7 @@ class ControlsController {
             skip: async (i, gid) => await this.handleSkip(i, gid),
             list: async (i, gid) => await this.handleList(i, gid),
             loop: async (i, gid) => await this.handleLoop(i, gid),
+            shuffle: async (i, gid) => await this.handleShuffle(i, gid),
             volDown: async (i, gid) => await this.handleVolumeDown(i, gid),
             volUp: async (i, gid) => await this.handleVolumeUp(i, gid),
             vote_skip: async (i, gid) => await this.handleVoteSkip(i, gid),
@@ -111,12 +116,13 @@ class ControlsController {
                 player.volume,
                 currentTrack.requestedBy,
                 player,
-                queueService.isLooping(guildId)
+                queueService.isLooping(guildId),
+                queueService.isShuffling(guildId)
             );
 
             const result = await interactionHandler.safeEdit(queueService.getNowMessage(guildId), {
                 embeds: [embed],
-                components: this.buildControlRows(guildId, true, queueService.isLooping(guildId), currentTrack.url)
+                components: this.buildControlRows(guildId, true, queueService.isLooping(guildId), queueService.isShuffling(guildId), currentTrack.url)
             });
 
             if (result.fallback) {
@@ -142,12 +148,13 @@ class ControlsController {
                 player.volume,
                 currentTrack.requestedBy,
                 player,
-                queueService.isLooping(guildId)
+                queueService.isLooping(guildId),
+                queueService.isShuffling(guildId)
             );
 
             const result = await interactionHandler.safeEdit(queueService.getNowMessage(guildId), {
                 embeds: [embed],
-                components: this.buildControlRows(guildId, false, queueService.isLooping(guildId), currentTrack.url)
+                components: this.buildControlRows(guildId, false, queueService.isLooping(guildId), queueService.isShuffling(guildId), currentTrack.url)
             });
 
             if (result.fallback) {
@@ -311,12 +318,58 @@ class ControlsController {
             player.volume,
             currentTrack.requestedBy,
             player,
-            isLooped
+            isLooped,
+            queueService.isShuffling(guildId)
         );
 
         const result = await interactionHandler.safeEdit(queueService.getNowMessage(guildId), {
             embeds: [embed],
-            components: this.buildControlRows(guildId, player.paused, isLooped, currentTrack.url)
+            components: this.buildControlRows(guildId, player.paused, isLooped, queueService.isShuffling(guildId), currentTrack.url)
+        });
+
+        if (result.fallback) {
+            queueService.setNowMessage(guildId, result.message);
+        }
+
+        await interactionHandler.safeDeferUpdate(interaction);
+    }
+
+    async handleShuffle(interaction, guildId) {
+        if (!await checkSameVoiceChannel(interaction, voiceService.getChannelId(guildId))) {
+            return;
+        }
+
+        const player = lavalinkService.getPlayer(guildId);
+        if (!player) {
+            return await interactionHandler.safeReply(interaction, { ephemeral: true, content: "⚠️ Not playing." });
+        }
+
+        const isShuffled = queueService.toggleShuffle(guildId);
+        logger.log(`Shuffle toggled: ${isShuffled}`, interaction);
+
+        const currentTrack = queueService.getCurrentTrack(guildId);
+        if (!currentTrack) return;
+
+        const embed = embedBuilder.buildNowPlayingEmbed(
+            {
+                title: currentTrack.title,
+                url: currentTrack.url,
+                lengthSeconds: currentTrack.lengthSeconds,
+                thumbnail: currentTrack.thumbnail,
+                author: currentTrack.author,
+                requestedBy: currentTrack.requestedBy,
+                source: currentTrack.source
+            },
+            player.volume,
+            currentTrack.requestedBy,
+            player,
+            queueService.isLooping(guildId),
+            isShuffled
+        );
+
+        const result = await interactionHandler.safeEdit(queueService.getNowMessage(guildId), {
+            embeds: [embed],
+            components: this.buildControlRows(guildId, player.paused, queueService.isLooping(guildId), isShuffled, currentTrack.url)
         });
 
         if (result.fallback) {
@@ -365,12 +418,13 @@ class ControlsController {
             newVolume,
             currentTrack.requestedBy,
             player,
-            queueService.isLooping(guildId)
+            queueService.isLooping(guildId),
+            queueService.isShuffling(guildId)
         );
 
         const result = await interactionHandler.safeEdit(queueService.getNowMessage(guildId), {
             embeds: [embed],
-            components: this.buildControlRows(guildId, player.paused, queueService.isLooping(guildId), currentTrack.url)
+            components: this.buildControlRows(guildId, player.paused, queueService.isLooping(guildId), queueService.isShuffling(guildId), currentTrack.url)
         });
 
         if (result.fallback) {

@@ -29,13 +29,21 @@ class QueueService {
     addTrack(guildId, track) {
         const queue = this.getOrCreateQueue(guildId);
         queue.tracks.push(track);
+        if (!queue.shuffle) {
+            queue.originalTracks.push(track);
+        }
         return queue.tracks.length;
     }
 
     removeTrack(guildId, index) {
         const queue = queueRepository.get(guildId);
         if (queue && queue.tracks[index]) {
-            return queue.tracks.splice(index, 1)[0];
+            const removed = queue.tracks.splice(index, 1)[0];
+            const originalIndex = queue.originalTracks.findIndex(t => t.url === removed.url);
+            if (originalIndex !== -1) {
+                queue.originalTracks.splice(originalIndex, 1);
+            }
+            return removed;
         }
         return null;
     }
@@ -44,6 +52,7 @@ class QueueService {
         const queue = queueRepository.get(guildId);
         if (queue) {
             queue.tracks = [];
+            queue.originalTracks = [];
             queue.currentTrack = null;
         }
     }
@@ -81,6 +90,48 @@ class QueueService {
     setLoop(guildId, enabled) {
         const queue = this.getOrCreateQueue(guildId);
         queue.loop = enabled;
+    }
+
+    toggleShuffle(guildId) {
+        const queue = this.getOrCreateQueue(guildId);
+        queue.shuffle = !queue.shuffle;
+
+        if (queue.shuffle) {
+            queue.originalTracks = [...queue.tracks];
+            queue.tracks = this.shuffleArray([...queue.tracks]);
+        } else {
+            queue.tracks = [...queue.originalTracks];
+        }
+
+        return queue.shuffle;
+    }
+
+    isShuffling(guildId) {
+        const queue = queueRepository.get(guildId);
+        return queue?.shuffle || false;
+    }
+
+    setShuffle(guildId, enabled) {
+        const queue = this.getOrCreateQueue(guildId);
+        if (queue.shuffle === enabled) return;
+
+        queue.shuffle = enabled;
+
+        if (enabled) {
+            queue.originalTracks = [...queue.tracks];
+            queue.tracks = this.shuffleArray([...queue.tracks]);
+        } else {
+            queue.tracks = [...queue.originalTracks];
+        }
+    }
+
+    shuffleArray(array) {
+        const shuffled = [...array];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        return shuffled;
     }
 
     setInactivityTimer(guildId, callback) {
@@ -154,7 +205,9 @@ class QueueService {
         PlaybackController.unbindPlayerEvents(guildId);
         
         queue.loop = false;
+        queue.shuffle = false;
         queue.tracks = [];
+        queue.originalTracks = [];
         queue.currentTrack = null;
     }
 
