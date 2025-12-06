@@ -69,7 +69,15 @@ class LeaderboardUIService {
         for (const [category, rows] of Object.entries(rankings)) {
             if (!rows || rows.length === 0) continue;
 
+            // Fix: Use uppercase to match the config keys
             const categoryData = LEADERBOARD_CONFIG.CATEGORIES[category.toUpperCase()];
+            
+            // Skip if category doesn't exist in config
+            if (!categoryData) {
+                console.warn(`[Leaderboard] Category not found in config: ${category}`);
+                continue;
+            }
+
             const entries = await Promise.all(
                 rows.slice(0, 3).map(async (row, index) => {
                     const rank = index + 1;
