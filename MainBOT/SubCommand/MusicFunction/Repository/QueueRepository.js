@@ -16,6 +16,8 @@ class QueueRepository {
                 skipVoting: false,
                 skipVotingTimeout: null,
                 skipVotingMsg: null,
+                priorityVotes: new Set(),
+                priorityVoting: false,
                 inactivityTimer: null,
                 _vcMonitor: null,
                 _eventsBound: false

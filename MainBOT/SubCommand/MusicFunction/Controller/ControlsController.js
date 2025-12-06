@@ -200,7 +200,7 @@ class ControlsController {
                 votingService.startSkipVote(queue, interaction.user.id);
 
                 const voteMsg = await interactionHandler.safeReply(interaction, {
-                    content: `⏭️ Skip requested! React below to vote. Need at least ${MIN_VOTES_REQUIRED} votes to skip.`,
+                    content: `⏭️ Skip requested by ${interaction.user.tag}! React below to vote. Need at least ${MIN_VOTES_REQUIRED} votes to skip.`,
                     components: [new ActionRowBuilder().addComponents(
                         new ButtonBuilder()
                             .setCustomId("vote_skip")
@@ -470,7 +470,7 @@ class ControlsController {
 
         await interactionHandler.safeReply(interaction, {
             ephemeral: true,
-            content: "Your vote to skip has been counted."
+            content: `Your vote to skip has been counted. (${result.count}/${MIN_VOTES_REQUIRED})`
         });
 
         if (votingService.hasEnoughVotes(queue)) {

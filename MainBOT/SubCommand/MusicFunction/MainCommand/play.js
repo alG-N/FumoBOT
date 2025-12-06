@@ -4,6 +4,7 @@ const queueService = require('../Service/QueueService');
 const voiceService = require('../Service/VoiceService');
 const trackResolverService = require('../Service/TrackResolverService');
 const lavalinkService = require('../Service/LavalinkService');
+const votingService = require('../Service/VotingService');
 
 const embedBuilder = require('../Utility/embedBuilder');
 const logger = require('../Utility/logger');
@@ -11,7 +12,7 @@ const logger = require('../Utility/logger');
 const { checkVoiceChannel, checkVoicePermissions } = require('../Middleware/voiceChannelCheck');
 const interactionHandler = require('../Middleware/interactionHandler');
 
-const { MAX_TRACK_DURATION, CONFIRMATION_TIMEOUT } = require('../Configuration/MusicConfig');
+const { MAX_TRACK_DURATION, CONFIRMATION_TIMEOUT, MIN_VOTES_REQUIRED, SKIP_VOTE_TIMEOUT } = require('../Configuration/MusicConfig');
 
 const PlaybackController = require('../Controller/PlaybackController');
 
@@ -24,6 +25,9 @@ module.exports = {
         )
         .addBooleanOption(o =>
             o.setName("shuffle").setDescription("Shuffle the playlist (only for playlists)").setRequired(false)
+        )
+        .addBooleanOption(o =>
+            o.setName("priorityfirst").setDescription("Request this song to play next (requires voting if 3+ listeners)").setRequired(false)
         ),
 
     async execute(interaction) {
@@ -41,6 +45,7 @@ module.exports = {
 
         const query = interaction.options.getString("query");
         const shouldShuffle = interaction.options.getBoolean("shuffle") || false;
+        const priorityFirst = interaction.options.getBoolean("priorityfirst") || false;
         const guildId = interaction.guild.id;
 
         await interaction.deferReply();
@@ -48,13 +53,18 @@ module.exports = {
         const isPlaylist = trackResolverService.isPlaylistUrl(query);
 
         if (isPlaylist) {
+            if (priorityFirst) {
+                return interaction.editReply({
+                    embeds: [embedBuilder.buildErrorEmbed("❌ Priority First is only available for single tracks, not playlists.")],
+                });
+            }
             return await this.handlePlaylist(interaction, query, guildId, shouldShuffle);
         } else {
-            return await this.handleSingleTrack(interaction, query, guildId);
+            return await this.handleSingleTrack(interaction, query, guildId, priorityFirst);
         }
     },
 
-    async handleSingleTrack(interaction, query, guildId) {
+    async handleSingleTrack(interaction, query, guildId, priorityFirst) {
         let trackData;
         try {
             logger.log(`Resolving track for query: ${query}`, interaction);
@@ -91,11 +101,32 @@ module.exports = {
 
             const wasPlaying = player.track !== null;
 
-            const position = queueService.addTrack(guildId, trackData);
-            console.log(`[Play Command] Track added at position ${position}`);
+            if (priorityFirst) {
+                const listeners = voiceService.getListeners(guildId, interaction.guild);
+                
+                if (listeners.length >= 3) {
+                    const confirmed = await this.handlePriorityVote(interaction, trackData, guildId);
+                    if (!confirmed) {
+                        const position = queueService.addTrack(guildId, trackData);
+                        const queuedEmbed = embedBuilder.buildQueuedEmbed(trackData, position, interaction.user);
+                        await interaction.editReply({ embeds: [queuedEmbed], components: [] });
+                        logger.log(`Priority denied, track added to back of queue`, interaction);
+                        return;
+                    }
+                }
 
-            const queuedEmbed = embedBuilder.buildQueuedEmbed(trackData, position, interaction.user);
-            await interaction.editReply({ embeds: [queuedEmbed], components: [] });
+                queueService.addTrackToFront(guildId, trackData);
+                logger.log(`Track added to front of queue (priority)`, interaction);
+
+                const priorityEmbed = embedBuilder.buildPriorityQueuedEmbed(trackData, interaction.user);
+                await interaction.editReply({ embeds: [priorityEmbed], components: [] });
+            } else {
+                const position = queueService.addTrack(guildId, trackData);
+                console.log(`[Play Command] Track added at position ${position}`);
+
+                const queuedEmbed = embedBuilder.buildQueuedEmbed(trackData, position, interaction.user);
+                await interaction.editReply({ embeds: [queuedEmbed], components: [] });
+            }
 
             if (!wasPlaying) {
                 console.log(`[Play Command] Nothing was playing, starting playback...`);
@@ -118,6 +149,92 @@ module.exports = {
             });
             return;
         }
+    },
+
+    async handlePriorityVote(interaction, trackData, guildId) {
+        logger.log(`Priority vote requested for: ${trackData.title}`, interaction);
+
+        const voteRow = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId("priority_yes").setLabel("✅ Yes").setStyle(ButtonStyle.Success),
+            new ButtonBuilder().setCustomId("priority_no").setLabel("❌ No").setStyle(ButtonStyle.Danger)
+        );
+
+        const voteEmbed = embedBuilder.buildPriorityVoteEmbed(trackData, interaction.user);
+        
+        const voteMsg = await interaction.editReply({
+            embeds: [voteEmbed],
+            components: [voteRow]
+        });
+
+        const queue = queueService.getOrCreateQueue(guildId);
+        votingService.startPriorityVote(queue, interaction.user.id);
+
+        const filter = i => ["priority_yes", "priority_no"].includes(i.customId);
+
+        const collector = voteMsg.createMessageComponentCollector({
+            filter,
+            time: SKIP_VOTE_TIMEOUT
+        });
+
+        return new Promise((resolve) => {
+            const timeout = setTimeout(async () => {
+                collector.stop();
+                const hasEnough = votingService.hasEnoughPriorityVotes(queue);
+                votingService.endPriorityVoting(queue);
+
+                if (hasEnough) {
+                    await voteMsg.edit({
+                        embeds: [embedBuilder.buildInfoEmbed("✅ Priority Approved", `**${trackData.title}** will play next!`)],
+                        components: []
+                    });
+                    logger.log(`Priority vote passed`, interaction);
+                    resolve(true);
+                } else {
+                    await voteMsg.edit({
+                        embeds: [embedBuilder.buildInfoEmbed("❌ Priority Denied", "Not enough votes. Track added to queue normally.")],
+                        components: []
+                    });
+                    logger.log(`Priority vote failed`, interaction);
+                    resolve(false);
+                }
+            }, SKIP_VOTE_TIMEOUT);
+
+            collector.on('collect', async (i) => {
+                if (i.customId === "priority_yes") {
+                    const result = votingService.addPriorityVote(queue, i.user.id);
+                    
+                    if (result.added) {
+                        await interactionHandler.safeReply(i, {
+                            ephemeral: true,
+                            content: `✅ Your vote has been counted! (${result.count}/${MIN_VOTES_REQUIRED})`
+                        });
+
+                        if (votingService.hasEnoughPriorityVotes(queue)) {
+                            clearTimeout(timeout);
+                            collector.stop();
+                            votingService.endPriorityVoting(queue);
+
+                            await voteMsg.edit({
+                                embeds: [embedBuilder.buildInfoEmbed("✅ Priority Approved", `**${trackData.title}** will play next!`)],
+                                components: []
+                            });
+                            logger.log(`Priority vote passed`, interaction);
+                            resolve(true);
+                        }
+                    } else {
+                        await interactionHandler.safeReply(i, {
+                            ephemeral: true,
+                            content: "You already voted!"
+                        });
+                    }
+                } else if (i.customId === "priority_no") {
+                    await interactionHandler.safeReply(i, {
+                        ephemeral: true,
+                        content: "❌ You voted against priority."
+                    });
+                }
+            });
+        });
     },
 
     async handlePlaylist(interaction, query, guildId, shouldShuffle) {

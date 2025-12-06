@@ -29,10 +29,15 @@ class QueueService {
     addTrack(guildId, track) {
         const queue = this.getOrCreateQueue(guildId);
         queue.tracks.push(track);
-        if (!queue.shuffle) {
-            queue.originalTracks.push(track);
-        }
+        queue.originalTracks.push(track);
         return queue.tracks.length;
+    }
+
+    addTrackToFront(guildId, track) {
+        const queue = this.getOrCreateQueue(guildId);
+        queue.tracks.unshift(track);
+        queue.originalTracks.unshift(track);
+        return 1;
     }
 
     removeTrack(guildId, index) {
@@ -68,6 +73,14 @@ class QueueService {
         }
 
         queue.currentTrack = queue.tracks.shift() || null;
+        
+        if (queue.currentTrack) {
+            const originalIndex = queue.originalTracks.findIndex(t => t.url === queue.currentTrack.url);
+            if (originalIndex !== -1) {
+                queue.originalTracks.splice(originalIndex, 1);
+            }
+        }
+
         return queue.currentTrack;
     }
 
@@ -97,10 +110,10 @@ class QueueService {
         queue.shuffle = !queue.shuffle;
 
         if (queue.shuffle) {
-            queue.originalTracks = [...queue.tracks];
             queue.tracks = this.shuffleArray([...queue.tracks]);
         } else {
-            queue.tracks = [...queue.originalTracks];
+            const currentUrls = queue.tracks.map(t => t.url);
+            queue.tracks = queue.originalTracks.filter(t => currentUrls.includes(t.url));
         }
 
         return queue.shuffle;
@@ -118,10 +131,10 @@ class QueueService {
         queue.shuffle = enabled;
 
         if (enabled) {
-            queue.originalTracks = [...queue.tracks];
             queue.tracks = this.shuffleArray([...queue.tracks]);
         } else {
-            queue.tracks = [...queue.originalTracks];
+            const currentUrls = queue.tracks.map(t => t.url);
+            queue.tracks = queue.originalTracks.filter(t => currentUrls.includes(t.url));
         }
     }
 
