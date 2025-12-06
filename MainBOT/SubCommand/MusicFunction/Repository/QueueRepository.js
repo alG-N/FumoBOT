@@ -7,9 +7,11 @@ class QueueRepository {
         if (!this.queues.has(guildId)) {
             this.queues.set(guildId, {
                 tracks: [],
+                originalTracks: [],
                 currentTrack: null,
                 nowMessage: null,
                 loop: false,
+                shuffle: false,
                 skipVotes: new Set(),
                 skipVoting: false,
                 skipVotingTimeout: null,

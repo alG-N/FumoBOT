@@ -9,6 +9,7 @@ module.exports = {
     ],
     clientName: 'MusicBot',
     defaultSearchPlatform: 'ytsearch',
+    fallbackSearchPlatform: 'scsearch',
     playerOptions: {
         volume: 100,
         selfDeafen: true,

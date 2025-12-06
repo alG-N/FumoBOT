@@ -60,10 +60,11 @@ class PlaybackController {
                 player.volume,
                 currentTrack.requestedBy,
                 player,
-                queueService.isLooping(guildId)
+                queueService.isLooping(guildId),
+                queueService.isShuffling(guildId)
             );
 
-            const rows = ControlsController.buildControlRows(guildId, player.paused, queueService.isLooping(guildId), currentTrack.url);
+            const rows = ControlsController.buildControlRows(guildId, player.paused, queueService.isLooping(guildId), queueService.isShuffling(guildId), currentTrack.url);
 
             console.log(`[PlaybackController] Sending now playing message...`);
             const nowMessage = await interaction.channel.send({ embeds: [embed], components: rows });
@@ -156,7 +157,6 @@ class PlaybackController {
         
         const player = lavalinkService.getPlayer(guildId);
         if (player) {
-            // Remove all listeners for these events
             player.removeAllListeners('start');
             player.removeAllListeners('end');
             player.removeAllListeners('exception');

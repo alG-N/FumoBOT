@@ -215,7 +215,7 @@ class LavalinkService {
         console.log(`[Lavalink] Using node: ${node.name}, State: ${node.state}`);
 
         try {
-            const result = await node.rest.resolve(searchQuery);
+            let result = await node.rest.resolve(searchQuery);
 
             console.log(`[Lavalink] Raw result:`, {
                 loadType: result?.loadType,
@@ -225,19 +225,22 @@ class LavalinkService {
                 trackCount: result?.data?.tracks?.length || (Array.isArray(result?.data) ? result?.data.length : 0)
             });
 
-            if (!result) {
-                console.error('[Lavalink] No result returned');
-                throw new Error('NO_RESULTS');
-            }
+            if (!result || result.loadType === 'error' || result.loadType === 'empty') {
+                console.log('[Lavalink] YouTube search failed, trying SoundCloud fallback...');
+                
+                const fallbackQuery = /^https?:\/\//.test(query) 
+                    ? query 
+                    : `${lavalinkConfig.fallbackSearchPlatform}:${query}`;
+                
+                console.log(`[Lavalink] Fallback searching: ${fallbackQuery}`);
+                result = await node.rest.resolve(fallbackQuery);
 
-            if (result.loadType === 'error') {
-                console.error('[Lavalink] Load error:', result.data);
-                throw new Error(result.data?.message || 'LOAD_FAILED');
-            }
+                if (!result || result.loadType === 'error' || result.loadType === 'empty') {
+                    console.error('[Lavalink] Both YouTube and SoundCloud search failed');
+                    throw new Error('NO_RESULTS');
+                }
 
-            if (result.loadType === 'empty') {
-                console.log(`[Lavalink] Empty result for: ${searchQuery}`);
-                throw new Error('NO_RESULTS');
+                console.log('[Lavalink] ✅ SoundCloud fallback successful');
             }
 
             let track;
@@ -272,7 +275,7 @@ class LavalinkService {
                 thumbnail: thumbnail,
                 author: track.info.author,
                 requestedBy: requester,
-                source: track.info.sourceName || 'YouTube'
+                source: track.info.sourceName || 'Unknown'
             };
 
         } catch (error) {
@@ -315,7 +318,7 @@ class LavalinkService {
         }
 
         try {
-            const result = await node.rest.resolve(searchQuery);
+            let result = await node.rest.resolve(searchQuery);
 
             console.log(`[Lavalink] Playlist result:`, {
                 loadType: result?.loadType,
@@ -324,7 +327,13 @@ class LavalinkService {
             });
 
             if (!result || result.loadType === 'error' || result.loadType === 'empty') {
-                throw new Error('NO_RESULTS');
+                console.log('[Lavalink] YouTube playlist search failed, trying SoundCloud fallback...');
+                
+                result = await node.rest.resolve(query);
+
+                if (!result || result.loadType === 'error' || result.loadType === 'empty') {
+                    throw new Error('NO_RESULTS');
+                }
             }
 
             if (result.loadType === 'playlist') {
@@ -343,7 +352,7 @@ class LavalinkService {
                         thumbnail: thumbnail,
                         author: track.info.author,
                         requestedBy: requester,
-                        source: track.info.sourceName || 'YouTube'
+                        source: track.info.sourceName || 'Unknown'
                     };
                 });
 

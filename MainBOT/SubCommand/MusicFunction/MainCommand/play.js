@@ -21,6 +21,9 @@ module.exports = {
         .setDescription("Play a song or playlist in your voice channel")
         .addStringOption(o =>
             o.setName("query").setDescription("Song name, YouTube URL, or Playlist URL").setRequired(true)
+        )
+        .addBooleanOption(o =>
+            o.setName("shuffle").setDescription("Shuffle the playlist (only for playlists)").setRequired(false)
         ),
 
     async execute(interaction) {
@@ -37,6 +40,7 @@ module.exports = {
         if (!await checkVoicePermissions(interaction)) return;
 
         const query = interaction.options.getString("query");
+        const shouldShuffle = interaction.options.getBoolean("shuffle") || false;
         const guildId = interaction.guild.id;
 
         await interaction.deferReply();
@@ -44,7 +48,7 @@ module.exports = {
         const isPlaylist = trackResolverService.isPlaylistUrl(query);
 
         if (isPlaylist) {
-            return await this.handlePlaylist(interaction, query, guildId);
+            return await this.handlePlaylist(interaction, query, guildId, shouldShuffle);
         } else {
             return await this.handleSingleTrack(interaction, query, guildId);
         }
@@ -116,7 +120,7 @@ module.exports = {
         }
     },
 
-    async handlePlaylist(interaction, query, guildId) {
+    async handlePlaylist(interaction, query, guildId, shouldShuffle) {
         let playlistData;
         try {
             logger.log(`Resolving playlist for query: ${query}`, interaction);
@@ -133,7 +137,7 @@ module.exports = {
             });
         }
 
-        const MAX_PLAYLIST_SIZE = 100;
+        const MAX_PLAYLIST_SIZE = 500;
         if (playlistData.trackCount > MAX_PLAYLIST_SIZE) {
             playlistData.tracks = playlistData.tracks.slice(0, MAX_PLAYLIST_SIZE);
             playlistData.trackCount = MAX_PLAYLIST_SIZE;
@@ -156,6 +160,11 @@ module.exports = {
             for (const track of playlistData.tracks) {
                 queueService.addTrack(guildId, track);
                 addedCount++;
+            }
+
+            if (shouldShuffle) {
+                queueService.setShuffle(guildId, true);
+                logger.log(`Playlist shuffled on add`, interaction);
             }
 
             logger.log(`Added ${addedCount} tracks from playlist`, interaction);

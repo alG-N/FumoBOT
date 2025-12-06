@@ -2,7 +2,7 @@ const { EmbedBuilder } = require("discord.js");
 const { fmtDur } = require('./formatters');
 
 class EmbedBuilderUtility {
-    buildNowPlayingEmbed(track, volumePct, requester, player, isLooped) {
+    buildNowPlayingEmbed(track, volumePct, requester, player, isLooped, isShuffled) {
         const queueService = require('../Service/QueueService');
         const guildId = player.guildId;
         const queueList = queueService.getQueueList(guildId);
@@ -15,11 +15,12 @@ class EmbedBuilderUtility {
             { name: "📜 Queue", value: `\`${queueList.length}\` in line`, inline: true },
             { name: "🔊 Volume", value: `\`${Math.round(volumePct)}%\``, inline: true },
             { name: "🔁 Loop", value: isLooped ? "**Enabled**" : "Not Enabled", inline: true },
+            { name: "🔀 Shuffle", value: isShuffled ? "**Enabled**" : "Not Enabled", inline: true },
             { name: "⏭️ Next Up", value: nextTrack ? `[${nextTrack.title}](${nextTrack.url})` : "No Next Up", inline: true }
         ];
 
         return new EmbedBuilder()
-            .setColor(isLooped ? 0xF472B6 : 0x00C2FF)
+            .setColor(isLooped ? 0xF472B6 : (isShuffled ? 0x8B5CF6 : 0x00C2FF))
             .setAuthor({
                 name: "🇳 🇴 🇼  🇵 🇱 🇦 🇾 🇮 🇳 🇬",
                 iconURL: "https://cdn-icons-png.flaticon.com/512/727/727240.png"
