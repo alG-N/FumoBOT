@@ -1,4 +1,5 @@
 const { EmbedBuilder } = require('discord.js');
+const { checkRestrictions } = require('../Middleware/restrictions');
 
 const ERROR_CHANNEL_ID = '1367886953286205530';
 let errorCount = 0;
@@ -80,7 +81,9 @@ function resetErrorCount() {
 async function handleErrorStats(message) {
     const ADMIN_IDS = ['1128296349566251068', '1362450043939979378'];
     
-    if (!ADMIN_IDS.includes(message.author.id)) return;
+    if (!ADMIN_IDS.includes(message.author.id)) {
+        return message.reply('❌ You do not have permission to view error statistics.');
+    }
 
     const embed = new EmbedBuilder()
         .setTitle('🟠 Error Statistics')
@@ -105,9 +108,14 @@ function initializeErrorHandlers(client) {
     });
 
     client.on('messageCreate', async (message) => {
-        if (message.content.trim() === '.errorstats') {
-            await handleErrorStats(message);
+        if (message.author.bot) return;
+        if (message.content.trim() !== '.errorstats') return;
+        const restriction = checkRestrictions(message.author.id);
+        if (restriction.blocked) {
+            return message.reply({ embeds: [restriction.embed] });
         }
+        
+        await handleErrorStats(message);
     });
 
     console.log('✅ Error handlers initialized');
