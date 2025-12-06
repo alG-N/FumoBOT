@@ -1,7 +1,7 @@
 {
   "1128296349566251068": {
     "normal": {
-      "rollCount": 4,
+      "rollCount": 11,
       "autoSell": true,
       "startTime": 1764840683301,
       "bestFumo": {
@@ -11,7 +11,7 @@
       },
       "bestFumoAt": "12/4/2025, 5:03:15 PM",
       "bestFumoRoll": 1,
-      "specialFumoCount": 1011,
+      "specialFumoCount": 1015,
       "specialFumoFirstAt": "12/4/2025, 4:33:38 PM",
       "specialFumoFirstRoll": 3
     },
@@ -35,7 +35,7 @@
   },
   "845274868697661440": {
     "normal": {
-      "rollCount": 4,
+      "rollCount": 11,
       "autoSell": false,
       "startTime": 1764929355312,
       "bestFumo": {
@@ -45,24 +45,24 @@
       },
       "bestFumoAt": "12/5/2025, 6:18:45 PM",
       "bestFumoRoll": 37,
-      "specialFumoCount": 548,
+      "specialFumoCount": 552,
       "specialFumoFirstAt": "12/5/2025, 5:09:29 PM",
       "specialFumoFirstRoll": 1
     },
     "event": {
-      "rollCount": 8,
+      "rollCount": 22,
       "autoSell": false,
       "startTime": 1765021555985,
-      "totalFumosRolled": 7200,
+      "totalFumosRolled": 8600,
       "totalCoinsFromSales": 0,
       "bestFumo": {
-        "name": "Fraudkuna(???)",
+        "name": "Go/jo(???)",
         "rarity": "???",
-        "picture": "https://i.ebayimg.com/images/g/JEsAAOSwxOBguJZG/s-l1200.webp"
+        "picture": "https://m.media-amazon.com/images/I/41PQuj80tDS._AC_UF894,1000_QL80_.jpg"
       },
-      "bestFumoAt": "12/6/2025, 6:47:26 PM",
-      "bestFumoRoll": 4,
-      "specialFumoCount": 2,
+      "bestFumoAt": "12/6/2025, 7:27:22 PM",
+      "bestFumoRoll": 13,
+      "specialFumoCount": 3,
       "specialFumoFirstAt": "12/6/2025, 6:47:26 PM",
       "specialFumoFirstRoll": 4
     }
