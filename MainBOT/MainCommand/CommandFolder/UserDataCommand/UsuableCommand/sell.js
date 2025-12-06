@@ -1,4 +1,4 @@
-const SellService = require('../../Service/UserDataService/SellService/SellService');
+const SellService = require('../../../Service/UserDataService/SellService/SellService');
 
 module.exports = (client) => {
     client.on('messageCreate', async message => {
