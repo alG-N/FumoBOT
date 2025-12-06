@@ -10,7 +10,7 @@ const logger = require('../Utility/logger');
 const interactionHandler = require('../Middleware/interactionHandler');
 const { checkSameVoiceChannel } = require('../Middleware/voiceChannelCheck');
 
-const { MIN_VOTES_REQUIRED, VOLUME_STEP } = require('../Configuration/MusicConfig');
+const { MIN_VOTES_REQUIRED, VOLUME_STEP, TRACK_TRANSITION_DELAY } = require('../Configuration/MusicConfig');
 
 class ControlsController {
     buildControlRows(guildId, isPaused, isLooped, isShuffled, trackUrl) {
@@ -111,7 +111,8 @@ class ControlsController {
                     thumbnail: currentTrack.thumbnail,
                     author: currentTrack.author,
                     requestedBy: currentTrack.requestedBy,
-                    source: currentTrack.source
+                    source: currentTrack.source,
+                    viewCount: currentTrack.viewCount
                 },
                 player.volume,
                 currentTrack.requestedBy,
@@ -143,7 +144,8 @@ class ControlsController {
                     thumbnail: currentTrack.thumbnail,
                     author: currentTrack.author,
                     requestedBy: currentTrack.requestedBy,
-                    source: currentTrack.source
+                    source: currentTrack.source,
+                    viewCount: currentTrack.viewCount
                 },
                 player.volume,
                 currentTrack.requestedBy,
@@ -222,7 +224,11 @@ class ControlsController {
                         logger.log(`Track skipped by vote`, interaction);
                         
                         if (nextTrack) {
-                            await player.playTrack({ track: { encoded: nextTrack.track.encoded } });
+                            await new Promise(resolve => setTimeout(resolve, TRACK_TRANSITION_DELAY));
+                            const playerCheck = lavalinkService.getPlayer(guildId);
+                            if (playerCheck) {
+                                await player.playTrack({ track: { encoded: nextTrack.track.encoded } });
+                            }
                         }
                     } else {
                         await votingMsg.edit({ content: "⏭️ Not enough votes to skip.", components: [] });
@@ -246,7 +252,11 @@ class ControlsController {
                 await interactionHandler.safeReply(interaction, { ephemeral: true, content: "⏭️ Skipped." });
                 
                 if (nextTrack) {
-                    await player.playTrack({ track: { encoded: nextTrack.track.encoded } });
+                    await new Promise(resolve => setTimeout(resolve, TRACK_TRANSITION_DELAY));
+                    const playerCheck = lavalinkService.getPlayer(guildId);
+                    if (playerCheck) {
+                        await player.playTrack({ track: { encoded: nextTrack.track.encoded } });
+                    }
                 }
             } else {
                 await interactionHandler.safeReply(interaction, { ephemeral: true, content: "⚠️ Nothing to skip." });
@@ -313,7 +323,8 @@ class ControlsController {
                 thumbnail: currentTrack.thumbnail,
                 author: currentTrack.author,
                 requestedBy: currentTrack.requestedBy,
-                source: currentTrack.source
+                source: currentTrack.source,
+                viewCount: currentTrack.viewCount
             },
             player.volume,
             currentTrack.requestedBy,
@@ -358,7 +369,8 @@ class ControlsController {
                 thumbnail: currentTrack.thumbnail,
                 author: currentTrack.author,
                 requestedBy: currentTrack.requestedBy,
-                source: currentTrack.source
+                source: currentTrack.source,
+                viewCount: currentTrack.viewCount
             },
             player.volume,
             currentTrack.requestedBy,
@@ -413,7 +425,8 @@ class ControlsController {
                 thumbnail: currentTrack.thumbnail,
                 author: currentTrack.author,
                 requestedBy: currentTrack.requestedBy,
-                source: currentTrack.source
+                source: currentTrack.source,
+                viewCount: currentTrack.viewCount
             },
             newVolume,
             currentTrack.requestedBy,
@@ -471,7 +484,11 @@ class ControlsController {
                 await votingMsg.edit({ content: "⏭️ Track skipped by vote.", components: [] });
                 
                 if (nextTrack) {
-                    await player.playTrack({ track: { encoded: nextTrack.track.encoded } });
+                    await new Promise(resolve => setTimeout(resolve, TRACK_TRANSITION_DELAY));
+                    const playerCheck = lavalinkService.getPlayer(guildId);
+                    if (playerCheck) {
+                        await player.playTrack({ track: { encoded: nextTrack.track.encoded } });
+                    }
                 }
             }
 
