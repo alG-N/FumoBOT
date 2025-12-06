@@ -1,5 +1,5 @@
-const db = require('../../Core/Database/dbSetting');
-const { ACHIEVEMENTS, ACHIEVEMENT_TIERS } = require('../../Configuration/achievementConfig');
+const db = require('../../../Core/Database/dbSetting');
+const { ACHIEVEMENTS, ACHIEVEMENT_TIERS } = require('../../../Configuration/achievementConfig');
 const QuestProgressService = require('./QuestProgressService');
 
 class AchievementService {
