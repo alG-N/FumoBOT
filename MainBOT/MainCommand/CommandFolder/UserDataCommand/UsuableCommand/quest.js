@@ -60,12 +60,17 @@ async function showDailyQuests(interaction, userId, currentDate) {
         const progress = await QuestProgressService.getDailyProgress(userId, currentDate);
         
         const progressMap = {};
-        progress.forEach(row => {
-            progressMap[row.questId] = {
-                progress: row.progress,
-                completed: row.completed === 1
-            };
-        });
+        
+        if (Array.isArray(progress)) {
+            progress.forEach(row => {
+                progressMap[row.questId] = {
+                    progress: row.progress,
+                    completed: row.completed === 1
+                };
+            });
+        } else if (typeof progress === 'object' && progress !== null) {
+            Object.assign(progressMap, progress);
+        }
 
         const fields = DAILY_QUESTS.map(q => {
             const val = progressMap[q.id] || { progress: 0, completed: false };
@@ -81,10 +86,18 @@ async function showDailyQuests(interaction, userId, currentDate) {
             .setDescription(`${fields}\n\n**Completed:** ${completedCount} / ${DAILY_QUESTS.length}\n🕒 ${getTimeUntilDailyReset()}`)
             .setFooter({ text: "Complete them all to earn your reward!" });
 
-        await interaction.update({ embeds: [embed] });
+        if (interaction.deferred) {
+            await interaction.editReply({ embeds: [embed] });
+        } else {
+            await interaction.update({ embeds: [embed] });
+        }
     } catch (error) {
         console.error('[Quest] Error showing daily quests:', error);
-        await interaction.followUp({ content: "❌ Error loading daily quests.", ephemeral: true });
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({ content: "❌ Error loading daily quests.", ephemeral: true }).catch(() => {});
+        } else {
+            await interaction.followUp({ content: "❌ Error loading daily quests.", ephemeral: true }).catch(() => {});
+        }
     }
 }
 
@@ -93,12 +106,17 @@ async function showWeeklyQuests(interaction, userId, currentWeek) {
         const progress = await QuestProgressService.getWeeklyProgress(userId, currentWeek);
         
         const progressMap = {};
-        progress.forEach(row => {
-            progressMap[row.questId] = {
-                progress: row.progress,
-                completed: row.completed === 1
-            };
-        });
+        
+        if (Array.isArray(progress)) {
+            progress.forEach(row => {
+                progressMap[row.questId] = {
+                    progress: row.progress,
+                    completed: row.completed === 1
+                };
+            });
+        } else if (typeof progress === 'object' && progress !== null) {
+            Object.assign(progressMap, progress);
+        }
 
         const fields = WEEKLY_QUESTS.map(q => {
             const val = progressMap[q.id] || { progress: 0, completed: false };
@@ -114,10 +132,18 @@ async function showWeeklyQuests(interaction, userId, currentWeek) {
             .setDescription(`${fields}\n\n**Completed:** ${completedCount} / ${WEEKLY_QUESTS.length}\n🕒 ${getTimeUntilWeeklyReset()}`)
             .setFooter({ text: "Weekly reset occurs every Monday." });
 
-        await interaction.update({ embeds: [embed] });
+        if (interaction.deferred) {
+            await interaction.editReply({ embeds: [embed] });
+        } else {
+            await interaction.update({ embeds: [embed] });
+        }
     } catch (error) {
         console.error('[Quest] Error showing weekly quests:', error);
-        await interaction.followUp({ content: "❌ Error loading weekly quests.", ephemeral: true });
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({ content: "❌ Error loading weekly quests.", ephemeral: true }).catch(() => {});
+        } else {
+            await interaction.followUp({ content: "❌ Error loading weekly quests.", ephemeral: true }).catch(() => {});
+        }
     }
 }
 
@@ -139,6 +165,8 @@ async function showAchievements(interaction, userId) {
                     claimed: row.claimed
                 };
             });
+        } else if (typeof progressData === 'object' && progressData !== null) {
+            Object.assign(progressMap, progressData);
         }
 
         for (const ach of achievements) {
@@ -157,36 +185,57 @@ async function showAchievements(interaction, userId) {
             .setDescription(displayLines.join("\n\n"))
             .setFooter({ text: "Complete milestones to unlock bonuses!" });
 
-        await interaction.update({ embeds: [embed] });
+        if (interaction.deferred) {
+            await interaction.editReply({ embeds: [embed] });
+        } else {
+            await interaction.update({ embeds: [embed] });
+        }
     } catch (error) {
         console.error('[Quest] Error showing achievements:', error);
-        await interaction.followUp({ content: "❌ Error loading achievements.", ephemeral: true });
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({ content: "❌ Error loading achievements.", ephemeral: true }).catch(() => {});
+        } else {
+            await interaction.followUp({ content: "❌ Error loading achievements.", ephemeral: true }).catch(() => {});
+        }
     }
 }
 
 async function showHelp(interaction) {
-    const embed = new EmbedBuilder()
-        .setColor("#3498DB")
-        .setTitle("❓ Quest Help")
-        .setDescription([
-            "**How to progress quests?**",
-            "- Use bot commands as usual. Progress is tracked automatically.",
-            "",
-            "**How do I claim rewards?**",
-            "- Use `.claim` after completing all dailies/weeklies or reaching achievement milestones.",
-            "",
-            "**When do quests reset?**",
-            "- Dailies reset at 00:00 UTC. Weeklies reset every Monday 00:00 UTC.",
-            "",
-            "**Missed a day?**",
-            "- Progress resets, so try to complete quests before reset time.",
-            "",
-            "**Need more help?**",
-            "- Contact support or use `.help`."
-        ].join("\n"))
-        .setFooter({ text: "Stay determined, Fumo seeker!" });
+    try {
+        const embed = new EmbedBuilder()
+            .setColor("#3498DB")
+            .setTitle("❓ Quest Help")
+            .setDescription([
+                "**How to progress quests?**",
+                "- Use bot commands as usual. Progress is tracked automatically.",
+                "",
+                "**How do I claim rewards?**",
+                "- Use `.claim` after completing all dailies/weeklies or reaching achievement milestones.",
+                "",
+                "**When do quests reset?**",
+                "- Dailies reset at 00:00 UTC. Weeklies reset every Monday 00:00 UTC.",
+                "",
+                "**Missed a day?**",
+                "- Progress resets, so try to complete quests before reset time.",
+                "",
+                "**Need more help?**",
+                "- Contact support or use `.help`."
+            ].join("\n"))
+            .setFooter({ text: "Stay determined, Fumo seeker!" });
 
-    await interaction.update({ embeds: [embed] });
+        if (interaction.deferred) {
+            await interaction.editReply({ embeds: [embed] });
+        } else {
+            await interaction.update({ embeds: [embed] });
+        }
+    } catch (error) {
+        console.error('[Quest] Error showing help:', error);
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({ content: "❌ Error loading help.", ephemeral: true }).catch(() => {});
+        } else {
+            await interaction.followUp({ content: "❌ Error loading help.", ephemeral: true }).catch(() => {});
+        }
+    }
 }
 
 module.exports = async (client) => {
@@ -237,7 +286,9 @@ module.exports = async (client) => {
 
             collector.on("collect", async (interaction) => {
                 try {
-                    await interaction.deferUpdate();
+                    if (!interaction.deferred && !interaction.replied) {
+                        await interaction.deferUpdate();
+                    }
 
                     if (interaction.customId === "daily_quests") {
                         await showDailyQuests(interaction, userId, currentDate);

@@ -1,7 +1,7 @@
 const DAILY_QUESTS = [
     { 
         id: 'roll_1000', 
-        desc: '🎲 Roll 1000 times', 
+        desc: 'Roll 1000 times', 
         goal: 1000,
         category: 'gacha',
         scalable: true,
@@ -9,14 +9,14 @@ const DAILY_QUESTS = [
     },
     { 
         id: 'pray_5', 
-        desc: '🙏 Pray 5 times successfully', 
+        desc: 'Pray 5 times successfully', 
         goal: 5,
         category: 'prayer',
         icon: '🙏'
     },
     { 
         id: 'coins_1m', 
-        desc: '💰 Obtain 1M coins passively', 
+        desc: 'Obtain 1M coins passively', 
         goal: 1_000_000,
         category: 'economy',
         scalable: true,
@@ -24,14 +24,14 @@ const DAILY_QUESTS = [
     },
     { 
         id: 'gamble_10', 
-        desc: '🎰 Use any gamble command 10 times', 
+        desc: 'Use any gamble command 10 times', 
         goal: 10,
         category: 'gamble',
         icon: '🎰'
     },
     { 
         id: 'craft_1', 
-        desc: '🛠️ Craft a random item', 
+        desc: 'Craft a random item', 
         goal: 1,
         category: 'crafting',
         icon: '🛠️'
@@ -41,7 +41,7 @@ const DAILY_QUESTS = [
 const WEEKLY_QUESTS = [
     { 
         id: 'roll_15000', 
-        desc: '🎲 Roll 15,000 times', 
+        desc: 'Roll 15,000 times', 
         goal: 15000,
         category: 'gacha',
         scalable: true,
@@ -49,42 +49,42 @@ const WEEKLY_QUESTS = [
     },
     { 
         id: 'pray_success_25', 
-        desc: '🙏 Successfully pray 25 times', 
+        desc: 'Successfully pray 25 times', 
         goal: 25,
         category: 'prayer',
         icon: '🙏'
     },
     { 
         id: 'shiny_25', 
-        desc: '✨ Obtain 25 shiny fumos', 
+        desc: 'Obtain 25 shiny fumos', 
         goal: 25,
         category: 'collection',
         icon: '✨'
     },
     { 
         id: 'craft_15', 
-        desc: '🔧 Craft 15 random items', 
+        desc: 'Craft 15 random items', 
         goal: 15,
         category: 'crafting',
         icon: '🔧'
     },
     { 
         id: 'gamble_25', 
-        desc: '🎰 Use any gamble command 25 times', 
+        desc: 'Use any gamble command 25 times', 
         goal: 25,
         category: 'gamble',
         icon: '🎰'
     },
     { 
         id: 'astral_plus', 
-        desc: '🌌 Get an ASTRAL+ fumo', 
+        desc: 'Get an ASTRAL+ fumo', 
         goal: 1,
         category: 'collection',
         icon: '🌌'
     },
     { 
         id: 'complete_dailies', 
-        desc: '🗓️ Complete 7 daily quests', 
+        desc: 'Complete 7 daily quests', 
         goal: 7,
         category: 'meta',
         icon: '🗓️'
