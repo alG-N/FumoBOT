@@ -1,4 +1,4 @@
-const { LOG_CHANNEL_ID } = require('../Configuration/deathbattleConfig');
+const { LOG_CHANNEL_ID } = require('../../Configuration/Deathbattle/deathBattleConfig');
 
 class DeathBattleLogger {
     log(msg, interaction) {

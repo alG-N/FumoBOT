@@ -1,10 +1,10 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { checkRestrictions } = require('../../../MainCommand/Middleware/restrictions');
 const skillsetService = require('../Service/SkillsetService');
-const battleService = require('../Service/BattleService');
-const embedBuilder = require('../Utility/embedBuilder');
-const logger = require('../Utility/logger');
-const { MAX_HP, DEFAULT_HP, COUNTDOWN_SECONDS, ROUND_INTERVAL, BATTLE_LOG_RESET_INTERVAL } = require('../Configuration/deathbattleConfig');
+const battleService = require('../Service/DeathBattleService/BattleService');
+const embedBuilder = require('../Utility/DeathbattleUtility/embedBuilder');
+const logger = require('../Utility/DeathbattleUtility/logger');
+const { MAX_HP, DEFAULT_HP, COUNTDOWN_SECONDS, ROUND_INTERVAL, BATTLE_LOG_RESET_INTERVAL } = require('../Configuration/Deathbattle/deathBattleConfig');
 
 module.exports = {
     data: new SlashCommandBuilder()
