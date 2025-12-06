@@ -54,7 +54,7 @@ loadCommand("./MainBOT/SubCommand/BasicCommand/invite.js", "invite");
 
 // Interactive Commands
 loadCommand("./MainBOT/SubCommand/InteractiveUserCommand/say.js", "say");
-loadCommand("./MainBOT/SubCommand/InteractiveUserCommand/deathbattleJJK.js", "deathbattleJJK");
+loadCommand("./MainBOT/SubCommand/InteractiveUserCommand/MainCommand/deathbattle.js", "deathbattle");
 
 // API/Website Commands
 loadCommand("./MainBOT/SubCommand/API-Website/Anime/anime.js", "anime");
@@ -63,7 +63,7 @@ loadCommand("./MainBOT/SubCommand/API-Website/Pixiv/pixiv.js", "pixiv");
 loadCommand("./MainBOT/SubCommand/API-Website/Steam/steam.js", "steam");
 
 // Video Command
-loadCommand("./MainBOT/SubCommand/VideoFunction/video.js", "video");
+loadCommand("./MainBOT/SubCommand/VideoFunction/MainCommand/video.js", "video");
 
 // Music Commands (IMPORTANT!)
 console.log("\n🎵 Loading Music Commands...");
