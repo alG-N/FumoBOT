@@ -44,14 +44,24 @@ function createOverviewPage(targetUser, userData, farmingFumos, activeBoosts) {
                 inline: true
             },
             {
+                name: '\u200B',
+                value: '\u200B',
+                inline: true
+            },
+            {
                 name: '🌸 Fumo Tokens',
                 value: `🌸 ${formatNumber(userData.spiritTokens)}`,
                 inline: true
             },
             {
                 name: '📊 Net Worth',
-                value: `💵 ${formatNumber(netWorth)}\n${rank.rank} Rank (Tier ${rank.tier})`,
-                inline: false
+                value: `💵 ${formatNumber(netWorth)}`,
+                inline: true
+            },
+            {
+                name: '🏆 Rank',
+                value: `${rank.rank} (Tier ${rank.tier})`,
+                inline: true
             },
             {
                 name: '📈 Daily Income',
@@ -63,6 +73,11 @@ function createOverviewPage(targetUser, userData, farmingFumos, activeBoosts) {
                 value: activeBoosts.length > 0 
                     ? `${activeBoosts.length} boost(s) active`
                     : 'No active boosts',
+                inline: true
+            },
+            {
+                name: '\u200B',
+                value: '\u200B',
                 inline: true
             }
         )

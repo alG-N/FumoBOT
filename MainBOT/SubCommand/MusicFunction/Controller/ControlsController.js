@@ -197,10 +197,12 @@ class ControlsController {
             const queue = queueService.getOrCreateQueue(guildId);
 
             if (!votingService.isVoting(queue)) {
-                votingService.startSkipVote(queue, interaction.user.id);
+                votingService.startSkipVote(queue, interaction.user.id, listeners.length);
+
+                const minVotes = votingService.getMinVotesRequired(listeners.length);
 
                 const voteMsg = await interactionHandler.safeReply(interaction, {
-                    content: `⏭️ Skip requested by ${interaction.user.tag}! React below to vote. Need at least ${MIN_VOTES_REQUIRED} votes to skip.`,
+                    content: `⏭️ Skip requested by ${interaction.user.tag}! React below to vote. Need at least ${minVotes} votes to skip (${listeners.length} listeners).`,
                     components: [new ActionRowBuilder().addComponents(
                         new ButtonBuilder()
                             .setCustomId("vote_skip")
@@ -218,11 +220,11 @@ class ControlsController {
 
                     if (votingService.hasEnoughVotes(queue)) {
                         const nextTrack = queueService.nextTrack(guildId);
-                        
+
                         await player.stopTrack();
                         await votingMsg.edit({ content: "⏭️ Track skipped by vote.", components: [] });
                         logger.log(`Track skipped by vote`, interaction);
-                        
+
                         if (nextTrack) {
                             await new Promise(resolve => setTimeout(resolve, TRACK_TRANSITION_DELAY));
                             const playerCheck = lavalinkService.getPlayer(guildId);
@@ -246,11 +248,11 @@ class ControlsController {
         } else {
             if (player.track) {
                 const nextTrack = queueService.nextTrack(guildId);
-                
+
                 await player.stopTrack();
                 logger.log(`Track skipped`, interaction);
                 await interactionHandler.safeReply(interaction, { ephemeral: true, content: "⏭️ Skipped." });
-                
+
                 if (nextTrack) {
                     await new Promise(resolve => setTimeout(resolve, TRACK_TRANSITION_DELAY));
                     const playerCheck = lavalinkService.getPlayer(guildId);
@@ -468,9 +470,11 @@ class ControlsController {
             return;
         }
 
+        const minVotes = votingService.getMinVotesRequired(queue.skipVoteListenerCount || 3);
+
         await interactionHandler.safeReply(interaction, {
             ephemeral: true,
-            content: `Your vote to skip has been counted. (${result.count}/${MIN_VOTES_REQUIRED})`
+            content: `Your vote to skip has been counted. (${result.count}/${minVotes})`
         });
 
         if (votingService.hasEnoughVotes(queue)) {
@@ -479,10 +483,10 @@ class ControlsController {
 
             if (player) {
                 const nextTrack = queueService.nextTrack(guildId);
-                
+
                 await player.stopTrack();
                 await votingMsg.edit({ content: "⏭️ Track skipped by vote.", components: [] });
-                
+
                 if (nextTrack) {
                     await new Promise(resolve => setTimeout(resolve, TRACK_TRANSITION_DELAY));
                     const playerCheck = lavalinkService.getPlayer(guildId);
@@ -493,7 +497,7 @@ class ControlsController {
             }
 
             votingService.endVoting(queue);
-            logger.log(`Track skipped by vote (${MIN_VOTES_REQUIRED}+)`, interaction);
+            logger.log(`Track skipped by vote (${minVotes}+ votes)`, interaction);
         }
     }
 }

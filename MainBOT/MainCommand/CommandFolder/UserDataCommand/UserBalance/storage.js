@@ -64,7 +64,8 @@ module.exports = (client) => {
                     state.showShinyPlus,
                     state.sortBy
                 ),
-                inventoryData
+                inventoryData,
+                maxPage
             };
         }
 
@@ -105,9 +106,8 @@ module.exports = (client) => {
                     state.currentPage++;
                     break;
                 case 'last':
-                    const view = buildView();
-                    const maxPage = view.components[0].components.find(c => c.data.custom_id.includes('last')).data.disabled ? state.currentPage : state.currentPage + 1;
-                    state.currentPage = maxPage;
+                    const tempView = buildView();
+                    state.currentPage = tempView.maxPage;
                     break;
                 case 'shiny':
                     state.showShinyPlus = !state.showShinyPlus;

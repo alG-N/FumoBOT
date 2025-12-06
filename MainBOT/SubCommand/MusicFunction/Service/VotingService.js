@@ -1,9 +1,15 @@
-const { SKIP_VOTE_TIMEOUT, MIN_VOTES_REQUIRED } = require('../Configuration/MusicConfig');
+const { SKIP_VOTE_TIMEOUT } = require('../Configuration/MusicConfig');
 
 class VotingService {
-    startSkipVote(queue, userId) {
+    getMinVotesRequired(listenerCount) {
+        if (listenerCount >= 5) return 3;
+        return Math.ceil(listenerCount / 2);
+    }
+
+    startSkipVote(queue, userId, listenerCount) {
         queue.skipVoting = true;
         queue.skipVotes = new Set([userId]);
+        queue.skipVoteListenerCount = listenerCount; 
         return queue.skipVotes.size;
     }
 
@@ -21,7 +27,9 @@ class VotingService {
     }
 
     hasEnoughVotes(queue) {
-        return queue.skipVotes.size >= MIN_VOTES_REQUIRED;
+        const listenerCount = queue.skipVoteListenerCount || 3;
+        const minVotes = this.getMinVotesRequired(listenerCount);
+        return queue.skipVotes.size >= minVotes;
     }
 
     isVoting(queue) {
@@ -32,6 +40,7 @@ class VotingService {
         queue.skipVoting = false;
         const voteCount = queue.skipVotes.size;
         queue.skipVotes.clear();
+        queue.skipVoteListenerCount = null;
         
         if (queue.skipVotingTimeout) {
             clearTimeout(queue.skipVotingTimeout);
@@ -68,9 +77,10 @@ class VotingService {
         return queue.skipVotes.has(userId);
     }
 
-    startPriorityVote(queue, userId) {
+    startPriorityVote(queue, userId, listenerCount) {
         queue.priorityVoting = true;
         queue.priorityVotes = new Set([userId]);
+        queue.priorityVoteListenerCount = listenerCount;
         return queue.priorityVotes.size;
     }
 
@@ -88,7 +98,9 @@ class VotingService {
     }
 
     hasEnoughPriorityVotes(queue) {
-        return queue.priorityVotes.size >= MIN_VOTES_REQUIRED;
+        const listenerCount = queue.priorityVoteListenerCount || 3;
+        const minVotes = this.getMinVotesRequired(listenerCount);
+        return queue.priorityVotes.size >= minVotes;
     }
 
     isPriorityVoting(queue) {
@@ -99,6 +111,7 @@ class VotingService {
         queue.priorityVoting = false;
         const voteCount = queue.priorityVotes?.size || 0;
         queue.priorityVotes = new Set();
+        queue.priorityVoteListenerCount = null;
         return voteCount;
     }
 }

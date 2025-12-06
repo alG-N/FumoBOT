@@ -103,7 +103,7 @@ module.exports = {
 
             if (priorityFirst) {
                 const listeners = voiceService.getListeners(guildId, interaction.guild);
-                
+
                 if (listeners.length >= 3) {
                     const confirmed = await this.handlePriorityVote(interaction, trackData, guildId);
                     if (!confirmed) {
@@ -131,7 +131,7 @@ module.exports = {
             if (!wasPlaying) {
                 console.log(`[Play Command] Nothing was playing, starting playback...`);
                 const nextTrack = queueService.nextTrack(guildId);
-                
+
                 if (nextTrack) {
                     logger.log(`Starting first track: ${nextTrack.title}`, interaction);
                     await player.playTrack({ track: { encoded: nextTrack.track.encoded } });
@@ -154,20 +154,26 @@ module.exports = {
     async handlePriorityVote(interaction, trackData, guildId) {
         logger.log(`Priority vote requested for: ${trackData.title}`, interaction);
 
+        const listeners = voiceService.getListeners(guildId, interaction.guild);
+        const queue = queueService.getOrCreateQueue(guildId);
+
+        // Start vote with listener count
+        votingService.startPriorityVote(queue, interaction.user.id, listeners.length);
+
+        // Calculate required votes
+        const minVotes = votingService.getMinVotesRequired(listeners.length);
+
         const voteRow = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId("priority_yes").setLabel("✅ Yes").setStyle(ButtonStyle.Success),
             new ButtonBuilder().setCustomId("priority_no").setLabel("❌ No").setStyle(ButtonStyle.Danger)
         );
 
-        const voteEmbed = embedBuilder.buildPriorityVoteEmbed(trackData, interaction.user);
-        
+        const voteEmbed = embedBuilder.buildPriorityVoteEmbed(trackData, interaction.user, minVotes, listeners.length);
+
         const voteMsg = await interaction.editReply({
             embeds: [voteEmbed],
             components: [voteRow]
         });
-
-        const queue = queueService.getOrCreateQueue(guildId);
-        votingService.startPriorityVote(queue, interaction.user.id);
 
         const filter = i => ["priority_yes", "priority_no"].includes(i.customId);
 
@@ -202,11 +208,11 @@ module.exports = {
             collector.on('collect', async (i) => {
                 if (i.customId === "priority_yes") {
                     const result = votingService.addPriorityVote(queue, i.user.id);
-                    
+
                     if (result.added) {
                         await interactionHandler.safeReply(i, {
                             ephemeral: true,
-                            content: `✅ Your vote has been counted! (${result.count}/${MIN_VOTES_REQUIRED})`
+                            content: `✅ Your vote has been counted! (${result.count}/${minVotes})`
                         });
 
                         if (votingService.hasEnoughPriorityVotes(queue)) {
@@ -287,8 +293,8 @@ module.exports = {
             logger.log(`Added ${addedCount} tracks from playlist`, interaction);
 
             const playlistEmbed = embedBuilder.buildPlaylistQueuedEmbed(
-                playlistData.name, 
-                addedCount, 
+                playlistData.name,
+                addedCount,
                 interaction.user,
                 playlistData.tracks[0]
             );
@@ -297,7 +303,7 @@ module.exports = {
             if (!wasPlaying) {
                 console.log(`[Play Command] Nothing was playing, starting playlist...`);
                 const nextTrack = queueService.nextTrack(guildId);
-                
+
                 if (nextTrack) {
                     logger.log(`Starting first track from playlist: ${nextTrack.title}`, interaction);
                     await player.playTrack({ track: { encoded: nextTrack.track.encoded } });
