@@ -1,7 +1,7 @@
 {
   "1128296349566251068": {
     "normal": {
-      "rollCount": 19,
+      "rollCount": 7,
       "autoSell": true,
       "startTime": 1764840683301,
       "bestFumo": {
@@ -11,7 +11,7 @@
       },
       "bestFumoAt": "12/4/2025, 5:03:15 PM",
       "bestFumoRoll": 1,
-      "specialFumoCount": 879,
+      "specialFumoCount": 884,
       "specialFumoFirstAt": "12/4/2025, 4:33:38 PM",
       "specialFumoFirstRoll": 3
     },
@@ -35,15 +35,19 @@
   },
   "845274868697661440": {
     "normal": {
-      "rollCount": 0,
+      "rollCount": 7,
       "autoSell": false,
-      "startTime": 1765001198104,
-      "bestFumo": null,
-      "bestFumoAt": null,
-      "bestFumoRoll": null,
-      "specialFumoCount": 0,
-      "specialFumoFirstAt": null,
-      "specialFumoFirstRoll": null
+      "startTime": 1764929355312,
+      "bestFumo": {
+        "name": "Rinnosuke(TRANSCENDENT)",
+        "rarity": "TRANSCENDENT",
+        "picture": "https://img1.picmix.com/output/stamp/normal/6/1/0/7/2577016_a2c58.png"
+      },
+      "bestFumoAt": "12/5/2025, 6:18:45 PM",
+      "bestFumoRoll": 37,
+      "specialFumoCount": 426,
+      "specialFumoFirstAt": "12/5/2025, 5:09:29 PM",
+      "specialFumoFirstRoll": 1
     },
     "event": {
       "rollCount": 1,

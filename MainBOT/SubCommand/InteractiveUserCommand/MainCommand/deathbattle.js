@@ -16,11 +16,13 @@ module.exports = {
                 .setRequired(true))
         .addStringOption(option =>
             option.setName('skillset')
-                .setDescription('Skill set to use (jjk, naruto)')
+                .setDescription('Skill set to use')
                 .setRequired(true)
                 .addChoices(
                     { name: 'Jujutsu Kaisen', value: 'jjk' },
-                    { name: 'Naruto', value: 'naruto' }
+                    { name: 'Naruto', value: 'naruto' },
+                    { name: 'Demon Slayer', value: 'demonslayer' },
+                    { name: 'One Piece', value: 'onepiece' }
                 ))
         .addIntegerOption(option =>
             option.setName('your_hp')
