@@ -6,7 +6,7 @@ const {
     getActiveBoosts, 
     getUserAchievements,
     getUserActivity
-} = require('../../../Service/UserDataService/BalanceService/BalanceDataService');
+} = require('../../../Service/UserDataService/BalanceService/BalanceService');
 const { generateAllPages } = require('../../../Service/UserDataService/BalanceService/BalanceUIService');
 const { sendPaginatedBalance } = require('../../../Service/UserDataService/BalanceService/BalanceNavigationService');
 
@@ -37,7 +37,7 @@ async function handleBalanceCommand(message, targetUser) {
         if (!userData) {
             const isOwner = targetUser.id === message.author.id;
             const response = isOwner
-                ? 'You do not have any coins or gems yet. Use `/starter` or `/daily` to begin!'
+                ? 'You do not have any coins or gems yet. Use `.starter` or `.daily` to begin!'
                 : `${targetUser.username} does not have any coins or gems yet.`;
             
             return message.reply(response);

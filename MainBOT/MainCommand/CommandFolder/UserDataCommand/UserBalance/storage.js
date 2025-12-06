@@ -1,8 +1,8 @@
-const StorageService = require('../../Service/UserDataService/StorageService/StorageService');
-const StorageUIService = require('../../Service/UserDataService/StorageService/StorageUIService');
-const { checkRestrictions } = require('../../Middleware/restrictions');
-const { checkButtonOwnership } = require('../../Middleware/buttonOwnership');
-const { STORAGE_CONFIG } = require('../../Configuration/storageConfig');
+const StorageService = require('../../../Service/UserDataService/StorageService/StorageService');
+const StorageUIService = require('../../../Service/UserDataService/StorageService/StorageUIService');
+const { checkRestrictions } = require('../../../Middleware/restrictions');
+const { checkButtonOwnership } = require('../../../Middleware/buttonOwnership');
+const { STORAGE_CONFIG } = require('../../../Configuration/storageConfig');
 
 module.exports = (client) => {
     client.on('messageCreate', async (message) => {

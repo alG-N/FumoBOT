@@ -1,5 +1,5 @@
-const db = require('../../Core/database');
-const { RARITY_ORDER } = require('../../Configuration/storageConfig');
+const db = require('../../../Core/database');
+const { RARITY_ORDER } = require('../../../Configuration/storageConfig');
 
 class StorageService {
     static async getUserInventory(userId) {
