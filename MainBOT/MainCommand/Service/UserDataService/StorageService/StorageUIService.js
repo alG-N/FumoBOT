@@ -1,6 +1,6 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { buildSecureCustomId } = require('../../Middleware/buttonOwnership');
-const { RARITY_COLORS, RARITY_EMOJI } = require('../../Configuration/storageConfig');
+const { buildSecureCustomId } = require('../../../Middleware/buttonOwnership');
+const { RARITY_COLORS, RARITY_EMOJI } = require('../../../Configuration/storageConfig');
 
 class StorageUIService {
     static createInventoryEmbed(username, inventoryData, options = {}) {
@@ -125,7 +125,7 @@ class StorageUIService {
     }
 
     static createStatsEmbed(username, inventoryData) {
-        const summary = require('../UserDataService/StorageService/StorageService').getInventorySummary(inventoryData);
+        const summary = require('../../UserDataService/StorageService/StorageService').getInventorySummary(inventoryData);
         
         const embed = new EmbedBuilder()
             .setColor('#9B59B6')
