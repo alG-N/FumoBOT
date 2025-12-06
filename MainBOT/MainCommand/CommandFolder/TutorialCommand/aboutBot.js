@@ -1,107 +1,64 @@
-const {
-    Client,
-    GatewayIntentBits,
-    Partials,
-    EmbedBuilder,
-    ActionRowBuilder,
-    ButtonBuilder,
-    SlashCommandBuilder,
-    ButtonStyle
-} = require('discord.js');
-const client = new Client({
-    intents: [
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.MessageContent
-    ],
-    partials: [Partials.Message, Partials.Channel, Partials.Reaction]
-});
-client.setMaxListeners(150);
-const { maintenance, developerID } = require("../../Configuration/maintenanceConfig");
-const { isBanned } = require('../../Administrator/BannedList/BanUtils');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { checkRestrictions } = require('../../Middleware/restrictions');
+
 module.exports = (client) => {
     client.on("messageCreate", async (message) => {
-        if (message.author.bot || (message.content !== '.credit' && !message.content.startsWith('.credit ') && message.content !== '.cr' && !message.content.startsWith('.cr '))) return;
-        const banData = isBanned(message.author.id);
-        if ((maintenance === "yes" && message.author.id !== developerID) || banData) {
-            let description = '';
-            let footerText = '';
+        if (message.author.bot) return;
+        if (!message.content.match(/^\.(?:credit|cr)(?:\s|$)/i)) return;
 
-            if (maintenance === "yes" && message.author.id !== developerID) {
-                description = "The bot is currently in maintenance mode. Please try again later.\nFumoBOT's Developer: alterGolden";
-                footerText = "Thank you for your patience";
-            } else if (banData) {
-                description = `You are banned from using this bot.\n\n**Reason:** ${banData.reason || 'No reason provided'}`;
-
-                if (banData.expiresAt) {
-                    const remaining = banData.expiresAt - Date.now();
-                    const seconds = Math.floor((remaining / 1000) % 60);
-                    const minutes = Math.floor((remaining / (1000 * 60)) % 60);
-                    const hours = Math.floor((remaining / (1000 * 60 * 60)) % 24);
-                    const days = Math.floor(remaining / (1000 * 60 * 60 * 24));
-
-                    const timeString = [
-                        days ? `${days}d` : '',
-                        hours ? `${hours}h` : '',
-                        minutes ? `${minutes}m` : '',
-                        seconds ? `${seconds}s` : ''
-                    ].filter(Boolean).join(' ');
-
-                    description += `\n**Time Remaining:** ${timeString}`;
-                } else {
-                    description += `\n**Ban Type:** Permanent`;
-                }
-
-                footerText = "Ban enforced by developer";
-            }
-
-            const embed = new EmbedBuilder()
-                .setColor('#FF0000')
-                .setTitle(maintenance === "yes" ? '🚧 Maintenance Mode' : '⛔ You Are Banned')
-                .setDescription(description)
-                .setFooter({ text: footerText })
-                .setTimestamp();
-
-            console.log(`[${new Date().toISOString()}] Blocked user (${message.author.id}) due to ${maintenance === "yes" ? "maintenance" : "ban"}.`);
-
-            return message.reply({ embeds: [embed] });
+        const restriction = checkRestrictions(message.author.id);
+        if (restriction.blocked) {
+            return message.reply({ embeds: [restriction.embed] });
         }
 
+        const sourceButton = new ButtonBuilder()
+            .setLabel('📂 Source Code')
+            .setStyle(ButtonStyle.Link)
+            .setURL('https://github.com/alG-N/FumoBOT');
+
+        const row = new ActionRowBuilder().addComponents(sourceButton);
+
         const embed = new EmbedBuilder()
-            .setColor("#00BFFF")
-            .setTitle("🤖 About FumoBOT")
+            .setColor('#00BFFF')
+            .setTitle('🤖 About FumoBOT')
             .setDescription(
-                `**FumoBOT** is a custom-made Discord bot designed with love and chaos, built for collecting, enhancing, and interacting with mysterious items in a world full of lore and possibilities.\n\n` +
-                `Whether you're farming fumo slots, using weird grass under the moonlight, or holding onto that one legendary shard — this bot's got a surprise for everyone.`
+                '**FumoBOT** is a custom-made Discord bot designed with love and chaos, built for collecting, enhancing, and interacting with mysterious items in a world full of lore and possibilities.\n\n' +
+                'Whether you\'re farming fumo slots, using weird grass under the moonlight, or holding onto that one legendary shard — this bot\'s got a surprise for everyone.'
             )
             .addFields(
                 {
-                    name: "📦 Features", value:
-                        "- Inspect items with `.itemInfo <item>`\n" +
-                        "- Discover many new command with `.tutorial`\n" +
-                        "- Get an extra feature this bot offers — maybe it's lore, maybe it's a trap? Try .otherCMD !!!\n" +
-                        "- Read lore and strategize for upgrades\n" +
-                        "- More features to come — PvE? Crafting? 👀"
+                    name: '📦 Features',
+                    value:
+                        '• Inspect items with `.itemInfo <item>`\n' +
+                        '• Discover many new commands with `.tutorial`\n' +
+                        '• Get extra features this bot offers — maybe it\'s lore, maybe it\'s a trap?\n' +
+                        '• Read lore and strategize for upgrades\n' +
+                        '• More features to come — PvE? Crafting? 👀'
                 },
                 {
-                    name: "👥 Credits", value:
-                        "**Main Developer:** alterGolden (@golden_exist) 💛\n" +
-                        "**Co-Dev & Code Assistant:** ChatGPT by OpenAI 🤖\n" +
-                        "**Beta-Tester:** normalguy592, ho_suh, quiliphoth."
+                    name: '👥 Development Team',
+                    value:
+                        '**Main Developer:** @golden_exist (alterGolden) 💛\n' +
+                        '**Side Developer:** @frusito (fruist), @zephrish (Xeth) 🌟\n' +
+                        '**AI Assistants:** Claude AI & ChatGPT 🤖\n' +
+                        '**Beta Testers:** normalguy592, nerdy_man'
                 },
                 {
-                    name: "🛠 Tech Stack", value:
-                        "- Node.js + discord.js\n- Pure imagination and way too many lines of code\n- Mainly use Javascript :D"
+                    name: '🛠 Tech Stack',
+                    value:
+                        '• **Runtime:** Node.js\n' +
+                        '• **Library:** discord.js and MUCH MORE...\n' +
+                        '• **Language:** JavaScript\n' +
+                        '• **Database:** SQLite3'
                 },
                 {
-                    name: "📅 Status", value:
-                        "Still under active development. Expect lore. Expect chaos. Expect fun."
+                    name: '📅 Status',
+                    value: '🚀 Active Development | 🎮 Open Beta'
                 }
             )
-            .setFooter({ text: "Made by alterGolden & ChatGPT — keep dreaming, nothing is impossible." })
+            .setFooter({ text: 'Made by alterGolden & fruist — Keep dreaming, nothing is impossible.' })
             .setTimestamp();
 
-        message.channel.send({ embeds: [embed] });
+        message.channel.send({ embeds: [embed], components: [row] });
     });
 };
