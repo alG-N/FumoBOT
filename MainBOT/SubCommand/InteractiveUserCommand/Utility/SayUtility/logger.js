@@ -1,4 +1,4 @@
-const { LOG_CHANNEL_ID } = require('../Configuration/sayConfig');
+const { LOG_CHANNEL_ID } = require('../../Configuration/Say/sayConfig');
 
 class SayLogger {
     log(userTag, userId, channelName, channelId, type, message) {

@@ -1,5 +1,5 @@
-const jjkSkillset = require('../Configuration/Deathbattle/Skillsets/jjk');
-const narutoSkillset = require('../Configuration/Deathbattle/Skillsets/naruto');
+const jjkSkillset = require('../../Configuration/Deathbattle/Skillsets/jjk');
+const narutoSkillset = require('../../Configuration/Deathbattle/Skillsets/naruto');
 
 class SkillsetService {
     constructor() {

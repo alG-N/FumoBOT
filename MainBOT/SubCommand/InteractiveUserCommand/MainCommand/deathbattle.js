@@ -1,6 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { checkRestrictions } = require('../../../MainCommand/Middleware/restrictions');
-const skillsetService = require('../Service/SkillsetService');
+const skillsetService = require('../Service/DeathBattleService/SkillsetService');
 const battleService = require('../Service/DeathBattleService/BattleService');
 const embedBuilder = require('../Utility/DeathbattleUtility/embedBuilder');
 const logger = require('../Utility/DeathbattleUtility/logger');

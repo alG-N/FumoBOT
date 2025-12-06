@@ -1,7 +1,7 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { checkRestrictions } = require('../../../MainCommand/Middleware/restrictions');
-const sayService = require('../Service/SayService');
-const logger = require('../Utility/logger');
+const sayService = require('../Service/SayService/SayService');
+const logger = require('../Utility/SayUtility/logger');
 
 module.exports = {
     data: new SlashCommandBuilder()
