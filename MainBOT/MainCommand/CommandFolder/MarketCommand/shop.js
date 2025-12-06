@@ -1,337 +1,359 @@
 const { checkRestrictions } = require('../../Middleware/restrictions');
 const { checkButtonOwnership } = require('../../Middleware/buttonOwnership');
-const { formatNumber } = require('../../Ultility/formatting');
 const { getUserShop, forceRerollUserShop, getUserShopTimeLeft } = require('../../Service/MarketService/ShopService/ShopCacheService');
-const { useReroll, getRerollData, getRerollCooldownRemaining, formatTimeRemaining, getPaidRerollCost } = require('../../Service/MarketService/ShopService/ShopRerollService');
 const { processPurchase, processBuyAll } = require('../../Service/MarketService/ShopService/ShopPurchaseService');
-const {
-    createShopEmbed,
+const { 
+    createShopEmbed, 
     createShopButtons,
     createSearchResultsEmbed,
     createPurchaseConfirmationEmbed,
+    createBuyAllConfirmationEmbed,
     createPurchaseButtons,
     createRerollSuccessEmbed,
-    createBuyAllConfirmationEmbed
+    RARITY_PAGES
 } = require('../../Service/MarketService/ShopService/ShopUIService');
+const { 
+    getRerollData, 
+    useReroll, 
+    initializeRerollData,
+    getPaidRerollCost,
+    getRerollCooldownRemaining
+} = require('../../Service/MarketService/ShopService/ShopRerollService');
+const { getUserCurrency, deductCurrency } = require('../../Service/MarketService/ShopService/ShopDatabaseService');
+
+const pendingPurchases = new Map();
+const pendingBuyAll = new Map();
 
 module.exports = async (client) => {
     client.on('messageCreate', async (message) => {
-        if (!message.content.startsWith('.shop') && !message.content.startsWith('.sh')) return;
+        if (message.author.bot) return;
 
         const restriction = checkRestrictions(message.author.id);
         if (restriction.blocked) {
-            console.log(`[${new Date().toISOString()}] Blocked user (${message.author.id}) due to ${restriction.reason}.`);
             return message.reply({ embeds: [restriction.embed] });
         }
 
-        handleShopCommand(message);
+        const args = message.content.trim().split(/\s+/);
+        const command = args[0].toLowerCase();
+
+        if (command === '.shop' || command === '.s') {
+            await handleShopCommand(message, args.slice(1));
+        }
     });
 
     client.on('interactionCreate', async (interaction) => {
         if (!interaction.isButton()) return;
-        if (interaction.customId.startsWith('shop_prev_') || interaction.customId.startsWith('shop_next_')) {
-            await handlePagination(interaction);
-        }
-        else if (interaction.customId.startsWith('free_reroll_') || interaction.customId.startsWith('paid_reroll_')) {
-            const restriction = checkRestrictions(interaction.user.id);
-            if (restriction.blocked) {
-                return interaction.reply({ embeds: [restriction.embed], ephemeral: true });
-            }
-
-            await handleReroll(interaction);
-        }
-        else if (interaction.customId.startsWith('buy_all_')) {
-            await handleBuyAll(interaction);
-        }
-        else if (interaction.customId === 'buyall_confirm' || interaction.customId === 'buyall_cancel') {
-            await handleBuyAllConfirmation(interaction);
-        }
-    });
-
-    async function handlePagination(interaction) {
-        if (!interaction.isButton() || interaction.replied || interaction.deferred) {
-            console.log('[SHOP] Interaction already handled or expired');
-            return;
-        }
-
-        const parts = interaction.customId.split('_');
-        const action = parts[1]; 
-        const userId = parts[2];
-        const currentPage = parseInt(parts[3]);
-
-        if (!await checkButtonOwnership(interaction, `shop_${action}`, null, false)) {
-            return;
-        }
 
         try {
-            const newPage = action === 'next' ? currentPage + 1 : currentPage - 1;
-            const userShop = getUserShop(userId);
-            const rerollData = getRerollData(userId);
-
-            const shopEmbed = createShopEmbed(userId, userShop, newPage);
-            const buttons = createShopButtons(userId, rerollData.count, newPage);
-
-            await Promise.race([
-                interaction.update({
-                    embeds: [shopEmbed],
-                    components: buttons
-                }),
-                new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('Update timeout')), 2500)
-                )
-            ]);
-
+            if (interaction.customId.startsWith('shop_prev_') || interaction.customId.startsWith('shop_next_')) {
+                await handleShopPagination(interaction);
+            }
+            else if (interaction.customId.startsWith('free_reroll_')) {
+                if (!checkButtonOwnership(interaction, 'free_reroll')) {
+                    return interaction.reply({
+                        content: "❌ You can't use someone else's button. Run `.shop` yourself.",
+                        ephemeral: true
+                    });
+                }
+                await handleFreeReroll(interaction);
+            }
+            else if (interaction.customId.startsWith('paid_reroll_')) {
+                if (!checkButtonOwnership(interaction, 'paid_reroll')) {
+                    return interaction.reply({
+                        content: "❌ You can't use someone else's button. Run `.shop` yourself.",
+                        ephemeral: true
+                    });
+                }
+                await handlePaidReroll(interaction);
+            }
+            else if (interaction.customId.startsWith('buy_all_')) {
+                if (!checkButtonOwnership(interaction, 'buy_all')) {
+                    return interaction.reply({
+                        content: "❌ You can't use someone else's button. Run `.shop` yourself.",
+                        ephemeral: true
+                    });
+                }
+                await handleBuyAllButton(interaction);
+            }
+            else if (interaction.customId === 'purchase_confirm') {
+                await handlePurchaseConfirmation(interaction);
+            }
+            else if (interaction.customId === 'purchase_cancel') {
+                await handlePurchaseCancel(interaction);
+            }
+            else if (interaction.customId === 'buyall_confirm') {
+                await handleBuyAllConfirmation(interaction);
+            }
+            else if (interaction.customId === 'buyall_cancel') {
+                await handleBuyAllCancel(interaction);
+            }
         } catch (error) {
-            console.error('[SHOP] Pagination error:', error.message);
+            console.error('Shop interaction error:', error);
 
-            if (error.code === 10062 || error.message === 'Update timeout') {
-                try {
-                    if (!interaction.replied && !interaction.deferred) {
-                        await interaction.reply({
-                            content: '⚠️ This button has expired. Please run `.shop` again.',
-                            ephemeral: true
-                        });
-                    }
-                } catch (replyError) {
-                    console.error('[SHOP] Could not send error message:', replyError.message);
-                }
+            const errorMsg = { content: '❌ An error occurred.', ephemeral: true };
+            
+            if (interaction.deferred) {
+                await interaction.editReply(errorMsg).catch(() => {});
+            } else if (!interaction.replied) {
+                await interaction.reply(errorMsg).catch(() => {});
             }
         }
-    }
-
-    async function handleReroll(interaction) {
-        const isPaidReroll = interaction.customId.startsWith('paid_reroll_');
-
-        if (!await checkButtonOwnership(interaction, isPaidReroll ? 'paid_reroll' : 'free_reroll', null, false)) {
-            return;
-        }
-
-        const userId = interaction.user.id;
-        const rerollData = getRerollData(userId);
-
-        if (!isPaidReroll) {
-            if (rerollData.count <= 0) {
-                const cooldownRemaining = getRerollCooldownRemaining(userId);
-                const timeLeft = formatTimeRemaining(cooldownRemaining);
-                const gemCost = getPaidRerollCost(userId);
-
-                return interaction.reply({
-                    content: `❌ You have no free rerolls left! Rerolls reset in: **${timeLeft}**\n💎 Use the Gem Reroll button to reroll for **${formatNumber(gemCost)} gems**.`,
-                    ephemeral: true
-                });
-            }
-
-            useReroll(userId, false);
-        } else {
-            if (rerollData.count > 0) {
-                return interaction.reply({
-                    content: `❌ You must use all free rerolls first! You have **${rerollData.count}** free reroll(s) remaining.`,
-                    ephemeral: true
-                });
-            }
-
-            const cost = getPaidRerollCost(userId);
-            const db = require('../../Core/Database/dbSetting');
-
-            const userGems = await new Promise((resolve) => {
-                db.get('SELECT gems FROM userCoins WHERE userId = ?', [userId], (err, row) => {
-                    if (err || !row) resolve(0);
-                    else resolve(row.gems || 0);
-                });
-            });
-
-            if (userGems < cost) {
-                return interaction.reply({
-                    content: `❌ You don't have enough gems! Cost: **${formatNumber(cost)} gems**\nYou have: **${formatNumber(userGems)} gems**`,
-                    ephemeral: true
-                });
-            }
-
-            await new Promise((resolve) => {
-                db.run('UPDATE userCoins SET gems = gems - ? WHERE userId = ?', [cost, userId], resolve);
-            });
-
-            useReroll(userId, true);
-        }
-
-        const newShop = forceRerollUserShop(userId);
-        const updatedRerollData = getRerollData(userId);
-
-        const rerollEmbed = createRerollSuccessEmbed(
-            updatedRerollData.count,
-            getRerollCooldownRemaining(userId),
-            isPaidReroll ? getPaidRerollCost(userId) / 5 : null
-        );
-
-        await interaction.reply({ embeds: [rerollEmbed], ephemeral: true });
-
-        await interaction.followUp({
-            content: "Here's your new shop:",
-            ephemeral: true
-        });
-
-        const shopEmbed = createShopEmbed(userId, newShop, 0);
-        const buttons = createShopButtons(userId, updatedRerollData.count, 0);
-
-        await interaction.followUp({
-            embeds: [shopEmbed],
-            components: buttons,
-            ephemeral: true
-        });
-    }
-
-    async function handleShopCommand(message) {
-        const args = message.content.split(' ');
-        const command = args[1]?.toLowerCase();
-        const userId = message.author.id;
-        const userShop = getUserShop(userId);
-
-        if (command === 'buy') {
-            await handleBuyCommand(message, args, userId, userShop);
-        } else if (command === 'search') {
-            handleSearchCommand(message, args, userShop);
-        } else {
-            handleDisplayShop(message, userId, userShop);
-        }
-    }
-
-    async function handleBuyCommand(message, args, userId, userShop) {
-        const itemName = args.slice(2, -1).join(' ') || args[2];
-        const quantity = Math.max(Number(args[args.length - 1]) || 1, 1);
-        const itemCost = userShop[itemName];
-
-        if (!itemCost) {
-            return message.reply({
-                content: `🔍 The item "${itemName}" is not available in your magical shop.`,
-                ephemeral: true
-            });
-        }
-
-        const confirmationEmbed = createPurchaseConfirmationEmbed(
-            quantity,
-            itemName,
-            itemCost.cost * quantity,
-            itemCost.currency
-        );
-        const buttonRow = createPurchaseButtons();
-
-        const confirmationMessage = await message.reply({
-            embeds: [confirmationEmbed],
-            components: [buttonRow],
-            ephemeral: true
-        });
-
-        const filter = i => i.user.id === userId;
-        const collector = confirmationMessage.createMessageComponentCollector({
-            filter,
-            time: 15000
-        });
-
-        collector.on('collect', async i => {
-            if (i.customId === 'purchase_confirm') {
-                const result = await processPurchase(userId, itemName, itemCost, quantity);
-
-                if (result.success) {
-                    await i.update({
-                        content: `✅ You have successfully purchased **${result.quantity} ${result.itemName}(s)** for **${formatNumber(result.totalCost)} ${result.currency}**!`,
-                        embeds: [],
-                        components: [],
-                        ephemeral: true
-                    });
-                } else {
-                    await i.update({
-                        content: result.message,
-                        embeds: [],
-                        components: [],
-                        ephemeral: true
-                    });
-                }
-            } else {
-                await i.update({
-                    content: '⏸️ Purchase canceled.',
-                    embeds: [],
-                    components: [],
-                    ephemeral: true
-                });
-            }
-        });
-
-        collector.on('end', collected => {
-            if (collected.size === 0) {
-                confirmationMessage.edit({
-                    content: '⏱️ Purchase timed out.',
-                    embeds: [],
-                    components: [],
-                    ephemeral: true
-                }).catch(() => { });
-            }
-        });
-    }
-
-    async function handleBuyAll(interaction) {
-        if (!await checkButtonOwnership(interaction, 'buy_all', null, false)) {
-            return;
-        }
-
-        const userId = interaction.user.id;
-        const userShop = getUserShop(userId);
-
-        const confirmationEmbed = createBuyAllConfirmationEmbed(userShop);
-        const buttonRow = createPurchaseButtons('buyall');
-
-        await interaction.reply({
-            embeds: [confirmationEmbed],
-            components: [buttonRow],
-            ephemeral: true
-        });
-    }
-
-    async function handleBuyAllConfirmation(interaction) {
-        const userId = interaction.user.id;
-
-        if (interaction.customId === 'buyall_confirm') {
-            const userShop = getUserShop(userId);
-            const result = await processBuyAll(userId, userShop);
-
-            if (result.success) {
-                const summary = result.purchases
-                    .map(p => `• ${p.quantity}x ${p.itemName} (${formatNumber(p.cost)} ${p.currency})`)
-                    .join('\n');
-
-                await interaction.update({
-                    content: `✅ **Bulk Purchase Complete!**\n\n${summary}\n\n**Total Spent:**\n💰 ${formatNumber(result.totalCoins)} coins\n💎 ${formatNumber(result.totalGems)} gems`,
-                    embeds: [],
-                    components: [],
-                    ephemeral: true
-                });
-            } else {
-                await interaction.update({
-                    content: result.message || '❌ Purchase failed.',
-                    embeds: [],
-                    components: [],
-                    ephemeral: true
-                });
-            }
-        } else {
-            await interaction.update({
-                content: '⏸️ Bulk purchase canceled.',
-                embeds: [],
-                components: [],
-                ephemeral: true
-            });
-        }
-    }
-
-    function handleSearchCommand(message, args, userShop) {
-        const searchQuery = args.slice(2).join(' ').toLowerCase();
-        const searchEmbed = createSearchResultsEmbed(searchQuery, userShop);
-        message.reply({ embeds: [searchEmbed], ephemeral: true });
-    }
-
-    function handleDisplayShop(message, userId, userShop) {
-        const rerollData = getRerollData(userId);
-        const shopEmbed = createShopEmbed(userId, userShop, 0);
-        const buttons = createShopButtons(userId, rerollData.count, 0);
-        message.reply({ embeds: [shopEmbed], components: buttons, ephemeral: true });
-    }
+    });
 };
+
+async function handleShopCommand(message, args) {
+    const userId = message.author.id;
+
+    if (args.length === 0) {
+        await initializeRerollData(userId);
+        const userShop = getUserShop(userId);
+        const rerollData = getRerollData(userId);
+        const embed = createShopEmbed(userId, userShop, 0);
+        const buttons = createShopButtons(userId, rerollData.count, 0);
+        return message.reply({ embeds: [embed], components: buttons });
+    }
+
+    const subcommand = args[0].toLowerCase();
+
+    if (subcommand === 'buy') {
+        if (args.length < 3) {
+            return message.reply('❌ Usage: `.shop buy <ItemName> <Quantity>`');
+        }
+
+        const quantity = parseInt(args[args.length - 1]);
+        if (isNaN(quantity) || quantity < 1) {
+            return message.reply('❌ Please provide a valid quantity.');
+        }
+
+        const itemName = args.slice(1, -1).join(' ');
+        const userShop = getUserShop(userId);
+        const itemData = userShop[itemName];
+
+        if (!itemData) {
+            return message.reply(`❌ Item "${itemName}" not found in your shop.`);
+        }
+
+        const totalCost = itemData.cost * quantity;
+        const confirmEmbed = createPurchaseConfirmationEmbed(quantity, itemName, totalCost, itemData.currency);
+        const buttons = createPurchaseButtons('purchase');
+
+        const reply = await message.reply({ embeds: [confirmEmbed], components: [buttons] });
+
+        pendingPurchases.set(userId, { itemName, itemData, quantity, messageId: reply.id });
+
+        setTimeout(() => {
+            if (pendingPurchases.has(userId) && pendingPurchases.get(userId).messageId === reply.id) {
+                pendingPurchases.delete(userId);
+            }
+        }, 60000);
+    }
+    else if (subcommand === 'search') {
+        if (args.length < 2) {
+            return message.reply('❌ Usage: `.shop search <ItemName>`');
+        }
+
+        const searchQuery = args.slice(1).join(' ').toLowerCase();
+        const userShop = getUserShop(userId);
+        const searchEmbed = createSearchResultsEmbed(searchQuery, userShop);
+        return message.reply({ embeds: [searchEmbed] });
+    }
+}
+
+async function handleShopPagination(interaction) {
+    const parts = interaction.customId.split('_');
+    const userId = parts[2];
+    const currentPage = parseInt(parts[3]);
+    
+    if (interaction.user.id !== userId) {
+        return interaction.reply({
+            content: "❌ You can't use someone else's shop.",
+            ephemeral: true
+        });
+    }
+
+    const direction = parts[1];
+    const newPage = direction === 'prev' ? currentPage - 1 : currentPage + 1;
+    
+    if (newPage < 0 || newPage >= RARITY_PAGES.length) {
+        return interaction.reply({
+            content: '❌ Invalid page.',
+            ephemeral: true
+        });
+    }
+
+    const userShop = getUserShop(userId);
+    const rerollData = getRerollData(userId);
+    const embed = createShopEmbed(userId, userShop, newPage);
+    const buttons = createShopButtons(userId, rerollData.count, newPage);
+
+    await interaction.update({ embeds: [embed], components: buttons });
+}
+
+async function handleFreeReroll(interaction) {
+    const userId = interaction.user.id;
+    await initializeRerollData(userId);
+    
+    const rerollData = getRerollData(userId);
+
+    if (rerollData.count <= 0) {
+        return interaction.reply({
+            content: '❌ You have no free rerolls left. Use a gem reroll instead.',
+            ephemeral: true
+        });
+    }
+
+    useReroll(userId, false);
+
+    const newShop = forceRerollUserShop(userId);
+    const updatedRerollData = getRerollData(userId);
+    const cooldownRemaining = getRerollCooldownRemaining(userId);
+
+    const successEmbed = createRerollSuccessEmbed(updatedRerollData.count, cooldownRemaining);
+    const shopEmbed = createShopEmbed(userId, newShop, 0);
+    const buttons = createShopButtons(userId, updatedRerollData.count, 0);
+
+    await interaction.update({ embeds: [successEmbed, shopEmbed], components: buttons });
+}
+
+async function handlePaidReroll(interaction) {
+    const userId = interaction.user.id;
+    await initializeRerollData(userId);
+
+    const gemCost = getPaidRerollCost(userId);
+    const currency = await getUserCurrency(userId);
+
+    if (currency.gems < gemCost) {
+        return interaction.reply({
+            content: `❌ You need ${gemCost.toLocaleString()} gems for this reroll.`,
+            ephemeral: true
+        });
+    }
+
+    await deductCurrency(userId, 'gems', gemCost);
+    useReroll(userId, true);
+
+    const newShop = forceRerollUserShop(userId);
+    const rerollData = getRerollData(userId);
+    const cooldownRemaining = getRerollCooldownRemaining(userId);
+
+    const successEmbed = createRerollSuccessEmbed(rerollData.count, cooldownRemaining, gemCost);
+    const shopEmbed = createShopEmbed(userId, newShop, 0);
+    const buttons = createShopButtons(userId, rerollData.count, 0);
+
+    await interaction.update({ embeds: [successEmbed, shopEmbed], components: buttons });
+}
+
+async function handleBuyAllButton(interaction) {
+    const userId = interaction.user.id;
+    const userShop = getUserShop(userId);
+
+    const confirmEmbed = createBuyAllConfirmationEmbed(userShop);
+    const buttons = createPurchaseButtons('buyall');
+
+    await interaction.reply({ 
+        embeds: [confirmEmbed], 
+        components: [buttons],
+        ephemeral: true
+    });
+
+    pendingBuyAll.set(userId, { userShop, timestamp: Date.now() });
+
+    setTimeout(() => {
+        pendingBuyAll.delete(userId);
+    }, 60000);
+}
+
+async function handlePurchaseConfirmation(interaction) {
+    const userId = interaction.user.id;
+    const pending = pendingPurchases.get(userId);
+
+    if (!pending) {
+        return interaction.update({
+            content: '❌ Purchase expired. Please try again.',
+            embeds: [],
+            components: []
+        });
+    }
+
+    const result = await processPurchase(userId, pending.itemName, pending.itemData, pending.quantity);
+
+    pendingPurchases.delete(userId);
+
+    if (!result.success) {
+        return interaction.update({
+            content: result.message,
+            embeds: [],
+            components: []
+        });
+    }
+
+    await interaction.update({
+        content: `✅ Successfully purchased **${result.quantity}x ${result.itemName}** for **${result.totalCost.toLocaleString()} ${result.currency}**!`,
+        embeds: [],
+        components: []
+    });
+}
+
+async function handlePurchaseCancel(interaction) {
+    const userId = interaction.user.id;
+    pendingPurchases.delete(userId);
+
+    await interaction.update({
+        content: '❌ Purchase cancelled.',
+        embeds: [],
+        components: []
+    });
+}
+
+async function handleBuyAllConfirmation(interaction) {
+    const userId = interaction.user.id;
+    const pending = pendingBuyAll.get(userId);
+
+    if (!pending) {
+        return interaction.update({
+            content: '❌ Purchase expired. Please try again.',
+            embeds: [],
+            components: []
+        }).catch(() => {});
+    }
+
+    const result = await processBuyAll(userId, pending.userShop);
+
+    pendingBuyAll.delete(userId);
+
+    if (!result.success) {
+        return interaction.update({
+            content: result.message || '❌ Bulk purchase failed.',
+            embeds: [],
+            components: []
+        }).catch(() => {});
+    }
+
+    const purchaseList = result.purchases.map(p => 
+        `• ${p.quantity}x ${p.itemName} - ${p.cost.toLocaleString()} ${p.currency}`
+    ).slice(0, 10).join('\n');
+
+    const moreItems = result.purchases.length > 10 ? `\n...and ${result.purchases.length - 10} more items` : '';
+
+    await interaction.update({
+        content: 
+            `✅ **Bulk Purchase Complete!**\n\n` +
+            `${purchaseList}${moreItems}\n\n` +
+            `**Total Spent:**\n` +
+            `💰 ${result.totalCoins.toLocaleString()} coins\n` +
+            `💎 ${result.totalGems.toLocaleString()} gems`,
+        embeds: [],
+        components: []
+    }).catch(() => {});
+}
+
+async function handleBuyAllCancel(interaction) {
+    const userId = interaction.user.id;
+    pendingBuyAll.delete(userId);
+
+    await interaction.update({
+        content: '❌ Bulk purchase cancelled.',
+        embeds: [],
+        components: []
+    });
+}

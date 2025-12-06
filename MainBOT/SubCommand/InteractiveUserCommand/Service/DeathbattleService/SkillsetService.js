@@ -1,11 +1,15 @@
 const jjkSkillset = require('../../Configuration/Deathbattle/Skillsets/jjk');
 const narutoSkillset = require('../../Configuration/Deathbattle/Skillsets/naruto');
+const demonSlayerSkillset = require('../../Configuration/Deathbattle/Skillsets/demonslayer');
+const onePieceSkillset = require('../../Configuration/Deathbattle/Skillsets/onepiece');
 
 class SkillsetService {
     constructor() {
         this.skillsets = new Map();
         this.skillsets.set('jjk', jjkSkillset);
         this.skillsets.set('naruto', narutoSkillset);
+        this.skillsets.set('demonslayer', demonSlayerSkillset);
+        this.skillsets.set('onepiece', onePieceSkillset);
     }
 
     getSkillset(name) {
