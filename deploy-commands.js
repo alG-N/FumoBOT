@@ -53,7 +53,7 @@ loadCommand("./MainBOT/SubCommand/BasicCommand/tutorialHelp.js", "tutorialHelp")
 loadCommand("./MainBOT/SubCommand/BasicCommand/invite.js", "invite");
 
 // Interactive Commands
-loadCommand("./MainBOT/SubCommand/InteractiveUserCommand/say.js", "say");
+loadCommand("./MainBOT/SubCommand/InteractiveUserCommand/MainCommand/say.js", "say");
 loadCommand("./MainBOT/SubCommand/InteractiveUserCommand/MainCommand/deathbattle.js", "deathbattle");
 
 // API/Website Commands

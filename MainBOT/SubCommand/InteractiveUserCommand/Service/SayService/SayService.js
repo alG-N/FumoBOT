@@ -1,5 +1,5 @@
 const { EmbedBuilder } = require('discord.js');
-const { TYPE_COLORS, OWNER_ID } = require('../Configuration/sayConfig');
+const { TYPE_COLORS, OWNER_ID } = require('../../Configuration/Say/sayConfig');
 
 class SayService {
     sanitizeMessage(message) {
