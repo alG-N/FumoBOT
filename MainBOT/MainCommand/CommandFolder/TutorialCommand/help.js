@@ -18,7 +18,7 @@ const client = new Client({
     partials: [Partials.Message, Partials.Channel, Partials.Reaction]
 });
 client.setMaxListeners(150);
-const tutorialCommands = require('./helpCMD');
+const tutorialCommands = require('../../Service/TutorialCommandService/HelpService/helpCMD');
 const { maintenance, developerID } = require("../../Configuration/maintenanceConfig");
 const { isBanned } = require('../../Administrator/BannedList/BanUtils');
 module.exports = (client) => {

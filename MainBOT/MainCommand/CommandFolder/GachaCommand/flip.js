@@ -25,7 +25,6 @@ module.exports = (client) => {
         if (message.author.bot) return;
 
         const content = message.content.toLowerCase();
-
         if (content !== '.flip' && content !== '.f') return;
 
         try {
