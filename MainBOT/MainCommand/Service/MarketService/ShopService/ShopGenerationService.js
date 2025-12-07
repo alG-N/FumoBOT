@@ -16,18 +16,16 @@ function isGuaranteedMysteryBlock() {
     return hour % 6 === 0;
 }
 
-// Unknown guaranteed once per day at midnight UTC
+// Unknown guaranteed every 12 hours (0, 12)
 function isGuaranteedUnknownBlock() {
     const hour = new Date().getUTCHours();
-    return hour === 0;
+    return hour % 12 === 0;
 }
 
-// Prime guaranteed every 3 days at midnight UTC
+// Prime guaranteed every 24 hours at midnight UTC
 function isGuaranteedPrimeBlock() {
-    const now = new Date();
-    const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
-    const hour = now.getUTCHours();
-    return (dayOfYear % 3 === 0) && hour === 0;
+    const hour = new Date().getUTCHours();
+    return hour === 0;
 }
 
 function assignStock(rarity, forceMystery = false, forceUnknown = false, forcePrime = false) {

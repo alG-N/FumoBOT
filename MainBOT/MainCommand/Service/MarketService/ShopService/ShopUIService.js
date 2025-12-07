@@ -3,7 +3,7 @@ const { RARITY_ICONS } = require('../../../Configuration/shopConfig');
 const { formatNumber } = require('../../../Ultility/formatting');
 const { getUserShopTimeLeft } = require('./ShopCacheService');
 const { getRerollData, getRerollCooldownRemaining, formatTimeRemaining, getPaidRerollCost, canUseGemReroll } = require('./ShopRerollService');
-const { isDoubleLuckDay, isGuaranteedMysteryBlock } = require('./ShopGenerationService');
+const { isDoubleLuckDay, isGuaranteedMysteryBlock, isGuaranteedUnknownBlock, isGuaranteedPrimeBlock } = require('./ShopGenerationService');
 
 const RARITY_PAGES = [
     ['Basic', 'Common', 'Rare', 'Epic', 'Legendary'],  
@@ -17,6 +17,15 @@ function formatStockText(stock, stockMessage) {
 }
 
 async function createShopEmbed(userId, userShop, page = 0) {
+    // FIX: Add null/undefined check
+    if (!userShop || typeof userShop !== 'object') {
+        console.error('[SHOP_UI] userShop is null or undefined for user:', userId);
+        return new EmbedBuilder()
+            .setTitle('❌ Shop Error')
+            .setDescription('Failed to load shop. Please try again.')
+            .setColor(Colors.Red);
+    }
+
     const categorizedItems = { 
         Basic: [], 
         Common: [], 
@@ -51,6 +60,13 @@ async function createShopEmbed(userId, userShop, page = 0) {
     const currentPageRarities = RARITY_PAGES[page] || RARITY_PAGES[0];
     const totalPages = RARITY_PAGES.length;
 
+    // Build special event messages
+    const specialMessages = [];
+    if (isDoubleLuckDay()) specialMessages.push('🍀 **x2 Luck is active!**');
+    if (isGuaranteedMysteryBlock()) specialMessages.push('⬛ **Guaranteed ??? item in this shop!**');
+    if (isGuaranteedUnknownBlock()) specialMessages.push('🌀 **Guaranteed Unknown item in this shop!**');
+    if (isGuaranteedPrimeBlock()) specialMessages.push('👑 **Guaranteed Prime item in this shop!**');
+
     const shopEmbed = new EmbedBuilder()
         .setTitle(`✨ Your Magical Shop View ✨ (Page ${page + 1}/${totalPages})`)
         .setDescription(
@@ -61,8 +77,7 @@ async function createShopEmbed(userId, userShop, page = 0) {
             `🔄 **Shop resets in:** ${timeUntilNextReset}\n` +
             `🎁 **Your Free Rerolls:** ${rerollData.count}/5 ` +
             `(Reset in: ${formatTimeRemaining(cooldownRemaining)})` +
-            (isDoubleLuckDay() ? `\n🍀 **x2 Luck is active!**` : '') +
-            (isGuaranteedMysteryBlock() ? `\n⬛ **Guaranteed ??? item in this shop!**` : '')
+            (specialMessages.length > 0 ? '\n' + specialMessages.join('\n') : '')
         )
         .setColor(Colors.Blue)
         .setThumbnail('https://img1.picmix.com/output/stamp/normal/6/1/0/7/2577016_a2c58.png')

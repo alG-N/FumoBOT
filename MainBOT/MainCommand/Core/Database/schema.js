@@ -205,6 +205,40 @@ function createTables() {
             });
         }));
 
+        // Global shop table
+        tables.push(new Promise((res) => {
+            db.run(`CREATE TABLE IF NOT EXISTS globalShop (
+                    resetTime INTEGER PRIMARY KEY,
+                    shopData TEXT NOT NULL,
+                    createdAt INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+            )`, (err) => {
+                if (err) {
+                    console.error('❌ Failed to create globalShop table:', err.message);
+                } else {
+                    console.log('✅ Table globalShop is ready');
+                }
+                res();
+            });
+        }));
+
+        // User shop views table
+        tables.push(new Promise((res) => {
+            db.run(`CREATE TABLE IF NOT EXISTS userShopViews (
+                userId TEXT NOT NULL,
+                resetTime INTEGER NOT NULL,
+                shopData TEXT NOT NULL,
+                createdAt INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+                PRIMARY KEY (userId, resetTime)
+            )`, (err) => {
+                if (err) {
+                    console.error('❌ Failed to create userShopViews table:', err.message);
+                } else {
+                    console.log('✅ Table userShopViews is ready');
+                }
+                res();
+            });
+        }));
+
         // Redeemed Codes Table
         tables.push(new Promise((res) => {
             db.run(`CREATE TABLE IF NOT EXISTS redeemedCodes (
