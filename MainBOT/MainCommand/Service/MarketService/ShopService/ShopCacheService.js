@@ -117,12 +117,6 @@ async function updateUserStock(userId, itemName, newStock) {
         const currentHour = getCurrentHourTimestamp();
         const db = require('../../../Core/Database/dbSetting');
         
-        console.log(`[SHOP_CACHE] === UPDATE STOCK START ===`);
-        console.log(`[SHOP_CACHE] UserId: ${userId}`);
-        console.log(`[SHOP_CACHE] Item: ${itemName}`);
-        console.log(`[SHOP_CACHE] New Stock: ${newStock}`);
-        console.log(`[SHOP_CACHE] Current Hour Timestamp: ${currentHour}`);
-        
         return await new Promise((resolve, reject) => {
             db.serialize(() => {
                 db.get(
@@ -130,31 +124,26 @@ async function updateUserStock(userId, itemName, newStock) {
                     [userId, currentHour],
                     (err, userView) => {
                         if (err) {
-                            console.error(`[SHOP_CACHE] ERROR fetching user view:`, err);
+                            console.error(`[SHOP_CACHE] Error fetching user view:`, err);
                             return resolve(false);
                         }
 
                         if (!userView) {
-                            console.error(`[SHOP_CACHE] ERROR: User ${userId} has no shop`);
+                            console.error(`[SHOP_CACHE] User ${userId} has no shop`);
                             return resolve(false);
                         }
 
-                        console.log(`[SHOP_CACHE] Found user shop view in database`);
                         const shop = JSON.parse(userView.shopData);
 
                         if (!shop[itemName]) {
-                            console.error(`[SHOP_CACHE] ERROR: Item ${itemName} not found`);
+                            console.error(`[SHOP_CACHE] Item ${itemName} not found`);
                             return resolve(false);
                         }
-
-                        console.log(`[SHOP_CACHE] Current stock for ${itemName}: ${shop[itemName].stock}`);
                         
                         shop[itemName].stock = newStock;
                         if (newStock <= 0) {
                             shop[itemName].message = 'Out of Stock';
                         }
-
-                        console.log(`[SHOP_CACHE] Updated stock for ${itemName}: ${shop[itemName].stock}`);
                         
                         const updatedShopData = JSON.stringify(shop);
 
@@ -163,31 +152,26 @@ async function updateUserStock(userId, itemName, newStock) {
                             [updatedShopData, userId, currentHour],
                             function(updateErr) {
                                 if (updateErr) {
-                                    console.error('[SHOP_CACHE] UPDATE error:', updateErr);
+                                    console.error('[SHOP_CACHE] Update error:', updateErr);
                                     return resolve(false);
                                 }
-
-                                console.log(`[SHOP_CACHE] UPDATE completed. Changes: ${this.changes}`);
 
                                 db.get(
                                     `SELECT shopData FROM userShopViews WHERE userId = ? AND resetTime = ?`,
                                     [userId, currentHour],
                                     (verifyErr, verifyView) => {
                                         if (verifyErr || !verifyView) {
-                                            console.error('[SHOP_CACHE] VERIFICATION fetch failed');
+                                            console.error('[SHOP_CACHE] Verification fetch failed');
                                             return resolve(false);
                                         }
 
                                         const verifyShop = JSON.parse(verifyView.shopData);
-                                        console.log(`[SHOP_CACHE] VERIFICATION - Stock: ${verifyShop[itemName]?.stock}`);
 
                                         if (verifyShop[itemName]?.stock !== newStock) {
-                                            console.error(`[SHOP_CACHE] VERIFICATION FAILED! Expected ${newStock} but got ${verifyShop[itemName]?.stock}`);
+                                            console.error(`[SHOP_CACHE] Verification failed! Expected ${newStock} but got ${verifyShop[itemName]?.stock}`);
                                             return resolve(false);
                                         }
 
-                                        console.log(`[SHOP_CACHE] VERIFICATION SUCCESS!`);
-                                        console.log(`[SHOP_CACHE] === UPDATE STOCK END ===`);
                                         debugLog('SHOP_CACHE', `Updated ${userId}'s stock for ${itemName}: ${newStock}`);
                                         resolve(true);
                                     }
@@ -200,7 +184,7 @@ async function updateUserStock(userId, itemName, newStock) {
         });
 
     } catch (error) {
-        console.error('[SHOP_CACHE] EXCEPTION in updateUserStock:', error);
+        console.error('[SHOP_CACHE] Exception in updateUserStock:', error);
         return false;
     }
 }

@@ -2,7 +2,7 @@ const { EmbedBuilder, Colors } = require('discord.js');
 const { checkRestrictions } = require('../../Middleware/restrictions');
 const { checkButtonOwnership } = require('../../Middleware/buttonOwnership');
 const { formatNumber } = require('../../Ultility/formatting');
-const { getUserShop, forceRerollUserShop, getUserShopTimeLeft } = require('../../Service/MarketService/ShopService/ShopCacheService');
+const { getUserShop, forceRerollUserShop } = require('../../Service/MarketService/ShopService/ShopCacheService');
 const { useReroll, getRerollData, getRerollCooldownRemaining, formatTimeRemaining, getPaidRerollCost } = require('../../Service/MarketService/ShopService/ShopRerollService');
 const purchaseService = require('../../Service/MarketService/ShopService/ShopPurchaseService');
 const {
@@ -168,11 +168,10 @@ module.exports = async (client) => {
             createShopButtons(userId, updatedRerollData.count, 0)
         ]);
 
-        await interaction.reply({
+        await interaction.update({
             content: isPaidReroll ? '💎 **Gem Reroll Complete!**' : '🔄 **Free Reroll Complete!**',
             embeds: [rerollEmbed, shopEmbed],
-            components: buttons,
-            ephemeral: true
+            components: buttons
         });
     }
 
