@@ -59,7 +59,14 @@ function createIndexes() {
 
         // Global market
         `CREATE INDEX IF NOT EXISTS idx_globalMarket_userId ON globalMarket(userId)`,
-        `CREATE INDEX IF NOT EXISTS idx_globalMarket_listedAt ON globalMarket(listedAt)`
+        `CREATE INDEX IF NOT EXISTS idx_globalMarket_listedAt ON globalMarket(listedAt)`,
+
+        // Pray
+        `CREATE INDEX IF NOT EXISTS idx_inventory_user_item ON userInventory(userId, itemName, quantity)`,
+        `CREATE INDEX IF NOT EXISTS idx_activeBoosts_user_expires ON activeBoosts(userId, expiresAt, type)`,
+        `CREATE INDEX IF NOT EXISTS idx_farmingFumos_user ON farmingFumos(userId, fumoName)`,
+        `CREATE INDEX IF NOT EXISTS idx_sakuyaUsage_user ON sakuyaUsage(userId, uses, lastUsed)`,
+        `CREATE INDEX IF NOT EXISTS idx_userCoins_pray ON userCoins(userId, prayedToMarisa, reimuStatus, yukariMark)`,
     ];
 
     return new Promise((resolve) => {

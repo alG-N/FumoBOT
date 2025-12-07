@@ -1,24 +1,10 @@
 {
   "market": [
     {
-      "name": "Reimu(Common)",
-      "price": 125,
-      "rarity": "Common",
-      "stock": 6,
-      "picture": null
-    },
-    {
-      "name": "Sanae(Common)",
-      "price": 125,
-      "rarity": "Common",
-      "stock": 9,
-      "picture": null
-    },
-    {
-      "name": "Meiling(UNCOMMON)",
+      "name": "Sakuya(UNCOMMON)",
       "price": 200,
       "rarity": "UNCOMMON",
-      "stock": 7,
+      "stock": 5,
       "picture": null
     },
     {
@@ -29,12 +15,26 @@
       "picture": null
     },
     {
-      "name": "Eirin(MYTHICAL)",
-      "price": 1350000,
-      "rarity": "MYTHICAL",
-      "stock": 1,
+      "name": "Remilia(RARE)",
+      "price": 300,
+      "rarity": "RARE",
+      "stock": 6,
+      "picture": null
+    },
+    {
+      "name": "Marisa(Common)",
+      "price": 125,
+      "rarity": "Common",
+      "stock": 8,
+      "picture": null
+    },
+    {
+      "name": "Yuyuko(LEGENDARY)",
+      "price": 15500,
+      "rarity": "LEGENDARY",
+      "stock": 3,
       "picture": null
     }
   ],
-  "resetTime": 1765094400000
+  "resetTime": 1765119600000
 }

@@ -3,8 +3,37 @@ const { PRAY_LIMITS } = require('../../Configuration/prayConfig');
 
 const usageTracker = new Map();
 const activePrayers = new Set();
+const sessionTimestamps = new Map();
+const ticketCache = new Map();
+
+const SESSION_TIMEOUT = 120000;
+const TICKET_CACHE_TTL = 5000;
+
+setInterval(() => {
+    const now = Date.now();
+    for (const [userId, timestamp] of sessionTimestamps.entries()) {
+        if (now - timestamp > SESSION_TIMEOUT) {
+            removeActiveSession(userId);
+        }
+    }
+}, 60000);
+
+setInterval(() => {
+    const now = Date.now();
+    for (const [userId, cached] of ticketCache.entries()) {
+        if (now - cached.timestamp > TICKET_CACHE_TTL) {
+            ticketCache.delete(userId);
+        }
+    }
+}, 30000);
 
 function checkActiveSession(userId) {
+    const timestamp = sessionTimestamps.get(userId);
+    if (timestamp && Date.now() - timestamp > SESSION_TIMEOUT) {
+        removeActiveSession(userId);
+        return { valid: true };
+    }
+
     if (activePrayers.has(userId)) {
         return {
             valid: false,
@@ -16,20 +45,27 @@ function checkActiveSession(userId) {
 }
 
 async function checkTicketAvailability(userId) {
+    const cached = ticketCache.get(userId);
+    if (cached && Date.now() - cached.timestamp < TICKET_CACHE_TTL) {
+        return cached.result;
+    }
+
     const ticket = await get(
         `SELECT quantity FROM userInventory WHERE userId = ? AND itemName = ?`,
-        [userId, PRAY_LIMITS.ticketRequired]
+        [userId, PRAY_LIMITS.ticketRequired],
+        true
     );
 
-    if (!ticket || ticket.quantity <= 0) {
-        return {
+    const result = !ticket || ticket.quantity <= 0
+        ? {
             valid: false,
             error: 'NO_TICKET',
             message: `You need at least **1 ${PRAY_LIMITS.ticketRequired}** in your inventory to use this command.`
-        };
-    }
+        }
+        : { valid: true, currentQuantity: ticket.quantity };
 
-    return { valid: true, currentQuantity: ticket.quantity };
+    ticketCache.set(userId, { result, timestamp: Date.now() });
+    return result;
 }
 
 function checkUsageLimit(userId) {
@@ -67,14 +103,29 @@ function trackUsage(userId) {
 
 function addActiveSession(userId) {
     activePrayers.add(userId);
+    sessionTimestamps.set(userId, Date.now());
 }
 
 function removeActiveSession(userId) {
     activePrayers.delete(userId);
+    sessionTimestamps.delete(userId);
 }
 
 function clearExpiredSessions() {
-    activePrayers.clear();
+    const now = Date.now();
+    for (const [userId, timestamp] of sessionTimestamps.entries()) {
+        if (now - timestamp > SESSION_TIMEOUT) {
+            removeActiveSession(userId);
+        }
+    }
+}
+
+function clearTicketCache(userId = null) {
+    if (userId) {
+        ticketCache.delete(userId);
+    } else {
+        ticketCache.clear();
+    }
 }
 
 async function validatePrayRequest(userId) {
@@ -99,6 +150,7 @@ module.exports = {
     addActiveSession,
     removeActiveSession,
     clearExpiredSessions,
+    clearTicketCache,
     usageTracker,
     activePrayers
 };

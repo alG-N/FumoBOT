@@ -83,6 +83,7 @@ module.exports = async (client) => {
             }
 
             const inventory = await getUserInventory(userId);
+            
             const hasBasicShards = BASIC_SHARDS.every(shard => {
                 const item = inventory.find(i => i.itemName === shard);
                 return item && item.quantity >= 1;
@@ -132,18 +133,23 @@ module.exports = async (client) => {
                 if (action === 'basic' || action === 'enhanced') {
                     await interaction.deferUpdate();
 
-                    await consumeTicket(userId);
-                    await consumeShards(userId, BASIC_SHARDS);
+                    const consumeOperations = [
+                        consumeTicket(userId),
+                        consumeShards(userId, BASIC_SHARDS)
+                    ];
 
-                    let enhancedMode = false;
                     if (action === 'enhanced') {
-                        await consumeShards(userId, [
-                            ENHANCED_SHARDS.divineOrb,
-                            ...Array(5).fill(ENHANCED_SHARDS.celestialEssence)
-                        ]);
-                        enhancedMode = true;
+                        consumeOperations.push(
+                            consumeShards(userId, [
+                                ENHANCED_SHARDS.divineOrb,
+                                ...Array(5).fill(ENHANCED_SHARDS.celestialEssence)
+                            ])
+                        );
                     }
 
+                    await Promise.all(consumeOperations);
+
+                    const enhancedMode = action === 'enhanced';
                     trackUsage(userId);
 
                     const character = selectRandomCharacter(enhancedMode);
