@@ -5,7 +5,8 @@ const { MAX_REROLLS } = require('../../../Configuration/shopConfig');
 async function getUserRerollData(userId) {
     const row = await get(
         `SELECT rerollCount, lastRerollReset, paidRerollCount FROM userShopRerolls WHERE userId = ?`,
-        [userId]
+        [userId],
+        true
     );
     
     if (!row) {
@@ -19,7 +20,7 @@ async function getUserRerollData(userId) {
     }
     
     return {
-        rerollCount: row.rerollCount || MAX_REROLLS,
+        rerollCount: row.rerollCount !== null ? row.rerollCount : MAX_REROLLS,
         lastRerollReset: row.lastRerollReset || Date.now(),
         paidRerollCount: row.paidRerollCount || 0
     };
@@ -32,15 +33,13 @@ async function updateRerollCount(userId, newCount, resetTime) {
          ON CONFLICT(userId) DO UPDATE SET rerollCount = ?, lastRerollReset = ?`,
         [userId, newCount, resetTime, newCount, resetTime]
     );
-    debugLog('SHOP', `Updated reroll count for ${userId}: ${newCount}`);
+    debugLog('SHOP', `Updated reroll count for ${userId}: ${newCount} at ${resetTime}`);
 }
 
 async function updatePaidRerollCount(userId, paidCount) {
     await run(
-        `INSERT INTO userShopRerolls (userId, rerollCount, lastRerollReset, paidRerollCount)
-         VALUES (?, ?, ?, ?)
-         ON CONFLICT(userId) DO UPDATE SET paidRerollCount = ?`,
-        [userId, MAX_REROLLS, Date.now(), paidCount, paidCount]
+        `UPDATE userShopRerolls SET paidRerollCount = ? WHERE userId = ?`,
+        [paidCount, userId]
     );
     debugLog('SHOP', `Updated paid reroll count for ${userId}: ${paidCount}`);
 }
@@ -56,7 +55,8 @@ async function resetPaidRerollCount(userId) {
 async function getUserCurrency(userId) {
     const row = await get(
         `SELECT coins, gems FROM userCoins WHERE userId = ?`,
-        [userId]
+        [userId],
+        true
     );
     return row || { coins: 0, gems: 0 };
 }

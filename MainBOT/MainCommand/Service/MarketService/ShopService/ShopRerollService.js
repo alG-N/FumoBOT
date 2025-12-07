@@ -6,7 +6,7 @@ async function getRerollData(userId) {
     const dbData = await getUserRerollData(userId);
     const now = Date.now();
     
-    if (now - dbData.lastRerollReset >= REROLL_COOLDOWN) {
+    if (!dbData.lastRerollReset || now - dbData.lastRerollReset >= REROLL_COOLDOWN) {
         const newData = { 
             count: MAX_REROLLS, 
             lastResetTime: now,
@@ -20,7 +20,7 @@ async function getRerollData(userId) {
     return {
         count: dbData.rerollCount,
         lastResetTime: dbData.lastRerollReset,
-        paidCount: dbData.paidRerollCount
+        paidCount: dbData.paidRerollCount || 0
     };
 }
 
@@ -41,7 +41,7 @@ async function useReroll(userId, isPaid = false) {
         return false;
     } else {
         const data = await getRerollData(userId);
-        const newPaidCount = data.paidCount + 1;
+        const newPaidCount = (data.paidCount || 0) + 1;
         await updatePaidRerollCount(userId, newPaidCount);
         debugLog('SHOP_REROLL', `Used paid reroll for ${userId}, total paid: ${newPaidCount}`);
         return true;
@@ -58,6 +58,11 @@ async function getPaidRerollCost(userId) {
 async function getRerollCooldownRemaining(userId) {
     const data = await getRerollData(userId);
     const now = Date.now();
+    
+    if (!data.lastResetTime) {
+        return 0;
+    }
+    
     const timeSinceReset = now - data.lastResetTime;
     
     if (timeSinceReset >= REROLL_COOLDOWN) {
@@ -68,6 +73,8 @@ async function getRerollCooldownRemaining(userId) {
 }
 
 function formatTimeRemaining(milliseconds) {
+    if (milliseconds <= 0) return '0s';
+    
     const hours = Math.floor(milliseconds / (1000 * 60 * 60));
     const minutes = Math.floor((milliseconds % (1000 * 60 * 60)) / (1000 * 60));
     const seconds = Math.floor((milliseconds % (1000 * 60)) / 1000);
