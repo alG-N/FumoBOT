@@ -1,5 +1,5 @@
 const { getUserCurrency, deductCurrency, addItemToInventory } = require('./ShopDatabaseService');
-const { updateShopStock } = require('./ShopCacheService');
+const { updateUserStock } = require('./ShopCacheService');
 const { debugLog } = require('../../../Core/logger');
 
 async function validatePurchase(userId, itemName, itemData, quantity) {
@@ -7,7 +7,7 @@ async function validatePurchase(userId, itemName, itemData, quantity) {
         return { 
             valid: false, 
             error: 'ITEM_NOT_FOUND',
-            message: `🔍 The item "${itemName}" is not available in your magical shop.`
+            message: `🔍 The item "${itemName}" is not available in your shop.`
         };
     }
 
@@ -23,7 +23,7 @@ async function validatePurchase(userId, itemName, itemData, quantity) {
         return { 
             valid: false, 
             error: 'INSUFFICIENT_STOCK',
-            message: `⚠️ Sorry, you only have ${itemData.stock} ${itemName}(s) in your shop.`
+            message: `⚠️ You only have ${itemData.stock} ${itemName}(s) in your personal shop view.`
         };
     }
 
@@ -34,7 +34,7 @@ async function validatePurchase(userId, itemName, itemData, quantity) {
         return { 
             valid: false, 
             error: 'INSUFFICIENT_FUNDS',
-            message: `💸 You do not have enough ${itemData.currency} to buy ${quantity} ${itemName}(s).`
+            message: `💸 You need ${totalCost} ${itemData.currency} but only have ${currency[itemData.currency] || 0}.`
         };
     }
 
@@ -58,12 +58,7 @@ async function processPurchase(userId, itemName, itemData, quantity) {
 
         if (itemData.stock !== 'unlimited') {
             const newStock = itemData.stock - quantity;
-            updateShopStock(itemName, newStock);
-            itemData.stock = newStock;
-            if (newStock <= 0) {
-                itemData.stock = 0;
-                itemData.message = 'Out of Stock';
-            }
+            updateUserStock(userId, itemName, newStock);
         }
 
         debugLog('SHOP_PURCHASE', `${userId} bought ${quantity}x ${itemName} for ${validation.totalCost} ${validation.currency}`);
@@ -92,14 +87,14 @@ async function processBuyAll(userId, userShop) {
         let totalCoins = 0;
         let totalGems = 0;
         const purchases = [];
-
         const itemsToBuy = [];
+
         for (const [itemName, itemData] of Object.entries(userShop)) {
             if (itemData.stock === 0) continue;
 
             let quantity;
             if (itemData.stock === 'unlimited') {
-                quantity = 100; 
+                quantity = 100;
             } else {
                 quantity = itemData.stock;
             }
@@ -131,9 +126,7 @@ async function processBuyAll(userId, userShop) {
             await addItemToInventory(userId, item.itemName, item.quantity);
 
             if (item.itemData.stock !== 'unlimited') {
-                updateShopStock(item.itemName, 0);
-                item.itemData.stock = 0;
-                item.itemData.message = 'Out of Stock';
+                updateUserStock(userId, item.itemName, 0);
             }
 
             purchases.push({
