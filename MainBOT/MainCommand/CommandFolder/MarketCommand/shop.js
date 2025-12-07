@@ -65,7 +65,7 @@ module.exports = async (client) => {
 
         try {
             const newPage = action === 'next' ? currentPage + 1 : currentPage - 1;
-            const userShop = getUserShop(userId);
+            const userShop = await getUserShop(userId);  // ✅ FIXED: Added await
             const rerollData = await getRerollData(userId);
 
             const shopEmbed = await createShopEmbed(userId, userShop, newPage);
@@ -282,7 +282,7 @@ module.exports = async (client) => {
         }
 
         const userId = interaction.user.id;
-        const userShop = getUserShop(userId);
+        const userShop = await getUserShop(userId);  // ✅ FIXED: Added await
 
         const confirmationEmbed = createBuyAllConfirmationEmbed(userShop);
         const buttonRow = createPurchaseButtons('buyall');
@@ -300,7 +300,7 @@ module.exports = async (client) => {
         await interaction.deferUpdate({ ephemeral: true });
 
         if (interaction.customId === 'buyall_confirm') {
-            const userShop = getUserShop(userId);
+            const userShop = await getUserShop(userId);  // ✅ FIXED: Added await
             const result = await processBuyAll(userId, userShop);
 
             if (result.success) {

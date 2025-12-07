@@ -11,6 +11,7 @@ const RARITY_PAGES = [
 ];
 
 function formatStockText(stock, stockMessage) {
+    // console.log('[SHOP_UI] Formatting stock:', stock, stockMessage); // DEBUG
     if (stock === 0) return `~~Out of Stock~~`;
     if (stock === 'unlimited') return stockMessage;
     return `Stock: ${stock} (${stockMessage})`;
@@ -25,6 +26,8 @@ async function createShopEmbed(userId, userShop, page = 0) {
             .setColor(Colors.Red);
     }
 
+    console.log('[SHOP_UI] Creating embed for page', page, 'with', Object.keys(userShop).length, 'items');
+
     const categorizedItems = { 
         Basic: [], 
         Common: [], 
@@ -38,8 +41,11 @@ async function createShopEmbed(userId, userShop, page = 0) {
         Prime: []
     };
 
+    // Group items by rarity
     Object.keys(userShop).forEach(itemName => {
         const item = userShop[itemName];
+        
+        console.log('[SHOP_UI] Processing item:', itemName, 'Stock:', item.stock, 'Rarity:', item.rarity); // DEBUG
         
         const stockText = formatStockText(item.stock, item.message);
         const priceLabel = item.priceTag === 'SALE' ? '🔥 SALE' : 
@@ -49,6 +55,13 @@ async function createShopEmbed(userId, userShop, page = 0) {
             `\`${itemName}\` — **${formatNumber(item.cost)} ${item.currency}** ` +
             `(${stockText}${priceLabel ? ` • ${priceLabel}` : ''})`
         );
+    });
+
+    // Log what we have per rarity
+    Object.entries(categorizedItems).forEach(([rarity, items]) => {
+        if (items.length > 0) {
+            console.log(`[SHOP_UI] ${rarity}: ${items.length} items`);
+        }
     });
 
     const timeUntilNextReset = getUserShopTimeLeft();
@@ -80,17 +93,23 @@ async function createShopEmbed(userId, userShop, page = 0) {
         .setThumbnail('https://img1.picmix.com/output/stamp/normal/6/1/0/7/2577016_a2c58.png')
         .setFooter({ text: 'Reroll to get different items! Stock is shared globally.' });
 
+    // Add fields for current page rarities
     for (const rarity of currentPageRarities) {
-        const itemsList = categorizedItems[rarity].length > 0 ? 
-            categorizedItems[rarity].join('\n') : 
+        const itemsList = categorizedItems[rarity];
+        console.log(`[SHOP_UI] Adding field for ${rarity}, items:`, itemsList.length); // DEBUG
+        
+        const displayText = itemsList.length > 0 ? 
+            itemsList.join('\n') : 
             '-No items available here-';
+            
         shopEmbed.addFields({ 
             name: `${RARITY_ICONS[rarity]} ${rarity} Items`, 
-            value: itemsList, 
+            value: displayText, 
             inline: false 
         });
     }
 
+    console.log('[SHOP_UI] Embed created successfully');
     return shopEmbed;
 }
 

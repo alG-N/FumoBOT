@@ -199,54 +199,77 @@ function generateUserShop() {
         shop[def.name] = createItem(def.basePrice, def.currency, def.rarity, forceMystery, forceUnknown, forcePrime);
     }
 
-    // ✅ IMPROVED: Ensure minimum stock items with better logic
+    // ✅ CRITICAL FIX: Ensure AT LEAST 8 items with stock (increased from 5)
     const itemsWithStock = Object.values(shop).filter(item => item.stock > 0 || item.stock === 'unlimited');
     console.log('[SHOP_GEN] Items with stock before minimum check:', itemsWithStock.length);
     
-    if (itemsWithStock.length < 5) { // Increased from 3 to 5
+    const MINIMUM_STOCK_ITEMS = 8; // Increased minimum
+    
+    if (itemsWithStock.length < MINIMUM_STOCK_ITEMS) {
         console.log('[SHOP_GEN] Only', itemsWithStock.length, 'items with stock, forcing minimum...');
         debugLog('SHOP', `Only ${itemsWithStock.length} items with stock, forcing minimum stock on random items`);
         
-        // Get items without stock, excluding ultra-rares unless it's their guarantee time
+        // Get items that SHOULD have stock (Common to Legendary)
         const itemsWithoutStock = Object.keys(shop).filter(key => {
             const item = shop[key];
             
-            // Allow ultra-rares if it's their guarantee time
-            if (item.rarity === 'Unknown' && guaranteeUnknown) return true;
-            if (item.rarity === 'Prime' && guaranteePrime) return true;
-            if (item.rarity === '???' && guaranteeMystery) return true;
+            // ALWAYS allow these rarities to get forced stock
+            const allowedRarities = ['Basic', 'Common', 'Rare', 'Epic', 'Legendary', 'Mythical', 'Divine'];
             
-            // Otherwise exclude ultra-rares
-            if (item.rarity === 'Unknown' || item.rarity === 'Prime') return false;
+            // Allow ultra-rares ONLY if it's their guarantee time
+            if (item.rarity === 'Unknown' && guaranteeUnknown && item.stock === 0) return true;
+            if (item.rarity === 'Prime' && guaranteePrime && item.stock === 0) return true;
+            if (item.rarity === '???' && guaranteeMystery && item.stock === 0) return true;
             
-            return item.stock === 0;
+            // For normal rarities, only select if no stock
+            return allowedRarities.includes(item.rarity) && item.stock === 0;
         });
 
-        const itemsToFix = Math.min(5 - itemsWithStock.length, itemsWithoutStock.length);
-        console.log('[SHOP_GEN] Forcing stock on', itemsToFix, 'items');
+        const itemsToFix = Math.min(MINIMUM_STOCK_ITEMS - itemsWithStock.length, itemsWithoutStock.length);
+        console.log('[SHOP_GEN] Forcing stock on', itemsToFix, 'items from pool of', itemsWithoutStock.length);
         
+        // Prioritize by rarity (lower rarity = higher priority)
+        const rarityPriority = {
+            'Basic': 1,
+            'Common': 2,
+            'Rare': 3,
+            'Epic': 4,
+            'Legendary': 5,
+            'Mythical': 6,
+            'Divine': 7,
+            '???': 8,
+            'Unknown': 9,
+            'Prime': 10
+        };
+        
+        const sortedItems = itemsWithoutStock.sort((a, b) => {
+            const rarityA = shop[a].rarity;
+            const rarityB = shop[b].rarity;
+            return rarityPriority[rarityA] - rarityPriority[rarityB];
+        });
+        
+        // Force stock on the lowest rarity items first
         for (let i = 0; i < itemsToFix; i++) {
-            const randomIndex = Math.floor(Math.random() * itemsWithoutStock.length);
-            const itemName = itemsWithoutStock.splice(randomIndex, 1)[0];
+            const itemName = sortedItems[i];
             const item = shop[itemName];
-            
             const def = ITEM_DEFINITIONS.find(d => d.name === itemName);
+            
             if (def) {
                 let stockRange;
                 
-                // Use appropriate stock ranges based on rarity
-                if (def.rarity === '???') {
-                    stockRange = STOCK_RANGES.MYSTERY;
-                } else if (def.rarity === 'Legendary' || def.rarity === 'Mythical') {
-                    stockRange = STOCK_RANGES.LOTS;
+                // Use appropriate stock ranges
+                if (def.rarity === '???' || def.rarity === 'Unknown' || def.rarity === 'Prime') {
+                    stockRange = STOCK_RANGES.ULTRA_RARE; // [1, 1]
+                } else if (def.rarity === 'Legendary' || def.rarity === 'Mythical' || def.rarity === 'Divine') {
+                    stockRange = STOCK_RANGES.LOTS; // [3, 15]
                 } else {
-                    stockRange = STOCK_RANGES.ON_STOCK;
+                    stockRange = STOCK_RANGES.LEGENDARY; // [15, 30]
                 }
                 
                 item.stock = getRandomInt(...stockRange);
                 item.message = 'On-Stock';
-                console.log('[SHOP_GEN] Forced stock on', itemName, ':', item.stock);
-                debugLog('SHOP', `Forced stock on ${itemName}: ${item.stock}`);
+                console.log('[SHOP_GEN] Forced stock on', itemName, '(', def.rarity, '):', item.stock);
+                debugLog('SHOP', `Forced stock on ${itemName} (${def.rarity}): ${item.stock}`);
             }
         }
     }
@@ -255,7 +278,7 @@ function generateUserShop() {
     console.log('[SHOP_GEN] Final items with stock:', finalItemsWithStock.length);
     debugLog('SHOP', `Generated shop with ${Object.keys(shop).length} items, ${finalItemsWithStock.length} in stock`);
     
-    // ✅ ADD: Detailed debug log of what's in stock
+    // Detailed debug log
     if (finalItemsWithStock.length > 0) {
         const stockSummary = finalItemsWithStock.map(item => {
             const itemName = Object.keys(shop).find(key => shop[key] === item);
@@ -265,7 +288,7 @@ function generateUserShop() {
         debugLog('SHOP', `Items in stock: ${stockSummary}`);
     } else {
         console.error('⚠️ [SHOP_GEN] NO ITEMS IN STOCK! This should not happen.');
-        console.warn('⚠️ [SHOP] NO ITEMS IN STOCK! This should not happen.');
+        debugLog('SHOP', '⚠️ NO ITEMS IN STOCK! This should not happen.');
     }
     
     return shop;
