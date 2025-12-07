@@ -58,7 +58,7 @@ async function processPurchase(userId, itemName, itemData, quantity) {
 
         if (itemData.stock !== 'unlimited') {
             const newStock = itemData.stock - quantity;
-            updateUserStock(userId, itemName, newStock);
+            await updateUserStock(userId, itemName, newStock);
         }
 
         debugLog('SHOP_PURCHASE', `${userId} bought ${quantity}x ${itemName} for ${validation.totalCost} ${validation.currency}`);
@@ -126,7 +126,7 @@ async function processBuyAll(userId, userShop) {
             await addItemToInventory(userId, item.itemName, item.quantity);
 
             if (item.itemData.stock !== 'unlimited') {
-                updateUserStock(userId, item.itemName, 0);
+                await updateUserStock(userId, item.itemName, 0);
             }
 
             purchases.push({

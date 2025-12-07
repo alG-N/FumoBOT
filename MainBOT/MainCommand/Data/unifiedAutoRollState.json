@@ -1,7 +1,7 @@
 {
   "1128296349566251068": {
     "normal": {
-      "rollCount": 1,
+      "rollCount": 2,
       "autoSell": true,
       "startTime": 1764840683301,
       "bestFumo": {
@@ -11,7 +11,7 @@
       },
       "bestFumoAt": "12/4/2025, 5:03:15 PM",
       "bestFumoRoll": 1,
-      "specialFumoCount": 1364,
+      "specialFumoCount": 1370,
       "specialFumoFirstAt": "12/4/2025, 4:33:38 PM",
       "specialFumoFirstRoll": 3
     },
@@ -19,8 +19,8 @@
       "rollCount": 1,
       "autoSell": true,
       "startTime": 1764825059334,
-      "totalFumosRolled": 51400,
-      "totalCoinsFromSales": 30100,
+      "totalFumosRolled": 51500,
+      "totalCoinsFromSales": 46050,
       "bestFumo": {
         "name": "Go/jo(???)",
         "rarity": "???",
@@ -35,7 +35,7 @@
   },
   "845274868697661440": {
     "normal": {
-      "rollCount": 1,
+      "rollCount": 2,
       "autoSell": false,
       "startTime": 1764929355312,
       "bestFumo": {
@@ -45,7 +45,7 @@
       },
       "bestFumoAt": "12/5/2025, 6:18:45 PM",
       "bestFumoRoll": 37,
-      "specialFumoCount": 856,
+      "specialFumoCount": 863,
       "specialFumoFirstAt": "12/5/2025, 5:09:29 PM",
       "specialFumoFirstRoll": 1
     },
@@ -53,7 +53,7 @@
       "rollCount": 1,
       "autoSell": false,
       "startTime": 1765084793532,
-      "totalFumosRolled": 100,
+      "totalFumosRolled": 200,
       "totalCoinsFromSales": 0,
       "bestFumo": {
         "name": "Fraudkuna(???)",

@@ -154,7 +154,7 @@ module.exports = async (client) => {
             await useReroll(userId, true);
         }
 
-        const newShop = forceRerollUserShop(userId);
+        const newShop = await forceRerollUserShop(userId);
         const updatedRerollData = await getRerollData(userId);
 
         const rerollEmbed = await createRerollSuccessEmbed(
@@ -163,35 +163,43 @@ module.exports = async (client) => {
             isPaidReroll ? await getPaidRerollCost(userId) / 5 : null
         );
 
-        await interaction.reply({ embeds: [rerollEmbed], ephemeral: true });
-
-        await interaction.followUp({
-            content: "Here's your new shop selection:",
-            ephemeral: true
-        });
-
         const shopEmbed = await createShopEmbed(userId, newShop, 0);
         const buttons = await createShopButtons(userId, updatedRerollData.count, 0);
 
-        await interaction.followUp({
-            embeds: [shopEmbed],
+        await interaction.reply({
+            content: isPaidReroll ? '💎 **Gem Reroll Complete!**' : '🔄 **Free Reroll Complete!**',
+            embeds: [rerollEmbed, shopEmbed],
             components: buttons,
             ephemeral: true
         });
     }
 
-    async function handleShopCommand(message) {
-        const args = message.content.split(' ');
-        const command = args[1]?.toLowerCase();
-        const userId = message.author.id;
-        const userShop = getUserShop(userId);
 
-        if (command === 'buy') {
-            await handleBuyCommand(message, args, userId, userShop);
-        } else if (command === 'search') {
-            await handleSearchCommand(message, args, userShop);
-        } else {
-            await handleDisplayShop(message, userId, userShop);
+    async function handleShopCommand(message) {
+        try {
+            console.log('[SHOP] handleShopCommand triggered');
+            const args = message.content.split(' ');
+            const command = args[1]?.toLowerCase();
+            const userId = message.author.id;
+            
+            console.log('[SHOP] Getting user shop for:', userId);
+            const userShop = await getUserShop(userId);
+            console.log('[SHOP] userShop retrieved, keys:', Object.keys(userShop || {}).length);
+
+            if (command === 'buy') {
+                await handleBuyCommand(message, args, userId, userShop);
+            } else if (command === 'search') {
+                await handleSearchCommand(message, args, userShop);
+            } else {
+                console.log('[SHOP] Displaying shop');
+                await handleDisplayShop(message, userId, userShop);
+            }
+        } catch (error) {
+            console.error('[SHOP] Error in handleShopCommand:', error);
+            await message.reply({
+                content: '❌ An error occurred while processing your command.',
+                ephemeral: true
+            }).catch(console.error);
         }
     }
 
@@ -331,9 +339,27 @@ module.exports = async (client) => {
     }
 
     async function handleDisplayShop(message, userId, userShop) {
-        const rerollData = await getRerollData(userId);
-        const shopEmbed = await createShopEmbed(userId, userShop, 0);
-        const buttons = await createShopButtons(userId, rerollData.count, 0);
-        message.reply({ embeds: [shopEmbed], components: buttons, ephemeral: true });
+        try {
+            console.log('[SHOP] handleDisplayShop called for user:', userId);
+            console.log('[SHOP] userShop data:', JSON.stringify(userShop, null, 2));
+
+            const rerollData = await getRerollData(userId);
+            console.log('[SHOP] rerollData:', rerollData);
+
+            const shopEmbed = await createShopEmbed(userId, userShop, 0);
+            console.log('[SHOP] shopEmbed created');
+
+            const buttons = await createShopButtons(userId, rerollData.count, 0);
+            console.log('[SHOP] buttons created');
+
+            await message.reply({ embeds: [shopEmbed], components: buttons, ephemeral: true });
+            console.log('[SHOP] Reply sent successfully');
+        } catch (error) {
+            console.error('[SHOP] Error in handleDisplayShop:', error);
+            await message.reply({
+                content: '❌ Failed to load shop. Please try again.',
+                ephemeral: true
+            }).catch(console.error);
+        }
     }
 };

@@ -31,9 +31,9 @@ function isGuaranteedPrimeBlock() {
 function assignStock(rarity, forceMystery = false, forceUnknown = false, forcePrime = false) {
     // CRITICAL: Force stock for guaranteed items
     if (forceMystery && rarity === '???') {
-        return { 
-            stock: getRandomInt(...STOCK_RANGES.MYSTERY), 
-            message: '🎁 GUARANTEED Stock!' 
+        return {
+            stock: getRandomInt(...STOCK_RANGES.MYSTERY),
+            message: '🎁 GUARANTEED Stock!'
         };
     }
 
@@ -54,7 +54,7 @@ function assignStock(rarity, forceMystery = false, forceUnknown = false, forcePr
     // Ultra-rare handling (Unknown/Prime without guarantee)
     if (rarity === 'Unknown' || rarity === 'Prime') {
         const rand = Math.random();
-        
+
         // 0.1% chance for lucky stock
         if (rand <= 0.001) {
             return {
@@ -62,7 +62,7 @@ function assignStock(rarity, forceMystery = false, forceUnknown = false, forcePr
                 message: '⭐ MIRACULOUS Stock!'
             };
         }
-        
+
         // 5% chance for normal stock (was 15%, made MUCH rarer)
         if (rand <= 0.05) {
             return {
@@ -70,14 +70,14 @@ function assignStock(rarity, forceMystery = false, forceUnknown = false, forcePr
                 message: 'Ultra Rare Stock'
             };
         }
-        
+
         return { stock: 0, message: 'Out of Stock' };
     }
 
     // ??? handling without guarantee
     if (rarity === '???') {
         const rand = Math.random();
-        
+
         // 2% chance for stock (was higher in threshold)
         if (rand <= 0.02) {
             return {
@@ -85,7 +85,7 @@ function assignStock(rarity, forceMystery = false, forceUnknown = false, forcePr
                 message: 'Mysterious Stock'
             };
         }
-        
+
         return { stock: 0, message: 'Out of Stock' };
     }
 
@@ -140,7 +140,7 @@ function randomizePrice(basePrice) {
 function createItem(basePrice, currency, rarity, forceMystery = false, forceUnknown = false, forcePrime = false) {
     const { cost, priceTag } = randomizePrice(basePrice);
     const stockData = assignStock(rarity, forceMystery, forceUnknown, forcePrime);
-    
+
     return {
         cost,
         priceTag,
@@ -151,6 +151,7 @@ function createItem(basePrice, currency, rarity, forceMystery = false, forceUnkn
 }
 
 function generateUserShop() {
+    console.log('[SHOP_GEN] Starting shop generation...');
     const shop = {};
     
     // Check guarantees
@@ -158,13 +159,15 @@ function generateUserShop() {
     const guaranteeUnknown = isGuaranteedUnknownBlock();
     const guaranteePrime = isGuaranteedPrimeBlock();
     
+    console.log('[SHOP_GEN] Guarantees - Mystery:', guaranteeMystery, 'Unknown:', guaranteeUnknown, 'Prime:', guaranteePrime);
+    debugLog('SHOP', `Generating shop - Mystery: ${guaranteeMystery}, Unknown: ${guaranteeUnknown}, Prime: ${guaranteePrime}`);
+
     let mysteryGiven = false;
     let unknownGiven = false;
     let primeGiven = false;
 
-    debugLog('SHOP', `Generating shop - Mystery: ${guaranteeMystery}, Unknown: ${guaranteeUnknown}, Prime: ${guaranteePrime}`);
-
     const shuffledItems = [...ITEM_DEFINITIONS].sort(() => Math.random() - 0.5);
+    console.log('[SHOP_GEN] Processing', shuffledItems.length, 'items');
 
     for (const def of shuffledItems) {
         let forceMystery = false;
@@ -175,38 +178,52 @@ function generateUserShop() {
         if (def.rarity === '???' && guaranteeMystery && !mysteryGiven) {
             forceMystery = true;
             mysteryGiven = true;
+            console.log('[SHOP_GEN] Guaranteed ??? item:', def.name);
             debugLog('SHOP', `Guaranteed ??? item: ${def.name}`);
         }
 
         if (def.rarity === 'Unknown' && guaranteeUnknown && !unknownGiven) {
             forceUnknown = true;
             unknownGiven = true;
+            console.log('[SHOP_GEN] Guaranteed Unknown item:', def.name);
             debugLog('SHOP', `Guaranteed Unknown item: ${def.name}`);
         }
 
         if (def.rarity === 'Prime' && guaranteePrime && !primeGiven) {
             forcePrime = true;
             primeGiven = true;
+            console.log('[SHOP_GEN] Guaranteed Prime item:', def.name);
             debugLog('SHOP', `Guaranteed Prime item: ${def.name}`);
         }
 
         shop[def.name] = createItem(def.basePrice, def.currency, def.rarity, forceMystery, forceUnknown, forcePrime);
     }
 
-    // Ensure minimum stock items
+    // ✅ IMPROVED: Ensure minimum stock items with better logic
     const itemsWithStock = Object.values(shop).filter(item => item.stock > 0 || item.stock === 'unlimited');
+    console.log('[SHOP_GEN] Items with stock before minimum check:', itemsWithStock.length);
     
-    if (itemsWithStock.length < 3) {
+    if (itemsWithStock.length < 5) { // Increased from 3 to 5
+        console.log('[SHOP_GEN] Only', itemsWithStock.length, 'items with stock, forcing minimum...');
         debugLog('SHOP', `Only ${itemsWithStock.length} items with stock, forcing minimum stock on random items`);
         
+        // Get items without stock, excluding ultra-rares unless it's their guarantee time
         const itemsWithoutStock = Object.keys(shop).filter(key => {
             const item = shop[key];
-            // Don't force stock on ultra-rares unless it's their guarantee time
+            
+            // Allow ultra-rares if it's their guarantee time
+            if (item.rarity === 'Unknown' && guaranteeUnknown) return true;
+            if (item.rarity === 'Prime' && guaranteePrime) return true;
+            if (item.rarity === '???' && guaranteeMystery) return true;
+            
+            // Otherwise exclude ultra-rares
             if (item.rarity === 'Unknown' || item.rarity === 'Prime') return false;
+            
             return item.stock === 0;
         });
 
-        const itemsToFix = Math.min(3 - itemsWithStock.length, itemsWithoutStock.length);
+        const itemsToFix = Math.min(5 - itemsWithStock.length, itemsWithoutStock.length);
+        console.log('[SHOP_GEN] Forcing stock on', itemsToFix, 'items');
         
         for (let i = 0; i < itemsToFix; i++) {
             const randomIndex = Math.floor(Math.random() * itemsWithoutStock.length);
@@ -215,15 +232,42 @@ function generateUserShop() {
             
             const def = ITEM_DEFINITIONS.find(d => d.name === itemName);
             if (def) {
-                const stockRange = def.rarity === '???' ? STOCK_RANGES.MYSTERY : STOCK_RANGES.ON_STOCK;
+                let stockRange;
+                
+                // Use appropriate stock ranges based on rarity
+                if (def.rarity === '???') {
+                    stockRange = STOCK_RANGES.MYSTERY;
+                } else if (def.rarity === 'Legendary' || def.rarity === 'Mythical') {
+                    stockRange = STOCK_RANGES.LOTS;
+                } else {
+                    stockRange = STOCK_RANGES.ON_STOCK;
+                }
+                
                 item.stock = getRandomInt(...stockRange);
                 item.message = 'On-Stock';
+                console.log('[SHOP_GEN] Forced stock on', itemName, ':', item.stock);
                 debugLog('SHOP', `Forced stock on ${itemName}: ${item.stock}`);
             }
         }
     }
 
-    debugLog('SHOP', `Generated shop with ${Object.keys(shop).length} items, ${itemsWithStock.length} in stock`);
+    const finalItemsWithStock = Object.values(shop).filter(item => item.stock > 0 || item.stock === 'unlimited');
+    console.log('[SHOP_GEN] Final items with stock:', finalItemsWithStock.length);
+    debugLog('SHOP', `Generated shop with ${Object.keys(shop).length} items, ${finalItemsWithStock.length} in stock`);
+    
+    // ✅ ADD: Detailed debug log of what's in stock
+    if (finalItemsWithStock.length > 0) {
+        const stockSummary = finalItemsWithStock.map(item => {
+            const itemName = Object.keys(shop).find(key => shop[key] === item);
+            return `${itemName}: ${item.stock} (${item.rarity})`;
+        }).join(', ');
+        console.log('[SHOP_GEN] Stock summary:', stockSummary);
+        debugLog('SHOP', `Items in stock: ${stockSummary}`);
+    } else {
+        console.error('⚠️ [SHOP_GEN] NO ITEMS IN STOCK! This should not happen.');
+        console.warn('⚠️ [SHOP] NO ITEMS IN STOCK! This should not happen.');
+    }
+    
     return shop;
 }
 

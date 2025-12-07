@@ -17,7 +17,6 @@ function formatStockText(stock, stockMessage) {
 }
 
 async function createShopEmbed(userId, userShop, page = 0) {
-    // FIX: Add null/undefined check
     if (!userShop || typeof userShop !== 'object') {
         console.error('[SHOP_UI] userShop is null or undefined for user:', userId);
         return new EmbedBuilder()
@@ -41,8 +40,7 @@ async function createShopEmbed(userId, userShop, page = 0) {
 
     Object.keys(userShop).forEach(itemName => {
         const item = userShop[itemName];
-        if (item.stock === 0) return;
-
+        
         const stockText = formatStockText(item.stock, item.message);
         const priceLabel = item.priceTag === 'SALE' ? '🔥 SALE' : 
                            item.priceTag === 'SURGE' ? '📈 Surge' : '';
@@ -60,7 +58,6 @@ async function createShopEmbed(userId, userShop, page = 0) {
     const currentPageRarities = RARITY_PAGES[page] || RARITY_PAGES[0];
     const totalPages = RARITY_PAGES.length;
 
-    // Build special event messages
     const specialMessages = [];
     if (isDoubleLuckDay()) specialMessages.push('🍀 **x2 Luck is active!**');
     if (isGuaranteedMysteryBlock()) specialMessages.push('⬛ **Guaranteed ??? item in this shop!**');
