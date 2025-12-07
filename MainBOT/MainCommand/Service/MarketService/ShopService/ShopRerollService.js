@@ -1,74 +1,62 @@
-const { getUserRerollData, updateRerollCount } = require('./ShopDatabaseService');
+const { getUserRerollData, updateRerollCount, updatePaidRerollCount, resetPaidRerollCount } = require('./ShopDatabaseService');
 const { REROLL_COOLDOWN, MAX_REROLLS } = require('../../../Configuration/shopConfig');
 const { debugLog } = require('../../../Core/logger');
 
-const userRerollData = new Map();
-const paidRerollCount = new Map();
-
-function getRerollData(userId) {
-    if (!userRerollData.has(userId)) {
-        userRerollData.set(userId, { count: MAX_REROLLS, lastResetTime: Date.now() });
-    }
-    
-    const data = userRerollData.get(userId);
-    const now = Date.now();
-    
-    if (now - data.lastResetTime >= REROLL_COOLDOWN) {
-        data.count = MAX_REROLLS;
-        data.lastResetTime = now;
-        paidRerollCount.delete(userId);
-    }
-    
-    return data;
-}
-
-async function initializeRerollData(userId) {
+async function getRerollData(userId) {
     const dbData = await getUserRerollData(userId);
     const now = Date.now();
     
     if (now - dbData.lastRerollReset >= REROLL_COOLDOWN) {
-        userRerollData.set(userId, { 
+        const newData = { 
             count: MAX_REROLLS, 
-            lastResetTime: now 
-        });
+            lastResetTime: now,
+            paidCount: 0
+        };
         await updateRerollCount(userId, MAX_REROLLS, now);
-        paidRerollCount.delete(userId);
-    } else {
-        userRerollData.set(userId, { 
-            count: dbData.rerollCount, 
-            lastResetTime: dbData.lastRerollReset 
-        });
+        await resetPaidRerollCount(userId);
+        return newData;
     }
     
-    return userRerollData.get(userId);
+    return {
+        count: dbData.rerollCount,
+        lastResetTime: dbData.lastRerollReset,
+        paidCount: dbData.paidRerollCount
+    };
 }
 
-function useReroll(userId, isPaid = false) {
-    const data = getRerollData(userId);
-    
+async function initializeRerollData(userId) {
+    return await getRerollData(userId);
+}
+
+async function useReroll(userId, isPaid = false) {
     if (!isPaid) {
+        const data = await getRerollData(userId);
+        
         if (data.count > 0) {
-            data.count--;
-            debugLog('SHOP_REROLL', `Used free reroll for ${userId}, remaining: ${data.count}`);
+            const newCount = data.count - 1;
+            await updateRerollCount(userId, newCount, data.lastResetTime);
+            debugLog('SHOP_REROLL', `Used free reroll for ${userId}, remaining: ${newCount}`);
             return true;
         }
         return false;
     } else {
-        const current = paidRerollCount.get(userId) || 0;
-        paidRerollCount.set(userId, current + 1);
-        debugLog('SHOP_REROLL', `Used paid reroll for ${userId}, total paid: ${current + 1}`);
+        const data = await getRerollData(userId);
+        const newPaidCount = data.paidCount + 1;
+        await updatePaidRerollCount(userId, newPaidCount);
+        debugLog('SHOP_REROLL', `Used paid reroll for ${userId}, total paid: ${newPaidCount}`);
         return true;
     }
 }
 
-function getPaidRerollCost(userId) {
-    const paidCount = paidRerollCount.get(userId) || 0;
+async function getPaidRerollCost(userId) {
+    const data = await getRerollData(userId);
+    const paidCount = data.paidCount || 0;
     const cost = 15000 * Math.pow(5, paidCount);
     return cost;
 }
 
-function getRerollCooldownRemaining(userId) {
-    const data = getRerollData(userId);
+async function getRerollCooldownRemaining(userId) {
+    const data = await getRerollData(userId);
     const now = Date.now();
     const timeSinceReset = now - data.lastResetTime;
     
@@ -86,8 +74,8 @@ function formatTimeRemaining(milliseconds) {
     return `${hours}h ${minutes}m ${seconds}s`;
 }
 
-function canUseGemReroll(userId) {
-    const data = getRerollData(userId);
+async function canUseGemReroll(userId) {
+    const data = await getRerollData(userId);
     return data.count === 0;
 }
 

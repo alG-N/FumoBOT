@@ -66,10 +66,10 @@ module.exports = async (client) => {
         try {
             const newPage = action === 'next' ? currentPage + 1 : currentPage - 1;
             const userShop = getUserShop(userId);
-            const rerollData = getRerollData(userId);
+            const rerollData = await getRerollData(userId);
 
-            const shopEmbed = createShopEmbed(userId, userShop, newPage);
-            const buttons = createShopButtons(userId, rerollData.count, newPage);
+            const shopEmbed = await createShopEmbed(userId, userShop, newPage);
+            const buttons = await createShopButtons(userId, rerollData.count, newPage);
 
             await Promise.race([
                 interaction.update({
@@ -107,13 +107,13 @@ module.exports = async (client) => {
         }
 
         const userId = interaction.user.id;
-        const rerollData = getRerollData(userId);
+        const rerollData = await getRerollData(userId);
 
         if (!isPaidReroll) {
             if (rerollData.count <= 0) {
-                const cooldownRemaining = getRerollCooldownRemaining(userId);
+                const cooldownRemaining = await getRerollCooldownRemaining(userId);
                 const timeLeft = formatTimeRemaining(cooldownRemaining);
-                const gemCost = getPaidRerollCost(userId);
+                const gemCost = await getPaidRerollCost(userId);
 
                 return interaction.reply({
                     content: `❌ You have no free rerolls left! Rerolls reset in: **${timeLeft}**\n💎 Use the Gem Reroll button to reroll for **${formatNumber(gemCost)} gems**.`,
@@ -121,7 +121,7 @@ module.exports = async (client) => {
                 });
             }
 
-            useReroll(userId, false);
+            await useReroll(userId, false);
         } else {
             if (rerollData.count > 0) {
                 return interaction.reply({
@@ -130,7 +130,7 @@ module.exports = async (client) => {
                 });
             }
 
-            const cost = getPaidRerollCost(userId);
+            const cost = await getPaidRerollCost(userId);
             const db = require('../../Core/Database/dbSetting');
 
             const userGems = await new Promise((resolve) => {
@@ -151,27 +151,27 @@ module.exports = async (client) => {
                 db.run('UPDATE userCoins SET gems = gems - ? WHERE userId = ?', [cost, userId], resolve);
             });
 
-            useReroll(userId, true);
+            await useReroll(userId, true);
         }
 
         const newShop = forceRerollUserShop(userId);
-        const updatedRerollData = getRerollData(userId);
+        const updatedRerollData = await getRerollData(userId);
 
-        const rerollEmbed = createRerollSuccessEmbed(
+        const rerollEmbed = await createRerollSuccessEmbed(
             updatedRerollData.count,
-            getRerollCooldownRemaining(userId),
-            isPaidReroll ? getPaidRerollCost(userId) / 5 : null
+            await getRerollCooldownRemaining(userId),
+            isPaidReroll ? await getPaidRerollCost(userId) / 5 : null
         );
 
         await interaction.reply({ embeds: [rerollEmbed], ephemeral: true });
 
         await interaction.followUp({
-            content: "Here's your new shop:",
+            content: "Here's your new shop selection:",
             ephemeral: true
         });
 
-        const shopEmbed = createShopEmbed(userId, newShop, 0);
-        const buttons = createShopButtons(userId, updatedRerollData.count, 0);
+        const shopEmbed = await createShopEmbed(userId, newShop, 0);
+        const buttons = await createShopButtons(userId, updatedRerollData.count, 0);
 
         await interaction.followUp({
             embeds: [shopEmbed],
@@ -189,9 +189,9 @@ module.exports = async (client) => {
         if (command === 'buy') {
             await handleBuyCommand(message, args, userId, userShop);
         } else if (command === 'search') {
-            handleSearchCommand(message, args, userShop);
+            await handleSearchCommand(message, args, userShop);
         } else {
-            handleDisplayShop(message, userId, userShop);
+            await handleDisplayShop(message, userId, userShop);
         }
     }
 
@@ -202,7 +202,7 @@ module.exports = async (client) => {
 
         if (!itemCost) {
             return message.reply({
-                content: `🔍 The item "${itemName}" is not available in your magical shop.`,
+                content: `🔍 The item "${itemName}" is not available in your shop view.`,
                 ephemeral: true
             });
         }
@@ -324,16 +324,16 @@ module.exports = async (client) => {
         });
     }
 
-    function handleSearchCommand(message, args, userShop) {
+    async function handleSearchCommand(message, args, userShop) {
         const searchQuery = args.slice(2).join(' ').toLowerCase();
         const searchEmbed = createSearchResultsEmbed(searchQuery, userShop);
         message.reply({ embeds: [searchEmbed], ephemeral: true });
     }
 
-    function handleDisplayShop(message, userId, userShop) {
-        const rerollData = getRerollData(userId);
-        const shopEmbed = createShopEmbed(userId, userShop, 0);
-        const buttons = createShopButtons(userId, rerollData.count, 0);
+    async function handleDisplayShop(message, userId, userShop) {
+        const rerollData = await getRerollData(userId);
+        const shopEmbed = await createShopEmbed(userId, userShop, 0);
+        const buttons = await createShopButtons(userId, rerollData.count, 0);
         message.reply({ embeds: [shopEmbed], components: buttons, ephemeral: true });
     }
 };

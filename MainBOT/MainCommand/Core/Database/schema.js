@@ -188,6 +188,23 @@ function createTables() {
             });
         }));
 
+        // Shop reroll market
+        tables.push(new Promise((res) => {
+            db.run(`CREATE TABLE IF NOT EXISTS userShopRerolls (
+                    userId TEXT PRIMARY KEY,
+                    rerollCount INTEGER DEFAULT 5,
+                    lastRerollReset INTEGER DEFAULT 0,
+                    paidRerollCount INTEGER DEFAULT 0
+            )`, (err) => {
+                if (err) {
+                    console.error('Error creating userShopRerolls table:', err.message);
+                } else {
+                    console.log('✅ Table userShopRerolls is ready');
+                }
+                res();
+            });
+        }));
+
         // Redeemed Codes Table
         tables.push(new Promise((res) => {
             db.run(`CREATE TABLE IF NOT EXISTS redeemedCodes (

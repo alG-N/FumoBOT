@@ -1,0 +1,271 @@
+{
+  "1128296349566251068": {
+    "shop": {
+      "VoidFragment(?)": {
+        "cost": 715526296,
+        "priceTag": "SURGE",
+        "currency": "coins",
+        "stock": 0,
+        "message": "Out of Stock",
+        "rarity": "???"
+      },
+      "PetFoob(B)": {
+        "cost": 2701,
+        "priceTag": "NORMAL",
+        "currency": "coins",
+        "stock": 5,
+        "message": "A lot of items.",
+        "rarity": "Basic"
+      },
+      "ChaosEssence(Un)": {
+        "cost": 1599076035,
+        "priceTag": "NORMAL",
+        "currency": "gems",
+        "stock": 0,
+        "message": "Out of Stock",
+        "rarity": "Unknown"
+      },
+      "Null?(?)": {
+        "cost": 110033444,
+        "priceTag": "NORMAL",
+        "currency": "coins",
+        "stock": 0,
+        "message": "Out of Stock",
+        "rarity": "???"
+      },
+      "ChromaShard(M)": {
+        "cost": 526973,
+        "priceTag": "NORMAL",
+        "currency": "gems",
+        "stock": 3,
+        "message": "On-Stock",
+        "rarity": "Mythical"
+      },
+      "Stone(B)": {
+        "cost": 113,
+        "priceTag": "NORMAL",
+        "currency": "coins",
+        "stock": 24,
+        "message": "LEGENDARY stock",
+        "rarity": "Basic"
+      },
+      "BlueShard(L)": {
+        "cost": 85364,
+        "priceTag": "NORMAL",
+        "currency": "gems",
+        "stock": 0,
+        "message": "Out of Stock",
+        "rarity": "Legendary"
+      },
+      "RedShard(L)": {
+        "cost": 80246,
+        "priceTag": "NORMAL",
+        "currency": "gems",
+        "stock": 0,
+        "message": "Out of Stock",
+        "rarity": "Legendary"
+      },
+      "EnhancedScroll(E)": {
+        "cost": 43224,
+        "priceTag": "SURGE",
+        "currency": "gems",
+        "stock": 0,
+        "message": "Out of Stock",
+        "rarity": "Epic"
+      },
+      "AbyssalShard(Un)": {
+        "cost": 2105832581,
+        "priceTag": "NORMAL",
+        "currency": "coins",
+        "stock": 0,
+        "message": "Out of Stock",
+        "rarity": "Unknown"
+      },
+      "WeirdGrass(R)": {
+        "cost": 11471,
+        "priceTag": "NORMAL",
+        "currency": "gems",
+        "stock": 3,
+        "message": "On-Stock",
+        "rarity": "Rare"
+      },
+      "Wood(C)": {
+        "cost": 926,
+        "priceTag": "SURGE",
+        "currency": "coins",
+        "stock": 1,
+        "message": "On-Stock",
+        "rarity": "Common"
+      },
+      "RustedCore(E)": {
+        "cost": 92789,
+        "priceTag": "SALE",
+        "currency": "coins",
+        "stock": 0,
+        "message": "Out of Stock",
+        "rarity": "Epic"
+      },
+      "YellowShard(L)": {
+        "cost": 75772,
+        "priceTag": "NORMAL",
+        "currency": "gems",
+        "stock": 0,
+        "message": "Out of Stock",
+        "rarity": "Legendary"
+      },
+      "DivineOrb(D)": {
+        "cost": 5197825,
+        "priceTag": "NORMAL",
+        "currency": "gems",
+        "stock": 0,
+        "message": "Out of Stock",
+        "rarity": "Divine"
+      },
+      "Wool(C)": {
+        "cost": 1154,
+        "priceTag": "NORMAL",
+        "currency": "coins",
+        "stock": 2,
+        "message": "On-Stock",
+        "rarity": "Common"
+      },
+      "ShinyShard(?)": {
+        "cost": 261945599,
+        "priceTag": "NORMAL",
+        "currency": "gems",
+        "stock": 0,
+        "message": "Out of Stock",
+        "rarity": "???"
+      },
+      "Stick(B)": {
+        "cost": 55,
+        "priceTag": "NORMAL",
+        "currency": "coins",
+        "stock": 18,
+        "message": "LEGENDARY stock",
+        "rarity": "Basic"
+      },
+      "Dice(C)": {
+        "cost": 530,
+        "priceTag": "NORMAL",
+        "currency": "coins",
+        "stock": 1,
+        "message": "On-Stock",
+        "rarity": "Common"
+      },
+      "CelestialEssence(D)": {
+        "cost": 2723074,
+        "priceTag": "NORMAL",
+        "currency": "gems",
+        "stock": 2,
+        "message": "On-Stock",
+        "rarity": "Divine"
+      },
+      "UniqueRock(C)": {
+        "cost": 3695,
+        "priceTag": "NORMAL",
+        "currency": "gems",
+        "stock": 13,
+        "message": "A lot of items.",
+        "rarity": "Common"
+      },
+      "ObsidianRelic(Un)": {
+        "cost": 872687741,
+        "priceTag": "SALE",
+        "currency": "gems",
+        "stock": 0,
+        "message": "Out of Stock",
+        "rarity": "Unknown"
+      },
+      "MonoShard(M)": {
+        "cost": 553991,
+        "priceTag": "NORMAL",
+        "currency": "gems",
+        "stock": 0,
+        "message": "Out of Stock",
+        "rarity": "Mythical"
+      },
+      "FragmentOf1800s(R)": {
+        "cost": 15761,
+        "priceTag": "NORMAL",
+        "currency": "gems",
+        "stock": 1,
+        "message": "On-Stock",
+        "rarity": "Rare"
+      },
+      "DarkShard(L)": {
+        "cost": 136839,
+        "priceTag": "NORMAL",
+        "currency": "gems",
+        "stock": 0,
+        "message": "Out of Stock",
+        "rarity": "Legendary"
+      },
+      "alGShard(P)": {
+        "cost": 5231178944,
+        "priceTag": "NORMAL",
+        "currency": "gems",
+        "stock": 0,
+        "message": "Out of Stock",
+        "rarity": "Prime"
+      },
+      "WhiteShard(L)": {
+        "cost": 160193,
+        "priceTag": "NORMAL",
+        "currency": "gems",
+        "stock": 1,
+        "message": "On-Stock",
+        "rarity": "Legendary"
+      },
+      "StardustCrystal(D)": {
+        "cost": 8752841,
+        "priceTag": "SURGE",
+        "currency": "gems",
+        "stock": 0,
+        "message": "Out of Stock",
+        "rarity": "Divine"
+      },
+      "EtherealCore(D)": {
+        "cost": 10030690,
+        "priceTag": "NORMAL",
+        "currency": "gems",
+        "stock": 0,
+        "message": "Out of Stock",
+        "rarity": "Divine"
+      },
+      "Undefined(?)": {
+        "cost": 8814523,
+        "priceTag": "NORMAL",
+        "currency": "gems",
+        "stock": 0,
+        "message": "Out of Stock",
+        "rarity": "???"
+      },
+      "Books(C)": {
+        "cost": 2377,
+        "priceTag": "SALE",
+        "currency": "coins",
+        "stock": 3,
+        "message": "On-Stock",
+        "rarity": "Common"
+      },
+      "EquinoxAlloy(M)": {
+        "cost": 1079096,
+        "priceTag": "NORMAL",
+        "currency": "gems",
+        "stock": 14,
+        "message": "A lot of items.",
+        "rarity": "Mythical"
+      },
+      "GoldenSigil(?)": {
+        "cost": 114142041,
+        "priceTag": "NORMAL",
+        "currency": "coins",
+        "stock": 0,
+        "message": "Out of Stock",
+        "rarity": "???"
+      }
+    },
+    "resetTime": 1765083600000
+  }
+}

@@ -1,4 +1,5 @@
 const { getUserCurrency, deductCurrency, addItemToInventory } = require('./ShopDatabaseService');
+const { updateShopStock } = require('./ShopCacheService');
 const { debugLog } = require('../../../Core/logger');
 
 async function validatePurchase(userId, itemName, itemData, quantity) {
@@ -56,8 +57,10 @@ async function processPurchase(userId, itemName, itemData, quantity) {
         await addItemToInventory(userId, itemName, quantity);
 
         if (itemData.stock !== 'unlimited') {
-            itemData.stock -= quantity;
-            if (itemData.stock <= 0) {
+            const newStock = itemData.stock - quantity;
+            updateShopStock(itemName, newStock);
+            itemData.stock = newStock;
+            if (newStock <= 0) {
                 itemData.stock = 0;
                 itemData.message = 'Out of Stock';
             }
@@ -128,6 +131,7 @@ async function processBuyAll(userId, userShop) {
             await addItemToInventory(userId, item.itemName, item.quantity);
 
             if (item.itemData.stock !== 'unlimited') {
+                updateShopStock(item.itemName, 0);
                 item.itemData.stock = 0;
                 item.itemData.message = 'Out of Stock';
             }
