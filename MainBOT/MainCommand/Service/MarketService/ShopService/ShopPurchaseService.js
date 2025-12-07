@@ -1,5 +1,5 @@
 const { getUserCurrency, deductCurrency, addItemToInventory } = require('./ShopDatabaseService');
-const { updateUserStock } = require('./ShopCacheService');
+const { updateUserStock, getUserShop } = require('./ShopCacheService');
 const { debugLog } = require('../../../Core/logger');
 
 async function validatePurchase(userId, itemName, itemData, quantity) {
@@ -84,10 +84,8 @@ async function processPurchase(userId, itemName, itemData, quantity) {
 async function processBuyAll(userId, userShop) {
     try {
         const currency = await getUserCurrency(userId);
-        let totalCoins = 0;
-        let totalGems = 0;
         const purchases = [];
-        const itemsToBuy = [];
+        const stockUpdates = [];
 
         for (const [itemName, itemData] of Object.entries(userShop)) {
             if (itemData.stock === 0) continue;
@@ -101,47 +99,58 @@ async function processBuyAll(userId, userShop) {
 
             const totalCost = itemData.cost * quantity;
 
-            if (itemData.currency === 'coins') {
-                if (currency.coins >= totalCoins + totalCost) {
-                    itemsToBuy.push({ itemName, itemData, quantity, totalCost });
-                    totalCoins += totalCost;
+            if (itemData.currency === 'coins' && currency.coins >= totalCost) {
+                purchases.push({ itemName, itemData, quantity, totalCost });
+                currency.coins -= totalCost;
+                
+                if (itemData.stock !== 'unlimited') {
+                    stockUpdates.push({ itemName, newStock: 0 });
                 }
-            } else if (itemData.currency === 'gems') {
-                if (currency.gems >= totalGems + totalCost) {
-                    itemsToBuy.push({ itemName, itemData, quantity, totalCost });
-                    totalGems += totalCost;
+            } else if (itemData.currency === 'gems' && currency.gems >= totalCost) {
+                purchases.push({ itemName, itemData, quantity, totalCost });
+                currency.gems -= totalCost;
+                
+                if (itemData.stock !== 'unlimited') {
+                    stockUpdates.push({ itemName, newStock: 0 });
                 }
             }
         }
 
-        if (itemsToBuy.length === 0) {
+        if (purchases.length === 0) {
             return {
                 success: false,
                 message: '❌ You cannot afford any items in your shop.'
             };
         }
 
-        for (const item of itemsToBuy) {
+        let totalCoins = 0;
+        let totalGems = 0;
+
+        for (const item of purchases) {
             await deductCurrency(userId, item.itemData.currency, item.totalCost);
             await addItemToInventory(userId, item.itemName, item.quantity);
 
-            if (item.itemData.stock !== 'unlimited') {
-                await updateUserStock(userId, item.itemName, 0);
+            if (item.itemData.currency === 'coins') {
+                totalCoins += item.totalCost;
+            } else {
+                totalGems += item.totalCost;
             }
-
-            purchases.push({
-                itemName: item.itemName,
-                quantity: item.quantity,
-                cost: item.totalCost,
-                currency: item.itemData.currency
-            });
 
             debugLog('SHOP_BUY_ALL', `${userId} bought ${item.quantity}x ${item.itemName} for ${item.totalCost} ${item.itemData.currency}`);
         }
 
+        for (const { itemName, newStock } of stockUpdates) {
+            await updateUserStock(userId, itemName, newStock);
+        }
+
         return {
             success: true,
-            purchases,
+            purchases: purchases.map(p => ({
+                itemName: p.itemName,
+                quantity: p.quantity,
+                cost: p.totalCost,
+                currency: p.itemData.currency
+            })),
             totalCoins,
             totalGems
         };
