@@ -3,27 +3,27 @@ const path = require('path');
 const { generateUserShop } = require('./ShopGenerationService');
 const { debugLog } = require('../../../Core/logger');
 
-const SHOP_FILE = path.join(__dirname, '../../../Data/globalShop.json');
+const GLOBAL_SHOP_FILE = path.join(__dirname, '../../../Data/globalShop.json');
 const USER_VIEWS_FILE = path.join(__dirname, '../../../Data/userShopViews.json');
 
-function loadShopFromFile() {
+function loadGlobalShop() {
     try {
-        if (fs.existsSync(SHOP_FILE)) {
-            const data = fs.readFileSync(SHOP_FILE, 'utf8');
+        if (fs.existsSync(GLOBAL_SHOP_FILE)) {
+            const data = fs.readFileSync(GLOBAL_SHOP_FILE, 'utf8');
             return JSON.parse(data);
         }
     } catch (error) {
-        console.error('Failed to load shop from file:', error);
+        console.error('Failed to load global shop:', error);
     }
     return null;
 }
 
-function saveShopToFile(shopData) {
+function saveGlobalShop(shopData) {
     try {
-        fs.writeFileSync(SHOP_FILE, JSON.stringify(shopData, null, 2));
-        debugLog('SHOP_CACHE', 'Saved shop to file');
+        fs.writeFileSync(GLOBAL_SHOP_FILE, JSON.stringify(shopData, null, 2));
+        debugLog('SHOP_CACHE', 'Saved global shop');
     } catch (error) {
-        console.error('Failed to save shop to file:', error);
+        console.error('Failed to save global shop:', error);
     }
 }
 
@@ -63,103 +63,98 @@ function getUserShopTimeLeft() {
     return `${minutes} minute(s) and ${seconds} second(s)`;
 }
 
-function getGlobalStock() {
+function getGlobalShop() {
     const currentHour = getCurrentHourTimestamp();
-    let shopData = loadShopFromFile();
+    let globalShop = loadGlobalShop();
 
-    if (!shopData || shopData.resetTime !== currentHour) {
-        shopData = {
-            stock: {},
+    if (!globalShop || globalShop.resetTime !== currentHour) {
+        globalShop = {
+            shop: generateUserShop(),
             resetTime: currentHour
         };
+        saveGlobalShop(globalShop);
         
-        const newShop = generateUserShop();
-        for (const [itemName, itemData] of Object.entries(newShop)) {
-            shopData.stock[itemName] = {
+        saveUserViews({});
+        
+        debugLog('SHOP_CACHE', 'Generated new global shop for everyone');
+    }
+
+    return globalShop;
+}
+
+function getUserShop(userId) {
+    const globalShop = getGlobalShop();
+    const currentHour = globalShop.resetTime;
+    let userViews = loadUserViews();
+    
+    if (!userViews[userId] || userViews[userId].resetTime !== currentHour) {
+        
+        const personalShop = {};
+        for (const [itemName, itemData] of Object.entries(globalShop.shop)) {
+            personalShop[itemName] = {
+                ...itemData,
                 stock: itemData.stock,
                 message: itemData.message
             };
         }
         
-        saveShopToFile(shopData);
-        
-        const views = {};
-        saveUserViews(views);
-        
-        debugLog('SHOP_CACHE', 'Generated new global stock');
-    }
-
-    return shopData;
-}
-
-function getUserShop(userId) {
-    const globalData = getGlobalStock();
-    const currentHour = globalData.resetTime;
-    
-    let userViews = loadUserViews();
-    
-    if (!userViews[userId] || userViews[userId].resetTime !== currentHour) {
         userViews[userId] = {
-            shop: generateUserShop(),
+            personalShop, 
             resetTime: currentHour
         };
         saveUserViews(userViews);
-        debugLog('SHOP_CACHE', `Generated new view for ${userId}`);
+        debugLog('SHOP_CACHE', `Initialized shop for ${userId}`);
     }
     
-    const userShop = userViews[userId].shop;
-    
-    for (const [itemName, itemData] of Object.entries(userShop)) {
-        if (globalData.stock[itemName]) {
-            itemData.stock = globalData.stock[itemName].stock;
-            itemData.message = globalData.stock[itemName].message;
-        }
-    }
-    
-    return userShop;
+    return userViews[userId].personalShop;
 }
 
 function forceRerollUserShop(userId) {
-    const globalData = getGlobalStock();
-    const currentHour = globalData.resetTime;
-    
+    const globalShop = getGlobalShop();
+    const currentHour = globalShop.resetTime;
     let userViews = loadUserViews();
     
+    const newPersonalShop = generateUserShop();
+    
     userViews[userId] = {
-        shop: generateUserShop(),
+        personalShop: newPersonalShop,
         resetTime: currentHour
     };
     saveUserViews(userViews);
     
-    const userShop = userViews[userId].shop;
+    debugLog('SHOP_CACHE', `${userId} rerolled - only their shop changed`);
     
-    for (const [itemName, itemData] of Object.entries(userShop)) {
-        if (globalData.stock[itemName]) {
-            itemData.stock = globalData.stock[itemName].stock;
-            itemData.message = globalData.stock[itemName].message;
-        }
-    }
-    
-    debugLog('SHOP_CACHE', `Force rerolled view for ${userId}`);
-    return userShop;
+    return newPersonalShop;
 }
 
-function updateShopStock(itemName, newStock) {
-    const shopData = loadShopFromFile();
-    if (shopData && shopData.stock[itemName]) {
-        shopData.stock[itemName].stock = newStock;
-        if (newStock <= 0) {
-            shopData.stock[itemName].message = 'Out of Stock';
-        }
-        saveShopToFile(shopData);
-        debugLog('SHOP_CACHE', `Updated global stock for ${itemName}: ${newStock}`);
+function updateUserStock(userId, itemName, newStock) {
+    let userViews = loadUserViews();
+    
+    if (!userViews[userId] || !userViews[userId].personalShop) {
+        console.error(`Cannot update stock: User ${userId} has no shop`);
+        return false;
     }
+    
+    if (!userViews[userId].personalShop[itemName]) {
+        console.error(`Cannot update stock: Item ${itemName} not in user ${userId}'s shop`);
+        return false;
+    }
+    
+    userViews[userId].personalShop[itemName].stock = newStock;
+    
+    if (newStock <= 0) {
+        userViews[userId].personalShop[itemName].message = 'Out of Stock';
+    }
+    
+    saveUserViews(userViews);
+    debugLog('SHOP_CACHE', `Updated ${userId}'s stock for ${itemName}: ${newStock}`);
+    return true;
 }
 
 function clearAllShopCaches() {
     try {
-        if (fs.existsSync(SHOP_FILE)) {
-            fs.unlinkSync(SHOP_FILE);
+        if (fs.existsSync(GLOBAL_SHOP_FILE)) {
+            fs.unlinkSync(GLOBAL_SHOP_FILE);
         }
         if (fs.existsSync(USER_VIEWS_FILE)) {
             fs.unlinkSync(USER_VIEWS_FILE);
@@ -170,10 +165,52 @@ function clearAllShopCaches() {
     }
 }
 
+function getShopStats() {
+    try {
+        const globalShop = loadGlobalShop();
+        const userViews = loadUserViews();
+        const totalUsers = Object.keys(userViews).length;
+        const currentHour = getCurrentHourTimestamp();
+        
+        let activeUsers = 0;
+        let totalPurchases = 0;
+        
+        for (const userId in userViews) {
+            if (userViews[userId].resetTime === currentHour) {
+                activeUsers++;
+                
+                if (userViews[userId].personalShop) {
+                    for (const itemName in userViews[userId].personalShop) {
+                        const itemData = userViews[userId].personalShop[itemName];
+                        
+                        if (itemData.stock !== 'unlimited' && itemData.message === 'Out of Stock') {
+                            totalPurchases++;
+                        }
+                    }
+                }
+            }
+        }
+        
+        return {
+            totalUsers,
+            activeUsers,
+            totalPurchases,
+            globalShopItems: globalShop ? Object.keys(globalShop.shop).length : 0,
+            currentHour,
+            nextReset: getUserShopTimeLeft()
+        };
+    } catch (error) {
+        console.error('Failed to get shop stats:', error);
+        return null;
+    }
+}
+
 module.exports = {
     getUserShop,
     forceRerollUserShop,
     getUserShopTimeLeft,
-    updateShopStock,
-    clearAllShopCaches
+    updateUserStock,
+    clearAllShopCaches,
+    getShopStats,
+    getGlobalShop
 };

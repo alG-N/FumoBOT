@@ -55,7 +55,7 @@ async function createShopEmbed(userId, userShop, page = 0) {
         .setTitle(`✨ Your Magical Shop View ✨ (Page ${page + 1}/${totalPages})`)
         .setDescription(
             `🧙‍♂️ **Your personal selection from the global shop!**\n` +
-            `🌍 *Stock is shared globally - if someone buys, it's gone for everyone!*\n\n` +
+            `🌍 *This shop is global and it's unique to you - your purchases don't affect others!*\n\n` +
             `📜 To buy: \`.shop buy <ItemName> <Quantity>\`\n` +
             `🔎 To search: \`.shop search <ItemName>\`\n\n` +
             `🔄 **Shop resets in:** ${timeUntilNextReset}\n` +
