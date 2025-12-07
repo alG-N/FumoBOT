@@ -9,20 +9,31 @@ const {
 } = require('../../../Configuration/seasonConfig');
 
 const {
+    WEATHER_COMBOS,
+    checkForWeatherCombo,
+    shouldTriggerCombo,
+    getComboDescription,
+    getComboDuration
+} = require('../../../Configuration/weatherComboConfig');
+
+const {
     getActiveSeasonTypes,
     startSeason,
     endSeason,
-    cleanExpiredSeasons
+    cleanExpiredSeasons,
+    isSeasonActive
 } = require('./SeasonDatabaseService');
 
 const { debugLog, logToDiscord, LogLevel } = require('../../../Core/logger');
 
 const weatherCheckIntervals = new Map();
+const comboCheckInterval = null;
 let cleanupInterval = null;
 let guaranteeCheckInterval = null;
 let lastWeatherEventTime = Date.now();
 
 const GUARANTEED_WEATHER_INTERVAL = 3 * 60 * 60 * 1000;
+const COMBO_CHECK_INTERVAL = 60000;
 
 async function initializeSeasonSystem(client) {
     try {
@@ -48,6 +59,7 @@ async function initializeSeasonSystem(client) {
         }, 300000);
         
         startGuaranteedWeatherCheck(client);
+        startWeatherComboCheck(client);
         startWeekendMonitor(client);
         
         console.log('✅ Season system initialized with buffed weather rates');
@@ -95,6 +107,11 @@ function startWeatherCheckInterval(weatherType, client) {
     
     const intervalId = setInterval(async () => {
         try {
+            const alreadyActive = await isSeasonActive(weatherType);
+            if (alreadyActive) {
+                return;
+            }
+
             if (shouldTriggerWeather(weatherType)) {
                 const duration = getWeatherDuration(weatherType);
                 await startSeason(weatherType, duration);
@@ -142,6 +159,47 @@ function startGuaranteedWeatherCheck(client) {
     }, 600000);
     
     debugLog('SEASONS', 'Started guaranteed weather check (every 10 min)');
+}
+
+function startWeatherComboCheck(client) {
+    setInterval(async () => {
+        try {
+            const activeSeasons = await getActiveSeasonTypes();
+            const activeWeathers = activeSeasons.filter(s => s !== 'WEEKEND');
+
+            for (const [comboKey, comboData] of Object.entries(WEATHER_COMBOS)) {
+                const alreadyActive = await isSeasonActive(comboKey);
+                if (alreadyActive) continue;
+
+                const hasAllWeathers = comboData.requiredWeathers.every(w => activeWeathers.includes(w));
+                
+                if (hasAllWeathers && shouldTriggerCombo(comboKey)) {
+                    const duration = getComboDuration(comboKey);
+                    await startSeason(comboKey, duration);
+                    
+                    const description = getComboDescription(comboKey);
+                    console.log(`🌟 WEATHER COMBO TRIGGERED: ${comboKey}`);
+                    
+                    await logToDiscord(
+                        client,
+                        `🌟 **WEATHER COMBO ACTIVATED!**\n${description}\nDuration: ${Math.floor(duration / 60000)} minutes`,
+                        null,
+                        LogLevel.ACTIVITY
+                    );
+
+                    for (const weather of comboData.requiredWeathers) {
+                        await endSeason(weather);
+                    }
+                    
+                    break;
+                }
+            }
+        } catch (error) {
+            console.error('Error in weather combo check:', error);
+        }
+    }, COMBO_CHECK_INTERVAL);
+    
+    debugLog('SEASONS', 'Started weather combo check (every 1 min)');
 }
 
 async function triggerGuaranteedWeather(client) {
@@ -197,6 +255,18 @@ function stopAllWeatherIntervals() {
 async function getCurrentMultipliers() {
     await cleanExpiredSeasons();
     const activeSeasons = await getActiveSeasonTypes();
+    
+    const comboCheck = checkForWeatherCombo(activeSeasons);
+    if (comboCheck.found) {
+        const { getComboMultiplier } = require('../../../Configuration/weatherComboConfig');
+        const comboMult = getComboMultiplier(comboCheck.comboKey);
+        return {
+            coinMultiplier: comboMult.coin,
+            gemMultiplier: comboMult.gem,
+            activeEvents: [comboCheck.comboKey]
+        };
+    }
+    
     return calculateTotalMultipliers(activeSeasons);
 }
 
@@ -204,6 +274,11 @@ async function getActiveSeasonsList() {
     const activeSeasons = await getActiveSeasonTypes();
     if (activeSeasons.length === 0) {
         return 'No active seasonal events';
+    }
+    
+    const comboCheck = checkForWeatherCombo(activeSeasons);
+    if (comboCheck.found) {
+        return getComboDescription(comboCheck.comboKey);
     }
     
     return activeSeasons

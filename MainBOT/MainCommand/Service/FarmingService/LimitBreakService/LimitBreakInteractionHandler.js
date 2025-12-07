@@ -49,11 +49,9 @@ async function getLimitBreakerData(userId) {
     const currentBreaks = userRow?.limitBreaks || 0;
     const fragmentUses = userRow?.fragmentUses || 0;
 
-    // Get requirements based on current stage
     const requirementData = getRequirementForUser(userId, currentBreaks + 1);
     const requirements = calculateRequirements(currentBreaks);
 
-    // Validate user has required fumos
     const fumoValidation = await validateUserHasFumos(userId, requirementData.requirements.fumos);
 
     const [fragmentRow, nullifiedRow] = await Promise.all([
@@ -88,11 +86,9 @@ async function handleLimitBreakConfirm(interaction, userId, message, client) {
             });
         }
 
-        // Get current requirements
         const requirementData = getRequirementForUser(userId, breaks + 1);
         const reqs = calculateRequirements(breaks);
         
-        // Validate resources
         const validation = await validateResources(userId, reqs, requirementData.requirements.fumos);
 
         if (!validation.valid) {
@@ -102,17 +98,14 @@ async function handleLimitBreakConfirm(interaction, userId, message, client) {
             });
         }
 
-        // Consume resources
         await consumeResources(userId, reqs, validation.fumoIds);
         
-        // Increment limit breaks
         if (checkRow) {
             await run(`UPDATE userUpgrades SET limitBreaks = limitBreaks + 1 WHERE userId = ?`, [userId]);
         } else {
             await run(`INSERT INTO userUpgrades (userId, limitBreaks, fragmentUses) VALUES (?, 1, 0)`, [userId]);
         }
 
-        // Clear the used requirement
         clearRequirementForUser(userId);
 
         const newBreaks = breaks + 1;
@@ -120,8 +113,19 @@ async function handleLimitBreakConfirm(interaction, userId, message, client) {
 
         await logToDiscord(client, `User ${message.author.username} performed Limit Break #${newBreaks}`, null, LogLevel.ACTIVITY);
 
+        const updatedData = await getLimitBreakerData(userId);
+        const updatedEmbed = createLimitBreakerEmbed(updatedData);
+        const updatedButtons = createLimitBreakerButtons(userId, updatedData);
+
+        await interaction.editReply({
+            embeds: [updatedEmbed],
+            components: updatedButtons
+        });
+
         const successEmbed = createSuccessEmbed(newBreaks, totalLimit, reqs, requirementData.requirements.fumos);
-        await interaction.editReply({ embeds: [successEmbed], components: [] });
+        await interaction.followUp({
+            embeds: [successEmbed]
+        });
 
     } catch (error) {
         console.error('Error in limit break confirm:', error);
@@ -148,7 +152,6 @@ async function validateResources(userId, reqs, requiredFumos) {
         return { valid: false, error: `❌ You need ${reqs.nullified} Nullified(?) but only have ${nulls}!` };
     }
 
-    // Validate user has all required fumos
     const fumoValidation = await validateUserHasFumos(userId, requiredFumos);
     const missingFumos = fumoValidation.filter(v => !v.found);
 
@@ -171,18 +174,17 @@ async function consumeResources(userId, reqs, fumoIds) {
             [reqs.nullified, userId, 'Nullified(?)'])
     ]);
 
-    // Delete required fumos
     for (const fumoId of fumoIds) {
         await run(`DELETE FROM userInventory WHERE id = ?`, [fumoId]);
     }
 }
 
 function calculateRequirements(currentBreaks) {
-    const baseFragments = 15;
+    const baseFragments = 10;
     const baseNullified = 1;
     
-    const fragmentIncrease = Math.floor(currentBreaks / 5) * 5; 
-    const nullifiedIncrease = Math.floor(currentBreaks / 10); 
+    const fragmentIncrease = Math.floor(currentBreaks / 10) * 3;
+    const nullifiedIncrease = Math.floor(currentBreaks / 25);
     
     return {
         fragments: baseFragments + fragmentIncrease,
@@ -201,14 +203,13 @@ function createLimitBreakerEmbed(data) {
         .setDescription(
             canBreak 
                 ? '**Break through your farming limits!**\n\nSacrifice specific items to gain additional farming slots beyond the fragment limit.\n\n**Current Progress:**'
-                : '**Maximum Limit Breaks Reached!**\n\nYou have reached the maximum of 100 limit breaks.'
+                : '**Maximum Limit Breaks Reached!**\n\nYou have reached the maximum of 150 limit breaks.'
         );
 
     if (canBreak) {
         const hasFragments = inventory.fragments >= requirements.fragments;
         const hasNullified = inventory.nullified >= requirements.nullified;
 
-        // Build fumo requirement text
         let fumoRequirementText = '';
         for (let i = 0; i < requiredFumos.length; i++) {
             const req = requiredFumos[i];
@@ -263,10 +264,9 @@ function createLimitBreakerEmbed(data) {
 }
 
 function getStageDescription(stage) {
-    if (stage <= 25) return 'Easy (1 Fumo, any variant)';
-    if (stage <= 50) return 'Medium (2 Fumos, any variant)';
-    if (stage <= 75) return 'Hard (2 Fumos with traits)';
-    return 'Impossible (3 Fumos with traits)';
+    if (stage <= 50) return 'Easy (1 Fumo, any variant)';
+    if (stage <= 100) return 'Medium (1 Higher Rarity Fumo, any variant)';
+    return 'Hard (1 Fumo with trait required)';
 }
 
 function createLimitBreakerButtons(userId, data) {
