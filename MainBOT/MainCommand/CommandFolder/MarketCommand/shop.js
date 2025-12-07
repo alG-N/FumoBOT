@@ -1,9 +1,10 @@
+const { EmbedBuilder, Colors } = require('discord.js');
 const { checkRestrictions } = require('../../Middleware/restrictions');
 const { checkButtonOwnership } = require('../../Middleware/buttonOwnership');
 const { formatNumber } = require('../../Ultility/formatting');
 const { getUserShop, forceRerollUserShop, getUserShopTimeLeft } = require('../../Service/MarketService/ShopService/ShopCacheService');
 const { useReroll, getRerollData, getRerollCooldownRemaining, formatTimeRemaining, getPaidRerollCost } = require('../../Service/MarketService/ShopService/ShopRerollService');
-const { processPurchase, processBuyAll } = require('../../Service/MarketService/ShopService/ShopPurchaseService');
+const purchaseService = require('../../Service/MarketService/ShopService/ShopPurchaseService');
 const {
     createShopEmbed,
     createShopButtons,
@@ -149,17 +150,23 @@ module.exports = async (client) => {
             await useReroll(userId, true);
         }
 
-        const newShop = await forceRerollUserShop(userId);
-        const updatedRerollData = await getRerollData(userId);
+        const [newShop, updatedRerollData] = await Promise.all([
+            forceRerollUserShop(userId),
+            getRerollData(userId)
+        ]);
 
-        const rerollEmbed = await createRerollSuccessEmbed(
-            updatedRerollData.count,
-            await getRerollCooldownRemaining(userId),
-            isPaidReroll ? await getPaidRerollCost(userId) / 5 : null
-        );
+        const nextGemCost = isPaidReroll ? await getPaidRerollCost(userId) : null;
+        const cooldownRemaining = await getRerollCooldownRemaining(userId);
 
-        const shopEmbed = await createShopEmbed(userId, newShop, 0);
-        const buttons = await createShopButtons(userId, updatedRerollData.count, 0);
+        const [rerollEmbed, shopEmbed, buttons] = await Promise.all([
+            createRerollSuccessEmbed(
+                updatedRerollData.count,
+                cooldownRemaining,
+                nextGemCost
+            ),
+            createShopEmbed(userId, newShop, 0),
+            createShopButtons(userId, updatedRerollData.count, 0)
+        ]);
 
         await interaction.reply({
             content: isPaidReroll ? '💎 **Gem Reroll Complete!**' : '🔄 **Free Reroll Complete!**',
@@ -228,13 +235,18 @@ module.exports = async (client) => {
 
         collector.on('collect', async i => {
             if (i.customId === 'purchase_confirm') {
-                const result = await processPurchase(userId, itemName, itemCost, quantity);
+                const result = await purchaseService.processPurchase(userId, itemName, itemCost, quantity);
 
                 if (result.success) {
+                    const updatedShop = await getUserShop(userId);
+                    const rerollData = await getRerollData(userId);
+                    const shopEmbed = await createShopEmbed(userId, updatedShop, 0);
+                    const buttons = await createShopButtons(userId, rerollData.count, 0);
+
                     await i.update({
                         content: `✅ You have successfully purchased **${result.quantity} ${result.itemName}(s)** for **${formatNumber(result.totalCost)} ${result.currency}**!`,
-                        embeds: [],
-                        components: [],
+                        embeds: [shopEmbed],
+                        components: buttons,
                         ephemeral: true
                     });
                 } else {
@@ -292,19 +304,26 @@ module.exports = async (client) => {
 
         if (interaction.customId === 'buyall_confirm') {
             const userShop = await getUserShop(userId);
-            const result = await processBuyAll(userId, userShop);
+            const result = await purchaseService.processBuyAll(userId, userShop);
 
             if (result.success) {
                 const summary = result.purchases
                     .map(p => `• ${p.quantity}x ${p.itemName} (${formatNumber(p.cost)} ${p.currency})`)
                     .join('\n');
 
+                const purchaseEmbed = new EmbedBuilder()
+                    .setTitle('✅ Bulk Purchase Complete!')
+                    .setDescription(summary)
+                    .addFields(
+                        { name: '💰 Total Coins Spent', value: formatNumber(result.totalCoins), inline: true },
+                        { name: '💎 Total Gems Spent', value: formatNumber(result.totalGems), inline: true }
+                    )
+                    .setColor(Colors.Green)
+                    .setTimestamp();
+
                 return interaction.editReply({
-                    content:
-                        `✅ **Bulk Purchase Complete!**\n\n${summary}\n\n` +
-                        `**Total Spent:**\n💰 ${formatNumber(result.totalCoins)} coins\n` +
-                        `💎 ${formatNumber(result.totalGems)} gems`,
-                    embeds: [],
+                    content: '',
+                    embeds: [purchaseEmbed],
                     components: []
                 });
             } else {

@@ -46,9 +46,12 @@ async function validatePurchase(userId, itemName, itemData, quantity) {
 }
 
 async function processPurchase(userId, itemName, itemData, quantity) {
+    console.log('[SHOP_PURCHASE] Starting purchase:', { userId, itemName, quantity });
+    
     const validation = await validatePurchase(userId, itemName, itemData, quantity);
     
     if (!validation.valid) {
+        console.log('[SHOP_PURCHASE] Validation failed:', validation);
         return validation;
     }
 
@@ -58,6 +61,7 @@ async function processPurchase(userId, itemName, itemData, quantity) {
 
         if (itemData.stock !== 'unlimited') {
             const newStock = itemData.stock - quantity;
+            console.log(`[SHOP_PURCHASE] Updating stock: ${itemData.stock} -> ${newStock}`);
             await updateUserStock(userId, itemName, newStock);
         }
 
@@ -72,7 +76,7 @@ async function processPurchase(userId, itemName, itemData, quantity) {
         };
 
     } catch (error) {
-        console.error('Purchase processing error:', error);
+        console.error('[SHOP_PURCHASE] Purchase processing error:', error);
         return {
             success: false,
             error: 'PROCESSING_ERROR',
@@ -82,39 +86,58 @@ async function processPurchase(userId, itemName, itemData, quantity) {
 }
 
 async function processBuyAll(userId, userShop) {
+    console.log('[SHOP_BUY_ALL] Starting buy all for user:', userId);
+    console.log('[SHOP_BUY_ALL] User shop items:', Object.keys(userShop).length);
+    
     try {
         const currency = await getUserCurrency(userId);
+        console.log('[SHOP_BUY_ALL] User currency:', currency);
+        
         const purchases = [];
         const stockUpdates = [];
+        let availableCoins = currency.coins;
+        let availableGems = currency.gems;
 
         for (const [itemName, itemData] of Object.entries(userShop)) {
-            if (itemData.stock === 0) continue;
+            console.log(`[SHOP_BUY_ALL] Checking item: ${itemName}, stock: ${itemData.stock}`);
+            
+            if (itemData.stock === 0 || itemData.stock === '0') {
+                console.log(`[SHOP_BUY_ALL] Skipping ${itemName} - no stock`);
+                continue;
+            }
 
             let quantity;
             if (itemData.stock === 'unlimited') {
                 quantity = 100;
             } else {
-                quantity = itemData.stock;
+                quantity = parseInt(itemData.stock);
             }
 
             const totalCost = itemData.cost * quantity;
+            console.log(`[SHOP_BUY_ALL] ${itemName}: ${quantity}x @ ${itemData.cost} = ${totalCost} ${itemData.currency}`);
 
-            if (itemData.currency === 'coins' && currency.coins >= totalCost) {
+            if (itemData.currency === 'coins' && availableCoins >= totalCost) {
                 purchases.push({ itemName, itemData, quantity, totalCost });
-                currency.coins -= totalCost;
+                availableCoins -= totalCost;
                 
                 if (itemData.stock !== 'unlimited') {
                     stockUpdates.push({ itemName, newStock: 0 });
                 }
-            } else if (itemData.currency === 'gems' && currency.gems >= totalCost) {
+                console.log(`[SHOP_BUY_ALL] Added ${itemName} to purchases (coins)`);
+            } else if (itemData.currency === 'gems' && availableGems >= totalCost) {
                 purchases.push({ itemName, itemData, quantity, totalCost });
-                currency.gems -= totalCost;
+                availableGems -= totalCost;
                 
                 if (itemData.stock !== 'unlimited') {
                     stockUpdates.push({ itemName, newStock: 0 });
                 }
+                console.log(`[SHOP_BUY_ALL] Added ${itemName} to purchases (gems)`);
+            } else {
+                console.log(`[SHOP_BUY_ALL] Cannot afford ${itemName}`);
             }
         }
+
+        console.log(`[SHOP_BUY_ALL] Total purchases to process: ${purchases.length}`);
 
         if (purchases.length === 0) {
             return {
@@ -126,8 +149,12 @@ async function processBuyAll(userId, userShop) {
         let totalCoins = 0;
         let totalGems = 0;
 
+        console.log('[SHOP_BUY_ALL] Processing purchases...');
         for (const item of purchases) {
+            console.log(`[SHOP_BUY_ALL] Deducting ${item.totalCost} ${item.itemData.currency} for ${item.itemName}`);
             await deductCurrency(userId, item.itemData.currency, item.totalCost);
+            
+            console.log(`[SHOP_BUY_ALL] Adding ${item.quantity}x ${item.itemName} to inventory`);
             await addItemToInventory(userId, item.itemName, item.quantity);
 
             if (item.itemData.currency === 'coins') {
@@ -139,10 +166,14 @@ async function processBuyAll(userId, userShop) {
             debugLog('SHOP_BUY_ALL', `${userId} bought ${item.quantity}x ${item.itemName} for ${item.totalCost} ${item.itemData.currency}`);
         }
 
+        console.log(`[SHOP_BUY_ALL] Processing ${stockUpdates.length} stock updates...`);
         for (const { itemName, newStock } of stockUpdates) {
-            await updateUserStock(userId, itemName, newStock);
+            console.log(`[SHOP_BUY_ALL] Updating stock for ${itemName} to ${newStock}`);
+            const updateResult = await updateUserStock(userId, itemName, newStock);
+            console.log(`[SHOP_BUY_ALL] Stock update result for ${itemName}:`, updateResult);
         }
 
+        console.log('[SHOP_BUY_ALL] All purchases completed successfully');
         return {
             success: true,
             purchases: purchases.map(p => ({
@@ -156,7 +187,7 @@ async function processBuyAll(userId, userShop) {
         };
 
     } catch (error) {
-        console.error('Buy all processing error:', error);
+        console.error('[SHOP_BUY_ALL] Buy all processing error:', error);
         return {
             success: false,
             error: 'PROCESSING_ERROR',

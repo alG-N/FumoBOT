@@ -86,13 +86,19 @@ async function createShopEmbed(userId, userShop, page = 0) {
     for (const rarity of currentPageRarities) {
         const itemsList = categorizedItems[rarity];
         
-        if (itemsList.length === 0) continue;
-            
-        shopEmbed.addFields({ 
-            name: `${RARITY_ICONS[rarity]} ${rarity} Items`, 
-            value: itemsList.join('\n'), 
-            inline: false 
-        });
+        if (itemsList.length > 0) {
+            shopEmbed.addFields({ 
+                name: `${RARITY_ICONS[rarity]} ${rarity} Items`, 
+                value: itemsList.join('\n'), 
+                inline: false 
+            });
+        } else {
+            shopEmbed.addFields({ 
+                name: `${RARITY_ICONS[rarity]} ${rarity} Items`, 
+                value: '*No stock available*', 
+                inline: false 
+            });
+        }
     }
 
     return shopEmbed;
