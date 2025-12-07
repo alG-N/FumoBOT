@@ -20,7 +20,6 @@ module.exports = async (client) => {
 
         const restriction = checkRestrictions(message.author.id);
         if (restriction.blocked) {
-            console.log(`[${new Date().toISOString()}] Blocked user (${message.author.id}) due to ${restriction.reason}.`);
             return message.reply({ embeds: [restriction.embed] });
         }
 
@@ -50,7 +49,6 @@ module.exports = async (client) => {
 
     async function handlePagination(interaction) {
         if (!interaction.isButton() || interaction.replied || interaction.deferred) {
-            console.log('[SHOP] Interaction already handled or expired');
             return;
         }
 
@@ -65,7 +63,7 @@ module.exports = async (client) => {
 
         try {
             const newPage = action === 'next' ? currentPage + 1 : currentPage - 1;
-            const userShop = await getUserShop(userId);  // ✅ FIXED: Added await
+            const userShop = await getUserShop(userId);
             const rerollData = await getRerollData(userId);
 
             const shopEmbed = await createShopEmbed(userId, userShop, newPage);
@@ -82,8 +80,6 @@ module.exports = async (client) => {
             ]);
 
         } catch (error) {
-            console.error('[SHOP] Pagination error:', error.message);
-
             if (error.code === 10062 || error.message === 'Update timeout') {
                 try {
                     if (!interaction.replied && !interaction.deferred) {
@@ -93,7 +89,6 @@ module.exports = async (client) => {
                         });
                     }
                 } catch (replyError) {
-                    console.error('[SHOP] Could not send error message:', replyError.message);
                 }
             }
         }
@@ -177,21 +172,17 @@ module.exports = async (client) => {
 
     async function handleShopCommand(message) {
         try {
-            console.log('[SHOP] handleShopCommand triggered');
             const args = message.content.split(' ');
             const command = args[1]?.toLowerCase();
             const userId = message.author.id;
             
-            console.log('[SHOP] Getting user shop for:', userId);
             const userShop = await getUserShop(userId);
-            console.log('[SHOP] userShop retrieved, keys:', Object.keys(userShop || {}).length);
 
             if (command === 'buy') {
                 await handleBuyCommand(message, args, userId, userShop);
             } else if (command === 'search') {
                 await handleSearchCommand(message, args, userShop);
             } else {
-                console.log('[SHOP] Displaying shop');
                 await handleDisplayShop(message, userId, userShop);
             }
         } catch (error) {
@@ -282,7 +273,7 @@ module.exports = async (client) => {
         }
 
         const userId = interaction.user.id;
-        const userShop = await getUserShop(userId);  // ✅ FIXED: Added await
+        const userShop = await getUserShop(userId);
 
         const confirmationEmbed = createBuyAllConfirmationEmbed(userShop);
         const buttonRow = createPurchaseButtons('buyall');
@@ -300,7 +291,7 @@ module.exports = async (client) => {
         await interaction.deferUpdate({ ephemeral: true });
 
         if (interaction.customId === 'buyall_confirm') {
-            const userShop = await getUserShop(userId);  // ✅ FIXED: Added await
+            const userShop = await getUserShop(userId);
             const result = await processBuyAll(userId, userShop);
 
             if (result.success) {
@@ -340,20 +331,11 @@ module.exports = async (client) => {
 
     async function handleDisplayShop(message, userId, userShop) {
         try {
-            console.log('[SHOP] handleDisplayShop called for user:', userId);
-            console.log('[SHOP] userShop data:', JSON.stringify(userShop, null, 2));
-
             const rerollData = await getRerollData(userId);
-            console.log('[SHOP] rerollData:', rerollData);
-
             const shopEmbed = await createShopEmbed(userId, userShop, 0);
-            console.log('[SHOP] shopEmbed created');
-
             const buttons = await createShopButtons(userId, rerollData.count, 0);
-            console.log('[SHOP] buttons created');
 
             await message.reply({ embeds: [shopEmbed], components: buttons, ephemeral: true });
-            console.log('[SHOP] Reply sent successfully');
         } catch (error) {
             console.error('[SHOP] Error in handleDisplayShop:', error);
             await message.reply({

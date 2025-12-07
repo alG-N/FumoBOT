@@ -53,9 +53,7 @@ async function getGlobalShop() {
 
 async function getUserShop(userId) {
     try {
-        console.log('[SHOP_CACHE] getUserShop called for:', userId);
         const currentHour = getCurrentHourTimestamp();
-        console.log('[SHOP_CACHE] Current hour timestamp:', currentHour);
         
         const userView = await get(
             `SELECT shopData FROM userShopViews WHERE userId = ? AND resetTime = ?`,
@@ -63,25 +61,19 @@ async function getUserShop(userId) {
         );
 
         if (userView) {
-            console.log('[SHOP_CACHE] Found existing user view');
             const shop = JSON.parse(userView.shopData);
             if (!shop || typeof shop !== 'object') {
-                console.error('[SHOP_CACHE] Invalid shop data, regenerating...');
                 throw new Error('Invalid shop data');
             }
-            console.log('[SHOP_CACHE] Returning user shop with', Object.keys(shop).length, 'items');
             return shop;
         }
 
-        console.log('[SHOP_CACHE] No user view found, getting global shop');
         const globalShop = await getGlobalShop();
         
         if (!globalShop.shop || typeof globalShop.shop !== 'object') {
-            console.error('[SHOP_CACHE] Global shop is invalid, regenerating...');
             globalShop.shop = generateUserShop();
         }
 
-        console.log('[SHOP_CACHE] Creating personal shop from global shop');
         const personalShop = {};
         for (const [itemName, itemData] of Object.entries(globalShop.shop)) {
             personalShop[itemName] = {
@@ -97,12 +89,10 @@ async function getUserShop(userId) {
         );
 
         debugLog('SHOP_CACHE', `Initialized shop for ${userId}`);
-        console.log('[SHOP_CACHE] Personal shop created with', Object.keys(personalShop).length, 'items');
         return personalShop;
 
     } catch (error) {
         console.error('[SHOP_CACHE] Error in getUserShop:', error);
-        console.error('[SHOP_CACHE] Falling back to generating new shop');
         return generateUserShop();
     }
 }

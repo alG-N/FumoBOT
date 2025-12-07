@@ -11,22 +11,18 @@ const RARITY_PAGES = [
 ];
 
 function formatStockText(stock, stockMessage) {
-    // console.log('[SHOP_UI] Formatting stock:', stock, stockMessage); // DEBUG
-    if (stock === 0) return `~~Out of Stock~~`;
+    if (stock === 0) return null;
     if (stock === 'unlimited') return stockMessage;
     return `Stock: ${stock} (${stockMessage})`;
 }
 
 async function createShopEmbed(userId, userShop, page = 0) {
     if (!userShop || typeof userShop !== 'object') {
-        console.error('[SHOP_UI] userShop is null or undefined for user:', userId);
         return new EmbedBuilder()
             .setTitle('❌ Shop Error')
             .setDescription('Failed to load shop. Please try again.')
             .setColor(Colors.Red);
     }
-
-    console.log('[SHOP_UI] Creating embed for page', page, 'with', Object.keys(userShop).length, 'items');
 
     const categorizedItems = { 
         Basic: [], 
@@ -41,13 +37,14 @@ async function createShopEmbed(userId, userShop, page = 0) {
         Prime: []
     };
 
-    // Group items by rarity
     Object.keys(userShop).forEach(itemName => {
         const item = userShop[itemName];
         
-        console.log('[SHOP_UI] Processing item:', itemName, 'Stock:', item.stock, 'Rarity:', item.rarity); // DEBUG
+        if (item.stock === 0) return;
         
         const stockText = formatStockText(item.stock, item.message);
+        if (!stockText) return;
+        
         const priceLabel = item.priceTag === 'SALE' ? '🔥 SALE' : 
                            item.priceTag === 'SURGE' ? '📈 Surge' : '';
 
@@ -55,13 +52,6 @@ async function createShopEmbed(userId, userShop, page = 0) {
             `\`${itemName}\` — **${formatNumber(item.cost)} ${item.currency}** ` +
             `(${stockText}${priceLabel ? ` • ${priceLabel}` : ''})`
         );
-    });
-
-    // Log what we have per rarity
-    Object.entries(categorizedItems).forEach(([rarity, items]) => {
-        if (items.length > 0) {
-            console.log(`[SHOP_UI] ${rarity}: ${items.length} items`);
-        }
     });
 
     const timeUntilNextReset = getUserShopTimeLeft();
@@ -91,25 +81,20 @@ async function createShopEmbed(userId, userShop, page = 0) {
         )
         .setColor(Colors.Blue)
         .setThumbnail('https://img1.picmix.com/output/stamp/normal/6/1/0/7/2577016_a2c58.png')
-        .setFooter({ text: 'Reroll to get different items! Stock is shared globally.' });
+        .setFooter({ text: 'Reroll to get different items! Stock is personal to you.' });
 
-    // Add fields for current page rarities
     for (const rarity of currentPageRarities) {
         const itemsList = categorizedItems[rarity];
-        console.log(`[SHOP_UI] Adding field for ${rarity}, items:`, itemsList.length); // DEBUG
         
-        const displayText = itemsList.length > 0 ? 
-            itemsList.join('\n') : 
-            '-No items available here-';
+        if (itemsList.length === 0) continue;
             
         shopEmbed.addFields({ 
             name: `${RARITY_ICONS[rarity]} ${rarity} Items`, 
-            value: displayText, 
+            value: itemsList.join('\n'), 
             inline: false 
         });
     }
 
-    console.log('[SHOP_UI] Embed created successfully');
     return shopEmbed;
 }
 
@@ -195,8 +180,11 @@ function createSearchResultsEmbed(searchQuery, userShop) {
     Object.keys(userShop).forEach(itemName => {
         const item = userShop[itemName];
         if (!itemName.toLowerCase().includes(searchQuery)) return;
+        if (item.stock === 0) return;
 
         const stockText = formatStockText(item.stock, item.message);
+        if (!stockText) return;
+        
         const priceLabel = item.priceTag === 'SALE' ? '🔥 SALE' : 
                            item.priceTag === 'SURGE' ? '📈 Surge' : '';
 
