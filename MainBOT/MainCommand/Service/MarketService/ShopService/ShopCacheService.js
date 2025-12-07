@@ -1,52 +1,6 @@
-const fs = require('fs');
-const path = require('path');
+const { get, run, all } = require('../../../Core/database');
 const { generateUserShop } = require('./ShopGenerationService');
 const { debugLog } = require('../../../Core/logger');
-
-const GLOBAL_SHOP_FILE = path.join(__dirname, '../../../Data/globalShop.json');
-const USER_VIEWS_FILE = path.join(__dirname, '../../../Data/userShopViews.json');
-
-function loadGlobalShop() {
-    try {
-        if (fs.existsSync(GLOBAL_SHOP_FILE)) {
-            const data = fs.readFileSync(GLOBAL_SHOP_FILE, 'utf8');
-            return JSON.parse(data);
-        }
-    } catch (error) {
-        console.error('Failed to load global shop:', error);
-    }
-    return null;
-}
-
-function saveGlobalShop(shopData) {
-    try {
-        fs.writeFileSync(GLOBAL_SHOP_FILE, JSON.stringify(shopData, null, 2));
-        debugLog('SHOP_CACHE', 'Saved global shop');
-    } catch (error) {
-        console.error('Failed to save global shop:', error);
-    }
-}
-
-function loadUserViews() {
-    try {
-        if (fs.existsSync(USER_VIEWS_FILE)) {
-            const data = fs.readFileSync(USER_VIEWS_FILE, 'utf8');
-            return JSON.parse(data);
-        }
-    } catch (error) {
-        console.error('Failed to load user views:', error);
-    }
-    return {};
-}
-
-function saveUserViews(views) {
-    try {
-        fs.writeFileSync(USER_VIEWS_FILE, JSON.stringify(views, null, 2));
-        debugLog('SHOP_CACHE', 'Saved user views');
-    } catch (error) {
-        console.error('Failed to save user views:', error);
-    }
-}
 
 function getCurrentHourTimestamp() {
     const now = new Date();
@@ -63,32 +17,63 @@ function getUserShopTimeLeft() {
     return `${minutes} minute(s) and ${seconds} second(s)`;
 }
 
-function getGlobalShop() {
+async function getGlobalShop() {
     const currentHour = getCurrentHourTimestamp();
-    let globalShop = loadGlobalShop();
+    
+    const existing = await get(
+        `SELECT shopData, resetTime FROM globalShop WHERE resetTime = ?`,
+        [currentHour]
+    );
 
-    if (!globalShop || globalShop.resetTime !== currentHour) {
-        globalShop = {
-            shop: generateUserShop(),
-            resetTime: currentHour
+    if (existing) {
+        return {
+            shop: JSON.parse(existing.shopData),
+            resetTime: existing.resetTime
         };
-        saveGlobalShop(globalShop);
-        
-        saveUserViews({});
-        
-        debugLog('SHOP_CACHE', 'Generated new global shop for everyone');
     }
 
-    return globalShop;
+    const newShop = generateUserShop();
+    
+    await run(
+        `INSERT OR REPLACE INTO globalShop (resetTime, shopData) VALUES (?, ?)`,
+        [currentHour, JSON.stringify(newShop)]
+    );
+
+    await run(`DELETE FROM globalShop WHERE resetTime < ?`, [currentHour]);
+    await run(`DELETE FROM userShopViews WHERE resetTime < ?`, [currentHour]);
+
+    debugLog('SHOP_CACHE', 'Generated new global shop for everyone');
+
+    return {
+        shop: newShop,
+        resetTime: currentHour
+    };
 }
 
-function getUserShop(userId) {
-    const globalShop = getGlobalShop();
-    const currentHour = globalShop.resetTime;
-    let userViews = loadUserViews();
-    
-    if (!userViews[userId] || userViews[userId].resetTime !== currentHour) {
+async function getUserShop(userId) {
+    try {
+        const currentHour = getCurrentHourTimestamp();
         
+        const userView = await get(
+            `SELECT shopData FROM userShopViews WHERE userId = ? AND resetTime = ?`,
+            [userId, currentHour]
+        );
+
+        if (userView) {
+            const shop = JSON.parse(userView.shopData);
+            if (!shop || typeof shop !== 'object') {
+                throw new Error('Invalid shop data');
+            }
+            return shop;
+        }
+
+        const globalShop = await getGlobalShop();
+        
+        if (!globalShop.shop || typeof globalShop.shop !== 'object') {
+            console.error('[SHOP_CACHE] Global shop is invalid, regenerating...');
+            globalShop.shop = generateUserShop();
+        }
+
         const personalShop = {};
         for (const [itemName, itemData] of Object.entries(globalShop.shop)) {
             personalShop[itemName] = {
@@ -97,105 +82,124 @@ function getUserShop(userId) {
                 message: itemData.message
             };
         }
-        
-        userViews[userId] = {
-            personalShop, 
-            resetTime: currentHour
-        };
-        saveUserViews(userViews);
+
+        await run(
+            `INSERT OR REPLACE INTO userShopViews (userId, resetTime, shopData) VALUES (?, ?, ?)`,
+            [userId, currentHour, JSON.stringify(personalShop)]
+        );
+
         debugLog('SHOP_CACHE', `Initialized shop for ${userId}`);
+        return personalShop;
+
+    } catch (error) {
+        console.error('[SHOP_CACHE] Error in getUserShop:', error);
+        return generateUserShop();
     }
-    
-    return userViews[userId].personalShop;
 }
 
-function forceRerollUserShop(userId) {
-    const globalShop = getGlobalShop();
-    const currentHour = globalShop.resetTime;
-    let userViews = loadUserViews();
-    
+async function forceRerollUserShop(userId) {
+    const currentHour = getCurrentHourTimestamp();
     const newPersonalShop = generateUserShop();
     
-    userViews[userId] = {
-        personalShop: newPersonalShop,
-        resetTime: currentHour
-    };
-    saveUserViews(userViews);
+    await run(
+        `INSERT OR REPLACE INTO userShopViews (userId, resetTime, shopData) VALUES (?, ?, ?)`,
+        [userId, currentHour, JSON.stringify(newPersonalShop)]
+    );
     
     debugLog('SHOP_CACHE', `${userId} rerolled - only their shop changed`);
     
     return newPersonalShop;
 }
 
-function updateUserStock(userId, itemName, newStock) {
-    let userViews = loadUserViews();
-    
-    if (!userViews[userId] || !userViews[userId].personalShop) {
-        console.error(`Cannot update stock: User ${userId} has no shop`);
+async function updateUserStock(userId, itemName, newStock) {
+    try {
+        const currentHour = getCurrentHourTimestamp();
+        
+        const userView = await get(
+            `SELECT shopData FROM userShopViews WHERE userId = ? AND resetTime = ?`,
+            [userId, currentHour]
+        );
+
+        if (!userView) {
+            console.error(`Cannot update stock: User ${userId} has no shop`);
+            return false;
+        }
+
+        const shop = JSON.parse(userView.shopData);
+
+        if (!shop[itemName]) {
+            console.error(`Cannot update stock: Item ${itemName} not in user ${userId}'s shop`);
+            return false;
+        }
+
+        shop[itemName].stock = newStock;
+
+        if (newStock <= 0) {
+            shop[itemName].message = 'Out of Stock';
+        }
+
+        await run(
+            `UPDATE userShopViews SET shopData = ? WHERE userId = ? AND resetTime = ?`,
+            [JSON.stringify(shop), userId, currentHour]
+        );
+
+        debugLog('SHOP_CACHE', `Updated ${userId}'s stock for ${itemName}: ${newStock}`);
+        return true;
+
+    } catch (error) {
+        console.error('Failed to update user stock:', error);
         return false;
     }
-    
-    if (!userViews[userId].personalShop[itemName]) {
-        console.error(`Cannot update stock: Item ${itemName} not in user ${userId}'s shop`);
-        return false;
-    }
-    
-    userViews[userId].personalShop[itemName].stock = newStock;
-    
-    if (newStock <= 0) {
-        userViews[userId].personalShop[itemName].message = 'Out of Stock';
-    }
-    
-    saveUserViews(userViews);
-    debugLog('SHOP_CACHE', `Updated ${userId}'s stock for ${itemName}: ${newStock}`);
-    return true;
 }
 
-function clearAllShopCaches() {
+async function clearAllShopCaches() {
     try {
-        if (fs.existsSync(GLOBAL_SHOP_FILE)) {
-            fs.unlinkSync(GLOBAL_SHOP_FILE);
-        }
-        if (fs.existsSync(USER_VIEWS_FILE)) {
-            fs.unlinkSync(USER_VIEWS_FILE);
-        }
+        await run(`DELETE FROM globalShop`);
+        await run(`DELETE FROM userShopViews`);
         debugLog('SHOP_CACHE', 'Cleared all shop caches');
     } catch (error) {
         console.error('Failed to clear shop cache:', error);
     }
 }
 
-function getShopStats() {
+async function getShopStats() {
     try {
-        const globalShop = loadGlobalShop();
-        const userViews = loadUserViews();
-        const totalUsers = Object.keys(userViews).length;
         const currentHour = getCurrentHourTimestamp();
         
-        let activeUsers = 0;
+        const globalShop = await get(
+            `SELECT shopData FROM globalShop WHERE resetTime = ?`,
+            [currentHour]
+        );
+
+        const totalUsers = await get(
+            `SELECT COUNT(*) as count FROM userShopViews WHERE resetTime = ?`,
+            [currentHour]
+        );
+
+        const allUserViews = await all(
+            `SELECT shopData FROM userShopViews WHERE resetTime = ?`,
+            [currentHour]
+        );
+
         let totalPurchases = 0;
-        
-        for (const userId in userViews) {
-            if (userViews[userId].resetTime === currentHour) {
-                activeUsers++;
-                
-                if (userViews[userId].personalShop) {
-                    for (const itemName in userViews[userId].personalShop) {
-                        const itemData = userViews[userId].personalShop[itemName];
-                        
-                        if (itemData.stock !== 'unlimited' && itemData.message === 'Out of Stock') {
-                            totalPurchases++;
-                        }
-                    }
+
+        for (const view of allUserViews) {
+            const shop = JSON.parse(view.shopData);
+            for (const itemName in shop) {
+                const itemData = shop[itemName];
+                if (itemData.stock !== 'unlimited' && itemData.message === 'Out of Stock') {
+                    totalPurchases++;
                 }
             }
         }
-        
+
+        const globalShopData = globalShop ? JSON.parse(globalShop.shopData) : null;
+
         return {
-            totalUsers,
-            activeUsers,
+            totalUsers: totalUsers ? totalUsers.count : 0,
+            activeUsers: allUserViews.length,
             totalPurchases,
-            globalShopItems: globalShop ? Object.keys(globalShop.shop).length : 0,
+            globalShopItems: globalShopData ? Object.keys(globalShopData).length : 0,
             currentHour,
             nextReset: getUserShopTimeLeft()
         };
