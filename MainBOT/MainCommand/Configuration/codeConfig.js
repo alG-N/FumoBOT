@@ -185,6 +185,15 @@ const VALID_CODES = {
         maxUses: null,
         description: "Control time itself!",
         category: "event"
+    },
+    "ROLLBACKCOMPENSATION": {
+        items: [
+            { item: "alGShard(P)", quantity: 3 },
+        ],
+        expires: "2025-12-31T23:59:59Z",
+        maxUses: null,
+        description: "Compensation for the huge admin weather abuse that cause economy break",
+        category: "limited"
     }
 };
 
