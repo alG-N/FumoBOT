@@ -16,7 +16,7 @@ function formatStockText(stock, stockMessage) {
     return `Stock: ${stock} (${stockMessage})`;
 }
 
-function createShopEmbed(userId, userShop, page = 0) {
+async function createShopEmbed(userId, userShop, page = 0) {
     const categorizedItems = { 
         Basic: [], 
         Common: [], 
@@ -26,8 +26,8 @@ function createShopEmbed(userId, userShop, page = 0) {
         Mythical: [], 
         Divine: [], 
         '???': [],
-        Unknown: [],  // ADDED
-        Prime: []     // ADDED
+        Unknown: [],
+        Prime: []
     };
 
     Object.keys(userShop).forEach(itemName => {
@@ -45,30 +45,29 @@ function createShopEmbed(userId, userShop, page = 0) {
     });
 
     const timeUntilNextReset = getUserShopTimeLeft();
-    const rerollData = getRerollData(userId);
-    const cooldownRemaining = getRerollCooldownRemaining(userId);
+    const rerollData = await getRerollData(userId);
+    const cooldownRemaining = await getRerollCooldownRemaining(userId);
 
-    // Get rarities for current page
     const currentPageRarities = RARITY_PAGES[page] || RARITY_PAGES[0];
     const totalPages = RARITY_PAGES.length;
 
     const shopEmbed = new EmbedBuilder()
-        .setTitle(`✨ Welcome to Your Magical Shop ✨ (Page ${page + 1}/${totalPages})`)
+        .setTitle(`✨ Your Magical Shop View ✨ (Page ${page + 1}/${totalPages})`)
         .setDescription(
-            `🧙‍♂️ **Some random guy's magical shop** is open just for you!\n\n` +
+            `🧙‍♂️ **Your personal selection from the global shop!**\n` +
+            `🌍 *Stock is shared globally - if someone buys, it's gone for everyone!*\n\n` +
             `📜 To buy: \`.shop buy <ItemName> <Quantity>\`\n` +
             `🔎 To search: \`.shop search <ItemName>\`\n\n` +
-            `🔄 **Your shop resets in:** ${timeUntilNextReset}\n` +
-            `🎁 **Free Rerolls:** ${rerollData.count}/5 ` +
+            `🔄 **Shop resets in:** ${timeUntilNextReset}\n` +
+            `🎁 **Your Free Rerolls:** ${rerollData.count}/5 ` +
             `(Reset in: ${formatTimeRemaining(cooldownRemaining)})` +
             (isDoubleLuckDay() ? `\n🍀 **x2 Luck is active!**` : '') +
             (isGuaranteedMysteryBlock() ? `\n⬛ **Guaranteed ??? item in this shop!**` : '')
         )
         .setColor(Colors.Blue)
         .setThumbnail('https://img1.picmix.com/output/stamp/normal/6/1/0/7/2577016_a2c58.png')
-        .setFooter({ text: 'Prices and stock are unique to you. Shop resets every hour on the hour.' });
+        .setFooter({ text: 'Reroll to get different items! Stock is shared globally.' });
 
-    // Only show rarities for current page
     for (const rarity of currentPageRarities) {
         const itemsList = categorizedItems[rarity].length > 0 ? 
             categorizedItems[rarity].join('\n') : 
@@ -83,11 +82,10 @@ function createShopEmbed(userId, userShop, page = 0) {
     return shopEmbed;
 }
 
-function createShopButtons(userId, rerollCount, page = 0) {
+async function createShopButtons(userId, rerollCount, page = 0) {
     const rows = [];
     const totalPages = RARITY_PAGES.length;
 
-    // Row 1: Pagination buttons
     if (totalPages > 1) {
         const paginationRow = new ActionRowBuilder();
         
@@ -113,7 +111,6 @@ function createShopButtons(userId, rerollCount, page = 0) {
         rows.push(paginationRow);
     }
 
-    // Row 2: Reroll buttons
     const rerollRow = new ActionRowBuilder();
     
     if (rerollCount > 0) {
@@ -125,7 +122,7 @@ function createShopButtons(userId, rerollCount, page = 0) {
 
         rerollRow.addComponents(freeRerollButton);
     } else {
-        const paidRerollCost = getPaidRerollCost(userId);
+        const paidRerollCost = await getPaidRerollCost(userId);
         const paidRerollButton = new ButtonBuilder()
             .setCustomId(`paid_reroll_${userId}`)
             .setLabel(`Gem Reroll (${formatNumber(paidRerollCost)} 💎)`)
@@ -137,7 +134,6 @@ function createShopButtons(userId, rerollCount, page = 0) {
 
     rows.push(rerollRow);
 
-    // Row 3: Buy all button
     const actionRow = new ActionRowBuilder();
     const buyAllButton = new ButtonBuilder()
         .setCustomId(`buy_all_${userId}`)
@@ -161,8 +157,8 @@ function createSearchResultsEmbed(searchQuery, userShop) {
         Mythical: [], 
         Divine: [], 
         '???': [],
-        Unknown: [],  // ADDED
-        Prime: []     // ADDED
+        Unknown: [],
+        Prime: []
     };
 
     Object.keys(userShop).forEach(itemName => {
@@ -184,7 +180,6 @@ function createSearchResultsEmbed(searchQuery, userShop) {
         .setDescription(`Here are the items that match your search:`)
         .setColor(Colors.Blue);
 
-    // Show all rarities in search results
     for (const rarity of Object.keys(categorizedItems)) {
         const itemsList = categorizedItems[rarity].length > 0 ? 
             categorizedItems[rarity].join('\n') : 
@@ -235,7 +230,7 @@ function createBuyAllConfirmationEmbed(userShop) {
     return new EmbedBuilder()
         .setTitle("🛒 Confirm Bulk Purchase")
         .setDescription(
-            `Are you sure you want to buy **all available items**?\n\n` +
+            `Are you sure you want to buy **all available items in your view**?\n\n` +
             `**Items to purchase:**\n${itemsList.slice(0, 10).join('\n')}` +
             `${itemsList.length > 10 ? `\n...and ${itemsList.length - 10} more` : ''}\n\n` +
             `**Total Cost:**\n` +
@@ -262,18 +257,18 @@ function createPurchaseButtons(type = 'purchase') {
     );
 }
 
-function createRerollSuccessEmbed(rerollCount, cooldownRemaining, gemCost = null) {
+async function createRerollSuccessEmbed(rerollCount, cooldownRemaining, gemCost = null) {
     const description = gemCost 
-        ? `💎 Your shop has been rerolled for **${formatNumber(gemCost)} gems**!\n\n` +
-          `**Free Rerolls Remaining:** ${rerollCount}/5\n` +
+        ? `💎 Your shop view has been rerolled for **${formatNumber(gemCost)} gems**!\n\n` +
+          `**Your Free Rerolls Remaining:** ${rerollCount}/5\n` +
           `**Rerolls reset in:** ${formatTimeRemaining(cooldownRemaining)}\n\n` +
           `⚠️ **Next gem reroll will cost:** ${formatNumber(gemCost * 5)} gems`
-        : `✨ Your shop has been rerolled!\n\n` +
-          `**Free Rerolls Remaining:** ${rerollCount}/5\n` +
+        : `✨ Your shop view has been rerolled!\n\n` +
+          `**Your Free Rerolls Remaining:** ${rerollCount}/5\n` +
           `**Rerolls reset in:** ${formatTimeRemaining(cooldownRemaining)}`;
 
     return new EmbedBuilder()
-        .setTitle("🔄 Shop Rerolled!")
+        .setTitle("🔄 Shop View Rerolled!")
         .setDescription(description)
         .setColor(gemCost ? Colors.Purple : Colors.Green)
         .setTimestamp();

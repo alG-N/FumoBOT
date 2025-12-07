@@ -1,7 +1,7 @@
 {
   "1128296349566251068": {
     "normal": {
-      "rollCount": 533,
+      "rollCount": 2,
       "autoSell": true,
       "startTime": 1764840683301,
       "bestFumo": {
@@ -11,7 +11,7 @@
       },
       "bestFumoAt": "12/4/2025, 5:03:15 PM",
       "bestFumoRoll": 1,
-      "specialFumoCount": 1331,
+      "specialFumoCount": 1350,
       "specialFumoFirstAt": "12/4/2025, 4:33:38 PM",
       "specialFumoFirstRoll": 3
     },
@@ -35,7 +35,7 @@
   },
   "845274868697661440": {
     "normal": {
-      "rollCount": 533,
+      "rollCount": 2,
       "autoSell": false,
       "startTime": 1764929355312,
       "bestFumo": {
@@ -45,26 +45,22 @@
       },
       "bestFumoAt": "12/5/2025, 6:18:45 PM",
       "bestFumoRoll": 37,
-      "specialFumoCount": 827,
+      "specialFumoCount": 846,
       "specialFumoFirstAt": "12/5/2025, 5:09:29 PM",
       "specialFumoFirstRoll": 1
     },
     "event": {
-      "rollCount": 1,
+      "rollCount": 0,
       "autoSell": false,
-      "startTime": 1765021555985,
-      "totalFumosRolled": 48600,
+      "startTime": 1765084793532,
+      "totalFumosRolled": 0,
       "totalCoinsFromSales": 0,
-      "bestFumo": {
-        "name": "Go/jo(???)",
-        "rarity": "???",
-        "picture": "https://m.media-amazon.com/images/I/41PQuj80tDS._AC_UF894,1000_QL80_.jpg"
-      },
-      "bestFumoAt": "12/6/2025, 7:27:22 PM",
-      "bestFumoRoll": 13,
-      "specialFumoCount": 11,
-      "specialFumoFirstAt": "12/6/2025, 6:47:26 PM",
-      "specialFumoFirstRoll": 4
+      "bestFumo": null,
+      "bestFumoAt": null,
+      "bestFumoRoll": null,
+      "specialFumoCount": 0,
+      "specialFumoFirstAt": null,
+      "specialFumoFirstRoll": null
     }
   }
 }
