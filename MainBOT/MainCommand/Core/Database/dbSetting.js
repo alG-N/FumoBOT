@@ -27,11 +27,13 @@ const db = new sqlite3.Database(dbPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CR
         console.log("ℹ️ Journal mode set to WAL.");
       }
     });
-    db.run("PRAGMA synchronous = FAST;");      
+    db.run("PRAGMA synchronous = FAST;");
     db.run("PRAGMA foreign_keys = ON;");
-    db.run("PRAGMA temp_store = MEMORY;");      
-    db.run("PRAGMA cache_size = -250000;");      
+    db.run("PRAGMA temp_store = MEMORY;");
+    db.run("PRAGMA cache_size = -250000;");
     db.run("PRAGMA wal_checkpoint(FULL);");
+    db.run("PRAGMA mmap_size = 2147483648;");
+    db.run("PRAGMA locking_mode = EXCLUSIVE;");
   });
 });
 

@@ -1,7 +1,11 @@
-const { get, run, all } = require('../../Core/database');
+const { get, run, all, transaction } = require('../../Core/database');
 const { getWeekIdentifier } = require('../../Ultility/weekly');
 
+const inventoryCache = new Map();
+const INVENTORY_CACHE_TTL = 5000;
+
 async function consumeTicket(userId) {
+    inventoryCache.delete(userId);
     await run(
         `UPDATE userInventory SET quantity = quantity - 1 WHERE userId = ? AND itemName = ?`,
         [userId, 'PrayTicket(R)']
@@ -9,23 +13,34 @@ async function consumeTicket(userId) {
 }
 
 async function consumeShards(userId, shardNames) {
-    for (const shardName of shardNames) {
-        await run(
-            `UPDATE userInventory SET quantity = quantity - 1 WHERE userId = ? AND itemName = ?`,
-            [userId, shardName]
-        );
-    }
-}
-
-async function getUserInventory(userId) {
-    return await all(
-        `SELECT * FROM userInventory WHERE userId = ?`,
-        [userId]
+    inventoryCache.delete(userId);
+    const placeholders = shardNames.map(() => '?').join(',');
+    await run(
+        `UPDATE userInventory 
+         SET quantity = quantity - 1 
+         WHERE userId = ? AND itemName IN (${placeholders})`,
+        [userId, ...shardNames]
     );
 }
 
+async function getUserInventory(userId) {
+    const cached = inventoryCache.get(userId);
+    if (cached && Date.now() - cached.timestamp < INVENTORY_CACHE_TTL) {
+        return cached.data;
+    }
+
+    const data = await all(
+        `SELECT * FROM userInventory WHERE userId = ?`,
+        [userId],
+        true
+    );
+
+    inventoryCache.set(userId, { data, timestamp: Date.now() });
+    return data;
+}
+
 async function getUserData(userId) {
-    const user = await get(`SELECT * FROM userCoins WHERE userId = ?`, [userId]);
+    const user = await get(`SELECT * FROM userCoins WHERE userId = ?`, [userId], true);
     return user;
 }
 
@@ -65,6 +80,7 @@ async function updateUserRolls(userId, rollsToAdd) {
 }
 
 async function addToInventory(userId, itemName, quantity = 1) {
+    inventoryCache.delete(userId);
     const existing = await get(
         `SELECT * FROM userInventory WHERE userId = ? AND itemName = ?`,
         [userId, itemName]
@@ -84,6 +100,7 @@ async function addToInventory(userId, itemName, quantity = 1) {
 }
 
 async function deleteFumoFromInventory(userId, fumoId, quantity = 1) {
+    inventoryCache.delete(userId);
     const existing = await get(
         `SELECT quantity FROM userInventory WHERE id = ?`,
         [fumoId]
@@ -103,35 +120,32 @@ async function deleteFumoFromInventory(userId, fumoId, quantity = 1) {
 
 async function incrementDailyPray(userId) {
     const today = new Date().toISOString().split('T')[0];
-    
-    await run(`
-        INSERT INTO dailyQuestProgress (userId, questId, progress, completed, date)
-        VALUES (?, 'pray_5', 1, 0, ?)
-        ON CONFLICT(userId, questId, date) DO UPDATE SET 
-            progress = MIN(dailyQuestProgress.progress + 1, 5),
-            completed = CASE 
-                WHEN dailyQuestProgress.progress + 1 >= 5 THEN 1
-                ELSE dailyQuestProgress.completed
-            END
-    `, [userId, today]);
-
     const weekKey = getWeekIdentifier();
-    await run(`
-        INSERT INTO weeklyQuestProgress (userId, questId, progress, completed, week)
-        VALUES (?, 'pray_success_25', 1, 0, ?)
-        ON CONFLICT(userId, questId, week) DO UPDATE SET 
-            progress = MIN(weeklyQuestProgress.progress + 1, 25),
-            completed = CASE 
-                WHEN weeklyQuestProgress.progress + 1 >= 25 THEN 1
-                ELSE weeklyQuestProgress.completed
-            END
-    `, [userId, weekKey]);
-
-    await run(`
-        INSERT INTO achievementProgress (userId, achievementId, progress, claimed)
-        VALUES (?, 'total_prays', 1, 0)
-        ON CONFLICT(userId, achievementId) DO UPDATE SET progress = progress + 1
-    `, [userId]);
+    
+    await transaction([
+        {
+            sql: `INSERT INTO dailyQuestProgress (userId, questId, progress, completed, date)
+                  VALUES (?, 'pray_5', 1, 0, ?)
+                  ON CONFLICT(userId, questId, date) DO UPDATE SET 
+                  progress = MIN(dailyQuestProgress.progress + 1, 5),
+                  completed = CASE WHEN dailyQuestProgress.progress + 1 >= 5 THEN 1 ELSE 0 END`,
+            params: [userId, today]
+        },
+        {
+            sql: `INSERT INTO weeklyQuestProgress (userId, questId, progress, completed, week)
+                  VALUES (?, 'pray_success_25', 1, 0, ?)
+                  ON CONFLICT(userId, questId, week) DO UPDATE SET 
+                  progress = MIN(weeklyQuestProgress.progress + 1, 25),
+                  completed = CASE WHEN weeklyQuestProgress.progress + 1 >= 25 THEN 1 ELSE 0 END`,
+            params: [userId, weekKey]
+        },
+        {
+            sql: `INSERT INTO achievementProgress (userId, achievementId, progress, claimed)
+                  VALUES (?, 'total_prays', 1, 0)
+                  ON CONFLICT(userId, achievementId) DO UPDATE SET progress = progress + 1`,
+            params: [userId]
+        }
+    ]);
 }
 
 async function updateYukariData(userId, coinsAdded, gemsAdded, newMark) {
@@ -175,7 +189,7 @@ async function updateMarisaData(userId, donationCount, prayedStatus) {
 }
 
 async function getSakuyaUsage(userId) {
-    return await get(`SELECT * FROM sakuyaUsage WHERE userId = ?`, [userId]);
+    return await get(`SELECT * FROM sakuyaUsage WHERE userId = ?`, [userId], true);
 }
 
 async function updateSakuyaUsage(userId, data) {
@@ -206,14 +220,15 @@ async function updateSakuyaUsage(userId, data) {
 }
 
 async function getFarmingFumos(userId) {
-    return await all(`SELECT * FROM farmingFumos WHERE userId = ?`, [userId]);
+    return await all(`SELECT * FROM farmingFumos WHERE userId = ?`, [userId], true);
 }
 
 async function getActiveBoosts(userId, currentTime) {
     return await all(
         `SELECT type, multiplier FROM activeBoosts
          WHERE userId = ? AND (expiresAt IS NULL OR expiresAt > ?)`,
-        [userId, currentTime]
+        [userId, currentTime],
+        true
     );
 }
 
@@ -222,6 +237,14 @@ async function addSpiritTokens(userId, amount) {
         `UPDATE userCoins SET spiritTokens = COALESCE(spiritTokens, 0) + ? WHERE userId = ?`,
         [amount, userId]
     );
+}
+
+function clearInventoryCache(userId = null) {
+    if (userId) {
+        inventoryCache.delete(userId);
+    } else {
+        inventoryCache.clear();
+    }
 }
 
 module.exports = {
@@ -243,5 +266,6 @@ module.exports = {
     updateSakuyaUsage,
     getFarmingFumos,
     getActiveBoosts,
-    addSpiritTokens
+    addSpiritTokens,
+    clearInventoryCache
 };
