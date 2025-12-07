@@ -22,7 +22,8 @@ async function getGlobalShop() {
     
     const existing = await get(
         `SELECT shopData, resetTime FROM globalShop WHERE resetTime = ?`,
-        [currentHour]
+        [currentHour],
+        true
     );
 
     if (existing) {
@@ -56,12 +57,13 @@ async function getUserShop(userId) {
         
         const userView = await get(
             `SELECT shopData FROM userShopViews WHERE userId = ? AND resetTime = ?`,
-            [userId, currentHour]
+            [userId, currentHour],
+            true
         );
 
         if (userView) {
             const shop = JSON.parse(userView.shopData);
-            if (!shop || typeof shop !== 'object') {
+            if (!shop || typeof shop !== 'object' || Object.keys(shop).length === 0) {
                 throw new Error('Invalid shop data');
             }
             return shop;
@@ -69,7 +71,7 @@ async function getUserShop(userId) {
 
         const globalShop = await getGlobalShop();
         
-        if (!globalShop.shop || typeof globalShop.shop !== 'object') {
+        if (!globalShop.shop || typeof globalShop.shop !== 'object' || Object.keys(globalShop.shop).length === 0) {
             console.error('[SHOP_CACHE] Global shop is invalid, regenerating...');
             globalShop.shop = generateUserShop();
         }
@@ -84,8 +86,8 @@ async function getUserShop(userId) {
         }
 
         await run(
-            `INSERT OR REPLACE INTO userShopViews (userId, resetTime, shopData) VALUES (?, ?, ?)`,
-            [userId, currentHour, JSON.stringify(personalShop)]
+            `INSERT OR REPLACE INTO userShopViews (userId, resetTime, shopData, createdAt) VALUES (?, ?, ?, ?)`,
+            [userId, currentHour, JSON.stringify(personalShop), Date.now()]
         );
 
         debugLog('SHOP_CACHE', `Initialized shop for ${userId}`);
@@ -93,7 +95,19 @@ async function getUserShop(userId) {
 
     } catch (error) {
         console.error('[SHOP_CACHE] Error in getUserShop:', error);
-        return generateUserShop();
+        const fallbackShop = generateUserShop();
+        const currentHour = getCurrentHourTimestamp();
+        
+        try {
+            await run(
+                `INSERT OR REPLACE INTO userShopViews (userId, resetTime, shopData, createdAt) VALUES (?, ?, ?, ?)`,
+                [userId, currentHour, JSON.stringify(fallbackShop), Date.now()]
+            );
+        } catch (insertError) {
+            console.error('[SHOP_CACHE] Failed to save fallback shop:', insertError);
+        }
+        
+        return fallbackShop;
     }
 }
 
@@ -102,8 +116,8 @@ async function forceRerollUserShop(userId) {
     const newPersonalShop = generateUserShop();
     
     await run(
-        `INSERT OR REPLACE INTO userShopViews (userId, resetTime, shopData) VALUES (?, ?, ?)`,
-        [userId, currentHour, JSON.stringify(newPersonalShop)]
+        `INSERT OR REPLACE INTO userShopViews (userId, resetTime, shopData, createdAt) VALUES (?, ?, ?, ?)`,
+        [userId, currentHour, JSON.stringify(newPersonalShop), Date.now()]
     );
     
     debugLog('SHOP_CACHE', `${userId} rerolled - only their shop changed`);
@@ -117,7 +131,8 @@ async function updateUserStock(userId, itemName, newStock) {
         
         const userView = await get(
             `SELECT shopData FROM userShopViews WHERE userId = ? AND resetTime = ?`,
-            [userId, currentHour]
+            [userId, currentHour],
+            true
         );
 
         if (!userView) {
@@ -168,17 +183,20 @@ async function getShopStats() {
         
         const globalShop = await get(
             `SELECT shopData FROM globalShop WHERE resetTime = ?`,
-            [currentHour]
+            [currentHour],
+            true
         );
 
         const totalUsers = await get(
             `SELECT COUNT(*) as count FROM userShopViews WHERE resetTime = ?`,
-            [currentHour]
+            [currentHour],
+            true
         );
 
         const allUserViews = await all(
             `SELECT shopData FROM userShopViews WHERE resetTime = ?`,
-            [currentHour]
+            [currentHour],
+            true
         );
 
         let totalPurchases = 0;
