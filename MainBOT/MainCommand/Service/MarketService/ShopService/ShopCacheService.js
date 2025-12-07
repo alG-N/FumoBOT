@@ -53,29 +53,35 @@ async function getGlobalShop() {
 
 async function getUserShop(userId) {
     try {
+        console.log('[SHOP_CACHE] getUserShop called for:', userId);
         const currentHour = getCurrentHourTimestamp();
+        console.log('[SHOP_CACHE] Current hour timestamp:', currentHour);
         
         const userView = await get(
             `SELECT shopData FROM userShopViews WHERE userId = ? AND resetTime = ?`,
-            [userId, currentHour],
-            true
+            [userId, currentHour]
         );
 
         if (userView) {
+            console.log('[SHOP_CACHE] Found existing user view');
             const shop = JSON.parse(userView.shopData);
-            if (!shop || typeof shop !== 'object' || Object.keys(shop).length === 0) {
+            if (!shop || typeof shop !== 'object') {
+                console.error('[SHOP_CACHE] Invalid shop data, regenerating...');
                 throw new Error('Invalid shop data');
             }
+            console.log('[SHOP_CACHE] Returning user shop with', Object.keys(shop).length, 'items');
             return shop;
         }
 
+        console.log('[SHOP_CACHE] No user view found, getting global shop');
         const globalShop = await getGlobalShop();
         
-        if (!globalShop.shop || typeof globalShop.shop !== 'object' || Object.keys(globalShop.shop).length === 0) {
+        if (!globalShop.shop || typeof globalShop.shop !== 'object') {
             console.error('[SHOP_CACHE] Global shop is invalid, regenerating...');
             globalShop.shop = generateUserShop();
         }
 
+        console.log('[SHOP_CACHE] Creating personal shop from global shop');
         const personalShop = {};
         for (const [itemName, itemData] of Object.entries(globalShop.shop)) {
             personalShop[itemName] = {
@@ -86,28 +92,18 @@ async function getUserShop(userId) {
         }
 
         await run(
-            `INSERT OR REPLACE INTO userShopViews (userId, resetTime, shopData, createdAt) VALUES (?, ?, ?, ?)`,
-            [userId, currentHour, JSON.stringify(personalShop), Date.now()]
+            `INSERT OR REPLACE INTO userShopViews (userId, resetTime, shopData) VALUES (?, ?, ?)`,
+            [userId, currentHour, JSON.stringify(personalShop)]
         );
 
         debugLog('SHOP_CACHE', `Initialized shop for ${userId}`);
+        console.log('[SHOP_CACHE] Personal shop created with', Object.keys(personalShop).length, 'items');
         return personalShop;
 
     } catch (error) {
         console.error('[SHOP_CACHE] Error in getUserShop:', error);
-        const fallbackShop = generateUserShop();
-        const currentHour = getCurrentHourTimestamp();
-        
-        try {
-            await run(
-                `INSERT OR REPLACE INTO userShopViews (userId, resetTime, shopData, createdAt) VALUES (?, ?, ?, ?)`,
-                [userId, currentHour, JSON.stringify(fallbackShop), Date.now()]
-            );
-        } catch (insertError) {
-            console.error('[SHOP_CACHE] Failed to save fallback shop:', insertError);
-        }
-        
-        return fallbackShop;
+        console.error('[SHOP_CACHE] Falling back to generating new shop');
+        return generateUserShop();
     }
 }
 
