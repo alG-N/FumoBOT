@@ -51,17 +51,22 @@ async function openBuildingMenu(interaction, userId) {
 }
 
 async function handleClose(interaction, userId) {
-    await interaction.deferUpdate();
+    try {
+        if (interaction.deferred || interaction.replied) {
+            return;
+        }
+        await interaction.deferUpdate();
+    } catch (error) {
+        console.log('Interaction already handled:', error.message);
+        return;
+    }
 
     try {
-        // Get the username from the interaction
         const username = interaction.user.username;
         
-        // Refresh farm status
         const farmData = await getFarmStatusData(userId, username);
         const embed = createFarmStatusEmbed(farmData);
         
-        // Create main buttons (Farm Buildings and Limit Breaker)
         const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
         const mainButtons = new ActionRowBuilder()
             .addComponents(
@@ -81,15 +86,16 @@ async function handleClose(interaction, userId) {
         });
     } catch (error) {
         console.error('Error closing building menu:', error);
-        await interaction.followUp({
-            content: '❌ Failed to return to farm status.',
-            ephemeral: true
-        });
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction.followUp({
+                content: '❌ Failed to return to farm status.',
+                ephemeral: true
+            }).catch(() => {});
+        }
     }
 }
 
 async function handleUpgrade(interaction, userId) {
-    // Add this check at the very beginning
     if (!interaction.customId.startsWith('upgrade_')) {
         console.log('Not an upgrade button, ignoring');
         return;
@@ -100,7 +106,6 @@ async function handleUpgrade(interaction, userId) {
     try {
         const buildingType = extractBuildingType(interaction.customId);
         
-        // Add validation for building type
         if (!buildingType || !['COIN_BOOST', 'GEM_BOOST', 'CRITICAL_FARMING', 'EVENT_BOOST'].includes(buildingType)) {
             console.error('Invalid building type:', buildingType, 'from customId:', interaction.customId);
             return await interaction.followUp({
@@ -112,7 +117,6 @@ async function handleUpgrade(interaction, userId) {
         const levels = await getBuildingLevels(userId);
         const currentLevel = levels[buildingType];
 
-        // Validate upgrade
         const upgradeCheck = canUpgrade(buildingType, currentLevel);
         if (!upgradeCheck.valid) {
             return await interaction.followUp({
@@ -121,7 +125,6 @@ async function handleUpgrade(interaction, userId) {
             });
         }
 
-        // Check resources
         const cost = calculateUpgradeCost(buildingType, currentLevel);
         const userRow = await get(`SELECT coins, gems FROM userCoins WHERE userId = ?`, [userId]);
         const coins = userRow?.coins || 0;
@@ -141,7 +144,6 @@ async function handleUpgrade(interaction, userId) {
             });
         }
 
-        // Perform upgrade
         await run(`UPDATE userCoins SET coins = coins - ?, gems = gems - ? WHERE userId = ?`, 
                   [cost.coins, cost.gems, userId]);
         await upgradeBuilding(userId, buildingType);
@@ -149,7 +151,6 @@ async function handleUpgrade(interaction, userId) {
         const newLevel = currentLevel + 1;
         const newBonus = calculateBuildingMultiplier(buildingType, newLevel);
 
-        // Refresh building menu
         const updatedLevels = await getBuildingLevels(userId);
         const updatedBuildings = getAllBuildingsInfo(updatedLevels);
         const updatedEmbed = createBuildingOverviewEmbed(userId, updatedBuildings);
@@ -176,17 +177,13 @@ async function handleUpgrade(interaction, userId) {
 }
 
 function extractBuildingType(customId) {
-    // customId format: upgrade_BUILDING_TYPE_userId
-    // Example: upgrade_COIN_BOOST_123456789
     const parts = customId.split('_');
     
-    // Remove 'upgrade' from the beginning and userId from the end
     if (parts.length < 3) {
         console.error('Invalid customId format:', customId);
         return null;
     }
     
-    // Find the userId (all digits, 17-19 chars)
     let userIdIndex = -1;
     for (let i = parts.length - 1; i >= 0; i--) {
         if (/^\d{17,19}$/.test(parts[i])) {
@@ -196,11 +193,9 @@ function extractBuildingType(customId) {
     }
     
     if (userIdIndex === -1) {
-        // Fallback: assume last part is userId
         userIdIndex = parts.length - 1;
     }
     
-    // Building type is everything between 'upgrade' and userId
     const buildingType = parts.slice(1, userIdIndex).join('_');
     
     console.log('Extracted building type:', buildingType, 'from customId:', customId);
