@@ -1,4 +1,4 @@
-const { get, run, all, transaction } = require('../../Core/database');
+const { get, all, run, transaction } = require('../../Core/database');
 const { getWeekIdentifier } = require('../../Ultility/weekly');
 
 const inventoryCache = new Map();
@@ -318,11 +318,12 @@ async function getYukariFumosByRarityGroups(userId, config) {
     const rarityConditions = allRarities.map(r => `rarity = '${r}'`).join(' OR ');
     
     const fumos = await all(
-        `SELECT id, fumoName, rarity, quantity 
+        `SELECT id, fumoName, rarity, SUM(quantity) as quantity 
          FROM userInventory 
          WHERE userId = ? 
          AND fumoName LIKE '%(%' 
          AND (${rarityConditions})
+         GROUP BY fumoName
          ORDER BY 
            CASE rarity
              WHEN 'ETERNAL' THEN 1
