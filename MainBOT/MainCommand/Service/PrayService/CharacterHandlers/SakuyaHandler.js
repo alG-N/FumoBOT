@@ -1,6 +1,7 @@
 const { EmbedBuilder } = require('discord.js');
 const { PRAY_CHARACTERS } = require('../../../Configuration/prayConfig');
 const { formatNumber } = require('../../../Ultility/formatting');
+const { calculateFarmingStats } = require('../../FarmingService/FarmingCalculationService');
 const {
     getUserData,
     getSakuyaUsage,
@@ -128,41 +129,15 @@ async function handleSakuya(userId, channel) {
             return;
         }
 
-        const statMap = {
-            Common: [25, 5],
-            UNCOMMON: [55, 15],
-            RARE: [120, 35],
-            EPIC: [250, 75],
-            OTHERWORLDLY: [550, 165],
-            LEGENDARY: [1200, 360],
-            MYTHICAL: [2500, 750],
-            EXCLUSIVE: [5500, 1650],
-            '???': [12000, 3600],
-            ASTRAL: [25000, 7500],
-            CELESTIAL: [50000, 15000],
-            INFINITE: [85000, 25500],
-            ETERNAL: [125000, 37500],
-            TRANSCENDENT: [375000, 57500]
-        };
-
         const twelveHours = 720;
         let farmingCoins = 0;
         let farmingGems = 0;
 
         for (const fumo of farming) {
-            let [coinsPerMin, gemsPerMin] = statMap[fumo.rarity] || [0, 0];
-            
-            if (fumo.fumoName.includes('[🌟alG]')) {
-                coinsPerMin *= 100;
-                gemsPerMin *= 100;
-            } else if (fumo.fumoName.includes('[✨SHINY]')) {
-                coinsPerMin *= 2;
-                gemsPerMin *= 2;
-            }
-            
+            const stats = calculateFarmingStats(fumo.fumoName);
             const qty = fumo.quantity || 1;
-            farmingCoins += coinsPerMin * twelveHours * qty;
-            farmingGems += gemsPerMin * twelveHours * qty;
+            farmingCoins += stats.coinsPerMin * twelveHours * qty;
+            farmingGems += stats.gemsPerMin * twelveHours * qty;
         }
 
         const baseCoins = 150 * twelveHours;
