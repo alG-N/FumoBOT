@@ -1,0 +1,14 @@
+{
+  "1128296349566251068": {
+    "stage": 17,
+    "requirements": {
+      "fumos": [
+        {
+          "name": "Satori(EPIC)",
+          "allowAnyTrait": true
+        }
+      ]
+    },
+    "generatedAt": 1765284944072
+  }
+}

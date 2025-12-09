@@ -1,7 +1,6 @@
 const { EmbedBuilder } = require('discord.js');
 const { PRAY_CHARACTERS } = require('../../../Configuration/prayConfig');
 const { formatNumber } = require('../../../Ultility/formatting');
-const { getRarityFromFumoName } = require('../../../Ultility/characterStats');
 const {
     getUserData,
     getSakuyaUsage,
@@ -10,7 +9,7 @@ const {
     getActiveBoosts,
     addToInventory,
     incrementDailyPray,
-    getUserInventory,
+    getReimuRareFumos,
     deleteFumoFromInventory
 } = require('../PrayDatabaseService');
 const { run } = require('../../../Core/database');
@@ -19,13 +18,16 @@ async function handleSakuya(userId, channel) {
     const config = PRAY_CHARACTERS.SAKUYA;
 
     try {
-        const user = await getUserData(userId);
+        const [user, usage] = await Promise.all([
+            getUserData(userId),
+            getSakuyaUsage(userId)
+        ]);
+
         if (!user) {
             await channel.send("❌ Couldn't find your account!");
             return;
         }
 
-        const usage = await getSakuyaUsage(userId);
         const now = Date.now();
         const { timeSkip, rewards, blessing } = config;
 
@@ -83,7 +85,12 @@ async function handleSakuya(userId, channel) {
             ? config.rarityRequirements.high 
             : config.rarityRequirements.normal;
 
-        const allFumos = await getUserInventory(userId);
+        const [allFumos, farming, coinBoosts] = await Promise.all([
+            getReimuRareFumos(userId, allowedRarities),
+            getFarmingFumos(userId),
+            getActiveBoosts(userId, now)
+        ]);
+
         const ownsSakuyaUncommon = allFumos.some(f => f.fumoName === "Sakuya(UNCOMMON)");
         
         const dropChances = {
@@ -121,35 +128,30 @@ async function handleSakuya(userId, channel) {
             return;
         }
 
-        const farming = await getFarmingFumos(userId);
+        const statMap = {
+            Common: [25, 5],
+            UNCOMMON: [55, 15],
+            RARE: [120, 35],
+            EPIC: [250, 75],
+            OTHERWORLDLY: [550, 165],
+            LEGENDARY: [1200, 360],
+            MYTHICAL: [2500, 750],
+            EXCLUSIVE: [5500, 1650],
+            '???': [12000, 3600],
+            ASTRAL: [25000, 7500],
+            CELESTIAL: [50000, 15000],
+            INFINITE: [85000, 25500],
+            ETERNAL: [125000, 37500],
+            TRANSCENDENT: [375000, 57500]
+        };
+
         const twelveHours = 720;
         let farmingCoins = 0;
         let farmingGems = 0;
 
-        // Calculate farming rewards with proper trait multipliers
         for (const fumo of farming) {
-            const rarity = getRarityFromFumoName(fumo.fumoName);
+            let [coinsPerMin, gemsPerMin] = statMap[fumo.rarity] || [0, 0];
             
-            const statMap = {
-                Common: [25, 5],
-                UNCOMMON: [55, 15],
-                RARE: [120, 35],
-                EPIC: [250, 75],
-                OTHERWORLDLY: [550, 165],
-                LEGENDARY: [1200, 360],
-                MYTHICAL: [2500, 750],
-                EXCLUSIVE: [5500, 1650],
-                '???': [12000, 3600],
-                ASTRAL: [25000, 7500],
-                CELESTIAL: [50000, 15000],
-                INFINITE: [85000, 25500],
-                ETERNAL: [125000, 37500],
-                TRANSCENDENT: [375000, 57500]
-            };
-
-            let [coinsPerMin, gemsPerMin] = statMap[rarity] || [0, 0];
-            
-            // Apply trait multipliers
             if (fumo.fumoName.includes('[🌟alG]')) {
                 coinsPerMin *= 100;
                 gemsPerMin *= 100;
@@ -168,8 +170,6 @@ async function handleSakuya(userId, channel) {
         let totalCoins = farmingCoins + baseCoins;
         let totalGems = farmingGems + baseGems;
 
-        // Apply personal boosts (potions, etc.)
-        const coinBoosts = await getActiveBoosts(userId, now);
         let coinMult = 1;
         let gemMult = 1;
         
@@ -183,7 +183,6 @@ async function handleSakuya(userId, channel) {
             }
         });
 
-        // Apply building multipliers
         const { getBuildingLevels } = require('../../FarmingService/BuildingService/BuildingDatabaseService');
         const { calculateBuildingMultiplier, calculateEventAmplification } = require('../../../Configuration/buildingConfig');
         const buildingLevels = await getBuildingLevels(userId);
@@ -191,15 +190,12 @@ async function handleSakuya(userId, channel) {
         const coinBuildingBoost = calculateBuildingMultiplier('COIN_BOOST', buildingLevels.COIN_BOOST);
         const gemBuildingBoost = calculateBuildingMultiplier('GEM_BOOST', buildingLevels.GEM_BOOST);
         
-        // Apply weather/seasonal multipliers
         const { getCurrentMultipliers } = require('../../FarmingService/SeasonService/SeasonManagerService');
         let { coinMultiplier: seasonCoinMult, gemMultiplier: seasonGemMult } = await getCurrentMultipliers();
         
-        // Apply event amplification from buildings
         seasonCoinMult = calculateEventAmplification(buildingLevels.EVENT_BOOST, seasonCoinMult);
         seasonGemMult = calculateEventAmplification(buildingLevels.EVENT_BOOST, seasonGemMult);
 
-        // Calculate final amounts with all multipliers
         totalCoins = Math.floor(totalCoins * coinMult * coinBuildingBoost * seasonCoinMult);
         totalGems = Math.floor(totalGems * gemMult * gemBuildingBoost * seasonGemMult);
 
@@ -328,7 +324,7 @@ async function handleSakuya(userId, channel) {
             .setTitle('🕰️ Sakuya\'s Time Skip 🕰️')
             .setDescription(
                 `${blessingSkip ? '⏳ Sakuya skipped time forward a day!' : '⏳ Sakuya skipped time forward 12 hours!'}\n\n` +
-                `**You earned:**\n🪙 Coins: **${formatNumber(totalCoins)}**\n💎 Gems: **${formatNumber(totalCoins)}**` +
+                `**You earned:**\n🪙 Coins: **${formatNumber(totalCoins)}**\n💎 Gems: **${formatNumber(totalGems)}**` +
                 (drops.length ? `\n\n**Extra Item Drops:**\n${drops.map(d => `• ${d}`).join('\n')}` : '') +
                 `\n\n**Time's Demander:** \`${progressBar}\` (${currentDemand}/${timeSkip.maxUses})` +
                 (blessingSkip

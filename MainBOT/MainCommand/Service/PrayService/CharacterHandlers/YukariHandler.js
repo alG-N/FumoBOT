@@ -4,12 +4,12 @@ const { formatNumber } = require('../../../Ultility/formatting');
 const { getRarityFromFumoName } = require('../../../Ultility/characterStats');
 const {
     getUserData,
-    getUserInventory,
     deleteFumoFromInventory,
     updateYukariData,
     addToInventory,
     addSpiritTokens,
-    incrementDailyPray
+    incrementDailyPray,
+    getYukariFumosByRarityGroups
 } = require('../PrayDatabaseService');
 
 const GUARANTEED_SHARDS = {
@@ -32,9 +32,20 @@ async function handleYukari(userId, channel) {
     const minRequired = Math.floor((config.requirements.minFumos[mark] || 1000) * 0.5);
     const maxAllowed = Math.floor((config.requirements.maxFumos[mark] || 1500) * 0.6);
 
-    const rows = await getUserInventory(userId);
+    const rows = await getYukariFumosByRarityGroups(userId, config);
     
-    const groups = categorizeAndPriceFumos(rows, config);
+    if (rows.length === 0) {
+        await channel.send({
+            embeds: [new EmbedBuilder()
+                .setTitle('❌ No Fumos Available! ❌')
+                .setDescription(`You don't have any fumos to trade with Yukari.`)
+                .setColor('#ff0000')
+                .setTimestamp()]
+        });
+        return;
+    }
+
+    const groups = categorizeFumos(rows, config);
     const totalFumos = groups.totalFumos;
 
     if (totalFumos < minRequired) {
@@ -119,7 +130,7 @@ async function handleYukari(userId, channel) {
     await incrementDailyPray(userId);
 }
 
-function categorizeAndPriceFumos(rows, config) {
+function categorizeFumos(rows, config) {
     const groups = {
         group1: [],
         group2: [],
@@ -130,12 +141,10 @@ function categorizeAndPriceFumos(rows, config) {
     };
 
     for (const row of rows) {
-        if (!row.fumoName?.includes('(')) continue;
-
         const qty = row.quantity || 1;
         groups.totalFumos += qty;
 
-        const rarity = getRarityFromFumoName(row.fumoName);
+        const rarity = row.rarity;
         let price = FUMO_PRICES[rarity] || 0;
 
         if (row.fumoName.includes('[✨SHINY]')) price *= 5;
@@ -184,12 +193,15 @@ async function rollBonusItem(userId, mark, config) {
     const roll = Math.random();
     let cumulative = 0;
 
-    for (const [itemName, chance] of Object.entries(bonusConfig)) {
+    for (const [itemName, { chance, quantity }] of Object.entries(bonusConfig)) {
         cumulative += chance * 3;
         if (roll < cumulative) {
-            const quantity = mark >= 7 ? Math.floor(Math.random() * 5) + 2 : Math.floor(Math.random() * 3) + 1;
-            await addToInventory(userId, itemName, quantity);
-            return `${itemName} x${quantity}`;
+            const [minQty, maxQty] = quantity;
+            const qty = mark >= 7 
+                ? Math.floor(Math.random() * (maxQty - minQty + 1)) + minQty 
+                : Math.floor(Math.random() * 3) + 1;
+            await addToInventory(userId, itemName, qty);
+            return `${itemName} x${qty}`;
         }
     }
 
