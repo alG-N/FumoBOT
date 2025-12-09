@@ -19,7 +19,7 @@ async function handleLimitBreakerInteraction(interaction, userId, message, clien
         await handleLimitBreakConfirm(interaction, userId, message, client);
     }
     else if (customId.startsWith('limitbreak_back_')) {
-        return 'BACK_TO_FARM';
+        await handleLimitBreakBack(interaction, userId);
     }
 }
 
@@ -41,6 +41,51 @@ async function openLimitBreakerMenu(interaction, userId) {
             content: '❌ Failed to open Limit Breaker menu.',
             ephemeral: true
         });
+    }
+}
+
+async function handleLimitBreakBack(interaction, userId) {
+    try {
+        if (interaction.deferred || interaction.replied) {
+            return;
+        }
+        await interaction.deferUpdate();
+    } catch (error) {
+        console.log('Interaction already handled:', error.message);
+        return;
+    }
+
+    try {
+        const username = interaction.user.username;
+        
+        const { getFarmStatusData, createFarmStatusEmbed } = require('../FarmStatusHelper');
+        const farmData = await getFarmStatusData(userId, username);
+        const embed = createFarmStatusEmbed(farmData);
+        
+        const mainButtons = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`open_buildings_${userId}`)
+                    .setLabel('🏗️ Farm Buildings')
+                    .setStyle(ButtonStyle.Primary),
+                new ButtonBuilder()
+                    .setCustomId(`open_limitbreaker_${userId}`)
+                    .setLabel('⚡ Limit Breaker')
+                    .setStyle(ButtonStyle.Danger)
+            );
+
+        await interaction.editReply({
+            embeds: [embed],
+            components: [mainButtons]
+        });
+    } catch (error) {
+        console.error('Error returning to farm:', error);
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction.followUp({
+                content: '❌ Failed to return to farm status.',
+                ephemeral: true
+            }).catch(() => {});
+        }
     }
 }
 
@@ -124,7 +169,8 @@ async function handleLimitBreakConfirm(interaction, userId, message, client) {
 
         const successEmbed = createSuccessEmbed(newBreaks, totalLimit, reqs, requirementData.requirements.fumos);
         await interaction.followUp({
-            embeds: [successEmbed]
+            embeds: [successEmbed],
+            ephemeral: true
         });
 
     } catch (error) {
