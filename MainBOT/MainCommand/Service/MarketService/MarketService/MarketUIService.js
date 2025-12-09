@@ -10,11 +10,9 @@ async function createMainShopEmbed(userId) {
         .setTitle("✨ Golden's Marketplace")
         .setDescription(
             `Welcome to the premier fumo trading hub!\n\n` +
-            `┌─────────────────────────────────┐\n` +
-            `│ 🪙 **Coin Shop** · Hourly Refresh\n` +
-            `│ 💎 **Gem Shop** · 6-Hour Refresh\n` +
-            `│ 🌐 **Global Market** · Player Trading\n` +
-            `└─────────────────────────────────┘`
+            `🪙 **Coin Shop** · Hourly Refresh\n` +
+            `💎 **Gem Shop** · 6-Hour Refresh\n` +
+            `🌐 **Global Market** · Player Trading\n`
         )
         .setColor('#FFB347')
         .setThumbnail('https://media.tenor.com/rFFZ4WbQq3EAAAAC/fumo.gif')
@@ -146,11 +144,10 @@ function createGlobalShopEmbed(listings, page = 0) {
         .setTitle("🌐 Global Player Market")
         .setDescription(
             `Player-to-player marketplace • All trades require both currencies\n\n` +
-            `┌─ **Market Rules** ─────────────┐\n` +
-            `│ 💸 Tax Rate: ${(GLOBAL_SHOP_CONFIG.TAX_RATE * 100).toFixed(0)}% per sale\n` +
-            `│ 📋 Max Listings: ${GLOBAL_SHOP_CONFIG.MAX_LISTINGS_PER_USER} per player\n` +
-            `│ ⚠️ Requires BOTH coins & gems\n` +
-            `└────────────────────────────────┘\n\n` +
+            `**Market Rules**\n` +
+            `💸 Tax Rate: ${(GLOBAL_SHOP_CONFIG.TAX_RATE * 100).toFixed(0)}% per sale\n` +
+            `📋 Max Listings: ${GLOBAL_SHOP_CONFIG.MAX_LISTINGS_PER_USER} per player\n` +
+            `⚠️ Requires BOTH coins & gems\n` +
             `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
         )
         .setColor('#3498DB');

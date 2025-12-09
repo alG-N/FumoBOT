@@ -16,7 +16,7 @@ const {
     createActionButtons,
     createInfoEmbed
 } = require('../../Service/PrayService/PrayUIService');
-const { consumeTicket, consumeShards, getUserInventory } = require('../../Service/PrayService/PrayDatabaseService');
+const { consumeTicket, consumeShards, getPrayRelevantItems } = require('../../Service/PrayService/PrayDatabaseService');
 const { checkButtonOwnership } = require('../../Middleware/buttonOwnership');
 
 const { handleYuyuko } = require('../../Service/PrayService/CharacterHandlers/YuyukoHandler');
@@ -82,18 +82,7 @@ module.exports = async (client) => {
                 return;
             }
 
-            const inventory = await getUserInventory(userId);
-            
-            const hasBasicShards = BASIC_SHARDS.every(shard => {
-                const item = inventory.find(i => i.itemName === shard);
-                return item && item.quantity >= 1;
-            });
-
-            const divineOrb = inventory.find(i => i.itemName === ENHANCED_SHARDS.divineOrb);
-            const celestialEssence = inventory.find(i => i.itemName === ENHANCED_SHARDS.celestialEssence);
-            const hasEnhancedShards = divineOrb && divineOrb.quantity >= 1 && 
-                                     celestialEssence && celestialEssence.quantity >= 5 &&
-                                     hasBasicShards;
+            const { hasBasicShards, hasEnhancedShards } = await getPrayRelevantItems(userId);
 
             const embed = createRitualWelcomeEmbed(hasBasicShards, hasEnhancedShards);
             const buttons = createPrayButtons(userId, hasBasicShards, hasEnhancedShards);
