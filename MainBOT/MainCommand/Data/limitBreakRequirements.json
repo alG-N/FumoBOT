@@ -10,5 +10,18 @@
       ]
     },
     "generatedAt": 1765284944072
+  },
+  "845274868697661440": {
+    "stage": 132,
+    "requirements": {
+      "fumos": [
+        {
+          "name": "Faruzamn(OTHERWORLDLY)[✨SHINY]",
+          "requireTrait": true,
+          "higherRarity": true
+        }
+      ]
+    },
+    "generatedAt": 1765287098786
   }
 }

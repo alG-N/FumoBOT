@@ -1,54 +1,40 @@
 {
   "market": [
     {
-      "name": "Remilia(RARE)",
-      "price": 30,
+      "name": "Youmu(RARE)",
+      "price": 35,
       "rarity": "RARE",
       "stock": 3,
       "picture": null
     },
     {
-      "name": "Ran(EPIC)",
-      "price": 76,
+      "name": "Kasen(EPIC)",
+      "price": 90,
       "rarity": "EPIC",
       "stock": 3,
       "picture": null
     },
     {
-      "name": "UltraKillV2(ETERNAL)",
-      "price": 15459000,
-      "rarity": "ETERNAL",
+      "name": "TankReisen(OTHERWORLDLY)",
+      "price": 1000,
+      "rarity": "OTHERWORLDLY",
+      "stock": 3,
+      "picture": null
+    },
+    {
+      "name": "Yukari(LEGENDARY)",
+      "price": 1250,
+      "rarity": "LEGENDARY",
       "stock": 1,
       "picture": null
     },
     {
-      "name": "Satori(EPIC)",
-      "price": 76,
-      "rarity": "EPIC",
-      "stock": 3,
-      "picture": null
-    },
-    {
-      "name": "ImSorryOfficerFumo(???)",
-      "price": 5415000,
+      "name": "SkibidiToilet(???)",
+      "price": 5725000,
       "rarity": "???",
-      "stock": 1,
-      "picture": null
-    },
-    {
-      "name": "Yuuka(MYTHICAL)",
-      "price": 150000,
-      "rarity": "MYTHICAL",
-      "stock": 1,
-      "picture": null
-    },
-    {
-      "name": "Eirin(MYTHICAL)",
-      "price": 135000,
-      "rarity": "MYTHICAL",
       "stock": 1,
       "picture": null
     }
   ],
-  "resetTime": 1765130400000
+  "resetTime": 1765303200000
 }
