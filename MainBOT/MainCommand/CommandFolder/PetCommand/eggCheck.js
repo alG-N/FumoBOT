@@ -1,9 +1,10 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 const { v4: uuidv4 } = require('uuid');
 const db = require('../../Core/Database/dbSetting');
-const { EGG_POOLS, RARITY_COLORS } = require('../Configuration/petConfig');
-const { pickRandomPet, getRandomWeight, getRandomQuality, getMaxHunger, generatePetName, hasAlterGoldenBonus } = require('../Utilities/petUtils');
-const { getHatchingEggs, deleteHatchingEgg } = require('../Utilities/dbUtils');
+const { EGG_POOLS, RARITY_COLORS, EGG_DATA } = require('../../Configuration/petConfig');
+const PetStats = require('../../Service/PetService/PetStatsService');
+const PetDatabase = require('../../Service/PetService/PetDatabaseService');
+const PetCache = require('../../Service/PetService/PetCacheService');
 
 module.exports = async (client) => {
     client.on("messageCreate", async message => {
@@ -13,7 +14,7 @@ module.exports = async (client) => {
         const userId = message.author.id;
 
         try {
-            const eggs = await getHatchingEggs(db, userId);
+            const eggs = await PetDatabase.getHatchingEggs(userId, false);
 
             if (eggs.length === 0) {
                 return message.reply("You aren't hatching any eggs right now.");
@@ -74,44 +75,52 @@ module.exports = async (client) => {
                     return interaction.reply({ content: "This egg isn't ready yet!", ephemeral: true });
                 }
 
-                await deleteHatchingEgg(db, eggId);
+                await PetDatabase.deleteHatchingEgg(userId, eggId);
 
-                const chosen = pickRandomPet(egg.eggName, EGG_POOLS);
-                const weight = getRandomWeight();
-                const quality = getRandomQuality();
-                const petName = generatePetName();
+                const chosen = PetStats.pickRandomPet(egg.eggName, EGG_POOLS);
+                const weight = PetStats.getRandomWeight();
+                const quality = PetStats.getRandomQuality();
+                const petName = PetStats.generatePetName();
                 const timestamp = Date.now();
                 const petId = uuidv4();
-                const maxHunger = getMaxHunger(chosen.rarity);
+                const maxHunger = PetStats.getMaxHunger(chosen.rarity);
 
                 let finalWeight = weight;
                 let finalQuality = quality;
                 
-                if (hasAlterGoldenBonus(petName)) {
+                if (PetStats.hasAlterGoldenBonus(petName)) {
                     finalWeight = weight * 2;
                     finalQuality = Math.min(quality * 2, 5);
                 }
 
-                await new Promise((res, rej) => {
-                    db.run(`
-                        INSERT INTO petInventory (
-                            petId, userId, type, name, petName, rarity, weight, age, quality,
-                            timestamp, level, hunger, ageXp, lastHungerUpdate
-                        ) VALUES (?, ?, 'pet', ?, ?, ?, ?, 1, ?, ?, 1, ?, 0, ?)
-                    `, [petId, userId, chosen.name, petName, chosen.rarity, finalWeight, finalQuality, 
-                        timestamp, maxHunger, Math.floor(timestamp / 1000)], 
-                        err => err ? rej(err) : res()
-                    );
-                });
+                const petData = {
+                    petId,
+                    userId,
+                    type: 'pet',
+                    name: chosen.name,
+                    petName,
+                    rarity: chosen.rarity,
+                    weight: finalWeight,
+                    age: 1,
+                    quality: finalQuality,
+                    timestamp,
+                    level: 1,
+                    hunger: maxHunger,
+                    ageXp: 0,
+                    lastHungerUpdate: Math.floor(timestamp / 1000)
+                };
+
+                await PetDatabase.insertPet(petData);
+                PetCache.invalidate(userId);
 
                 const hatchEmbed = new EmbedBuilder()
                     .setTitle(`🎉 Egg Hatched!`)
                     .setColor(RARITY_COLORS[chosen.rarity] || 0xFFFFFF)
                     .addFields(
                         { name: "Pet:", value: `${chosen.name} - **${chosen.rarity}**`, inline: false },
-                        { name: "🏷️ Name:", value: `**${petName}**${hasAlterGoldenBonus(petName) ? ' ✨ (alterGolden Bonus!)' : ''}`, inline: false },
-                        { name: "Weight", value: `**${finalWeight.toFixed(2)} kg**${hasAlterGoldenBonus(petName) ? ' (x2)' : ''}`, inline: true },
-                        { name: "⭐ Quality", value: `**${finalQuality.toFixed(2)} / 5**${hasAlterGoldenBonus(petName) ? ' (x2)' : ''}`, inline: true }
+                        { name: "🏷️ Name:", value: `**${petName}**${PetStats.hasAlterGoldenBonus(petName) ? ' ✨ (alterGolden Bonus!)' : ''}`, inline: false },
+                        { name: "Weight", value: `**${finalWeight.toFixed(2)} kg**${PetStats.hasAlterGoldenBonus(petName) ? ' (x2)' : ''}`, inline: true },
+                        { name: "⭐ Quality", value: `**${finalQuality.toFixed(2)} / 5**${PetStats.hasAlterGoldenBonus(petName) ? ' (x2)' : ''}`, inline: true }
                     )
                     .setFooter({ text: `Take good care of ${petName}!` })
                     .setTimestamp();
@@ -127,8 +136,7 @@ module.exports = async (client) => {
                 });
                 try {
                     await reply.edit({ components: disabledRows });
-                } catch (e) {
-                }
+                } catch (e) {}
             });
 
         } catch (error) {
