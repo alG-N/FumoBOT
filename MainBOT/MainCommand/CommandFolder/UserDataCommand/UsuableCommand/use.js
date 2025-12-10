@@ -1,5 +1,6 @@
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { checkRestrictions } = require('../../../Middleware/restrictions');
-const { checkButtonOwnership, parseCustomId } = require('../../../Middleware/buttonOwnership');
+const { checkButtonOwnership, parseCustomId, buildSecureCustomId } = require('../../../Middleware/buttonOwnership');
 const { RARITY_ORDER } = require('../../../Configuration/itemConfig');
 const UseService = require('../../../Service/UserDataService/UseService/UseCommandService');
 
@@ -49,7 +50,7 @@ async function handleRaritySelection(interaction) {
 
 async function handleItemSelection(interaction) {
     const { additionalData } = parseCustomId(interaction.customId);
-    const rarity = additionalData?.rarity;
+    const rarity = additionalData?.rarity || additionalData?.r;
 
     if (!rarity) {
         return interaction.update({
@@ -83,9 +84,6 @@ async function handleItemSelection(interaction) {
 }
 
 async function showQuantityInput(interaction, itemName, maxQuantity, userId) {
-    const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-    const { buildSecureCustomId } = require('../../../Middleware/buttonOwnership');
-
     const embed = new EmbedBuilder()
         .setColor(0xFFD700)
         .setTitle('🔢 Use Item - Select Quantity')
@@ -107,33 +105,34 @@ async function showQuantityInput(interaction, itemName, maxQuantity, userId) {
     await interaction.update({ embeds: [embed], components: [row] });
 
     const filter = m => m.author.id === userId && !isNaN(m.content);
-    const collected = await interaction.channel.awaitMessages({ 
-        filter, 
-        max: 1, 
-        time: 30000, 
-        errors: ['time'] 
-    }).catch(() => null);
+    
+    try {
+        const collected = await interaction.channel.awaitMessages({ 
+            filter, 
+            max: 1, 
+            time: 30000, 
+            errors: ['time'] 
+        });
 
-    if (!collected) {
+        const inputQuantity = parseInt(collected.first().content);
+        collected.first().delete().catch(() => {});
+
+        if (inputQuantity <= 0 || inputQuantity > maxQuantity) {
+            return interaction.editReply({
+                content: `❌ Invalid quantity. Please enter a number between 1 and ${maxQuantity}.`,
+                embeds: [],
+                components: []
+            });
+        }
+
+        await showConfirmation(interaction, itemName, inputQuantity, userId);
+    } catch (error) {
         return interaction.editReply({
             content: '⏱️ Quantity input timed out. Use command cancelled.',
             embeds: [],
             components: []
-        });
+        }).catch(() => {});
     }
-
-    const inputQuantity = parseInt(collected.first().content);
-    collected.first().delete().catch(() => {});
-
-    if (inputQuantity <= 0 || inputQuantity > maxQuantity) {
-        return interaction.editReply({
-            content: `❌ Invalid quantity. Please enter a number between 1 and ${maxQuantity}.`,
-            embeds: [],
-            components: []
-        });
-    }
-
-    await showConfirmation(interaction, itemName, inputQuantity, userId);
 }
 
 async function showConfirmation(interaction, itemName, quantity, userId) {
@@ -149,7 +148,10 @@ async function showConfirmation(interaction, itemName, quantity, userId) {
 async function handleConfirmation(interaction) {
     const { additionalData } = parseCustomId(interaction.customId);
     
-    if (!additionalData?.itemName || !additionalData?.quantity) {
+    const itemName = additionalData?.itemName || additionalData?.i;
+    const quantity = additionalData?.quantity || additionalData?.q || 1;
+    
+    if (!itemName) {
         return interaction.update({
             content: '❌ Invalid confirmation data.',
             embeds: [],
@@ -157,7 +159,6 @@ async function handleConfirmation(interaction) {
         });
     }
 
-    const { itemName, quantity } = additionalData;
     const userId = interaction.user.id;
 
     await interaction.update({
@@ -187,7 +188,7 @@ async function handleConfirmation(interaction) {
     } catch (error) {
         console.error('[USE_COMMAND] Error:', error);
         return interaction.editReply({
-            content: `❌ Failed to use **${itemName}**. Your items have been returned.\n\n**Error:** ${error.message}\n\nIf this persists, contact support.`,
+            content: `❌ Failed to use **${itemName}**. Your items have been returned.\n\n**Error:** ${error.message}`,
             embeds: [],
             components: []
         }).catch(() => {});
@@ -195,8 +196,6 @@ async function handleConfirmation(interaction) {
 }
 
 async function handleCancellation(interaction) {
-    const { EmbedBuilder } = require('discord.js');
-    
     const embed = new EmbedBuilder()
         .setColor(0xFF0000)
         .setTitle('❌ Cancelled')
@@ -208,8 +207,8 @@ async function handleCancellation(interaction) {
 
 async function handlePagination(interaction, direction) {
     const { additionalData } = parseCustomId(interaction.customId);
-    let currentPage = additionalData?.page || 0;
-    const rarity = additionalData?.rarity;
+    let currentPage = additionalData?.page || additionalData?.p || 0;
+    const rarity = additionalData?.rarity || additionalData?.r;
 
     if (!rarity) {
         return interaction.reply({
@@ -269,10 +268,14 @@ module.exports = (client) => {
             const customId = interaction.customId;
             if (!customId.startsWith('use_')) return;
 
-            const isOwner = await checkButtonOwnership(interaction, null, 
-                "❌ You can't use someone else's item menu.", true);
+            const isOwner = checkButtonOwnership(interaction);
             
-            if (!isOwner) return;
+            if (!isOwner) {
+                return interaction.reply({
+                    content: "❌ You can't use someone else's item menu.",
+                    ephemeral: true
+                }).catch(() => {});
+            }
 
             if (customId.startsWith('use_rarity_select')) {
                 await handleRaritySelection(interaction);
