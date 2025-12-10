@@ -19,6 +19,7 @@ const { registerTicketSystem } = require('./MainCommand/Administrator/ticketSyst
 const { registerCodeRedemption } = require('./MainCommand/CommandFolder/UserDataCommand/UsuableCommand/codeRedemption');
 const initializeShardHandler = require('./MainCommand/Service/UserDataService/UseService/ShardInteractionHandler');
 const { maintenance, developerID } = require("./MainCommand/Configuration/maintenanceConfig");
+const { initializeGuildTracking } = require('./MainCommand/Administrator/guildTracking');
 
 console.log(`Maintenance mode is currently: ${maintenance}`);
 
@@ -144,6 +145,7 @@ client.once('ready', async () => {
     initializeSeasonSystem(client);
     initializeShop();
     initializeShardHandler(client);
+    initializeGuildTracking(client);
     await restoreAutoRollSystems(client);
 
     console.log('🚀 Bot is fully operational!');
