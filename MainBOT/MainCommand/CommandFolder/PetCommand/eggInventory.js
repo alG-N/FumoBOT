@@ -1,5 +1,5 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
-const db = require('../../../Core/Database/dbSetting');
+const db = require('../../Core/Database/dbSetting');
 const { RARITY_TIERS, RARITY_COLORS, PET_ABILITIES } = require('../Configuration/petConfig');
 const { updateHunger, getXpRequired, getMaxHunger, hasAlterGoldenBonus } = require('../Utilities/petUtils');
 const { getUserEggs, getUserPets, getEquippedPets, dbAll } = require('../Utilities/dbUtils');
