@@ -9,7 +9,7 @@ function calculateBoost(pet) {
     const abilityData = PET_ABILITIES[pet.name];
     if (!abilityData) return null;
 
-    const { stat, base, max, type } = abilityData;
+    const { stat, base, max, type, abilityName } = abilityData;
 
     if (type === 'percent' || type === 'multiplier') {
         const factor = ((weight + quality) * Math.log(age + 1) * Math.sqrt(level)) / 20;
@@ -18,7 +18,7 @@ function calculateBoost(pet) {
             type: stat, 
             amount: boost, 
             boostType: type,
-            abilityName: abilityData.abilityName 
+            abilityName: abilityName 
         };
     }
 
@@ -28,7 +28,7 @@ function calculateBoost(pet) {
             type: stat,
             amount: { interval: abilityData.interval, chance },
             boostType: type,
-            abilityName: abilityData.abilityName
+            abilityName: abilityName
         };
     }
 
@@ -38,6 +38,7 @@ function calculateBoost(pet) {
             max
         );
         const activeGain = Math.min(abilityData.activeGain + level * 5, abilityData.maxGain);
+        
         return {
             type: stat,
             amount: {
@@ -46,7 +47,8 @@ function calculateBoost(pet) {
                 activeGain
             },
             boostType: type,
-            abilityName: abilityData.abilityName
+            abilityName: abilityName,
+            secondaryAbility: `Active Gain: +${activeGain} exp every ${Math.floor(abilityData.activeInterval / 1000)}s`
         };
     }
 
@@ -92,7 +94,17 @@ function hasAlterGoldenBonus(petName) {
 }
 
 function getRandomWeight() {
-    return parseFloat((Math.random() * 4 + 1).toFixed(2));
+    const base = parseFloat((Math.random() * 4 + 1).toFixed(2));
+    
+    if (Math.random() < 0.001) {
+        return base * 4;
+    }
+    
+    return base;
+}
+
+function getMaxWeight(baseWeight) {
+    return baseWeight * 10;
 }
 
 function getRandomQuality() {
@@ -138,6 +150,7 @@ module.exports = {
     updateHunger,
     hasAlterGoldenBonus,
     getRandomWeight,
+    getMaxWeight,
     getRandomQuality,
     generatePetName,
     pickRandomPet

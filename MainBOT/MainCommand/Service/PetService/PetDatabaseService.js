@@ -69,14 +69,14 @@ async function getHatchingEggs(userId, useCache = true) {
 }
 
 async function insertPet(petData) {
-    const { petId, userId, type, name, petName, rarity, weight, age, quality, timestamp, level, hunger, ageXp, lastHungerUpdate } = petData;
+    const { petId, userId, type, name, petName, rarity, weight, age, quality, timestamp, level, hunger, ageXp, lastHungerUpdate, baseWeight } = petData;
     
     await db.run(
         `INSERT INTO petInventory (
             petId, userId, type, name, petName, rarity, weight, age, quality,
-            timestamp, level, hunger, ageXp, lastHungerUpdate
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [petId, userId, type, name, petName, rarity, weight, age, quality, timestamp, level, hunger, ageXp, lastHungerUpdate]
+            timestamp, level, hunger, ageXp, lastHungerUpdate, baseWeight
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [petId, userId, type, name, petName, rarity, weight, age, quality, timestamp, level, hunger, ageXp, lastHungerUpdate, baseWeight || weight]
     );
     
     PetCache.invalidate(userId);

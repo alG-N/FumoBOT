@@ -51,7 +51,8 @@ async function hatchEgg(userId, eggName) {
         level: 1,
         hunger: maxHunger,
         ageXp: 0,
-        lastHungerUpdate: Math.floor(timestamp / 1000)
+        lastHungerUpdate: Math.floor(timestamp / 1000),
+        baseWeight: weight
     };
 
     await PetDatabase.insertPet(petData);
