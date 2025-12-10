@@ -123,7 +123,7 @@ class EmbedBuilderUtility {
     buildDisconnectedEmbed() {
         return this.buildInfoEmbed(
             "🛑 Disconnected",
-            "The bot has been disconnected and cleared all of the queues after 2 mins of inactivity, thank you for using it."
+            "The bot has been disconnected and cleared all of the queues after 3 mins of inactivity, thank you for using it."
         );
     }
 

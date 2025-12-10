@@ -112,13 +112,15 @@ class PlaybackController {
                 }
                 
                 logger.log(`Starting next track: ${nextTrack.title}`, interaction);
-                await player.playTrack({ track: { encoded: nextTrack.track.encoded } });
+                // FIX: Use playerCheck instead of player
+                await playerCheck.playTrack({ track: { encoded: nextTrack.track.encoded } });
             } else {
                 logger.log(`Queue finished`, interaction);
 
                 await queueService.disableNowMessageControls(guildId);
                 await interaction.channel.send({ embeds: [embedBuilder.buildQueueFinishedEmbed()] });
 
+                // Start 3-minute inactivity timer
                 queueService.setInactivityTimer(guildId, async (id) => {
                     await queueService.cleanup(id);
                     await interaction.channel.send({ embeds: [embedBuilder.buildDisconnectedEmbed()] });
@@ -143,7 +145,8 @@ class PlaybackController {
                 
                 const playerCheck = lavalinkService.getPlayer(guildId);
                 if (playerCheck) {
-                    await player.playTrack({ track: { encoded: nextTrack.track.encoded } });
+                    // FIX: Use playerCheck instead of player
+                    await playerCheck.playTrack({ track: { encoded: nextTrack.track.encoded } });
                 }
             }
         };
@@ -165,7 +168,8 @@ class PlaybackController {
                 
                 const playerCheck = lavalinkService.getPlayer(guildId);
                 if (playerCheck) {
-                    await player.playTrack({ track: { encoded: nextTrack.track.encoded } });
+                    // FIX: Use playerCheck instead of player
+                    await playerCheck.playTrack({ track: { encoded: nextTrack.track.encoded } });
                 }
             }
         };
