@@ -34,9 +34,11 @@ function createInventoryEmbed(view, user, eggs = [], pets = [], equippedIds = []
                 const abilityInfo = PET_ABILITIES[pet.name];
                 const abilityDesc = abilityInfo ? `💫 **${abilityInfo.abilityName}**: ${abilityInfo.description}` : '❌ No ability';
 
+                const maxWeight = PetStats.getMaxWeight(pet.weight);
+
                 embed.addFields({
                     name: `${getRarityEmoji(pet.rarity)} ${pet.name} "${pet.petName}"${alterTag}${equippedTag}`,
-                    value: `⚖️ Weight: **${pet.weight.toFixed(2)}kg** | ⭐ Quality: **${pet.quality.toFixed(2)}/5**\n${abilityDesc}`,
+                    value: `⚖️ Weight: **${pet.weight.toFixed(2)}kg / ${maxWeight.toFixed(2)}kg** | ⭐ Quality: **${pet.quality.toFixed(2)}/5**\n📅 Age: **${pet.age}/100**\n${abilityDesc}`,
                     inline: false
                 });
             });
@@ -61,11 +63,13 @@ function createInventoryEmbed(view, user, eggs = [], pets = [], equippedIds = []
                 const hungerBar = createProgressBar(hungerPercent, 10);
                 const xpBar = createProgressBar(xpPercent, 10);
 
+                const maxWeight = PetStats.getMaxWeight(pet.weight);
+
                 let abilityDisplay = 'None';
                 if (pet.ability) {
                     try {
                         const ability = typeof pet.ability === 'string' ? JSON.parse(pet.ability) : pet.ability;
-                        const { type, amount, boostType, abilityName } = ability;
+                        const { type, amount, boostType, abilityName, secondaryAbility } = ability;
 
                         if (boostType === 'multiplier' || boostType === 'percent') {
                             const symbol = boostType === 'percent' ? '%' : 'x';
@@ -73,7 +77,10 @@ function createInventoryEmbed(view, user, eggs = [], pets = [], equippedIds = []
                         } else if (boostType === 'interval-chance') {
                             abilityDisplay = `**${abilityName}**: +${amount.chance.toFixed(1)}% ${type} every ${Math.floor(amount.interval / 1000)}s`;
                         } else if (boostType === 'passive') {
-                            abilityDisplay = `**${abilityName}**: +${amount.passive.toFixed(2)} exp/s to all pets\nActive: +${amount.activeGain} exp every ${Math.floor(amount.activeInterval / 1000)}s`;
+                            abilityDisplay = `**${abilityName}**: +${amount.passive.toFixed(2)} exp/s to all pets`;
+                            if (secondaryAbility) {
+                                abilityDisplay += `\n${secondaryAbility}`;
+                            }
                         }
                     } catch {
                         abilityDisplay = '❌ Invalid ability';
@@ -81,9 +88,9 @@ function createInventoryEmbed(view, user, eggs = [], pets = [], equippedIds = []
                 }
 
                 embed.addFields({
-                    name: `${getRarityEmoji(pet.rarity)} ${pet.name} "${pet.petName}"${alterTag} [Lv.${pet.level || 1} | Age ${pet.age || 1}]`,
+                    name: `${getRarityEmoji(pet.rarity)} ${pet.name} "${pet.petName}"${alterTag} [Lv.${pet.level || 1} | Age ${pet.age || 1}/100]`,
                     value:
-                        `⚖️ Weight: **${pet.weight.toFixed(2)}kg** | ⭐ Quality: **${pet.quality.toFixed(2)}/5**\n` +
+                        `⚖️ Weight: **${pet.weight.toFixed(2)}kg / ${maxWeight.toFixed(2)}kg** | ⭐ Quality: **${pet.quality.toFixed(2)}/5**\n` +
                         `\n🍖 Hunger: ${hungerBar} ${hungerPercent}% (${pet.hunger.toFixed(0)}/${maxHunger})` +
                         `\n📊 Age XP: ${xpBar} ${xpPercent}% (${(pet.ageXp || 0).toFixed(0)}/${xpRequired})` +
                         `\n💫 ${abilityDisplay}`,
@@ -136,13 +143,15 @@ function createInventoryButtons(current, userId, disabled = false, page = 0, tot
 }
 
 function createHatchEmbed(pet, chosen, hasAlterGolden) {
+    const maxWeight = PetStats.getMaxWeight(pet.weight);
+    
     return new EmbedBuilder()
         .setTitle(`🎉 Egg Hatched!`)
         .setColor(RARITY_COLORS[chosen.rarity] || 0xFFFFFF)
         .addFields(
             { name: "Pet:", value: `${chosen.name} - **${chosen.rarity}**`, inline: false },
             { name: "🏷️ Name:", value: `**${pet.petName}**${hasAlterGolden ? ' ✨ (alterGolden Bonus!)' : ''}`, inline: false },
-            { name: "Weight", value: `**${pet.weight.toFixed(2)} kg**${hasAlterGolden ? ' (x2)' : ''}`, inline: true },
+            { name: "Weight", value: `**${pet.weight.toFixed(2)} kg / ${maxWeight.toFixed(2)} kg**${hasAlterGolden ? ' (x2)' : ''}`, inline: true },
             { name: "⭐ Quality", value: `**${pet.quality.toFixed(2)} / 5**${hasAlterGolden ? ' (x2)' : ''}`, inline: true }
         )
         .setFooter({ text: `Take good care of ${pet.petName}!` })

@@ -490,7 +490,8 @@ function createTables() {
                 hunger INTEGER DEFAULT 100,
                 ageXp INTEGER DEFAULT 0,
                 lastHungerUpdate INTEGER DEFAULT (strftime('%s','now')),
-                ability TEXT
+                ability TEXT,
+                baseWeight REAL
             )`, (err) => {
                 if (!err) console.log("✅ Table 'petInventory' is ready.");
                 res();

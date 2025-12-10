@@ -2,8 +2,7 @@ const db = require('../../Core/database');
 const PetStats = require('./PetStatsService');
 const PetBoost = require('./PetBoostService');
 
-const MAX_WEIGHT = 5.0;
-const MAX_QUALITY = 5.0;
+const MAX_AGE = 100;
 
 async function givePassiveExp(petType, passiveExpPerSec) {
     const usersWithPet = await db.all(
@@ -51,7 +50,7 @@ async function givePassiveExp(petType, passiveExpPerSec) {
             pet.ageXp = (pet.ageXp || 0) + totalExpPerSec;
             let agedUp = false;
 
-            while (true) {
+            while (pet.age < MAX_AGE) {
                 const xpRequired = PetStats.getXpRequired(pet.level || 1, pet.age || 1, pet.rarity || 'Common');
                 
                 if (pet.ageXp >= xpRequired) {
@@ -104,7 +103,7 @@ async function giveActiveExp(petType, baseActiveGain) {
             pet.ageXp = (pet.ageXp || 0) + activeGain;
             let agedUp = false;
 
-            while (true) {
+            while (pet.age < MAX_AGE) {
                 const xpRequired = PetStats.getXpRequired(pet.level || 1, pet.age || 1, pet.rarity || 'Common');
                 
                 if (pet.ageXp >= xpRequired) {
@@ -143,7 +142,7 @@ async function handleEquippedPetAging() {
 
         pet = PetStats.updateHunger(pet, true);
 
-        if (pet.hunger > 0) {
+        if (pet.hunger > 0 && pet.age < MAX_AGE) {
             const baseXp = 1;
             const xpGain = pet.hunger > 90 ? baseXp * 2 : baseXp;
             pet.ageXp = (pet.ageXp || 0) + xpGain;
@@ -153,8 +152,9 @@ async function handleEquippedPetAging() {
             pet.rarity = pet.rarity || 'Common';
 
             let agedUp = false;
+            const maxWeight = PetStats.getMaxWeight(pet.weight);
 
-            while (true) {
+            while (pet.age < MAX_AGE) {
                 const xpRequired = PetStats.getXpRequired(pet.level, pet.age, pet.rarity);
 
                 if (pet.ageXp >= xpRequired) {
@@ -162,14 +162,14 @@ async function handleEquippedPetAging() {
                     pet.age += 1;
                     agedUp = true;
 
-                    if (pet.age % 5 === 0 && pet.weight < MAX_WEIGHT) {
+                    if (pet.age % 5 === 0 && pet.weight < maxWeight) {
                         const weightGain = Math.random() * (5.0 - 0.1) + 0.1;
-                        pet.weight = Math.min(pet.weight + weightGain, MAX_WEIGHT);
+                        pet.weight = Math.min(pet.weight + weightGain, maxWeight);
                     }
 
-                    if (pet.age % 10 === 0 && pet.quality < MAX_QUALITY) {
+                    if (pet.age % 10 === 0 && pet.quality < 5.0) {
                         const qualityGain = Math.random() * (1.0 - 0.01) + 0.01;
-                        pet.quality = Math.min(pet.quality + qualityGain, MAX_QUALITY);
+                        pet.quality = Math.min(pet.quality + qualityGain, 5.0);
                     }
                 } else {
                     break;
