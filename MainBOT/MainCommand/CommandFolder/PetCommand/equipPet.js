@@ -1,5 +1,5 @@
 const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ComponentType } = require('discord.js');
-const db = require('../../../Core/Database/dbSetting');
+const db = require('../../Core/Database/dbSetting');
 const { calculateBoost } = require('../Utilities/petUtils');
 const { dbAll, dbRun } = require('../Utilities/dbUtils');
 
