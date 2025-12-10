@@ -1,7 +1,8 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 const db = require('../../Core/Database/dbSetting');
-const { EGG_DATA } = require('../Configuration/petConfig');
-const { getUserEggs, getHatchingEggs, dbRun, dbGet } = require('../Utilities/dbUtils');
+const { EGG_DATA } = require('../../Configuration/petConfig');
+const PetDatabase = require('../../Service/PetService/PetDatabaseService');
+const PetHatch = require('../../Service/PetService/PetHatchService');
 
 module.exports = async (client) => {
     client.on("messageCreate", async message => {
@@ -9,112 +10,34 @@ module.exports = async (client) => {
         const cmd = content.split(" ")[0];
         
         if (message.author.bot) return;
-        if (![".useegg", ".eggcheck"].includes(cmd)) return;
+        if (cmd !== ".useegg") return;
 
         const userId = message.author.id;
         const args = message.content.split(" ").slice(1);
 
         try {
-            if (cmd === ".eggcheck") {
-                const [eggs, hatching] = await Promise.all([
-                    getUserEggs(db, userId),
-                    getHatchingEggs(db, userId)
-                ]);
-
-                let desc = "";
-
-                if (eggs.length === 0) {
-                    desc += "You have no eggs in your inventory.\n";
-                } else {
-                    desc += "**Your Egg Inventory:**\n";
-                    eggs.forEach(egg => {
-                        const data = EGG_DATA[egg.name];
-                        desc += `${data?.emoji || "🥚"} **${egg.name}** × ${egg.count}\n`;
-                    });
-                }
-
-                if (hatching.length === 0) {
-                    desc += "\nYou have no eggs currently hatching.";
-                } else {
-                    desc += "\n**Eggs Hatching:**\n";
-                    hatching.forEach(egg => {
-                        const data = EGG_DATA[egg.eggName];
-                        desc += `${data?.emoji || "🥚"} **${egg.eggName}** - Hatches <t:${Math.floor(egg.hatchAt / 1000)}:R>\n`;
-                    });
-                }
-
-                const components = [];
-                if (eggs.length > 0 && hatching.length < 5) {
-                    components.push(
-                        new ActionRowBuilder().addComponents(
-                            new ButtonBuilder()
-                                .setCustomId(`hatch_all_${userId}`)
-                                .setLabel("Hatch All")
-                                .setStyle(ButtonStyle.Success)
-                        )
-                    );
-                }
-
-                const embed = new EmbedBuilder()
-                    .setColor("#FFD700")
-                    .setTitle("🥚 Your Eggs")
-                    .setDescription(desc)
-                    .setFooter({ text: "Use .useegg <EggName> to hatch an egg!" });
-
-                const replyMsg = await message.reply({ embeds: [embed], components });
-
-                if (components.length > 0) {
-                    const filter = i => i.customId === `hatch_all_${userId}` && i.user.id === userId;
-                    
-                    replyMsg.awaitMessageComponent({ 
-                        filter, 
-                        componentType: ComponentType.Button, 
-                        time: 60_000 
-                    }).then(async interaction => {
-                        await handleHatchAll(interaction, userId);
-                    }).catch(() => {
-                        replyMsg.edit({ components: [] }).catch(() => {});
-                    });
-                }
-                return;
-            }
-
             const eggName = args[0];
             if (!eggName || !EGG_DATA[eggName]) {
                 const available = Object.keys(EGG_DATA).map(e => `\`${e}\``).join(", ");
                 return message.reply(`❌ Please specify a valid egg: ${available}.\nUse \`.eggcheck\` to see your eggs.`);
             }
 
-            const hatchingCount = await dbGet(db, 
-                `SELECT COUNT(*) AS count FROM hatchingEggs WHERE userId = ?`, [userId]
-            );
-
-            if (hatchingCount.count >= 5) {
+            const hatching = await PetDatabase.getHatchingEggs(userId, false);
+            if (hatching.length >= 5) {
                 return message.reply("❌ You can only incubate up to 5 eggs at once. Use `.eggcheck` to manage them.");
             }
 
-            const egg = await dbGet(db,
-                `SELECT rowid, * FROM petInventory WHERE userId = ? AND type = 'egg' AND name = ? LIMIT 1`,
-                [userId, eggName]
-            );
-
-            if (!egg) {
+            const eggs = await PetDatabase.getUserEggs(userId, false);
+            const hasEgg = eggs.find(e => e.name === eggName);
+            if (!hasEgg || hasEgg.count < 1) {
                 return message.reply(`❌ You don't have any ${eggName} to hatch. Use \`.eggcheck\` to view your eggs.`);
             }
 
-            await dbRun(db, `DELETE FROM petInventory WHERE rowid = ?`, [egg.rowid]);
-
-            const now = Date.now();
-            const hatchAt = now + EGG_DATA[eggName].time;
-
-            await dbRun(db,
-                `INSERT INTO hatchingEggs (userId, eggName, startedAt, hatchAt) VALUES (?, ?, ?, ?)`,
-                [userId, egg.name, now, hatchAt]
-            );
+            const { startedAt, hatchAt } = await PetHatch.startHatching(userId, eggName);
 
             const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
-                    .setCustomId(`cancel_hatch_${egg.rowid}_${userId}`)
+                    .setCustomId(`cancel_hatch_${startedAt}_${userId}`)
                     .setLabel("Cancel Hatching")
                     .setStyle(ButtonStyle.Danger)
             );
@@ -122,23 +45,23 @@ module.exports = async (client) => {
             const embed = new EmbedBuilder()
                 .setColor("#00FF00")
                 .setTitle(`${EGG_DATA[eggName].emoji} Egg Hatching Started!`)
-                .setDescription(`You placed a **${egg.name}** (${EGG_DATA[eggName].rarity}) into the incubator.\nIt will hatch <t:${Math.floor(hatchAt / 1000)}:R>.`)
+                .setDescription(`You placed a **${eggName}** (${EGG_DATA[eggName].rarity}) into the incubator.\nIt will hatch <t:${Math.floor(hatchAt / 1000)}:R>.`)
                 .setFooter({ text: "Use .eggcheck to monitor progress." });
 
             const replyMsg = await message.reply({ embeds: [embed], components: [row] });
 
-            const filter = i => i.customId === `cancel_hatch_${egg.rowid}_${userId}` && i.user.id === userId;
+            const filter = i => i.customId === `cancel_hatch_${startedAt}_${userId}` && i.user.id === userId;
             
             replyMsg.awaitMessageComponent({ 
                 filter, 
                 componentType: ComponentType.Button, 
                 time: 60_000 
             }).then(async interaction => {
-                await handleCancelHatch(interaction, userId, egg, hatchAt, egg.rowid);
+                await handleCancelHatch(interaction, userId, eggName, hatchAt, startedAt);
             }).catch(() => {
                 const disabledRow = new ActionRowBuilder().addComponents(
                     new ButtonBuilder()
-                        .setCustomId(`cancel_hatch_${egg.rowid}_${userId}`)
+                        .setCustomId(`cancel_hatch_${startedAt}_${userId}`)
                         .setLabel("Cancel Hatching")
                         .setStyle(ButtonStyle.Danger)
                         .setDisabled(true)
@@ -153,80 +76,23 @@ module.exports = async (client) => {
     });
 };
 
-async function handleHatchAll(interaction, userId) {
-    const [eggsNow, hatchingNow] = await Promise.all([
-        getUserEggs(db, userId),
-        getHatchingEggs(db, userId)
-    ]);
-
-    let slotsLeft = 5 - hatchingNow.length;
-    if (slotsLeft <= 0) {
+async function handleCancelHatch(interaction, userId, eggName, hatchAt, timestamp) {
+    const hatching = await PetDatabase.getHatchingEggs(userId, false);
+    const egg = hatching.find(e => e.eggName === eggName && Math.abs(e.hatchAt - hatchAt) < 1000);
+    
+    if (!egg) {
         return interaction.update({
-            content: "❌ You have no available incubator slots.",
+            content: "❌ Could not find this egg in your incubator.",
             embeds: [],
             components: []
         });
     }
 
-    const hatched = [];
-    for (const egg of eggsNow) {
-        if (slotsLeft <= 0) break;
-        const count = Math.min(egg.count, slotsLeft);
-        
-        for (let i = 0; i < count; i++) {
-            const row = await dbGet(db,
-                `SELECT rowid FROM petInventory WHERE userId = ? AND type = 'egg' AND name = ? LIMIT 1`,
-                [userId, egg.name]
-            );
-            
-            if (row) {
-                await dbRun(db, `DELETE FROM petInventory WHERE rowid = ?`, [row.rowid]);
-            }
-
-            const now = Date.now();
-            const hatchAt = now + (EGG_DATA[egg.name]?.time || 0);
-            
-            await dbRun(db,
-                `INSERT INTO hatchingEggs (userId, eggName, startedAt, hatchAt) VALUES (?, ?, ?, ?)`,
-                [userId, egg.name, now, hatchAt]
-            );
-
-            hatched.push({ name: egg.name, hatchAt });
-            slotsLeft--;
-            if (slotsLeft <= 0) break;
-        }
-    }
-
-    const desc = hatched.length
-        ? hatched.map(e => `${EGG_DATA[e.name]?.emoji || "🥚"} **${e.name}** - Hatches <t:${Math.floor(e.hatchAt / 1000)}:R>`).join("\n")
-        : "No eggs were hatched.";
-
-    await interaction.update({
-        embeds: [
-            new EmbedBuilder()
-                .setColor("#00FF00")
-                .setTitle("🥚 Eggs Hatching Started!")
-                .setDescription(desc)
-                .setFooter({ text: "Use .eggcheck to monitor progress." })
-        ],
-        components: []
-    });
-}
-
-async function handleCancelHatch(interaction, userId, egg, hatchAt, rowid) {
-    await dbRun(db,
-        `DELETE FROM hatchingEggs WHERE userId = ? AND eggName = ? AND hatchAt = ?`,
-        [userId, egg.name, hatchAt]
-    );
-    
-    await dbRun(db,
-        `INSERT INTO petInventory (userId, name, type) VALUES (?, ?, 'egg')`,
-        [userId, egg.name]
-    );
+    await PetHatch.cancelHatching(userId, egg.id, eggName);
 
     const disabledRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
-            .setCustomId(`cancel_hatch_${rowid}_${userId}`)
+            .setCustomId(`cancel_hatch_${timestamp}_${userId}`)
             .setLabel("Cancel Hatching")
             .setStyle(ButtonStyle.Danger)
             .setDisabled(true)
@@ -237,7 +103,7 @@ async function handleCancelHatch(interaction, userId, egg, hatchAt, rowid) {
             new EmbedBuilder()
                 .setColor("#FF9900")
                 .setTitle("❌ Hatching Cancelled")
-                .setDescription(`Your **${egg.name}** was returned to your inventory.`)
+                .setDescription(`Your **${eggName}** was returned to your inventory.`)
         ],
         components: [disabledRow]
     });
