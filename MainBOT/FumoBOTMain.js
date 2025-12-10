@@ -20,6 +20,7 @@ const { registerCodeRedemption } = require('./MainCommand/CommandFolder/UserData
 const initializeShardHandler = require('./MainCommand/Service/UserDataService/UseService/ShardInteractionHandler');
 const { maintenance, developerID } = require("./MainCommand/Configuration/maintenanceConfig");
 const { initializeGuildTracking } = require('./MainCommand/Administrator/guildTracking');
+const PetIntervalManager = require('./MainCommand/Service/PetService/PetIntervalManager');
 
 console.log(`Maintenance mode is currently: ${maintenance}`);
 
@@ -121,16 +122,16 @@ client.login(process.env.BOT_TOKEN);
 
 client.once('ready', async () => {
     console.log(`✅ Logged in as ${client.user.tag}`);
-    
+
     console.log('[Lavalink] Finalizing music system initialization...');
     lavalinkService.finalize();
-    
+
     console.log('[Lavalink] Waiting for connection...');
     await new Promise(resolve => setTimeout(resolve, 5000));
-    
+
     const status = lavalinkService.getNodeStatus();
     console.log('[Lavalink] Status:', JSON.stringify(status, null, 2));
-    
+
     if (!status.ready) {
         console.log('[Lavalink] ⚠️ Music system not ready');
     } else {
@@ -146,6 +147,7 @@ client.once('ready', async () => {
     initializeShop();
     initializeShardHandler(client);
     initializeGuildTracking(client);
+    PetIntervalManager.startAllPetIntervals();
     await restoreAutoRollSystems(client);
 
     console.log('🚀 Bot is fully operational!');
