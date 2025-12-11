@@ -1,40 +1,40 @@
 {
   "market": [
     {
-      "name": "Marisa(Common)",
+      "name": "Reimu(Common)",
       "price": 125,
       "rarity": "Common",
-      "stock": 8,
+      "stock": 7,
       "picture": null
     },
     {
-      "name": "RedMarisa(EXCLUSIVE)",
-      "price": 3250000,
-      "rarity": "EXCLUSIVE",
-      "stock": 2,
-      "picture": null
-    },
-    {
-      "name": "Yukari(LEGENDARY)",
-      "price": 12500,
-      "rarity": "LEGENDARY",
-      "stock": 3,
+      "name": "Youmu(RARE)",
+      "price": 350,
+      "rarity": "RARE",
+      "stock": 6,
       "picture": null
     },
     {
       "name": "Eirin(MYTHICAL)",
       "price": 1350000,
       "rarity": "MYTHICAL",
+      "stock": 2,
+      "picture": null
+    },
+    {
+      "name": "UltraKillV2(ETERNAL)",
+      "price": 154590000,
+      "rarity": "ETERNAL",
       "stock": 1,
       "picture": null
     },
     {
-      "name": "Miku-Senbonzakura,version(???)",
-      "price": 62150000,
-      "rarity": "???",
-      "stock": 2,
+      "name": "BlueReimu(EXCLUSIVE)",
+      "price": 2750000,
+      "rarity": "EXCLUSIVE",
+      "stock": 1,
       "picture": null
     }
   ],
-  "resetTime": 1765288800000
+  "resetTime": 1765371600000
 }

@@ -115,6 +115,16 @@ async function performSingleRoll(userId, fumos) {
         );
 
         const fumo = await selectAndAddFumo(userId, rarity, fumos, row.luck);
+        
+        if (fumo && fumo.error === 'STORAGE_FULL') {
+            return { 
+                success: false, 
+                error: 'STORAGE_FULL', 
+                maxStorage: fumo.maxStorage,
+                currentCount: fumo.currentCount
+            };
+        }
+        
         if (!fumo) {
             return { success: false, error: 'NO_FUMO_FOUND' };
         }
@@ -192,10 +202,22 @@ async function performMultiRoll(userId, fumos, rollCount) {
 
         const fumosBought = await selectAndAddMultipleFumos(userId, rarities, fumos, row.luck);
         
+        if (fumosBought.error === 'STORAGE_FULL') {
+            return { 
+                success: false, 
+                error: 'STORAGE_FULL',
+                maxStorage: fumosBought.maxStorage,
+                currentCount: fumosBought.currentCount
+            };
+        }
+        
+        const actualFumos = fumosBought.fumoResults || fumosBought;
+        const wasLimited = fumosBought.error === 'STORAGE_LIMITED';
+        
         let bestFumo = null;
-        if (fumosBought.length > 0) {
-            bestFumo = fumosBought[0];
-            for (const fumo of fumosBought) {
+        if (actualFumos.length > 0) {
+            bestFumo = actualFumos[0];
+            for (const fumo of actualFumos) {
                 if (isRarer(fumo.rarity, bestFumo.rarity)) {
                     bestFumo = fumo;
                 }
@@ -213,7 +235,18 @@ async function performMultiRoll(userId, fumos, rollCount) {
 
         await updateQuestsAndAchievements(userId, rollCount);
 
-        return { success: true, fumosBought, bestFumo };
+        return { 
+            success: true, 
+            fumosBought: actualFumos, 
+            bestFumo,
+            storageWarning: wasLimited ? {
+                limited: true,
+                added: fumosBought.added,
+                requested: fumosBought.requested,
+                maxStorage: fumosBought.maxStorage,
+                currentCount: fumosBought.currentCount
+            } : null
+        };
     } catch (error) {
         console.error(`❌ Error in performMultiRoll (${rollCount}x):`, error);
         debugLog('ROLL_ERROR', `Multi roll failed for ${userId}: ${error.message}`);
