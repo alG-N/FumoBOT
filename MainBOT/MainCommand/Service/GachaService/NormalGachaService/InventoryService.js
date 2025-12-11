@@ -1,25 +1,10 @@
 const { run, get, all, transaction } = require('../../../Core/database');
 const { SHINY_CONFIG, SELL_REWARDS } = require('../../../Configuration/rarity');
-const { STORAGE_CONFIG } = require('../../../Configuration/storageConfig');
 const { incrementWeeklyShiny } = require('../../../Ultility/weekly');
 const { debugLog } = require('../../../Core/logger');
 
-async function getUserFumoCount(userId) {
-    const result = await get(
-        `SELECT SUM(quantity) as total FROM userInventory WHERE userId = ? AND fumoName IS NOT NULL`,
-        [userId]
-    );
-    return result?.total || 0;
-}
-
 async function selectAndAddFumo(userId, rarity, fumos, luck = 0) {
     debugLog('INVENTORY', `Selecting fumo for user ${userId}, rarity: ${rarity}`);
-    
-    const currentCount = await getUserFumoCount(userId);
-    if (currentCount >= STORAGE_CONFIG.MAX_FUMO_STORAGE) {
-        debugLog('INVENTORY', `User ${userId} storage full (${currentCount}/${STORAGE_CONFIG.MAX_FUMO_STORAGE})`);
-        return { error: 'STORAGE_FULL', maxStorage: STORAGE_CONFIG.MAX_FUMO_STORAGE, currentCount };
-    }
     
     const matchingFumos = fumos.filter(f => f.name.includes(rarity));
     if (matchingFumos.length === 0) {
@@ -55,28 +40,10 @@ async function selectAndAddFumo(userId, rarity, fumos, luck = 0) {
 async function selectAndAddMultipleFumos(userId, rarities, fumos, luck = 0) {
     debugLog('INVENTORY', `Batch selecting ${rarities.length} fumos for user ${userId}`);
     
-    const currentCount = await getUserFumoCount(userId);
-    const availableSpace = STORAGE_CONFIG.MAX_FUMO_STORAGE - currentCount;
-    
-    if (availableSpace <= 0) {
-        debugLog('INVENTORY', `User ${userId} storage full`);
-        return { error: 'STORAGE_FULL', maxStorage: STORAGE_CONFIG.MAX_FUMO_STORAGE, currentCount, added: 0 };
-    }
-    
-    const limitedRarities = availableSpace < rarities.length 
-        ? rarities.slice(0, availableSpace) 
-        : rarities;
-    
-    const wasLimited = limitedRarities.length < rarities.length;
-    
-    if (wasLimited) {
-        debugLog('INVENTORY', `Limited roll from ${rarities.length} to ${limitedRarities.length} due to storage`);
-    }
-    
     const fumosToAdd = [];
     const fumoResults = [];
     
-    for (const rarity of limitedRarities) {
+    for (const rarity of rarities) {
         const matchingFumos = fumos.filter(f => f.name.includes(rarity));
         if (matchingFumos.length === 0) continue;
 
@@ -101,14 +68,7 @@ async function selectAndAddMultipleFumos(userId, rarities, fumos, luck = 0) {
         fumoResults.push({ ...fumo, rarity, name: fumoName });
     }
 
-    if (fumosToAdd.length === 0) {
-        return wasLimited ? { 
-            error: 'STORAGE_FULL', 
-            maxStorage: STORAGE_CONFIG.MAX_FUMO_STORAGE,
-            currentCount: currentCount + limitedRarities.length,
-            added: 0
-        } : [];
-    }
+    if (fumosToAdd.length === 0) return [];
 
     const placeholders = fumosToAdd.map(() => '(?, ?)').join(', ');
     const flatParams = fumosToAdd.flat();
@@ -119,18 +79,6 @@ async function selectAndAddMultipleFumos(userId, rarities, fumos, luck = 0) {
     );
 
     debugLog('INVENTORY', `Batch inserted ${fumosToAdd.length} fumos for user ${userId}`);
-    
-    if (wasLimited) {
-        return { 
-            fumoResults, 
-            error: 'STORAGE_LIMITED', 
-            maxStorage: STORAGE_CONFIG.MAX_FUMO_STORAGE,
-            currentCount: currentCount + fumosToAdd.length,
-            added: fumosToAdd.length,
-            requested: rarities.length
-        };
-    }
-    
     return fumoResults;
 }
 
@@ -216,7 +164,7 @@ async function sellMultipleFumos(userId, fumoList) {
         } else if (fumoName.includes('[✨SHINY]')) {
             value *= SHINY_CONFIG.SHINY_MULTIPLIER;
         }
-        
+
         totalCoins += value * quantity;
 
         if (fumo.quantity > quantity) {
@@ -256,7 +204,11 @@ async function sellFumo(userId, fumoName, quantity = 1) {
 }
 
 async function getTotalFumoCount(userId) {
-    return await getUserFumoCount(userId);
+    const result = await get(
+        `SELECT SUM(quantity) as total FROM userInventory WHERE userId = ?`,
+        [userId]
+    );
+    return result?.total || 0;
 }
 
 async function getFumosByRarity(userId, rarity) {
@@ -335,24 +287,6 @@ async function transferFumo(fromUserId, toUserId, fumoName, quantity = 1) {
     return { success: true };
 }
 
-async function checkStorageWarning(userId) {
-    const currentCount = await getUserFumoCount(userId);
-    const maxStorage = STORAGE_CONFIG.MAX_FUMO_STORAGE;
-    const percentage = currentCount / maxStorage;
-    
-    if (percentage >= STORAGE_CONFIG.STORAGE_WARNING_THRESHOLD) {
-        return {
-            warning: true,
-            currentCount,
-            maxStorage,
-            percentage: (percentage * 100).toFixed(1),
-            remaining: maxStorage - currentCount
-        };
-    }
-    
-    return { warning: false };
-}
-
 module.exports = {
     selectAndAddFumo,
     selectAndAddMultipleFumos,
@@ -368,10 +302,8 @@ module.exports = {
     getFumoByName,
     getFumosByRarity,
     getTotalFumoCount,
-    getUserFumoCount,
     hasFumo,
     addItem,
     removeItem,
-    getItemQuantity,
-    checkStorageWarning
+    getItemQuantity
 };
