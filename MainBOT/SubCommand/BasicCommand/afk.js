@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const fs = require('fs');
-const afkFilePath = 'MainBOT/SillyAFK.json';
+const afkFilePath = 'MainBOT/SubCommand/BasicCommand/SillyAFK.json';
 
 function formatTime(seconds) {
     const h = Math.floor(seconds / 3600);
