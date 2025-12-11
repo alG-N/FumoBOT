@@ -1,6 +1,41 @@
-const EVENT_START_TIME = new Date();
-const EVENT_DURATION = 11 * 24 * 60 * 60 * 1000;
-const EVENT_END_TIME = new Date(EVENT_START_TIME.getTime() + EVENT_DURATION);
+const fs = require('fs');
+const path = require('path');
+
+const CONFIG_PATH = path.join(__dirname, '../Data/eventTimer.json');
+
+function loadEventConfig() {
+    try {
+        if (fs.existsSync(CONFIG_PATH)) {
+            const data = fs.readFileSync(CONFIG_PATH, 'utf8');
+            return JSON.parse(data);
+        }
+    } catch (error) {
+        console.error('Failed to load event config:', error);
+    }
+    
+    const defaultConfig = {
+        startTime: Date.now(),
+        duration: 24 * 60 * 60 * 1000,
+        endTime: Date.now() + (24 * 60 * 60 * 1000)
+    };
+    
+    saveEventConfig(defaultConfig);
+    return defaultConfig;
+}
+
+function saveEventConfig(config) {
+    try {
+        fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
+    } catch (error) {
+        console.error('Failed to save event config:', error);
+    }
+}
+
+const eventConfig = loadEventConfig();
+
+const EVENT_START_TIME = new Date(eventConfig.startTime);
+const EVENT_DURATION = eventConfig.duration;
+const EVENT_END_TIME = new Date(eventConfig.endTime);
 
 const EVENT_ROLL_LIMIT = 50000;
 const EVENT_WINDOW_DURATION = 30 * 60 * 1000;
@@ -44,8 +79,23 @@ function getRollResetTime(lastRollTime) {
 }
 
 function setEventStartTime(startTime) {
+    const config = {
+        startTime: startTime.getTime(),
+        duration: EVENT_DURATION,
+        endTime: startTime.getTime() + EVENT_DURATION
+    };
+    saveEventConfig(config);
     module.exports.EVENT_START_TIME = startTime;
-    module.exports.EVENT_END_TIME = new Date(startTime.getTime() + EVENT_DURATION);
+    module.exports.EVENT_END_TIME = new Date(config.endTime);
+}
+
+function setEventDuration(durationMs) {
+    const config = loadEventConfig();
+    config.duration = durationMs;
+    config.endTime = config.startTime + durationMs;
+    saveEventConfig(config);
+    module.exports.EVENT_DURATION = durationMs;
+    module.exports.EVENT_END_TIME = new Date(config.endTime);
 }
 
 module.exports = {
@@ -64,5 +114,8 @@ module.exports = {
     getRemainingTime,
     isWindowExpired,
     getRollResetTime,
-    setEventStartTime
+    setEventStartTime,
+    setEventDuration,
+    loadEventConfig,
+    saveEventConfig
 };

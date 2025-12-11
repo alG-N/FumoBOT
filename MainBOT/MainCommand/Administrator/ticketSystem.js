@@ -2,7 +2,7 @@ const { EmbedBuilder, Events, ActionRowBuilder, StringSelectMenuBuilder, ModalBu
 const fs = require('fs');
 const path = require('path');
 
-const TICKET_FILE = path.join(__dirname, '../ticketCounter.txt');
+const TICKET_FILE = path.join(__dirname, './ticketCounter.txt');
 const GUILD_ID = '1255091916823986207';
 const REPORT_CHANNEL_ID = '1362826913088799001';
 
