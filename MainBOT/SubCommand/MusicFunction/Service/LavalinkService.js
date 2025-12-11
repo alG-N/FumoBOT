@@ -93,7 +93,7 @@ class LavalinkService {
         });
 
         this.shoukaku.on('debug', (name, info) => {
-            console.log(`[Lavalink] 🐛 DEBUG [${name}]:`, info);
+            // console.log(`[Lavalink] 🐛 DEBUG [${name}]:`, info);
         });
 
         console.log('[Lavalink] Event handlers registered');
