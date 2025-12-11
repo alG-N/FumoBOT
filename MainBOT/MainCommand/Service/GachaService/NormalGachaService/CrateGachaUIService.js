@@ -1,10 +1,17 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Colors } = require('discord.js');
 const { SPECIAL_RARITIES, RARITY_PRIORITY, isRarer } = require('../../../Configuration/rarity');
 const { formatNumber } = require('../../../Ultility/formatting');
+const { getUserFumoCount, checkStorageWarning } = require('./InventoryService');
+const { STORAGE_CONFIG } = require('../../../Configuration/storageConfig');
 
-function createShopEmbed(userData, boosts, hasFantasyBook, isAutoRollActive) {
+async function createShopEmbed(userData, boosts, hasFantasyBook, isAutoRollActive, userId) {
     const { coins, boostCharge, boostActive, boostRollsRemaining, rollsLeft, totalRolls } = userData;
     const { pityTranscendent, pityEternal, pityInfinite, pityCelestial, pityAstral } = userData;
+
+    const currentStorage = await getUserFumoCount(userId);
+    const maxStorage = STORAGE_CONFIG.MAX_FUMO_STORAGE;
+    const storagePercentage = ((currentStorage / maxStorage) * 100).toFixed(1);
+    const storageWarning = await checkStorageWarning(userId);
 
     const baseChances = [
         { label: '👑 **TRANSCENDENT**', base: 0.0000667, gated: true },
@@ -105,6 +112,11 @@ function createShopEmbed(userData, boosts, hasFantasyBook, isAutoRollActive) {
         (hasFantasyBook ? `**🌟 Eternal Pity**       → \`${pityEternal.toLocaleString()} / 500,000\`\n` : '') +
         (hasFantasyBook ? `**👑 Transcendent Pity**  → \`${pityTranscendent.toLocaleString()} / 1,500,000\`` : '');
 
+    let storageDisplay = `📦 ${formatNumber(currentStorage)} / ${formatNumber(maxStorage)} (${storagePercentage}%)`;
+    if (storageWarning.warning) {
+        storageDisplay += `\n⚠️ **Warning:** ${storageWarning.remaining} slots remaining!`;
+    }
+
     const embed = new EmbedBuilder()
         .setTitle('🎉 Welcome to alterGolden\'s Fumo Crate Shop! 🎉')
         .setDescription(
@@ -118,6 +130,7 @@ Take a chance—who knows what you'll get?
         .addFields([
             { name: '🌈 Rarity Chances', value: rarityChances, inline: true },
             { name: '❓ Rare Chances:', value: unknownChances, inline: true },
+            { name: '📦 Storage', value: storageDisplay, inline: false },
             { name: '🌌 Booster/Pity Status:', value: pitySection, inline: false }
         ])
         .setColor(Colors.Blue)
@@ -176,7 +189,7 @@ async function displaySingleRollAnimation(interaction, fumo, rarity) {
     }, 2000);
 }
 
-async function displayMultiRollResults(interaction, fumosBought, bestFumo, rollCount) {
+async function displayMultiRollResults(interaction, fumosBought, bestFumo, rollCount, storageWarning = null) {
     const isRareCutscene = isRarer(bestFumo.rarity, 'LEGENDARY');
     const embedColor = rollCount === 10 ? Colors.Yellow : Colors.Gold;
 
@@ -227,8 +240,15 @@ async function displayMultiRollResults(interaction, fumosBought, bestFumo, rollC
                     return `**${rarity.charAt(0).toUpperCase() + rarity.slice(1).toLowerCase()} (x${totalCount}):**\n${entries.join(', ')}`;
                 }).join('\n\n');
 
-                embed.setTitle(`🎉 You've unlocked ${rollCount} fumos!`)
-                    .setDescription(`${fumoList}\n\n**Best fumo:** ${bestFumo.name}`)
+                let description = `${fumoList}\n\n**Best fumo:** ${bestFumo.name}`;
+                
+                if (storageWarning) {
+                    description += `\n\n⚠️ **Storage Warning:** Only ${storageWarning.added}/${storageWarning.requested} fumos added due to storage limit!\n`;
+                    description += `📦 Current: ${formatNumber(storageWarning.currentCount)}/${formatNumber(storageWarning.maxStorage)}`;
+                }
+
+                embed.setTitle(`🎉 You've unlocked ${fumosBought.length} fumos!`)
+                    .setDescription(description)
                     .setColor(isRareCutscene ? Colors.Gold : Colors.White);
 
                 await interaction.editReply({ embeds: [embed] });

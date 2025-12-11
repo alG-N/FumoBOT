@@ -1,24 +1,17 @@
 {
   "market": [
     {
-      "name": "Youmu(RARE)",
-      "price": 35,
-      "rarity": "RARE",
-      "stock": 3,
-      "picture": null
-    },
-    {
-      "name": "Kasen(EPIC)",
-      "price": 90,
+      "name": "Satori(EPIC)",
+      "price": 76,
       "rarity": "EPIC",
       "stock": 3,
       "picture": null
     },
     {
-      "name": "TankReisen(OTHERWORLDLY)",
-      "price": 1000,
+      "name": "Bocchi(OTHERWORLDLY)",
+      "price": 950,
       "rarity": "OTHERWORLDLY",
-      "stock": 3,
+      "stock": 1,
       "picture": null
     },
     {
@@ -29,12 +22,33 @@
       "picture": null
     },
     {
-      "name": "SkibidiToilet(???)",
-      "price": 5725000,
+      "name": "Flandere(LEGENDARY)",
+      "price": 1750,
+      "rarity": "LEGENDARY",
+      "stock": 2,
+      "picture": null
+    },
+    {
+      "name": "Grani(CELESTIAL)",
+      "price": 13957500,
+      "rarity": "CELESTIAL",
+      "stock": 1,
+      "picture": null
+    },
+    {
+      "name": "ImSorryOfficerFumo(???)",
+      "price": 5415000,
       "rarity": "???",
+      "stock": 1,
+      "picture": null
+    },
+    {
+      "name": "BlueReimu(EXCLUSIVE)",
+      "price": 275000,
+      "rarity": "EXCLUSIVE",
       "stock": 1,
       "picture": null
     }
   ],
-  "resetTime": 1765303200000
+  "resetTime": 1765389600000
 }
