@@ -8,10 +8,16 @@ async function createShopEmbed(userData, boosts, hasFantasyBook, isAutoRollActiv
     const { coins, boostCharge, boostActive, boostRollsRemaining, rollsLeft, totalRolls } = userData;
     const { pityTranscendent, pityEternal, pityInfinite, pityCelestial, pityAstral } = userData;
 
-    const currentStorage = await getUserFumoCount(userId);
-    const maxStorage = STORAGE_CONFIG.MAX_FUMO_STORAGE;
-    const storagePercentage = ((currentStorage / maxStorage) * 100).toFixed(1);
-    const storageWarning = await checkStorageWarning(userId);
+    let currentStorage = 0;
+    let maxStorage = STORAGE_CONFIG.MAX_FUMO_STORAGE;
+    let storagePercentage = '0.0';
+    let storageWarning = { warning: false };
+
+    if (userId) {
+        currentStorage = await getUserFumoCount(userId);
+        storagePercentage = ((currentStorage / maxStorage) * 100).toFixed(1);
+        storageWarning = await checkStorageWarning(userId);
+    }
 
     const baseChances = [
         { label: '👑 **TRANSCENDENT**', base: 0.0000667, gated: true },
@@ -258,7 +264,7 @@ async function displayMultiRollResults(interaction, fumosBought, bestFumo, rollC
 }
 
 function createAutoRollSummary(summary, userId) {
-    const { updateSummaryWithNotificationButton } = require('../../Service/GachaService/NotificationButtonsService');
+    const { updateSummaryWithNotificationButton } = require('../../../Service/GachaService/NotificationButtonsService');
     
     const rarityOrder = ['TRANSCENDENT', 'ETERNAL', 'INFINITE', 'CELESTIAL', 'ASTRAL', '???'];
     
