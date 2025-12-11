@@ -20,19 +20,19 @@
   },
   "845274868697661440": {
     "normal": {
-      "rollCount": 1,
+      "rollCount": 6,
       "autoSell": false,
       "startTime": 1765440853235,
       "bestFumo": {
-        "name": "Yuyuko(LEGENDARY)",
-        "rarity": "LEGENDARY",
-        "picture": "https://m.media-amazon.com/images/I/515DN59NQXL._AC_UF894,1000_QL80_.jpg"
+        "name": "Grani(CELESTIAL)",
+        "rarity": "CELESTIAL",
+        "picture": "https://media.discordapp.net/attachments/1372426801472737280/1372427631877685389/mostima-fumo-mostimo-v0-httirpx8ghhb1.png?ex=6826bc55&is=68256ad5&hm=e9511d6de0f908e22eedeb4ab965753e76446ed39a3bdb9ac4af7ef099c62dd6&=&format=webp&quality=lossless&width=1429&height=800"
       },
-      "bestFumoAt": "12/11/2025, 3:15:34 PM",
-      "bestFumoRoll": 1,
-      "specialFumoCount": 0,
-      "specialFumoFirstAt": null,
-      "specialFumoFirstRoll": null
+      "bestFumoAt": "12/11/2025, 3:19:37 PM",
+      "bestFumoRoll": 5,
+      "specialFumoCount": 3,
+      "specialFumoFirstAt": "12/11/2025, 3:18:35 PM",
+      "specialFumoFirstRoll": 4
     },
     "event": {
       "rollCount": 1,
