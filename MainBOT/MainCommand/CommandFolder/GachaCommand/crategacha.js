@@ -276,7 +276,7 @@ module.exports = (client) => {
             const boosts = await getUserBoosts(message.author.id);
             const autoRollActive = isAutoRollActive(message.author.id);
 
-            const embed = createShopEmbed(row, boosts, hasFantasyBook, autoRollActive);
+            const embed = await createShopEmbed(row, boosts, hasFantasyBook, autoRollActive, message.author.id);
             const buttons = createShopButtons(message.author.id, autoRollActive);
 
             await message.channel.send({ embeds: [embed], components: [buttons] });
