@@ -3,11 +3,20 @@ const { checkRestrictions } = require('../../Middleware/restrictions');
 const { checkAndSetCooldown } = require('../../Middleware/rateLimiter');
 const { parseMysteryCrateArgs } = require('../../Ultility/mysteryCrateParser');
 const { createTutorialEmbed, createErrorEmbed } = require('../../Service/GachaService/MysteryCrateService/mysteryCrateUIService');
-const { validateCrateRequest, executeCrateGame } = require('../../Service/GachaService/MysteryCrateService/mysteryCrateGameService');
-const { handleCrateInteraction } = require('../../Service/GachaService/MysteryCrateService/mysteryCrateInteractionService');
+const { validateCrateRequest } = require('../../Service/GachaService/MysteryCrateService/mysteryCrateGameService');
+const { handleCrateSession } = require('../../Service/GachaService/MysteryCrateService/mysteryCrateInteractionService');
 
 module.exports = async (client) => {
     const activeSessions = new Map();
+
+    setInterval(() => {
+        const now = Date.now();
+        for (const [userId, session] of activeSessions.entries()) {
+            if (now - session.startTime > 300000) {
+                activeSessions.delete(userId);
+            }
+        }
+    }, 60000);
 
     client.on(Events.MessageCreate, async (message) => {
         if (!message.guild || message.author.bot) return;
@@ -34,13 +43,9 @@ module.exports = async (client) => {
             return message.reply({ embeds: [errorEmbed] });
         }
 
-        if (activeSessions.has(userId)) {
-            return message.reply('You already have an ongoing Mystery Crate session. Please complete it before starting another.');
-        }
-
-        const cooldownCheck = await checkAndSetCooldown(userId, 'mysterycrate', 3000);
+        const cooldownCheck = await checkAndSetCooldown(userId, 'mysterycrate', 2000);
         if (cooldownCheck.onCooldown) {
-            return message.reply(`⏳ Please wait ${cooldownCheck.remaining}s before opening another crate.`);
+            return message.reply(`⏳ Please wait ${cooldownCheck.remaining}s before playing again.`);
         }
 
         const validation = await validateCrateRequest(userId, parsed.numCrates, parsed.betAmount, parsed.currency);
@@ -49,30 +54,12 @@ module.exports = async (client) => {
             return message.reply({ embeds: [errorEmbed] });
         }
 
-        const gameResult = await executeCrateGame(
+        await handleCrateSession(
+            message,
             userId,
             parsed.numCrates,
             parsed.betAmount,
             parsed.currency,
-            validation.balance
-        );
-
-        if (!gameResult.success) {
-            const errorEmbed = createErrorEmbed(gameResult.error);
-            return message.reply({ embeds: [errorEmbed] });
-        }
-
-        activeSessions.set(userId, {
-            numCrates: parsed.numCrates,
-            betAmount: parsed.betAmount,
-            currency: parsed.currency,
-            crateResults: gameResult.crateResults
-        });
-
-        await handleCrateInteraction(
-            message,
-            userId,
-            gameResult,
             activeSessions,
             client
         );
