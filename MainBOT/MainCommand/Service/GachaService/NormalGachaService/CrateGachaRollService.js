@@ -46,7 +46,7 @@ async function getUserRollData(userId) {
 }
 
 async function updateUserAfterRoll(userId, updates) {
-    const rollsLeftDeduction = updates.rollCount;
+    const rollsLeftDeduction = updates.isAutoRoll ? 0 : updates.rollCount;
     
     await run(
         `UPDATE userCoins SET
@@ -125,7 +125,8 @@ async function performSingleRoll(userId, fumos) {
             boostCharge: boostUpdates.boostCharge,
             boostActive: boostUpdates.boostActive,
             boostRollsRemaining: boostUpdates.boostRollsRemaining,
-            ...updatedPities
+            ...updatedPities,
+            isAutoRoll: false
         });
 
         await updateQuestsAndAchievements(userId, 1);
@@ -138,8 +139,8 @@ async function performSingleRoll(userId, fumos) {
     }
 }
 
-async function performMultiRoll(userId, fumos, rollCount) {
-    debugLog('ROLL', `${rollCount}x roll for user ${userId}`);
+async function performMultiRoll(userId, fumos, rollCount, isAutoRoll = false) {
+    debugLog('ROLL', `${rollCount}x roll for user ${userId} (autoRoll: ${isAutoRoll})`);
     
     try {
         const cost = rollCount * 100;
@@ -208,7 +209,8 @@ async function performMultiRoll(userId, fumos, rollCount) {
             boostCharge,
             boostActive,
             boostRollsRemaining,
-            ...pities
+            ...pities,
+            isAutoRoll
         });
 
         await updateQuestsAndAchievements(userId, rollCount);
@@ -222,7 +224,7 @@ async function performMultiRoll(userId, fumos, rollCount) {
 }
 
 async function performBatch100Roll(userId, fumos) {
-    const result = await performMultiRoll(userId, fumos, 100);
+    const result = await performMultiRoll(userId, fumos, 100, true);
     return result.success ? result.bestFumo : null;
 }
 
