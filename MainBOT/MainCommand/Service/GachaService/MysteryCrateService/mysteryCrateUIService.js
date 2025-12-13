@@ -60,19 +60,18 @@ function createGameEmbed(tier, numCrates, betAmount, currency, username, avatarU
 }
 
 function createCrateButtons(userId, numCrates) {
-    const rows = [];
+    const row = new ActionRowBuilder();
     
     for (let i = 0; i < numCrates; i++) {
-        const row = new ActionRowBuilder().addComponents(
+        row.addComponents(
             new ButtonBuilder()
                 .setCustomId(buildSecureCustomId(`crate_pick_${i}`, userId))
                 .setLabel(`📦 Crate ${i + 1}`)
                 .setStyle(ButtonStyle.Primary)
         );
-        rows.push(row);
     }
     
-    return rows;
+    return [row];
 }
 
 function createResultEmbed(selectedCrate, tier, betAmount, currency, username, avatarURL, processResult) {
