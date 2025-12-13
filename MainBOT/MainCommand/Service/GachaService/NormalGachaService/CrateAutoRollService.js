@@ -264,7 +264,6 @@ async function restoreAutoRolls(client, fumoPool, options = {}) {
                     current.specialFumoCount = savedState.specialFumoCount || 0;
                     current.specialFumoFirstAt = savedState.specialFumoFirstAt || null;
                     current.specialFumoFirstRoll = savedState.specialFumoFirstRoll || null;
-                    current.lowerSpecialFumos = savedState.lowerSpecialFumos || [];
                 }
 
                 restored++;
