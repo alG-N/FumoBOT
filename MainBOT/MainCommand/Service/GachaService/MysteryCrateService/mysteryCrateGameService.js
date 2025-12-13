@@ -1,25 +1,13 @@
-const { getUserBalance, updateUserBalance } = require('../MysteryCrateService/mysteryCrateStorageService');
-const { getCrateOutcome, calculateReward } = require('../../../Configuration/mysteryCrateConfig');
+const { getUserBalance, updateUserBalance } = require('./mysteryCrateStorageService');
+const { 
+    getTierByBet, 
+    rollCrateOutcome, 
+    checkSpecialEvent, 
+    calculateReward,
+    getComboBonus,
+    validateBetAmount
+} = require('../../../Configuration/mysteryCrateConfig');
 const { incrementDailyGamble } = require('../../../Ultility/weekly');
-
-function generateCrateResults(numCrates, betAmount) {
-    const results = [];
-    
-    for (let i = 0; i < numCrates; i++) {
-        const outcome = getCrateOutcome();
-        const { reward, netChange } = calculateReward(betAmount, outcome.multiplier, 0);
-        
-        results.push({
-            outcome,
-            reward,
-            netChange,
-            description: outcome.text,
-            emoji: outcome.emoji
-        });
-    }
-    
-    return results;
-}
 
 async function validateCrateRequest(userId, numCrates, betAmount, currency) {
     try {
@@ -29,6 +17,18 @@ async function validateCrateRequest(userId, numCrates, betAmount, currency) {
             return {
                 success: false,
                 error: 'NO_ACCOUNT',
+                currency
+            };
+        }
+        
+        const tier = getTierByBet(betAmount, currency);
+        const validation = validateBetAmount(betAmount, tier);
+        
+        if (!validation.valid) {
+            return {
+                success: false,
+                error: 'BELOW_MINIMUM',
+                minBet: validation.minBet,
                 currency
             };
         }
@@ -45,7 +45,8 @@ async function validateCrateRequest(userId, numCrates, betAmount, currency) {
         
         return {
             success: true,
-            balance
+            balance,
+            tier
         };
     } catch (error) {
         console.error('[Mystery Crate] Validation error:', error);
@@ -58,21 +59,26 @@ async function validateCrateRequest(userId, numCrates, betAmount, currency) {
 
 async function executeCrateGame(userId, numCrates, betAmount, currency, balance) {
     try {
-        const crateResults = generateCrateResults(numCrates, betAmount);
+        const tier = getTierByBet(betAmount, currency);
+        const specialEvent = checkSpecialEvent();
         
-        for (let i = 0; i < crateResults.length; i++) {
-            const result = crateResults[i];
-            if (result.outcome.multiplier === -1) {
-                result.netChange = -balance;
-            }
+        const crateResults = [];
+        for (let i = 0; i < numCrates; i++) {
+            const outcome = rollCrateOutcome(tier);
+            crateResults.push({
+                outcome,
+                index: i
+            });
         }
         
         return {
             success: true,
+            tier,
             crateResults,
-            numCrates,
+            specialEvent: specialEvent.triggered ? specialEvent : null,
             betAmount,
-            currency
+            currency,
+            numCrates
         };
     } catch (error) {
         console.error('[Mystery Crate] Game execution error:', error);
@@ -83,16 +89,23 @@ async function executeCrateGame(userId, numCrates, betAmount, currency, balance)
     }
 }
 
-async function processCrateSelection(userId, selectedIndex, crateResults, betAmount, currency, balance) {
+async function processCrateSelection(userId, selectedIndex, crateResults, betAmount, currency, balance, sessionData = {}) {
     try {
         const selectedCrate = crateResults[selectedIndex];
-        let netReward = selectedCrate.netChange;
+        const { outcome, specialEvent } = selectedCrate;
         
-        if (selectedCrate.outcome.multiplier === -1) {
-            netReward = -balance;
+        const comboBonus = getComboBonus(sessionData.winStreak || 0);
+        const comboMult = comboBonus?.active ? comboBonus.multiplier : 1;
+        
+        const reward = calculateReward(betAmount, outcome, specialEvent, comboMult);
+        
+        let netChange = reward.netChange;
+        
+        if (specialEvent?.effect === 'cursed_crate' && outcome.multiplier === 0) {
+            netChange = -balance;
         }
         
-        await updateUserBalance(userId, currency, netReward);
+        await updateUserBalance(userId, currency, netChange);
         
         try {
             incrementDailyGamble(userId);
@@ -100,13 +113,20 @@ async function processCrateSelection(userId, selectedIndex, crateResults, betAmo
             console.error('[Mystery Crate] Quest update error:', err);
         }
         
-        const newBalance = balance + netReward;
+        const newBalance = balance + netChange;
+        const won = netChange > 0;
+        const newWinStreak = won ? (sessionData.winStreak || 0) + 1 : 0;
         
         return {
             success: true,
             selectedCrate,
-            netReward,
-            newBalance
+            reward,
+            netChange,
+            newBalance,
+            won,
+            newWinStreak,
+            comboBonus: comboBonus.active ? comboBonus : null,
+            cursedTriggered: specialEvent?.effect === 'cursed_crate' && outcome.multiplier === 0
         };
     } catch (error) {
         console.error('[Mystery Crate] Selection processing error:', error);
@@ -117,9 +137,31 @@ async function processCrateSelection(userId, selectedIndex, crateResults, betAmo
     }
 }
 
+function generateSessionStats(sessionData) {
+    const { games = [], winStreak = 0, totalWon = 0, totalLost = 0, biggestWin = 0 } = sessionData;
+    
+    const totalGames = games.length;
+    const wins = games.filter(g => g.won).length;
+    const losses = totalGames - wins;
+    const winRate = totalGames > 0 ? (wins / totalGames * 100).toFixed(1) : 0;
+    const netProfit = totalWon - totalLost;
+    
+    return {
+        totalGames,
+        wins,
+        losses,
+        winRate,
+        currentStreak: winStreak,
+        netProfit,
+        totalWon,
+        totalLost,
+        biggestWin
+    };
+}
+
 module.exports = {
-    generateCrateResults,
     validateCrateRequest,
     executeCrateGame,
-    processCrateSelection
+    processCrateSelection,
+    generateSessionStats
 };

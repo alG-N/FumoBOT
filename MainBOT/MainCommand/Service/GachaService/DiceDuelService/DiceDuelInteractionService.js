@@ -59,7 +59,13 @@ function handlePlayAgain(msg, userId, mode, betAmount, currency, activeSessions,
             channel: interaction.channel,
             author: interaction.user,
             content: `.diceduel ${mode.toLowerCase()} ${betAmount} ${currency}`,
-            reply: (options) => interaction.channel.send(options)
+            reply: (options) => interaction.channel.send(options),
+            mentions: {
+                users: new Map(),
+                roles: new Map(),
+                everyone: false,
+                repliedUser: null
+            }
         };
 
         client.emit(Events.MessageCreate, replayMessage);
