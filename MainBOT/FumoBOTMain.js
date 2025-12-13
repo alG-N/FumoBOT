@@ -65,6 +65,7 @@ const gamble = require('./MainCommand/CommandFolder/GachaCommand/gamble');
 const slot = require('./MainCommand/CommandFolder/GachaCommand/slot');
 const flip = require('./MainCommand/CommandFolder/GachaCommand/flip');
 const mysteryCrate = require('./MainCommand/CommandFolder/GachaCommand/mysterycrate');
+const diceduel = require('./MainCommand/CommandFolder/GachaCommand/diceduel')
 const sell = require('./MainCommand/CommandFolder/UserDataCommand/UsuableCommand/sell');
 const pray = require('./MainCommand/CommandFolder/PrayCommand/pray');
 const market = require('./MainCommand/CommandFolder/MarketCommand/market');
@@ -283,6 +284,7 @@ gamble(client);
 slot(client);
 flip(client);
 mysteryCrate(client);
+diceduel(client);
 sell(client);
 pray(client);
 market(client);
