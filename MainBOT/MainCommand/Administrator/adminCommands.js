@@ -5,7 +5,7 @@ const { RARITY_PRIORITY } = require('../Configuration/rarity');
 const { SEASONS, WEATHER_EVENTS, getSeasonDescription, getWeatherDuration } = require('../Configuration/seasonConfig');
 const { forceWeatherEvent, stopWeatherEvent } = require('../Service/FarmingService/SeasonService/SeasonManagerService');
 
-const ALLOWED_ADMINS = ['1128296349566251068', '1362450043939979378'];
+const ALLOWED_ADMINS = ['1128296349566251068', '1362450043939979378', '1421544451897299024'];
 
 const pendingActions = new Map();
 const pendingCurrency = new Map(); // Added separate Map for currency operations

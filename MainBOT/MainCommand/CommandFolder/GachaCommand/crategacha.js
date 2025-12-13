@@ -215,33 +215,53 @@ async function handleAutoRollStart(interaction, client) {
 async function handleAutoRollStop(interaction, client) {
     const userId = interaction.user.id;
 
-    const result = stopAutoRoll(userId);
+    try {
+        const result = stopAutoRoll(userId);
 
-    if (!result.success) {
-        return await interaction.reply({
-            embeds: [{
-                title: '❌ No Active Auto Roll',
-                description: "You currently don't have an auto-roll running.",
-                color: 0xff4444,
-                footer: { text: 'Auto Roll Status' },
-                timestamp: new Date()
-            }],
+        if (!result.success) {
+            return await interaction.reply({
+                embeds: [{
+                    title: '❌ No Active Auto Roll',
+                    description: "You currently don't have an auto-roll running.",
+                    color: 0xff4444,
+                    footer: { text: 'Auto Roll Status' },
+                    timestamp: new Date()
+                }],
+                ephemeral: true
+            });
+        }
+
+        if (!result.summary) {
+            throw new Error('Summary is missing from stopAutoRoll result');
+        }
+
+        const summary = createAutoRollSummary(result.summary, userId);
+
+        await interaction.reply({
+            embeds: [summary.embed],
+            components: summary.components,
             ephemeral: true
         });
+
+        await logToDiscord(
+            client,
+            `🛑 User ${interaction.user.tag} stopped auto-roll. Total: ${result.summary.rollCount * 100} rolls`
+        );
+    } catch (error) {
+        console.error('Error in handleAutoRollStop:', error);
+        console.error('Stack:', error.stack);
+        
+        const errorMessage = {
+            content: `❌ An error occurred while stopping auto-roll: ${error.message}`,
+            ephemeral: true
+        };
+        
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply(errorMessage).catch(console.error);
+        } else {
+            await interaction.followUp(errorMessage).catch(console.error);
+        }
     }
-
-    const summary = createAutoRollSummary(result.summary, userId);
-
-    await interaction.reply({
-        embeds: [summary.embed],
-        components: summary.components,
-        ephemeral: true
-    });
-
-    await logToDiscord(
-        client,
-        `🛑 User ${interaction.user.tag} stopped auto-roll. Total: ${result.summary.rollCount * 100} rolls`
-    );
 }
 
 module.exports = (client) => {
