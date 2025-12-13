@@ -113,7 +113,12 @@ module.exports = {
       name: '🎁 `.mysteryCrate` | `.mc` `<count> <bet> <currency>`',
       value: 'Open mystery crates for random rewards.',
       inline: false
-    }
+    },
+        {
+      name: '🎲 `.diceduel` | `.dd` `<mode> <bet> <currency>`',
+      value: 'Dice duel with the house for reward.',
+      inline: false
+    },
   ],
   shop: [
     {
