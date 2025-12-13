@@ -4,8 +4,8 @@
       "rollCount": 1,
       "autoSell": true,
       "startTime": 1765483560033,
-      "totalFumosRolled": 17900,
-      "totalCoinsFromSales": 41900,
+      "totalFumosRolled": 18000,
+      "totalCoinsFromSales": 34850,
       "bestFumo": {
         "name": "Go/jo(???)",
         "rarity": "???",
@@ -18,16 +18,16 @@
       "specialFumoFirstRoll": 22
     },
     "normal": {
-      "rollCount": 1,
+      "rollCount": 2,
       "autoSell": true,
-      "startTime": 1765604852982,
+      "startTime": 1765606041306,
       "bestFumo": {
         "name": "Junko(MYTHICAL)",
         "rarity": "MYTHICAL",
         "picture": "https://m.media-amazon.com/images/I/41gFcESKY3L.jpg"
       },
-      "bestFumoAt": "12/13/2025, 12:47:33 PM",
-      "bestFumoRoll": 1,
+      "bestFumoAt": "12/13/2025, 1:08:21 PM",
+      "bestFumoRoll": 2,
       "specialFumoCount": 0,
       "specialFumoFirstAt": null,
       "specialFumoFirstRoll": null
@@ -38,7 +38,7 @@
       "rollCount": 1,
       "autoSell": false,
       "startTime": 1765100291093,
-      "totalFumosRolled": 82400,
+      "totalFumosRolled": 82500,
       "totalCoinsFromSales": 0,
       "bestFumo": {
         "name": "Go/jo(???)",
@@ -56,13 +56,13 @@
       "autoSell": true,
       "startTime": 1765553048013,
       "bestFumo": {
-        "name": "UltraKillV2(ETERNAL)",
-        "rarity": "ETERNAL",
-        "picture": "https://th.bing.com/th/id/OIP.0rsVamUgjh_eW_1Ep5NDfAAAAA?cb=iwp2&rs=1&pid=ImgDetMain"
+        "name": "Arisu(TRANSCENDENT)",
+        "rarity": "TRANSCENDENT",
+        "picture": "https://www.picclickimg.com/I70AAOSwPVJmW9NO/Blue-Archive-Tendou-Arisu-Fumo-Fumo-Plushie-Plush.webp"
       },
-      "bestFumoAt": "12/13/2025, 4:50:43 AM",
-      "bestFumoRoll": 300,
-      "specialFumoCount": 299,
+      "bestFumoAt": "12/13/2025, 12:50:34 PM",
+      "bestFumoRoll": 5,
+      "specialFumoCount": 305,
       "specialFumoFirstAt": "12/12/2025, 10:24:08 PM",
       "specialFumoFirstRoll": 1
     }
@@ -79,7 +79,7 @@
       },
       "bestFumoAt": "12/13/2025, 12:20:35 AM",
       "bestFumoRoll": 30,
-      "specialFumoCount": 172,
+      "specialFumoCount": 176,
       "specialFumoFirstAt": "12/12/2025, 10:20:44 PM",
       "specialFumoFirstRoll": 3
     }

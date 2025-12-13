@@ -130,8 +130,7 @@ async function startAutoRoll(userId, fumos, autoSell = false) {
         bestFumoRoll: null,
         specialFumoCount: 0,
         specialFumoFirstAt: null,
-        specialFumoFirstRoll: null,
-        allSpecialFumos: []
+        specialFumoFirstRoll: null
     };
 
     async function autoRollLoop() {
@@ -160,13 +159,6 @@ async function startAutoRoll(userId, fumos, autoSell = false) {
                         current.specialFumoFirstAt = timeStr;
                         current.specialFumoFirstRoll = rollCount;
                     }
-                    
-                    current.allSpecialFumos.push({
-                        name: result.name,
-                        rarity: result.rarity,
-                        obtainedAt: timeStr,
-                        rollNumber: rollCount
-                    });
                 }
             }
 
@@ -272,7 +264,6 @@ async function restoreAutoRolls(client, fumoPool, options = {}) {
                     current.specialFumoCount = savedState.specialFumoCount || 0;
                     current.specialFumoFirstAt = savedState.specialFumoFirstAt || null;
                     current.specialFumoFirstRoll = savedState.specialFumoFirstRoll || null;
-                    current.allSpecialFumos = savedState.allSpecialFumos || [];
                 }
 
                 restored++;

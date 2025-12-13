@@ -238,20 +238,22 @@ async function displayMultiRollResults(interaction, fumosBought, bestFumo, rollC
 }
 
 function createAutoRollSummary(summary, userId) {
-    const { updateSummaryWithNotificationButton } = require('../../Service/GachaService/NotificationButtonsService');
+    const { updateSummaryWithNotificationButton } = require('../NotificationButtonsService');
     
-    const rarityOrder = ['TRANSCENDENT', 'ETERNAL', 'INFINITE', 'CELESTIAL', 'ASTRAL', '???'];
+    if (!summary) {
+        throw new Error('Summary object is null or undefined');
+    }
     
     let bestFumoText = 'None (N/A)';
     let bestFumoImage = null;
 
-    if (summary.bestFumo) {
+    if (summary.bestFumo && summary.bestFumo.name) {
         let suffix = '';
         if (summary.bestFumo.name.includes('[🌟alG]')) suffix = ' [🌟alG]';
         else if (summary.bestFumo.name.includes('[✨SHINY]')) suffix = ' [✨SHINY]';
 
         const cleanName = summary.bestFumo.name.replace(/\s*\(.*?\)$/, '').replace(/\[.*?\]/g, '').trim();
-        bestFumoText = `🏆 Best Fumo: ${cleanName} (${summary.bestFumo.rarity})${suffix}\n`;
+        bestFumoText = `🏆 Best Fumo: ${cleanName} (${summary.bestFumo.rarity || 'Unknown'})${suffix}\n`;
 
         if (summary.bestFumoRoll && summary.bestFumoAt) {
             bestFumoText += `🕒 Obtained at roll #${summary.bestFumoRoll}, at ${summary.bestFumoAt}`;
@@ -260,65 +262,22 @@ function createAutoRollSummary(summary, userId) {
         bestFumoImage = summary.bestFumo.picture || null;
     }
 
-    const fumoSummary = {};
-    
-    if (summary.allSpecialFumos && summary.allSpecialFumos.length > 0) {
-        summary.allSpecialFumos.forEach(fumo => {
-            if (rarityOrder.includes(fumo.rarity)) {
-                if (!fumoSummary[fumo.rarity]) fumoSummary[fumo.rarity] = [];
-                fumoSummary[fumo.rarity].push({
-                    name: fumo.name,
-                    rarity: fumo.rarity,
-                    roll: fumo.rollNumber,
-                    time: fumo.obtainedAt
-                });
-            }
-        });
+    let specialText = '';
+    if (summary.specialFumoCount && summary.specialFumoCount > 0) {
+        specialText = `\n__**Special Fumos (EXCLUSIVE+):**__\nTotal: \`${summary.specialFumoCount}\``;
+        if (summary.specialFumoFirstAt && summary.specialFumoFirstRoll) {
+            specialText += `\nFirst obtained at batch #${summary.specialFumoFirstRoll}, ${summary.specialFumoFirstAt}`;
+        }
     }
 
-    const shinyAlGMap = {};
-    for (const rarity of rarityOrder) {
-        shinyAlGMap[rarity] = { shiny: [], alg: [] };
-        const arr = fumoSummary[rarity] || [];
-        arr.forEach(f => {
-            if (f.name?.includes('[🌟alG]')) shinyAlGMap[rarity].alg.push(f);
-            else if (f.name?.includes('[✨SHINY]')) shinyAlGMap[rarity].shiny.push(f);
-        });
-    }
-
-    const summaryLines = rarityOrder.map(rarity => {
-        const arr = fumoSummary[rarity] || [];
-        let line = `**${rarity}:** `;
-
-        if (arr.length === 0) {
-            line += 'None';
-        } else {
-            arr.sort((a, b) => a.roll - b.roll);
-            const first = arr[0];
-            line += `\`${arr.length}\` (first: #${first.roll}, ${first.time})`;
-        }
-
-        const extras = [];
-        if (shinyAlGMap[rarity].shiny.length > 0) {
-            const shinyFirst = shinyAlGMap[rarity].shiny[0];
-            extras.push(`Shiny: ${shinyAlGMap[rarity].shiny.length} (#${shinyFirst.roll})`);
-        }
-        if (shinyAlGMap[rarity].alg.length > 0) {
-            const algFirst = shinyAlGMap[rarity].alg[0];
-            extras.push(`alG: ${shinyAlGMap[rarity].alg.length} (#${algFirst.roll})`);
-        }
-        if (extras.length > 0) line += ', ' + extras.join(', ');
-
-        return line;
-    });
-
-    const coinsSpent = summary.rollCount * 10000;
+    const rollCount = summary.rollCount || 0;
+    const coinsSpent = rollCount * 10000;
     const statsField = [
-        `🎲 **Total Rolls:** \`${(summary.rollCount * 100).toLocaleString()}\``,
+        `🎲 **Total Rolls:** \`${(rollCount * 100).toLocaleString()}\``,
         `💸 **Coins Spent:** \`${coinsSpent.toLocaleString()}\``,
         bestFumoText,
-        `\n__**Special Fumos Obtained:**__\n${summaryLines.join('\n')}`
-    ].join('\n');
+        specialText
+    ].filter(Boolean).join('\n');
 
     const embed = new EmbedBuilder()
         .setTitle('🛑 Auto Roll Stopped!')
@@ -330,7 +289,7 @@ function createAutoRollSummary(summary, userId) {
 
     if (bestFumoImage) embed.setImage(bestFumoImage);
 
-    if (summary.bestFumo && rarityOrder.includes(summary.bestFumo.rarity)) {
+    if (summary.bestFumo && SPECIAL_RARITIES.includes(summary.bestFumo.rarity)) {
         embed.setThumbnail('https://cdn.pixabay.com/photo/2017/01/31/13/14/confetti-2024631_1280.png');
     }
 
