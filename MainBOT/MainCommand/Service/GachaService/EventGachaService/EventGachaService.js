@@ -3,11 +3,9 @@ const { EVENT_BASE_CHANCES, PITY_THRESHOLDS } = require('../../../Configuration/
 const { selectAndAddFumo } = require('../NormalGachaService/InventoryService');
 const { updateQuestsAndAchievements } = require('../NormalGachaService/CrateGachaRollService');
 const { incrementWeeklyShiny } = require('../../../Ultility/weekly');
-const { debugLog } = require('../../../Core/logger');
 const FumoPool = require('../../../Data/FumoPool');
 
 async function getEventUserBoosts(userId) {
-    debugLog('EVENT_BOOST', `Fetching event boosts for user ${userId}`);
     const now = Date.now();
 
     const [ancientRelic, mysteriousCube, mysteriousDice, lumina, petBoosts, nullified] = await Promise.all([
@@ -175,8 +173,7 @@ async function selectEventRarity(userId, boosts, rollsSinceLastMythical, rollsSi
 }
 
 async function performEventSummon(userId, numSummons) {
-    const eventFumos = FumoPool.getForEvent(); 
-    debugLog('EVENT_ROLL', `Event summon ${numSummons}x for user ${userId}`);
+    const eventFumos = FumoPool.getForEvent();
 
     try {
         const userData = await getEventUserRollData(userId);
@@ -248,7 +245,6 @@ async function performEventSummon(userId, numSummons) {
         };
     } catch (error) {
         console.error(`❌ Error in performEventSummon for user ${userId}:`, error);
-        debugLog('EVENT_ROLL_ERROR', `Event summon failed: ${error.message}`);
         return { success: false, error: 'ROLL_FAILED', details: error.message };
     }
 }

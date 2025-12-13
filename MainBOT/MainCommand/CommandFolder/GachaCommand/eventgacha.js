@@ -30,7 +30,8 @@ const {
 const {
     startEventAutoRoll,
     stopEventAutoRoll,
-    isEventAutoRollActive
+    isEventAutoRollActive,
+    getEventAutoRollMap
 } = require('../../Service/GachaService/EventGachaService/EventAutoRollService');
 
 const LOG_CHANNEL_ID = '1411386632589807719';
@@ -186,8 +187,11 @@ module.exports = (client) => {
         }
 
         if (!isEventActive()) {
+            if (isEventAutoRollActive(userId)) {
+                stopEventAutoRoll(userId);
+            }
             return interaction.reply({
-                content: 'The banner has closed. Please wait for further updates.',
+                content: 'The banner has closed. All auto-rolls have been stopped.',
                 ephemeral: true
             });
         }
@@ -428,4 +432,16 @@ module.exports = (client) => {
             }
         }
     });
+
+    setInterval(() => {
+        if (!isEventActive()) {
+            const autoRollMap = getEventAutoRollMap();
+            if (autoRollMap.size > 0) {
+                console.log(`Event ended - stopping ${autoRollMap.size} active auto-rolls`);
+                for (const userId of autoRollMap.keys()) {
+                    stopEventAutoRoll(userId);
+                }
+            }
+        }
+    }, 60000);
 };
