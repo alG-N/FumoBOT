@@ -261,17 +261,19 @@ function createAutoRollSummary(summary, userId) {
     }
 
     const fumoSummary = {};
-
-    if (summary.bestFumo && rarityOrder.includes(summary.bestFumo.rarity)) {
-        if (!fumoSummary[summary.bestFumo.rarity]) fumoSummary[summary.bestFumo.rarity] = [];
-        if (!fumoSummary[summary.bestFumo.rarity].some(x => x.roll === summary.bestFumoRoll)) {
-            fumoSummary[summary.bestFumo.rarity].push({
-                name: summary.bestFumo.name,
-                rarity: summary.bestFumo.rarity,
-                roll: summary.bestFumoRoll,
-                time: summary.bestFumoAt
-            });
-        }
+    
+    if (summary.allSpecialFumos && summary.allSpecialFumos.length > 0) {
+        summary.allSpecialFumos.forEach(fumo => {
+            if (rarityOrder.includes(fumo.rarity)) {
+                if (!fumoSummary[fumo.rarity]) fumoSummary[fumo.rarity] = [];
+                fumoSummary[fumo.rarity].push({
+                    name: fumo.name,
+                    rarity: fumo.rarity,
+                    roll: fumo.rollNumber,
+                    time: fumo.obtainedAt
+                });
+            }
+        });
     }
 
     const shinyAlGMap = {};
