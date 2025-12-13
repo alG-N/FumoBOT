@@ -1,4 +1,3 @@
-const { Events } = require('discord.js');
 const { checkButtonOwnership } = require('../../../Middleware/buttonOwnership');
 const { CRATE_LIMITS, CRATE_TIMEOUTS } = require('../../../Configuration/mysteryCrateConfig');
 const { executeCrateGame, processCrateSelection, generateSessionStats } = require('./mysteryCrateGameService');
@@ -66,65 +65,82 @@ async function handleCrateSession(message, userId, numCrates, betAmount, currenc
             return interaction.reply({ content: "⛔ This isn't your game!", ephemeral: true });
         }
 
-        const selectedIndex = parseInt(interaction.customId.split('_')[2]);
-
-        await interaction.deferUpdate();
-
-        const selectedCrate = gameResult.crateResults[selectedIndex];
-        selectedCrate.specialEvent = gameResult.specialEvent;
-
-        const processResult = await processCrateSelection(
-            userId,
-            selectedIndex,
-            gameResult.crateResults,
-            betAmount,
-            currency,
-            balance,
-            session
-        );
-
-        if (!processResult.success) {
-            const errorEmbed = createErrorEmbed(processResult.error);
-            return interaction.followUp({ embeds: [errorEmbed], ephemeral: true });
-        }
-
-        session.games.push({
-            betAmount,
-            won: processResult.won,
-            netChange: processResult.netChange,
-            timestamp: Date.now()
+        await interaction.deferUpdate().catch(err => {
+            console.error('[Mystery Crate] Failed to defer update:', err);
         });
-        session.winStreak = processResult.newWinStreak;
-        session.currentBet = betAmount;
-        session.currentCrates = numCrates;
 
-        if (processResult.won) {
-            session.totalWon += Math.abs(processResult.netChange);
-            if (processResult.netChange > session.biggestWin) {
-                session.biggestWin = processResult.netChange;
+        try {
+            const selectedIndex = parseInt(interaction.customId.split('_')[2]);
+
+            const selectedCrate = gameResult.crateResults[selectedIndex];
+            selectedCrate.specialEvent = gameResult.specialEvent;
+
+            const processResult = await processCrateSelection(
+                userId,
+                selectedIndex,
+                gameResult.crateResults,
+                betAmount,
+                currency,
+                balance,
+                session
+            );
+
+            if (!processResult.success) {
+                const errorEmbed = createErrorEmbed(processResult.error);
+                return interaction.editReply({ embeds: [errorEmbed], components: [] }).catch(() => {});
             }
-        } else {
-            session.totalLost += Math.abs(processResult.netChange);
+
+            session.games.push({
+                betAmount,
+                won: processResult.won,
+                netChange: processResult.netChange,
+                timestamp: Date.now()
+            });
+            session.winStreak = processResult.newWinStreak;
+            session.currentBet = betAmount;
+            session.currentCrates = numCrates;
+
+            if (processResult.won) {
+                session.totalWon += Math.abs(processResult.netChange);
+                if (processResult.netChange > session.biggestWin) {
+                    session.biggestWin = processResult.netChange;
+                }
+            } else {
+                session.totalLost += Math.abs(processResult.netChange);
+            }
+
+            activeSessions.set(userId, session);
+
+            const resultEmbed = createResultEmbed(
+                selectedCrate,
+                gameResult.tier,
+                betAmount,
+                currency,
+                message.author.username,
+                message.author.displayAvatarURL({ dynamic: true }),
+                processResult
+            );
+
+            const hasBalance = processResult.newBalance >= betAmount;
+            const actionButtons = createActionButtons(userId, hasBalance);
+
+            await interaction.editReply({ 
+                embeds: [resultEmbed], 
+                components: [actionButtons] 
+            }).catch(err => {
+                console.error('[Mystery Crate] Failed to update message:', err);
+            });
+
+            handleSessionActions(msg, userId, currency, session, activeSessions, client);
+
+        } catch (error) {
+            console.error('[Mystery Crate] Error processing crate selection:', error);
+            const errorEmbed = createErrorEmbed('PROCESSING_ERROR');
+            await interaction.editReply({ 
+                embeds: [errorEmbed], 
+                components: [] 
+            }).catch(() => {});
         }
-
-        activeSessions.set(userId, session);
-
-        const resultEmbed = createResultEmbed(
-            selectedCrate,
-            gameResult.tier,
-            betAmount,
-            currency,
-            message.author.username,
-            message.author.displayAvatarURL({ dynamic: true }),
-            processResult
-        );
-
-        const hasBalance = processResult.newBalance >= betAmount;
-        const actionButtons = createActionButtons(userId, hasBalance);
-
-        await interaction.editReply({ embeds: [resultEmbed], components: [actionButtons] });
-
-        handleSessionActions(msg, userId, currency, session, activeSessions, client);
     });
 
     collector.on('end', collected => {
@@ -143,7 +159,7 @@ async function handleCrateSession(message, userId, numCrates, betAmount, currenc
     });
 
     blockCollector.on('collect', async (i) => {
-        await i.reply({ content: "⛔ This isn't your Mystery Crate session!", ephemeral: true });
+        await i.reply({ content: "⛔ This isn't your Mystery Crate session!", ephemeral: true }).catch(() => {});
     });
 }
 
@@ -155,45 +171,51 @@ function handleSessionActions(msg, userId, currency, session, activeSessions, cl
 
     collector.on('collect', async (interaction) => {
         if (!checkButtonOwnership(interaction)) {
-            return interaction.reply({ content: "⛔ This isn't your game!", ephemeral: true });
+            return interaction.reply({ content: "⛔ This isn't your game!", ephemeral: true }).catch(() => {});
         }
 
         const action = interaction.customId.split('_')[1];
 
         switch (action) {
             case 'again':
-                await interaction.deferUpdate();
+                await interaction.deferUpdate().catch(err => {
+                    console.error('[Mystery Crate] Failed to defer play again:', err);
+                });
 
-                const balance = await getUserBalance(userId, currency);
-                if (balance < session.currentBet) {
-                    await interaction.followUp({
-                        content: `❌ Insufficient balance. You need ${formatNumber(session.currentBet)} ${currency}.`,
-                        ephemeral: true
-                    });
-                    break;
+                try {
+                    const balance = await getUserBalance(userId, currency);
+                    if (balance < session.currentBet) {
+                        await interaction.followUp({
+                            content: `❌ Insufficient balance. You need ${formatNumber(session.currentBet)} ${currency}.`,
+                            ephemeral: true
+                        }).catch(() => {});
+                        break;
+                    }
+
+                    await handleCrateSession(
+                        {
+                            guild: interaction.guild,
+                            channel: interaction.channel,
+                            author: interaction.user,
+                            reply: (options) => interaction.channel.send(options)
+                        },
+                        userId,
+                        session.currentCrates,
+                        session.currentBet,
+                        currency,
+                        activeSessions,
+                        client
+                    );
+                } catch (error) {
+                    console.error('[Mystery Crate] Error playing again:', error);
                 }
-
-                await handleCrateSession(
-                    {
-                        guild: interaction.guild,
-                        channel: interaction.channel,
-                        author: interaction.user,
-                        reply: (options) => interaction.channel.send(options)
-                    },
-                    userId,
-                    session.currentCrates,
-                    session.currentBet,
-                    currency,
-                    activeSessions,
-                    client
-                );
                 break;
 
             case 'change':
                 await interaction.reply({
                     content: `💰 Enter new bet: \`.mysterycrate <crates> <amount> ${currency}\``,
                     ephemeral: true
-                });
+                }).catch(() => {});
                 activeSessions.delete(userId);
                 break;
 
@@ -205,7 +227,7 @@ function handleSessionActions(msg, userId, currency, session, activeSessions, cl
                     interaction.user.username,
                     interaction.user.displayAvatarURL({ dynamic: true })
                 );
-                await interaction.reply({ embeds: [statsEmbed], ephemeral: true });
+                await interaction.reply({ embeds: [statsEmbed], ephemeral: true }).catch(() => {});
                 break;
 
             case 'quit':
@@ -217,7 +239,7 @@ function handleSessionActions(msg, userId, currency, session, activeSessions, cl
                     interaction.user.username,
                     interaction.user.displayAvatarURL({ dynamic: true })
                 );
-                await interaction.update({ embeds: [finalEmbed], components: [] });
+                await interaction.update({ embeds: [finalEmbed], components: [] }).catch(() => {});
                 collector.stop();
                 break;
         }
@@ -228,6 +250,10 @@ function handleSessionActions(msg, userId, currency, session, activeSessions, cl
             activeSessions.delete(userId);
         }
     });
+}
+
+function formatNumber(num) {
+    return num.toLocaleString();
 }
 
 module.exports = {

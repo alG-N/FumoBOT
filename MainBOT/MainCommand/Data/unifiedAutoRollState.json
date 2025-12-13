@@ -37,7 +37,7 @@
       "specialFumoFirstRoll": 14
     },
     "normal": {
-      "rollCount": 3,
+      "rollCount": 1,
       "autoSell": true,
       "startTime": 1765553048013,
       "bestFumo": {
@@ -47,14 +47,14 @@
       },
       "bestFumoAt": "12/13/2025, 12:50:34 PM",
       "bestFumoRoll": 5,
-      "specialFumoCount": 329,
+      "specialFumoCount": 332,
       "specialFumoFirstAt": "12/12/2025, 10:24:08 PM",
       "specialFumoFirstRoll": 1
     }
   },
   "1421544451897299024": {
     "normal": {
-      "rollCount": 3,
+      "rollCount": 1,
       "autoSell": false,
       "startTime": 1765552724677,
       "bestFumo": {
