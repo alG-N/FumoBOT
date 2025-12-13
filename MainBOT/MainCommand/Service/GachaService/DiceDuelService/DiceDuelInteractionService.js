@@ -1,11 +1,10 @@
 const { Events } = require('discord.js');
-const { checkButtonOwnership } = require('../../../Middleware/buttonOwnership');
+const { checkButtonOwnership, sendOwnershipError } = require('../../../Middleware/buttonOwnership');
 const { DICE_TIMEOUTS } = require('../../../Configuration/diceDuelConfig');
 const { processDiceResult } = require('./DiceDuelGameService');
 const {
     createResultEmbed,
     createPlayAgainButton,
-    createTimeoutEmbed,
     createErrorEmbed
 } = require('./DiceDuelUIService');
 
@@ -36,22 +35,22 @@ async function handleDiceInteraction(message, userId, gameResult, activeSessions
         components: [playAgainButton]
     });
 
-    handlePlayAgain(msg, userId, mode, betAmount, currency, activeSessions, client);
-}
-
-function handlePlayAgain(msg, userId, mode, betAmount, currency, activeSessions, client) {
-    const playAgainCollector = msg.createMessageComponentCollector({
+    const collector = msg.createMessageComponentCollector({
         filter: i => i.customId === `dice_play_again_${userId}`,
         max: 1,
         time: DICE_TIMEOUTS.PLAY_AGAIN
     });
 
-    playAgainCollector.on('collect', async (interaction) => {
-        if (!await checkButtonOwnership(interaction, 'dice_play_again', null, false)) {
+    collector.on('collect', async (interaction) => {
+        if (!checkButtonOwnership(interaction, 'dice_play_again')) {
+            await sendOwnershipError(interaction);
             return;
         }
 
         await interaction.deferUpdate();
+        
+        await msg.edit({ components: [] }).catch(() => {});
+        
         activeSessions.delete(userId);
 
         const replayMessage = {
@@ -71,12 +70,12 @@ function handlePlayAgain(msg, userId, mode, betAmount, currency, activeSessions,
         client.emit(Events.MessageCreate, replayMessage);
     });
 
-    playAgainCollector.on('end', () => {
+    collector.on('end', async (collected, reason) => {
         activeSessions.delete(userId);
+        await msg.edit({ components: [] }).catch(() => {});
     });
 }
 
 module.exports = {
-    handleDiceInteraction,
-    handlePlayAgain
+    handleDiceInteraction
 };

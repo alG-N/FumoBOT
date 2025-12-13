@@ -11,8 +11,9 @@ module.exports = async (client) => {
 
     client.on(Events.MessageCreate, async (message) => {
         if (!message.guild || message.author.bot) return;
-        if (!message.content.toLowerCase().startsWith('.diceduel') &&
-            !message.content.toLowerCase().startsWith('.dd')) return;
+        
+        const content = message.content.toLowerCase();
+        if (!content.startsWith('.diceduel') && !content.startsWith('.dd')) return;
 
         const userId = message.author.id;
 
