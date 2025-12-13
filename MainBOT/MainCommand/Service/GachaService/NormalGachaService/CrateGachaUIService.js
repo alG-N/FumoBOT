@@ -261,10 +261,6 @@ function createAutoRollSummary(summary, userId) {
     }
 
     const fumoSummary = {};
-    (summary.lowerSpecialFumos || []).forEach(f => {
-        if (!fumoSummary[f.rarity]) fumoSummary[f.rarity] = [];
-        fumoSummary[f.rarity].push(f);
-    });
 
     if (summary.bestFumo && rarityOrder.includes(summary.bestFumo.rarity)) {
         if (!fumoSummary[summary.bestFumo.rarity]) fumoSummary[summary.bestFumo.rarity] = [];

@@ -25,7 +25,7 @@ module.exports = (client) => {
         if (message.author.bot) return;
 
         const content = message.content.toLowerCase();
-        if (content !== '.flip' && content !== '.f') return;
+        if (!content.startsWith('.flip') && !content.startsWith('.f ')) return;
 
         try {
             const userId = message.author.id;

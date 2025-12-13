@@ -3,42 +3,27 @@
     "event": {
       "rollCount": 1,
       "autoSell": true,
-      "startTime": 1765104707171,
-      "totalFumosRolled": 51000,
-      "totalCoinsFromSales": 32400,
+      "startTime": 1765483560033,
+      "totalFumosRolled": 17900,
+      "totalCoinsFromSales": 41900,
       "bestFumo": {
         "name": "Go/jo(???)",
         "rarity": "???",
         "picture": "https://m.media-amazon.com/images/I/41PQuj80tDS._AC_UF894,1000_QL80_.jpg"
       },
-      "bestFumoAt": "12/7/2025, 5:52:17 PM",
-      "bestFumoRoll": 2,
-      "specialFumoCount": 51,
-      "specialFumoFirstAt": "12/7/2025, 5:52:17 PM",
-      "specialFumoFirstRoll": 2
+      "bestFumoAt": "12/12/2025, 3:17:04 AM",
+      "bestFumoRoll": 22,
+      "specialFumoCount": 11,
+      "specialFumoFirstAt": "12/12/2025, 3:17:04 AM",
+      "specialFumoFirstRoll": 22
     }
   },
   "845274868697661440": {
-    "normal": {
-      "rollCount": 6,
-      "autoSell": false,
-      "startTime": 1765440853235,
-      "bestFumo": {
-        "name": "Grani(CELESTIAL)",
-        "rarity": "CELESTIAL",
-        "picture": "https://media.discordapp.net/attachments/1372426801472737280/1372427631877685389/mostima-fumo-mostimo-v0-httirpx8ghhb1.png?ex=6826bc55&is=68256ad5&hm=e9511d6de0f908e22eedeb4ab965753e76446ed39a3bdb9ac4af7ef099c62dd6&=&format=webp&quality=lossless&width=1429&height=800"
-      },
-      "bestFumoAt": "12/11/2025, 3:19:37 PM",
-      "bestFumoRoll": 5,
-      "specialFumoCount": 3,
-      "specialFumoFirstAt": "12/11/2025, 3:18:35 PM",
-      "specialFumoFirstRoll": 4
-    },
     "event": {
       "rollCount": 1,
       "autoSell": false,
       "startTime": 1765100291093,
-      "totalFumosRolled": 81900,
+      "totalFumosRolled": 82400,
       "totalCoinsFromSales": 0,
       "bestFumo": {
         "name": "Go/jo(???)",
@@ -47,9 +32,41 @@
       },
       "bestFumoAt": "12/7/2025, 4:54:55 PM",
       "bestFumoRoll": 14,
-      "specialFumoCount": 38,
+      "specialFumoCount": 39,
       "specialFumoFirstAt": "12/7/2025, 4:54:55 PM",
       "specialFumoFirstRoll": 14
+    },
+    "normal": {
+      "rollCount": 1,
+      "autoSell": true,
+      "startTime": 1765553048013,
+      "bestFumo": {
+        "name": "UltraKillV2(ETERNAL)",
+        "rarity": "ETERNAL",
+        "picture": "https://th.bing.com/th/id/OIP.0rsVamUgjh_eW_1Ep5NDfAAAAA?cb=iwp2&rs=1&pid=ImgDetMain"
+      },
+      "bestFumoAt": "12/13/2025, 4:50:43 AM",
+      "bestFumoRoll": 300,
+      "specialFumoCount": 294,
+      "specialFumoFirstAt": "12/12/2025, 10:24:08 PM",
+      "specialFumoFirstRoll": 1
+    }
+  },
+  "1421544451897299024": {
+    "normal": {
+      "rollCount": 1,
+      "autoSell": false,
+      "startTime": 1765552724677,
+      "bestFumo": {
+        "name": "UltraKillV2(ETERNAL)",
+        "rarity": "ETERNAL",
+        "picture": "https://th.bing.com/th/id/OIP.0rsVamUgjh_eW_1Ep5NDfAAAAA?cb=iwp2&rs=1&pid=ImgDetMain"
+      },
+      "bestFumoAt": "12/13/2025, 12:20:35 AM",
+      "bestFumoRoll": 30,
+      "specialFumoCount": 172,
+      "specialFumoFirstAt": "12/12/2025, 10:20:44 PM",
+      "specialFumoFirstRoll": 3
     }
   }
 }
