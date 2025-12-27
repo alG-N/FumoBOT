@@ -84,6 +84,7 @@ const eggInventory = require('./MainCommand/CommandFolder/PetCommand/eggInventor
 const eggOpen = require('./MainCommand/CommandFolder/PetCommand/eggOpen');
 const eggcheck = require('./MainCommand/CommandFolder/PetCommand/eggCheck');
 const equipPet = require('./MainCommand/CommandFolder/PetCommand/equipPet');
+const migratePets = require('./MainCommand/Administrator/migratePets');
 const useFragment = require('./MainCommand/CommandFolder/FarmingCommand/useFragment');
 const addFarm = require('./MainCommand/CommandFolder/FarmingCommand/AddFarm');
 const addBest = require('./MainCommand/CommandFolder/FarmingCommand/AddBest');
@@ -308,12 +309,14 @@ eggInventory(client);
 eggOpen(client);
 eggcheck(client);
 equipPet(client);
+migratePets(client);
 trade(client);
 
 registerAdminCommands(client);
 registerBanSystem(client, developerID);
 registerTicketSystem(client);
 registerCodeRedemption(client);
+
 
 client.on('interactionCreate', async interaction => {
     if (interaction.isButton()) {

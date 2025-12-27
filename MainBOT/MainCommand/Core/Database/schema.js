@@ -69,30 +69,39 @@ function createIndexes() {
         `CREATE INDEX IF NOT EXISTS idx_userCoins_pray ON userCoins(userId, prayedToMarisa, reimuStatus, yukariMark)`,
     ];
 
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
         let completed = 0;
+        let successCount = 0;
 
         indexes.forEach((sql, idx) => {
             db.run(sql, (err) => {
+                completed++;
+
                 if (err) {
                     console.error(`❌ Failed to create index ${idx}:`, err.message);
                 } else {
-                    completed++;
-                    if (completed === indexes.length) {
-                        console.log(`✅ Created ${completed} database indexes successfully`);
-                        resolve();
-                    }
+                    successCount++;
                 }
+
+                    if (completed === indexes.length) {
+                        if (successCount > 0) {
+                            if (successCount === indexes.length) {
+                                console.log(`✅ Created ${successCount} database indexes successfully`);
+                            } else {
+                                console.warn(`⚠️ Created ${successCount} of ${indexes.length} database indexes (some failed)`);
+                            }
+                            resolve();
+                        } else {
+                            reject(new Error('Failed to create any database indexes'));
+                        }
+                    }
+                });
             });
         });
-    });
-}
-
-/**
- * Creates all database tables if they don't exist
- */
-function createTables() {
-    return new Promise((resolve) => {
+    }
+    
+    function createTables() {
+        return new Promise((resolve) => {
         const tables = [];
         let completed = 0;
 
@@ -580,85 +589,80 @@ function createTables() {
     });
 }
 
-function ensureColumnsExist() {
-    return new Promise((resolve) => {
-        const addColumnIfNotExists = (table, column, columnType) => {
-            return new Promise((res) => {
-                db.run(`ALTER TABLE ${table} ADD COLUMN ${column} ${columnType}`, err => {
-                    if (err && !err.message.includes("duplicate column name")) {
-                        console.error(`Error adding column ${column} to ${table} table:`, err.message);
-                    }
-                    res();
-                });
-            });
-        };
-
-        db.all(`PRAGMA table_info(userUpgrades)`, [], async (err, rows) => {
-            if (err) {
-                console.error('Error fetching userUpgrades table info:', err.message);
-                resolve();
-                return;
-            }
-
-            const existingColumns = rows.map(row => row.name);
-
-            if (!existingColumns.includes('limitBreaks')) {
-                await addColumnIfNotExists('userUpgrades', 'limitBreaks', 'INTEGER DEFAULT 0');
-                console.log('✅ Added limitBreaks column to userUpgrades table');
-            }
-
-            resolve();
-        });
-
-        db.all(`PRAGMA table_info(userCoins)`, [], async (err, rows) => {
-            if (err) {
-                console.error('Error fetching userCoins table info:', err.message);
-                resolve();
-                return;
-            }
-
-            const existingColumns = rows.map(row => row.name);
-            const requiredColumns = [
-                'rollsSinceLastMythical',
-                'rollsSinceLastQuestionMark',
-                'level',
-                'rebirth',
-                'yukariMark',
-                'reimuPityCount',
-                'timeclockLastUsed'
-            ];
-
-            for (const col of requiredColumns) {
-                if (!existingColumns.includes(col)) {
-                    let columnType = 'INTEGER DEFAULT 0';
-                    if (col === 'level') columnType = 'INTEGER DEFAULT 1';
-                    await addColumnIfNotExists('userCoins', col, columnType);
+async function ensureColumnsExist() {
+    const addColumnIfNotExists = (table, column, columnType) => {
+        return new Promise((res) => {
+            db.run(`ALTER TABLE ${table} ADD COLUMN ${column} ${columnType}`, err => {
+                if (err && !err.message.includes("duplicate column name")) {
+                    console.error(`Error adding column ${column} to ${table} table:`, err.message);
                 }
-            }
-
-            db.all(`PRAGMA table_info(userInventory)`, [], async (err2, rows2) => {
-                if (err2) {
-                    console.error('Error fetching userInventory table info:', err2.message);
-                    resolve();
-                    return;
-                }
-
-                const requiredColumns2 = ['type', 'dateObtained', 'fumoName', 'luckRarity'];
-                const existingColumns2 = rows2.map(row => row.name);
-
-                for (const col of requiredColumns2) {
-                    if (!existingColumns2.includes(col)) {
-                        await addColumnIfNotExists('userInventory', col, 'TEXT');
-                    }
-                }
-
-                await addColumnIfNotExists('activeBoosts', 'extra', "TEXT DEFAULT '{}'");
-                await addColumnIfNotExists('petInventory', 'ability', 'TEXT');
-
-                resolve();
+                res();
             });
         });
-    });
+    };
+
+    const dbAllAsync = (sql, params = []) => {
+        return new Promise((resolve, reject) => {
+            db.all(sql, params, (err, rows) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(rows);
+                }
+            });
+        });
+    };
+
+    try {
+        // Ensure userUpgrades has limitBreaks column
+        const userUpgradesRows = await dbAllAsync(`PRAGMA table_info(userUpgrades)`, []);
+        const existingUpgradeColumns = userUpgradesRows.map(row => row.name);
+
+        if (!existingUpgradeColumns.includes('limitBreaks')) {
+            await addColumnIfNotExists('userUpgrades', 'limitBreaks', 'INTEGER DEFAULT 0');
+            console.log('✅ Added limitBreaks column to userUpgrades table');
+        }
+
+        // Ensure userCoins has all required columns
+        const userCoinsRows = await dbAllAsync(`PRAGMA table_info(userCoins)`, []);
+        const existingCoinsColumns = userCoinsRows.map(row => row.name);
+        const requiredColumns = [
+            'rollsSinceLastMythical',
+            'rollsSinceLastQuestionMark',
+            'level',
+            'rebirth',
+            'yukariMark',
+            'reimuPityCount',
+            'timeclockLastUsed'
+        ];
+
+        for (const col of requiredColumns) {
+            if (!existingCoinsColumns.includes(col)) {
+                let columnType = 'INTEGER DEFAULT 0';
+                if (col === 'level') {
+                    columnType = 'INTEGER DEFAULT 1';
+                }
+                await addColumnIfNotExists('userCoins', col, columnType);
+            }
+        }
+
+        // Ensure userInventory has all required columns
+        const userInventoryRows = await dbAllAsync(`PRAGMA table_info(userInventory)`, []);
+        const requiredColumns2 = ['type', 'dateObtained', 'fumoName', 'luckRarity'];
+        const existingInventoryColumns = userInventoryRows.map(row => row.name);
+
+        for (const col of requiredColumns2) {
+            if (!existingInventoryColumns.includes(col)) {
+                await addColumnIfNotExists('userInventory', col, 'TEXT');
+            }
+        }
+
+        // Ensure other tables have their additional columns
+        await addColumnIfNotExists('activeBoosts', 'extra', "TEXT DEFAULT '{}'");
+        await addColumnIfNotExists('petInventory', 'ability', 'TEXT');
+    } catch (err) {
+        console.error('Error ensuring columns exist:', err.message || err);
+    }
 }
 
 async function initializeDatabase() {

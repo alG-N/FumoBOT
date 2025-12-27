@@ -9,7 +9,6 @@ const {
     getFarmingFumos,
     getActiveBoosts,
     addToInventory,
-    incrementDailyPray,
     getReimuRareFumos,
     deleteFumoFromInventory
 } = require('../PrayDatabaseService');
@@ -215,8 +214,12 @@ async function handleSakuya(userId, channel) {
                     expanded.push({ ...f });
                 }
             }
-            const shuffled = expanded.sort(() => 0.5 - Math.random());
-            const selected = shuffled.slice(0, requiredFumos);
+            // Fisher-Yates shuffle for unbiased randomization
+            for (let i = expanded.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [expanded[i], expanded[j]] = [expanded[j], expanded[i]];
+            }
+            const selected = expanded.slice(0, requiredFumos);
 
             for (const fumo of selected) {
                 await deleteFumoFromInventory(userId, fumo.id, 1);
@@ -286,14 +289,12 @@ async function handleSakuya(userId, channel) {
         const blessingRemaining = blessingActive && blessingExpiry ? blessingExpiry - now : 0;
         const blessingPercent = blessingActive
             ? Math.floor((blessingRemaining / (blessing.duration * 2)) * 100)
-            : Math.min(Math.floor((timeBlessing / blessing.threshold) * 100), 100);
-
-        const blessingBar = '█'.repeat(Math.floor(blessingPercent / 20)) + '░'.repeat(5 - Math.floor(blessingPercent / 20));
-
+            : 0;
         const hB = Math.floor(blessingRemaining / 3600000);
         const mB = Math.floor((blessingRemaining % 3600000) / 60000);
         const sB = Math.floor((blessingRemaining % 60000) / 1000);
         const blessingTimer = `${hB.toString().padStart(2, '0')}:${mB.toString().padStart(2, '0')}:${sB.toString().padStart(2, '0')}`;
+        const blessingBar = '█'.repeat(Math.floor(blessingPercent / 10)) + '░'.repeat(10 - Math.floor(blessingPercent / 10));
 
         const embed = new EmbedBuilder()
             .setTitle('🕰️ Sakuya\'s Time Skip 🕰️')
@@ -315,7 +316,6 @@ async function handleSakuya(userId, channel) {
             .setTimestamp();
 
         await channel.send({ embeds: [embed] });
-        await incrementDailyPray(userId);
 
     } catch (error) {
         console.error('[Sakuya] Error:', error);

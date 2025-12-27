@@ -1,47 +1,47 @@
 {
   "market": [
     {
-      "name": "Remilia(RARE)",
-      "price": 30,
+      "name": "Youmu(RARE)",
+      "price": 35,
       "rarity": "RARE",
       "stock": 4,
       "picture": null
     },
     {
-      "name": "Satori(EPIC)",
-      "price": 76,
-      "rarity": "EPIC",
-      "stock": 2,
+      "name": "Mima(INFINITE)",
+      "price": 10000000,
+      "rarity": "INFINITE",
+      "stock": 1,
       "picture": null
     },
     {
       "name": "TankReisen(OTHERWORLDLY)",
       "price": 1000,
       "rarity": "OTHERWORLDLY",
-      "stock": 1,
+      "stock": 2,
       "picture": null
     },
     {
-      "name": "Yuyuko(LEGENDARY)",
-      "price": 1550,
+      "name": "Flandere(LEGENDARY)",
+      "price": 1750,
       "rarity": "LEGENDARY",
       "stock": 2,
       "picture": null
     },
     {
-      "name": "Yuuka(MYTHICAL)",
-      "price": 150000,
-      "rarity": "MYTHICAL",
+      "name": "DarkYoumu(EXCLUSIVE)",
+      "price": 300000,
+      "rarity": "EXCLUSIVE",
       "stock": 1,
       "picture": null
     },
     {
-      "name": "Cheshire(ASTRAL)",
-      "price": 6415000,
-      "rarity": "ASTRAL",
-      "stock": 1,
+      "name": "Ran(EPIC)",
+      "price": 76,
+      "rarity": "EPIC",
+      "stock": 3,
       "picture": null
     }
   ],
-  "resetTime": 1765562400000
+  "resetTime": 1766858400000
 }

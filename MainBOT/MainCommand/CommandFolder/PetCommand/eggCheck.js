@@ -1,10 +1,9 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
-const { v4: uuidv4 } = require('uuid');
 const db = require('../../Core/Database/dbSetting');
-const { EGG_POOLS, RARITY_COLORS, EGG_DATA } = require('../../Configuration/petConfig');
-const PetStats = require('../../Service/PetService/PetStatsService');
+const { EGG_DATA } = require('../../Configuration/petConfig');
 const PetDatabase = require('../../Service/PetService/PetDatabaseService');
-const PetCache = require('../../Service/PetService/PetCacheService');
+const PetHatch = require('../../Service/PetService/PetHatchService');
+const PetUI = require('../../Service/PetService/PetUIService');
 
 module.exports = async (client) => {
     client.on("messageCreate", async message => {
@@ -77,53 +76,9 @@ module.exports = async (client) => {
 
                 await PetDatabase.deleteHatchingEgg(userId, eggId);
 
-                const chosen = PetStats.pickRandomPet(egg.eggName, EGG_POOLS);
-                const weight = PetStats.getRandomWeight();
-                const quality = PetStats.getRandomQuality();
-                const petName = PetStats.generatePetName();
-                const timestamp = Date.now();
-                const petId = uuidv4();
-                const maxHunger = PetStats.getMaxHunger(chosen.rarity);
+                const { pet, chosen, hasAlterGolden } = await PetHatch.hatchEgg(userId, egg.eggName);
 
-                let finalWeight = weight;
-                let finalQuality = quality;
-                
-                if (PetStats.hasAlterGoldenBonus(petName)) {
-                    finalWeight = weight * 2;
-                    finalQuality = Math.min(quality * 2, 5);
-                }
-
-                const petData = {
-                    petId,
-                    userId,
-                    type: 'pet',
-                    name: chosen.name,
-                    petName,
-                    rarity: chosen.rarity,
-                    weight: finalWeight,
-                    age: 1,
-                    quality: finalQuality,
-                    timestamp,
-                    level: 1,
-                    hunger: maxHunger,
-                    ageXp: 0,
-                    lastHungerUpdate: Math.floor(timestamp / 1000)
-                };
-
-                await PetDatabase.insertPet(petData);
-                PetCache.invalidate(userId);
-
-                const hatchEmbed = new EmbedBuilder()
-                    .setTitle(`🎉 Egg Hatched!`)
-                    .setColor(RARITY_COLORS[chosen.rarity] || 0xFFFFFF)
-                    .addFields(
-                        { name: "Pet:", value: `${chosen.name} - **${chosen.rarity}**`, inline: false },
-                        { name: "🏷️ Name:", value: `**${petName}**${PetStats.hasAlterGoldenBonus(petName) ? ' ✨ (alterGolden Bonus!)' : ''}`, inline: false },
-                        { name: "Weight", value: `**${finalWeight.toFixed(2)} kg**${PetStats.hasAlterGoldenBonus(petName) ? ' (x2)' : ''}`, inline: true },
-                        { name: "⭐ Quality", value: `**${finalQuality.toFixed(2)} / 5**${PetStats.hasAlterGoldenBonus(petName) ? ' (x2)' : ''}`, inline: true }
-                    )
-                    .setFooter({ text: `Take good care of ${petName}!` })
-                    .setTimestamp();
+                const hatchEmbed = PetUI.createHatchEmbed(pet, chosen, hasAlterGolden);
 
                 await interaction.reply({ embeds: [hatchEmbed], ephemeral: true });
             });
