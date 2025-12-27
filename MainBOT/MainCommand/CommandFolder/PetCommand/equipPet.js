@@ -129,25 +129,31 @@ async function handleMultiplePetSelection(message, userId, availablePets) {
             time: 60_000 
         });
 
+        await interaction.deferUpdate();
+
         const selectedPetId = interaction.values[0];
         const result = await PetEquip.equipPet(userId, selectedPetId);
 
         if (!result.success) {
-            return interaction.update({ 
+            return interaction.editReply({ 
                 content: `❌ ${getErrorMessage(result.error)}`, 
                 embeds: [], 
                 components: [] 
             });
         }
 
-        await interaction.update({
+        await interaction.editReply({
             content: `✅ Equipped **${result.pet.name} "${result.pet.petName}"** successfully!`,
             embeds: [],
             components: []
         });
 
     } catch (error) {
-        await reply.edit({ content: '⏱️ Selection timed out.', embeds: [], components: [] }).catch(() => {});
+        if (error.code === 'InteractionCollectorError') {
+            await reply.edit({ content: '⏱️ Selection timed out.', embeds: [], components: [] }).catch(() => {});
+        } else {
+            console.error('Error in pet selection:', error);
+        }
     }
 }
 
@@ -181,25 +187,31 @@ async function handleMultiplePetUnequip(message, userId, equippedPets) {
             time: 60_000 
         });
 
+        await interaction.deferUpdate();
+
         const selectedPetId = interaction.values[0];
         const result = await PetEquip.unequipPet(userId, selectedPetId);
 
         if (!result.success) {
-            return interaction.update({ 
+            return interaction.editReply({ 
                 content: `❌ ${getErrorMessage(result.error)}`, 
                 embeds: [], 
                 components: [] 
             });
         }
 
-        await interaction.update({
+        await interaction.editReply({
             content: `✅ Unequipped pet successfully.`,
             embeds: [],
             components: []
         });
 
     } catch (error) {
-        await reply.edit({ content: '⏱️ Selection timed out.', embeds: [], components: [] }).catch(() => {});
+        if (error.code === 'InteractionCollectorError') {
+            await reply.edit({ content: '⏱️ Selection timed out.', embeds: [], components: [] }).catch(() => {});
+        } else {
+            console.error('Error in pet unequip:', error);
+        }
     }
 }
 

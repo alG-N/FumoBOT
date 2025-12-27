@@ -47,7 +47,7 @@ function parseAmount(input, max = Infinity) {
 }
 
 async function handleAddItem(message) {
-    const allowedUsers = ['1128296349566251068'];
+    const allowedUsers = ['1128296349566251068', '1362450043939979378', '1421544451897299024'];
     if (!allowedUsers.includes(message.author.id)) {
         return message.reply({
             embeds: [
@@ -124,7 +124,7 @@ async function handleAddItem(message) {
 }
 
 async function handleAddFumo(message) {
-    const allowedUsers = ['1128296349566251068'];
+    const allowedUsers = ['1128296349566251068', '1362450043939979378', '1421544451897299024'];
     if (!allowedUsers.includes(message.author.id)) {
         return message.reply({
             embeds: [

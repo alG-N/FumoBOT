@@ -142,6 +142,69 @@ function pickRandomPet(eggName, eggPools) {
     return pool[pool.length - 1];
 }
 
+async function ensurePetHasAbility(pet) {
+    if (pet.ability && pet.ability !== 'null' && pet.ability !== '{}') {
+        return pet;
+    }
+
+    const ability = calculateBoost(pet);
+    if (ability) {
+        pet.ability = JSON.stringify(ability);
+    }
+    
+    return pet;
+}
+
+async function migrateAllPetsAbilities() {
+    const db = require('../../Core/database');
+    
+    // Better query to find pets without valid abilities
+    const pets = await db.all(
+        `SELECT * FROM petInventory 
+         WHERE type = 'pet' 
+         AND (
+             ability IS NULL 
+             OR ability = '' 
+             OR ability = 'null' 
+             OR ability = '{}' 
+             OR ability = 'undefined'
+         )`,
+        []
+    );
+    
+    console.log(`🔄 Found ${pets.length} pets without abilities. Updating...`);
+    
+    let updated = 0;
+    let skipped = 0;
+    
+    for (const pet of pets) {
+        const ability = calculateBoost(pet);
+        if (ability) {
+            try {
+                await db.run(
+                    `UPDATE petInventory SET ability = ? WHERE petId = ?`,
+                    [JSON.stringify(ability), pet.petId]
+                );
+                updated++;
+                console.log(`✅ Updated ${pet.name} "${pet.petName}" (${pet.petId})`);
+            } catch (error) {
+                console.error(`❌ Failed to update ${pet.petId}:`, error.message);
+                skipped++;
+            }
+        } else {
+            console.warn(`⚠️ No ability calculated for ${pet.name} "${pet.petName}" (${pet.petId})`);
+            skipped++;
+        }
+    }
+    
+    console.log(`✅ Updated ${updated} pets with abilities`);
+    if (skipped > 0) {
+        console.log(`⚠️ Skipped ${skipped} pets`);
+    }
+    
+    return { total: pets.length, updated, skipped };
+}
+
 module.exports = {
     calculateBoost,
     getXpRequired,
@@ -153,5 +216,7 @@ module.exports = {
     getMaxWeight,
     getRandomQuality,
     generatePetName,
-    pickRandomPet
+    pickRandomPet,
+    ensurePetHasAbility,
+    migrateAllPetsAbilities
 };

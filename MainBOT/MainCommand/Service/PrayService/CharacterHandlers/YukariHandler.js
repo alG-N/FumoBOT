@@ -88,7 +88,7 @@ async function handleYukari(userId, channel) {
 
     await updateYukariData(userId, coinsEarned, gemsEarned, mark);
 
-    if (Math.random() < config.rewards.fumoTokenChance * 5) {
+    if (Math.random() < Math.min(1, config.rewards.fumoTokenChance * 5)) {
         const tokens = Math.floor(Math.random() * 5) + 2;
         await addSpiritTokens(userId, tokens);
     }
@@ -190,11 +190,22 @@ async function rollBonusItem(userId, mark, config) {
     const bonusConfig = config.bonusItems[mark];
     if (!bonusConfig) return null;
 
+    // Treat "chance" as a weight and normalize after applying the 3x multiplier
+    let totalScaledChance = 0;
+    for (const { chance } of Object.values(bonusConfig)) {
+        totalScaledChance += chance * 3;
+    }
+
+    if (!totalScaledChance) {
+        return null;
+    }
+
     const roll = Math.random();
     let cumulative = 0;
 
     for (const [itemName, { chance, quantity }] of Object.entries(bonusConfig)) {
-        cumulative += chance * 3;
+        const scaledChance = (chance * 3) / totalScaledChance;
+        cumulative += scaledChance;
         if (roll < cumulative) {
             const [minQty, maxQty] = quantity;
             const qty = mark >= 7 

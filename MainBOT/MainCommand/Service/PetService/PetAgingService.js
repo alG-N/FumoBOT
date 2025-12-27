@@ -152,7 +152,7 @@ async function handleEquippedPetAging() {
             pet.rarity = pet.rarity || 'Common';
 
             let agedUp = false;
-            const maxWeight = PetStats.getMaxWeight(pet.weight);
+            const maxWeight = PetStats.getMaxWeight(pet.baseWeight || pet.weight);
 
             while (pet.age < MAX_AGE) {
                 const xpRequired = PetStats.getXpRequired(pet.level, pet.age, pet.rarity);

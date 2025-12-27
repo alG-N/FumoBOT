@@ -55,6 +55,12 @@ async function hatchEgg(userId, eggName) {
         baseWeight: weight
     };
 
+    // Calculate and assign ability immediately
+    const ability = PetStats.calculateBoost(petData);
+    if (ability) {
+        petData.ability = JSON.stringify(ability);
+    }
+
     await PetDatabase.insertPet(petData);
     
     return {

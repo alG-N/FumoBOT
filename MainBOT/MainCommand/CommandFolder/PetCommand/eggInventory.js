@@ -34,57 +34,75 @@ module.exports = async (client) => {
                     return interaction.reply({ content: "❌ You can't interact with this.", ephemeral: true });
                 }
 
-                const [action, , pageStr] = interaction.customId.split("_");
-                let updatedEmbed, updatedRow;
+                try {
+                    // Acknowledge the interaction immediately
+                    await interaction.deferUpdate();
 
-                if (action === "egginv") {
-                    const eggs = await PetDatabase.getUserEggs(userId, false);
-                    updatedEmbed = PetUI.createInventoryEmbed("eggs", interaction.user, eggs);
-                    updatedRow = PetUI.createInventoryButtons("eggs", userId);
-                    petPage = 0;
-                } 
-                else if (action === "petinv") {
-                    const pets = await PetDatabase.getUserPets(userId, false);
-                    petsCache = pets;
-                    
-                    const equipped = await PetDatabase.getEquippedPets(userId, false);
-                    const equippedIds = equipped.map(e => e.petId);
-                    equippedCache = equippedIds;
-                    
-                    const { pets: pagedPets, currentPage, totalPages: tp } = paginatePets(pets, 0, 5);
-                    petPage = 0;
-                    totalPages = tp;
-                    updatedEmbed = PetUI.createInventoryEmbed("pets", interaction.user, [], pagedPets, equippedIds, currentPage, tp);
-                    updatedRow = PetUI.createInventoryButtons("pets", userId, false, currentPage, tp);
-                } 
-                else if (action === "petequipped") {
-                    const equipped = await PetDatabase.getEquippedPets(userId, false);
-                    updatedEmbed = PetUI.createInventoryEmbed("equipped", interaction.user, [], equipped, [], 0, 1);
-                    updatedRow = PetUI.createInventoryButtons("equipped", userId);
-                    petPage = 0;
-                } 
-                else if (action === "petpageback" || action === "petpagenext") {
-                    let pets = petsCache || await PetDatabase.getUserPets(userId, false);
-                    let equippedIds = equippedCache;
-                    
-                    if (!equippedIds) {
+                    const [action, , pageStr] = interaction.customId.split("_");
+                    let updatedEmbed, updatedRow;
+
+                    if (action === "egginv") {
+                        const eggs = await PetDatabase.getUserEggs(userId, false);
+                        updatedEmbed = PetUI.createInventoryEmbed("eggs", interaction.user, eggs);
+                        updatedRow = PetUI.createInventoryButtons("eggs", userId);
+                        petPage = 0;
+                    } 
+                    else if (action === "petinv") {
+                        const pets = await PetDatabase.getUserPets(userId, false);
+                        petsCache = pets;
+                        
                         const equipped = await PetDatabase.getEquippedPets(userId, false);
-                        equippedIds = equipped.map(e => e.petId);
+                        const equippedIds = equipped.map(e => e.petId);
                         equippedCache = equippedIds;
+                        
+                        const { pets: pagedPets, currentPage, totalPages: tp } = paginatePets(pets, 0, 5);
+                        petPage = 0;
+                        totalPages = tp;
+                        updatedEmbed = PetUI.createInventoryEmbed("pets", interaction.user, [], pagedPets, equippedIds, currentPage, tp);
+                        updatedRow = PetUI.createInventoryButtons("pets", userId, false, currentPage, tp);
+                    } 
+                    else if (action === "petequipped") {
+                        const equipped = await PetDatabase.getEquippedPets(userId, false);
+                        updatedEmbed = PetUI.createInventoryEmbed("equipped", interaction.user, [], equipped, [], 0, 1);
+                        updatedRow = PetUI.createInventoryButtons("equipped", userId);
+                        petPage = 0;
+                    } 
+                    else if (action === "petpageback" || action === "petpagenext") {
+                        let pets = petsCache || await PetDatabase.getUserPets(userId, false);
+                        let equippedIds = equippedCache;
+                        
+                        if (!equippedIds) {
+                            const equipped = await PetDatabase.getEquippedPets(userId, false);
+                            equippedIds = equipped.map(e => e.petId);
+                            equippedCache = equippedIds;
+                        }
+                        
+                        totalPages = Math.ceil(pets.length / 5) || 1;
+                        petPage = Number(pageStr) || 0;
+                        
+                        if (action === "petpageback") petPage = Math.max(0, petPage - 1);
+                        if (action === "petpagenext") petPage = Math.min(totalPages - 1, petPage + 1);
+                        
+                        const { pets: pagedPets, currentPage, totalPages: tp } = paginatePets(pets, petPage, 5);
+                        updatedEmbed = PetUI.createInventoryEmbed("pets", interaction.user, [], pagedPets, equippedIds, currentPage, tp);
+                        updatedRow = PetUI.createInventoryButtons("pets", userId, false, currentPage, tp);
                     }
-                    
-                    totalPages = Math.ceil(pets.length / 5) || 1;
-                    petPage = Number(pageStr) || 0;
-                    
-                    if (action === "petpageback") petPage = Math.max(0, petPage - 1);
-                    if (action === "petpagenext") petPage = Math.min(totalPages - 1, petPage + 1);
-                    
-                    const { pets: pagedPets, currentPage, totalPages: tp } = paginatePets(pets, petPage, 5);
-                    updatedEmbed = PetUI.createInventoryEmbed("pets", interaction.user, [], pagedPets, equippedIds, currentPage, tp);
-                    updatedRow = PetUI.createInventoryButtons("pets", userId, false, currentPage, tp);
-                }
 
-                await interaction.update({ embeds: [updatedEmbed], components: [updatedRow] });
+                    await interaction.editReply({ embeds: [updatedEmbed], components: [updatedRow] });
+                } catch (error) {
+                    if (error.code === 10062) {
+                        // Unknown interaction - token expired, ignore silently
+                        console.log('⚠️ Interaction token expired, ignoring');
+                    } else {
+                        console.error('Error handling pet inventory interaction:', error);
+                        try {
+                            await interaction.followUp({ 
+                                content: '❌ An error occurred. Please try the command again.', 
+                                ephemeral: true 
+                            });
+                        } catch {}
+                    }
+                }
             });
 
             collector.on('end', async () => {

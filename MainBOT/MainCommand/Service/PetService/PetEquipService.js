@@ -21,16 +21,19 @@ async function equipPet(userId, petId) {
         return { success: false, error: 'ALREADY_EQUIPPED' };
     }
     
+    // Ensure pet has an ability before equipping
+    const updatedPet = await PetStats.ensurePetHasAbility(pet);
+    
     await PetDatabase.equipPet(userId, petId);
     
-    const ability = PetStats.calculateBoost(pet);
+    const ability = PetStats.calculateBoost(updatedPet);
     if (ability) {
         await PetBoost.updatePetAbility(petId, ability);
     }
     
     await PetBoost.refreshBoosts(userId);
     
-    return { success: true, pet };
+    return { success: true, pet: updatedPet };
 }
 
 async function unequipPet(userId, petId) {
@@ -43,6 +46,10 @@ async function unequipPet(userId, petId) {
 async function equipBestPets(userId) {
     const pets = await PetDatabase.getUserPets(userId, false);
     
+    if (pets.length === 0) {
+        return { success: false, error: 'NO_PETS' };
+    }
+    
     const scored = pets.map(p => ({
         ...p,
         score: (p.quality + p.weight) * (p.age || 1) * (p.level || 1)
@@ -53,9 +60,12 @@ async function equipBestPets(userId) {
     await PetDatabase.unequipAllPets(userId);
     
     for (const pet of best) {
+        // Ensure each pet has an ability
+        const updatedPet = await PetStats.ensurePetHasAbility(pet);
+        
         await PetDatabase.equipPet(userId, pet.petId);
         
-        const ability = PetStats.calculateBoost(pet);
+        const ability = PetStats.calculateBoost(updatedPet);
         if (ability) {
             await PetBoost.updatePetAbility(pet.petId, ability);
         }

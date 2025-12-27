@@ -150,7 +150,7 @@ async function handleReturnPhase(userId, channel, user, config, isPityRound) {
         await channel.send({
             embeds: [new EmbedBuilder()
                 .setTitle('🌟 Loyalty Reward: StarShard! 🌟')
-                .setDescription('After 5 generous donations, Marisa gifts you a mysterious **StarShard(M)**.\nReward chances are also increased!')
+                .setDescription(`After ${config.pity.threshold} generous donations, Marisa gifts you a mysterious **${config.pity.reward}**.\nReward chances are also increased!`)
                 .setColor('#00ffff')
                 .setTimestamp()]
         });
@@ -220,10 +220,10 @@ async function rollSpecialItem(userId, config, isPityRound) {
     if (roll < goldenChance) {
         await addToInventory(userId, 'GoldenSigil(?)', 1);
         return '✨ **GoldenSigil(?)** - Ultra rare drop!';
-    } else if (roll < fragChance) {
+    } else if (roll < goldenChance + fragChance) {
         await addToInventory(userId, 'FragmentOf1800s(R)', 1);
         return '📜 **FragmentOf1800s(R)** - Rare drop!';
-    } else if (roll < ticketChance) {
+    } else if (roll < goldenChance + fragChance + ticketChance) {
         await addToInventory(userId, 'HakureiTicket(L)', 1);
         return '🎫 **HakureiTicket(L)** - A legendary ticket!';
     }
