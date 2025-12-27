@@ -189,12 +189,11 @@ async function _buildIllustEmbed(embed, item, options) {
             .setTitle(item.title)
             .setURL(`https://www.pixiv.net/artworks/${item.id}`)
             .setDescription(
-                `**Artist:** ${item.user.name}\n` +
+                `**Artist:** [${item.user.name}](https://www.pixiv.net/users/${item.user.id})\n` +
                 `**Content:** ${typeEmoji} ${typeText}${item.page_count > 1 ? ` (${item.page_count} images)` : ''}\n` +
                 `**Rating:** ${nsfwStatus}\n` +
                 `**Type:** ${aiStatus}\n` +
-                `**Views:** ${views.toLocaleString()} 👁️\n` +
-                `**Bookmarks:** ${bookmarks.toLocaleString()} ❤️ (${bookmarkRate}%)`
+                `**Views:** ${views.toLocaleString()} 👁️ | **Bookmarks:** ${bookmarks.toLocaleString()} ❤️ (${bookmarkRate}%)`
             )
             .setImage(proxyImageUrl)
             .addFields({
@@ -203,7 +202,7 @@ async function _buildIllustEmbed(embed, item, options) {
                 inline: false
             })
             .setFooter({
-                text: `${sortModeText} • Search Page ${searchPage} • Result ${resultIndex + 1}/${totalResults}${item.page_count > 1 ? ` • Image ${mangaPageIndex + 1}/${item.page_count}` : ''} • ID: ${item.id}${shouldTranslate ? ` • "${originalQuery}"` : ''}`
+                text: `${sortModeText} • Page ${searchPage} • Result ${resultIndex + 1}/${totalResults}${item.page_count > 1 ? ` • Image ${mangaPageIndex + 1}/${item.page_count}` : ''} • ID: ${item.id}${shouldTranslate ? ` • "${originalQuery}"` : ''}`
             })
             .setTimestamp(new Date(item.create_date));
     } catch (err) {
@@ -232,15 +231,26 @@ async function _buildIllustEmbed(embed, item, options) {
 }
 
 function createNoResultsEmbed(query, translatedQuery, shouldTranslate, contentType) {
-    return new EmbedBuilder()
+    const embed = new EmbedBuilder()
         .setColor('#FF6B6B')
         .setTitle('❌ No Results Found')
         .setDescription(
             `No ${contentType === 'novel' ? 'novels' : 'artwork'} found for: **${translatedQuery}**` +
             (shouldTranslate ? `\n(Translated from: "${query}")` : '')
         )
-        .setFooter({ text: 'Try a different search term or adjust filters' })
+        .addFields({
+            name: '📝 Search Tips',
+            value: 
+                '• Try Japanese tags (e.g., `巫女` instead of `miko`)\n' +
+                '• Add `R-18` to your search for explicit content\n' +
+                '• Use artwork ID directly (e.g., `/pixiv query:139155931`)\n' +
+                '• Try different sorting options',
+            inline: false
+        })
+        .setFooter({ text: 'Note: Pixiv API results may differ from website results' })
         .setTimestamp();
+    
+    return embed;
 }
 
 function createErrorEmbed(error) {
