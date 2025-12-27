@@ -272,11 +272,20 @@ function createAutoRollSummary(summary, userId) {
 
     const rollCount = summary.rollCount || 0;
     const coinsSpent = rollCount * 10000;
+    
+    let stopReasonText = '';
+    if (summary.stoppedReason === 'STORAGE_LIMIT_REACHED') {
+        stopReasonText = '\n\n🛑 **Stopped:** Storage limit reached (100,000 fumos)\n⚠️ Please sell some fumos to continue rolling!';
+    } else if (summary.stoppedReason === 'STORAGE_FULL') {
+        stopReasonText = '\n\n🛑 **Stopped:** Storage is full\n💡 **Tip:** Enable auto-sell next time to continue automatically!';
+    }
+    
     const statsField = [
         `🎲 **Total Rolls:** \`${(rollCount * 100).toLocaleString()}\``,
         `💸 **Coins Spent:** \`${coinsSpent.toLocaleString()}\``,
         bestFumoText,
-        specialText
+        specialText,
+        stopReasonText
     ].filter(Boolean).join('\n');
 
     const embed = new EmbedBuilder()

@@ -1,7 +1,6 @@
 const { get } = require('../../Core/database');
 const { logUserActivity, logError, logToDiscord } = require('../../Core/logger');
 const { checkRestrictions } = require('../../Middleware/restrictions');
-const { checkAndSetCooldown } = require('../../Middleware/rateLimiter');
 const { verifyButtonOwnership } = require('../../Middleware/buttonOwnership');
 const { getUserBoosts } = require('../../Service/GachaService/NormalGachaService/BoostService');
 const { performSingleRoll, performMultiRoll } = require('../../Service/GachaService/NormalGachaService/CrateGachaRollService');
@@ -15,18 +14,27 @@ const {
 } = require('../../Service/GachaService/NormalGachaService/CrateGachaUIService');
 
 const { SPECIAL_RARITIES } = require('../../Configuration/rarity');
+const { STORAGE_CONFIG } = require('../../Configuration/storageConfig');
 const FumoPool = require('../../Data/FumoPool');
+const StorageLimitService = require('../../Service/UserDataService/StorageService/StorageLimitService');
 
 async function handleSingleRoll(interaction, client) {
     try {
-        const crateFumos = FumoPool.getForCrate();
+        // Check storage BEFORE starting
+        const storageStatus = await StorageLimitService.getStorageStatus(interaction.user.id);
+        if (storageStatus.current >= STORAGE_CONFIG.MAX_STORAGE) {
+            const embed = StorageLimitService.createStorageFullEmbed(storageStatus, 1);
+            return await interaction.reply({ embeds: [embed], ephemeral: true });
+        }
 
+        const crateFumos = FumoPool.getForCrate();
         const result = await performSingleRoll(interaction.user.id, crateFumos);
 
         if (!result.success) {
             const errorMessages = {
                 'INSUFFICIENT_COINS': 'You do not have enough coins to buy a fumo.',
-                'NO_FUMO_FOUND': 'No Fumo found for this rarity. Please contact the developer.'
+                'NO_FUMO_FOUND': 'No Fumo found for this rarity. Please contact the developer.',
+                'STORAGE_FULL': 'Your storage is full! Please sell some fumos first.'
             };
             return await interaction.reply({
                 content: errorMessages[result.error] || 'An error occurred.',
@@ -59,18 +67,34 @@ async function handleSingleRoll(interaction, client) {
 
 async function handleMultiRoll(interaction, rollCount, client) {
     try {
-        const crateFumos = FumoPool.getForCrate();
+        // Check storage BEFORE starting
+        const storageStatus = await StorageLimitService.getStorageStatus(interaction.user.id);
+        if (storageStatus.current >= STORAGE_CONFIG.MAX_STORAGE) {
+            const embed = StorageLimitService.createStorageFullEmbed(storageStatus, rollCount);
+            return await interaction.reply({ embeds: [embed], ephemeral: true });
+        }
 
+        const crateFumos = FumoPool.getForCrate();
         const result = await performMultiRoll(interaction.user.id, crateFumos, rollCount);
 
         if (!result.success) {
+            const errorMessages = {
+                'INSUFFICIENT_COINS': `You do not have enough coins to buy ${rollCount} fumos.`,
+                'STORAGE_FULL': 'Your storage is full! Please sell some fumos first.'
+            };
             return await interaction.reply({
-                content: `You do not have enough coins to buy ${rollCount} fumos.`,
+                content: errorMessages[result.error] || 'An error occurred.',
                 ephemeral: true
             });
         }
 
         await displayMultiRollResults(interaction, result.fumosBought, result.bestFumo, rollCount);
+
+        // Warn if storage is getting full
+        if (result.storageWarning) {
+            const warningEmbed = StorageLimitService.createStorageWarningEmbed(result.storageWarning);
+            await interaction.followUp({ embeds: [warningEmbed], ephemeral: true }).catch(() => {});
+        }
 
         await logToDiscord(
             client,
@@ -92,6 +116,21 @@ async function handleAutoRollStart(interaction, client) {
     const userId = interaction.user.id;
 
     try {
+        // Check if already running FIRST
+        if (isAutoRollActive(userId)) {
+            return await interaction.reply({
+                content: '⏳ You already have Auto Roll active! Use "Stop Roll 100" to stop it first.',
+                ephemeral: true
+            });
+        }
+
+        // Check storage status
+        const storageStatus = await StorageLimitService.getStorageStatus(userId);
+        if (storageStatus.current >= STORAGE_CONFIG.MAX_STORAGE) {
+            const embed = StorageLimitService.createStorageFullEmbed(storageStatus, 100);
+            return await interaction.reply({ embeds: [embed], ephemeral: true });
+        }
+
         const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Colors } = require('discord.js');
 
         const choiceRow = new ActionRowBuilder().addComponents(
@@ -117,7 +156,9 @@ async function handleAutoRollStart(interaction, client) {
         });
 
         const filter = i => {
-            return verifyButtonOwnership(i);
+            return i.user.id === userId && 
+                   (i.customId === `autoRollProceed_${userId}` || 
+                    i.customId === `autoRollAutoSell_${userId}`);
         };
 
         const collector = interaction.channel.createMessageComponentCollector({
@@ -127,53 +168,53 @@ async function handleAutoRollStart(interaction, client) {
         });
 
         collector.on('collect', async i => {
-            if (!i.isButton()) return;
+            // IMMEDIATELY stop the collector
+            collector.stop('handled');
             
+            // IMMEDIATELY defer the interaction
             try {
-                if (!i.deferred && !i.replied) {
-                    await i.deferUpdate().catch(err => {
-                        console.warn('Failed to defer interaction (likely expired):', err.message);
-                    });
-                }
+                await i.deferUpdate();
             } catch (deferError) {
-                console.warn('Error deferring interaction:', deferError.message);
+                console.error('Failed to defer:', deferError.message);
+                return;
             }
 
             const autoSell = i.customId.startsWith('autoRollAutoSell_');
-
             const crateFumos = FumoPool.getForCrate();
+            
+            // Check again if already running
+            if (isAutoRollActive(userId)) {
+                return await i.followUp({
+                    content: '⏳ You already have Auto Roll active!',
+                    ephemeral: true
+                }).catch(() => {});
+            }
+
             const result = await startAutoRoll(userId, crateFumos, autoSell);
 
             if (!result.success) {
-                const responseMethod = i.deferred || i.replied ? 'followUp' : 'reply';
+                const errorMessages = {
+                    'ALREADY_RUNNING': 'You already have Auto Roll active!',
+                    'STORAGE_FULL': 'Your storage is full! Enable auto-sell or free up space first.'
+                };
                 
-                return await i[responseMethod]({
-                    embeds: [{
-                        title: '⏳ Auto Roll Already Running',
-                        description: 'You already have Auto Roll active!',
-                        color: 0xffcc00
-                    }],
+                return await i.followUp({
+                    content: errorMessages[result.error] || result.message || 'Failed to start auto-roll.',
                     ephemeral: true
-                }).catch(err => {
-                    console.warn('Failed to send error response:', err.message);
-                });
+                }).catch(() => {});
             }
-
-            const responseMethod = i.deferred || i.replied ? 'followUp' : 'reply';
             
-            await i[responseMethod]({
+            await i.followUp({
                 embeds: [{
                     title: autoSell ? '🤖 Auto Roll + AutoSell Started!' : '🎰 Auto Roll Started!',
                     description: autoSell
                         ? `Rolling every **${result.interval / 1000} seconds** and **auto-selling all fumos below EXCLUSIVE**.\nUse \`Stop Roll 100\` to cancel.`
                         : `Rolling every **${result.interval / 1000} seconds** indefinitely.\nUse \`Stop Roll 100\` to cancel.`,
                     color: 0x3366ff,
-                    footer: { text: 'This will continue until you stop it manually.' }
+                    footer: { text: 'This will continue until you stop it manually or storage is full.' }
                 }],
                 ephemeral: true
-            }).catch(err => {
-                console.warn('Failed to send success response:', err.message);
-            });
+            }).catch(() => {});
 
             await logUserActivity(
                 client,
@@ -184,15 +225,13 @@ async function handleAutoRollStart(interaction, client) {
             );
         });
 
-        collector.on('end', collected => {
-            if (collected.size === 0) {
+        collector.on('end', (collected, reason) => {
+            if (reason === 'time' && collected.size === 0) {
                 interaction.editReply({
                     content: '⏱️ Auto Roll setup timed out.',
                     components: [],
                     embeds: []
-                }).catch(err => {
-                    console.warn('Failed to edit reply on timeout:', err.message);
-                });
+                }).catch(() => {});
             }
         });
 
@@ -314,7 +353,6 @@ module.exports = (client) => {
             const userId = interaction.user.id;
             
             const parts = interaction.customId.split('_');
-            const claimedUserId = parts[parts.length - 1];
             const action = parts.slice(0, -1).join('_');
 
             const crategachaActions = ['buy1fumo', 'buy10fumos', 'buy100fumos', 'autoRoll50', 'stopAuto50', 'autoRollProceed', 'autoRollAutoSell'];
@@ -329,21 +367,11 @@ module.exports = (client) => {
                 });
             }
 
-            if (['buy1fumo', 'buy10fumos', 'buy100fumos', 'autoRoll50', 'stopAuto50'].includes(action)) {
-                const cooldown = await checkAndSetCooldown(userId, 'gacha');
-                if (cooldown.onCooldown) {
-                    return interaction.reply({
-                        content: `🕒 Please wait ${cooldown.remaining}s before clicking again.`,
-                        ephemeral: true
-                    });
-                }
-
-                if (['buy1fumo', 'buy10fumos', 'buy100fumos'].includes(action) && isAutoRollActive(userId)) {
-                    return interaction.reply({
-                        content: '⚠️ You cannot manually roll while Auto Roll is active. Please stop it first.',
-                        ephemeral: true
-                    });
-                }
+            if (['buy1fumo', 'buy10fumos', 'buy100fumos'].includes(action) && isAutoRollActive(userId)) {
+                return interaction.reply({
+                    content: '⚠️ You cannot manually roll while Auto Roll is active. Please stop it first.',
+                    ephemeral: true
+                });
             }
 
             switch (action) {

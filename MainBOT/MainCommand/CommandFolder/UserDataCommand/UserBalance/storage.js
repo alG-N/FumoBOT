@@ -127,6 +127,23 @@ module.exports = (client) => {
                         embeds: [statsEmbed],
                         ephemeral: true
                     }).catch(() => {});
+                case 'info':
+                    try {
+                        const storageInfoEmbed = await StorageUIService.createStorageInfoEmbed(
+                            message.author.id,
+                            message.author.username
+                        );
+                        return interaction.reply({
+                            embeds: [storageInfoEmbed],
+                            ephemeral: true
+                        }).catch(() => {});
+                    } catch (error) {
+                        console.error('Error creating storage info embed:', error);
+                        return interaction.reply({
+                            content: '❌ An error occurred while fetching storage info.',
+                            ephemeral: true
+                        }).catch(() => {});
+                    }
                 case 'search':
                     return interaction.reply({
                         content: '🔍 Search feature coming soon!',

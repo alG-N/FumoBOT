@@ -4,6 +4,7 @@ const { selectAndAddFumo } = require('../NormalGachaService/InventoryService');
 const { updateQuestsAndAchievements } = require('../NormalGachaService/CrateGachaRollService');
 const { incrementWeeklyShiny } = require('../../../Ultility/weekly');
 const FumoPool = require('../../../Data/FumoPool');
+const StorageLimitService = require('../../UserDataService/StorageService/StorageLimitService');
 
 async function getEventUserBoosts(userId) {
     const now = Date.now();
@@ -185,6 +186,21 @@ async function performEventSummon(userId, numSummons) {
             return { success: false, error: 'NO_FANTASY_BOOK' };
         }
 
+        // Check storage capacity
+        const storageCheck = await StorageLimitService.canAddFumos(userId, numSummons);
+        let actualSummons = numSummons;
+        
+        if (!storageCheck.canAdd) {
+            if (storageCheck.maxAllowed === 0) {
+                return { 
+                    success: false, 
+                    error: 'STORAGE_FULL',
+                    storageStatus: storageCheck
+                };
+            }
+            actualSummons = storageCheck.maxAllowed;
+        }
+
         const boosts = await getEventUserBoosts(userId);
         const fumoList = [];
 
@@ -193,7 +209,7 @@ async function performEventSummon(userId, numSummons) {
         let currentTotalRolls = userData.totalRolls || 0;
         let currentRollsLeft = userData.rollsLeft || 0;
 
-        for (let i = 0; i < numSummons; i++) {
+        for (let i = 0; i < actualSummons; i++) {
             currentTotalRolls++;
 
             const rarity = await selectEventRarity(
@@ -241,7 +257,11 @@ async function performEventSummon(userId, numSummons) {
             fumoList,
             rollsSinceLastMythical: currentMythical,
             rollsSinceLastQuestionMark: currentQuestion,
-            boostText: boosts.lines.join('\n') || 'No luck boost applied...'
+            boostText: boosts.lines.join('\n') || 'No luck boost applied...',
+            partialSummon: actualSummons < numSummons,
+            requestedCount: numSummons,
+            actualCount: actualSummons,
+            storageWarning: actualSummons < numSummons ? storageCheck : null
         };
     } catch (error) {
         console.error(`❌ Error in performEventSummon for user ${userId}:`, error);
