@@ -349,23 +349,20 @@ client.on('interactionCreate', async interaction => {
             return;
         }
 
-        if (interaction.customId.startsWith('show_post_') ||
-            interaction.customId.startsWith('gallery_') ||
-            interaction.customId.startsWith('back_to_list_') ||
-            interaction.customId.startsWith('page_next_') ||
-            interaction.customId.startsWith('page_prev_')) {
+        // Reddit button handlers - updated patterns
+        if (interaction.customId.startsWith('reddit_')) {
             const redditCommand = client.commands.get('reddit');
             if (redditCommand && redditCommand.handleButton) {
                 try {
                     await redditCommand.handleButton(interaction);
                 } catch (error) {
                     console.error('Reddit button handler error:', error);
-                    await safeReply(interaction, 'There was an error processing this button!');
                 }
             }
             return;
         }
 
+        // Pixiv button handlers
         if (interaction.customId.startsWith('pixiv_')) {
             const pixivCommand = client.commands.get('pixiv');
             if (pixivCommand && pixivCommand.handleButton) {
@@ -373,9 +370,14 @@ client.on('interactionCreate', async interaction => {
                     await pixivCommand.handleButton(interaction);
                 } catch (error) {
                     console.error('Pixiv button handler error:', error);
-                    await safeReply(interaction, 'There was an error processing this button!');
                 }
             }
+            return;
+        }
+
+        // Steam button handlers
+        if (interaction.customId.startsWith('steam_')) {
+            // Steam buttons are handled by the collector in saleHandler
             return;
         }
 
@@ -409,7 +411,8 @@ client.on('interactionCreate', async interaction => {
         try {
             await command.autocomplete(interaction);
         } catch (error) {
-            console.error('Autocomplete error:', error);
+            // Silently ignore autocomplete errors - they're non-critical
+            console.log(`[Autocomplete] Error for ${interaction.commandName}:`, error.message);
         }
         return;
     }
