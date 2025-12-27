@@ -83,21 +83,15 @@ module.exports = {
                 return interaction.respond([]).catch(() => {});
             }
 
-            const focusedValue = focused.value;
+            const focusedValue = focused.value?.trim();
 
-            if (!focusedValue?.trim() || focusedValue.length < 2) {
+            if (!focusedValue || focusedValue.length < 1) {
                 return interaction.respond([
-                    { name: '💡 Type at least 2 characters...', value: ' ' }
+                    { name: '💡 Type to search...', value: ' ' }
                 ]).catch(() => {});
             }
 
-            // Check cache first
-            const cached = pixivCache.getSearchSuggestions(focusedValue);
-            if (cached) {
-                return interaction.respond(cached).catch(() => {});
-            }
-
-            // Set a strict timeout - must respond within 3 seconds
+            // Set a strict timeout
             const timeoutPromise = new Promise((_, reject) => 
                 setTimeout(() => reject(new Error('Timeout')), 2000)
             );
@@ -106,67 +100,104 @@ module.exports = {
                 let choices = [];
                 const isEnglish = pixivService.isEnglishText(focusedValue);
 
-                if (isEnglish) {
-                    // Simplified flow for English - just translate and search
-                    const translated = await pixivService.translateToJapanese(focusedValue);
-                    const suggestions = await pixivService.getAutocompleteSuggestions(translated);
-
-                    if (suggestions.length > 0) {
-                        // Increased limit for more suggestions
-                        const limitedSuggestions = suggestions.slice(0, 15);
-                        const translationPromises = limitedSuggestions.map(async (keyword) => {
-                            try {
-                                const englishTranslation = await pixivService.translateToEnglish(keyword);
-                                const displayName = englishTranslation ? `${keyword} - ${englishTranslation}` : keyword;
-                                return {
-                                    name: displayName.slice(0, 100),
-                                    value: keyword.slice(0, 100)
-                                };
-                            } catch {
-                                return { name: keyword.slice(0, 100), value: keyword.slice(0, 100) };
-                            }
-                        });
-
-                        choices = await Promise.all(translationPromises);
-                    }
-
-                    // Add translated query as first option
-                    choices.unshift({
-                        name: `🌐 ${translated}`.slice(0, 100),
-                        value: translated.slice(0, 100)
-                    });
-                } else {
-                    // Japanese input - get more suggestions
-                    const suggestions = await pixivService.getAutocompleteSuggestions(focusedValue);
-
-                    if (suggestions.length > 0) {
-                        choices = suggestions.slice(0, 20).map(keyword => ({
-                            name: keyword.slice(0, 100),
-                            value: keyword.slice(0, 100)
-                        }));
-                    }
-                }
-
-                // Always add the user's input as an option
-                choices.unshift({
-                    name: `🔍 Search: "${focusedValue.slice(0, 85)}"`,
+                // ALWAYS add the exact user input as FIRST option
+                choices.push({
+                    name: `🔍 "${focusedValue}"`.slice(0, 100),
                     value: focusedValue.slice(0, 100)
                 });
+
+                if (isEnglish) {
+                    // English input - also offer translation
+                    try {
+                        const translated = await pixivService.translateToJapanese(focusedValue);
+                        if (translated && translated !== focusedValue) {
+                            choices.push({
+                                name: `🌐 ${translated} (${focusedValue})`.slice(0, 100),
+                                value: translated.slice(0, 100)
+                            });
+                        }
+                    } catch {}
+
+                    // Get suggestions based on translated query
+                    try {
+                        const translated = await pixivService.translateToJapanese(focusedValue);
+                        const suggestions = await pixivService.getAutocompleteSuggestions(translated);
+                        
+                        if (suggestions.length > 0) {
+                            // Translate suggestions to English for display
+                            const translationPromises = suggestions.slice(0, 12).map(async (keyword) => {
+                                if (keyword.toLowerCase() === focusedValue.toLowerCase() || 
+                                    keyword.toLowerCase() === translated?.toLowerCase()) {
+                                    return null;
+                                }
+
+                                try {
+                                    const englishTranslation = await pixivService.translateToEnglish(keyword);
+                                    if (englishTranslation && englishTranslation !== keyword) {
+                                        return {
+                                            name: `${keyword} (${englishTranslation})`.slice(0, 100),
+                                            value: keyword.slice(0, 100)
+                                        };
+                                    }
+                                } catch {}
+
+                                return {
+                                    name: keyword.slice(0, 100),
+                                    value: keyword.slice(0, 100)
+                                };
+                            });
+
+                            const translated = (await Promise.all(translationPromises)).filter(Boolean);
+                            choices.push(...translated);
+                        }
+                    } catch {}
+                } else {
+                    // Japanese/non-English input - get suggestions and translate them
+                    try {
+                        const suggestions = await pixivService.getAutocompleteSuggestions(focusedValue);
+                        
+                        if (suggestions.length > 0) {
+                            // Translate each suggestion to English for better understanding
+                            const translationPromises = suggestions.slice(0, 15).map(async (keyword) => {
+                                // Skip if same as user input
+                                if (keyword.toLowerCase() === focusedValue.toLowerCase()) {
+                                    return null;
+                                }
+
+                                try {
+                                    const englishTranslation = await pixivService.translateToEnglish(keyword);
+                                    if (englishTranslation && englishTranslation !== keyword) {
+                                        // Show as "巫女 (miko)" but value is just "巫女"
+                                        return {
+                                            name: `${keyword} (${englishTranslation})`.slice(0, 100),
+                                            value: keyword.slice(0, 100)
+                                        };
+                                    }
+                                } catch {}
+
+                                // If translation fails, just show the keyword
+                                return {
+                                    name: keyword.slice(0, 100),
+                                    value: keyword.slice(0, 100)
+                                };
+                            });
+
+                            const translatedSuggestions = (await Promise.all(translationPromises)).filter(Boolean);
+                            choices.push(...translatedSuggestions);
+                        }
+                    } catch {}
+                }
 
                 return choices.slice(0, 25);
             })();
 
             const choices = await Promise.race([searchPromise, timeoutPromise]);
-
-            // Cache results
-            pixivCache.setSearchSuggestions(focusedValue, choices);
-            
             await interaction.respond(choices).catch(() => {});
         } catch (error) {
-            console.log('[Pixiv Autocomplete] Timeout or error, responding empty');
+            console.log('[Pixiv Autocomplete] Error, responding with user input');
             const focusedValue = interaction.options.getFocused() || '';
             await interaction.respond([
-                { name: `🔍 Search: "${focusedValue.slice(0, 85)}"`, value: focusedValue.slice(0, 100) || 'search' }
+                { name: `🔍 "${focusedValue.slice(0, 90)}"`, value: focusedValue.slice(0, 100) || 'search' }
             ]).catch(() => {});
         }
     },
@@ -311,11 +342,10 @@ module.exports = {
             if (!result.items || result.items.length === 0) {
                 const embed = contentHandler.createNoResultsEmbed(query, translatedQuery, shouldTranslate, contentType);
                 
-                // Add hint about R18 settings
                 if (showNsfw) {
                     embed.addFields({
                         name: '💡 Tip',
-                        value: 'Make sure your Pixiv account has R18 content enabled in settings. Try searching with Japanese tags like "R-18" directly.',
+                        value: 'Try adding "R-18" to your search, e.g., `R-18 巫女`\nOr use the artwork ID directly if you know it.',
                         inline: false
                     });
                 }
@@ -323,9 +353,26 @@ module.exports = {
                 return interaction.editReply({ content: null, embeds: [embed] });
             }
 
-            // Log R18 content stats
+            // Calculate stats
             const r18Count = result.items.filter(item => item.x_restrict > 0).length;
-            console.log(`[Pixiv] Found ${result.items.length} results (${r18Count} R18) for "${translatedQuery}" | Mode: ${nsfwMode}`);
+            const sfwCount = result.items.filter(item => item.x_restrict === 0).length;
+            const aiCount = result.items.filter(item => item.illust_ai_type === 2).length;
+            
+            // Create summary text
+            let summaryText;
+            if (r18Only) {
+                summaryText = `🔥 Found **${r18Count}** R18 results`;
+            } else if (showNsfw) {
+                summaryText = `🔞 Found **${result.items.length}** results (**${r18Count}** R18, **${sfwCount}** SFW)`;
+            } else {
+                summaryText = `✅ Found **${sfwCount}** SFW results`;
+            }
+            
+            if (aiCount > 0) {
+                summaryText += ` | 🤖 ${aiCount} AI`;
+            }
+
+            console.log(`[Pixiv] ${summaryText} for "${translatedQuery}" | Mode: ${nsfwMode}`);
 
             const cacheKey = `${interaction.user.id}-${interaction.id}`;
 
@@ -345,7 +392,8 @@ module.exports = {
                 page,
                 hasNextPage: !!result.nextUrl,
                 currentResultIndex: 0,
-                currentPageIndex: 0
+                currentPageIndex: 0,
+                stats: { r18Count, sfwCount, aiCount, total: result.items.length }
             });
 
             const { embed, rows } = await contentHandler.createContentEmbed(result.items[0], {
@@ -360,7 +408,14 @@ module.exports = {
                 translatedQuery,
                 mangaPageIndex: 0,
                 sortMode,
-                showNsfw
+                showNsfw,
+                stats: { r18Count, sfwCount, aiCount }
+            });
+
+            // Add summary to embed description or as a field
+            embed.setAuthor({ 
+                name: summaryText.replace(/\*\*/g, ''), 
+                iconURL: 'https://s.pximg.net/common/images/apple-touch-icon.png' 
             });
 
             return interaction.editReply({ content: null, embeds: [embed], components: rows });
@@ -464,33 +519,62 @@ module.exports = {
         }
 
         try {
-            const offset = (newPage - 1) * 30;
+            // IMPORTANT: Calculate correct offset for new page
+            // Each page = 30 items, but we fetch multiple pages per search
+            // For R18/NSFW mode we fetch 3 pages (90 items), so offset needs to account for that
+            const itemsPerSearch = (cached.showNsfw) ? 90 : 30;
+            const offset = (newPage - 1) * itemsPerSearch;
+            
+            console.log(`[Pixiv Nav] Page ${cached.page} -> ${newPage} | Offset: ${offset}`);
+
             const searchOptions = {
                 offset,
                 contentType: cached.contentType,
                 showNsfw: cached.showNsfw,
+                r18Only: cached.r18Only,
                 aiFilter: cached.aiFilter,
                 qualityFilter: cached.qualityFilter,
-                minBookmarks: cached.minBookmarks
+                minBookmarks: cached.minBookmarks,
+                sort: cached.sortMode,
+                fetchMultiple: true
             };
 
             let result;
-            if (cached.sortMode !== 'popular') {
-                if (cached.contentType === 'novel') {
-                    result = await pixivService.search(cached.query, searchOptions);
-                } else {
-                    result = await pixivService.getRanking({
-                        mode: cached.sortMode,
-                        ...searchOptions
-                    });
+            const isRankingMode = ['day', 'week', 'month'].includes(cached.sortMode);
+
+            if (isRankingMode) {
+                result = await pixivService.getRanking({
+                    mode: cached.sortMode,
+                    contentType: cached.contentType,
+                    showNsfw: cached.showNsfw,
+                    r18Only: cached.r18Only,
+                    aiFilter: cached.aiFilter,
+                    offset,
+                    qualityFilter: cached.qualityFilter,
+                    minBookmarks: cached.minBookmarks
+                });
+
+                if (cached.query?.trim()) {
+                    result.items = result.items.filter(item =>
+                        item.title.toLowerCase().includes(cached.query.toLowerCase()) ||
+                        item.tags.some(tag => tag.name.toLowerCase().includes(cached.query.toLowerCase())) ||
+                        item.user.name.toLowerCase().includes(cached.query.toLowerCase())
+                    );
                 }
             } else {
                 result = await pixivService.search(cached.query, searchOptions);
             }
 
             if (!result.items || result.items.length === 0) {
-                return interaction.followUp({ content: '❌ No more results on this page!', ephemeral: true });
+                return interaction.followUp({ content: '❌ No more results available!', ephemeral: true });
             }
+
+            // Calculate new stats
+            const r18Count = result.items.filter(item => item.x_restrict > 0).length;
+            const sfwCount = result.items.filter(item => item.x_restrict === 0).length;
+            const aiCount = result.items.filter(item => item.illust_ai_type === 2).length;
+
+            console.log(`[Pixiv Nav] New page has ${result.items.length} items (${r18Count} R18, ${sfwCount} SFW)`);
 
             // Update cache with new results
             cached.items = result.items;
@@ -498,6 +582,7 @@ module.exports = {
             cached.hasNextPage = !!result.nextUrl;
             cached.currentResultIndex = 0;
             cached.currentPageIndex = 0;
+            cached.stats = { r18Count, sfwCount, aiCount, total: result.items.length };
             pixivCache.setResults(cacheKey, cached);
 
             const { embed, rows } = await contentHandler.createContentEmbed(result.items[0], {
@@ -511,8 +596,27 @@ module.exports = {
                 originalQuery: cached.originalQuery,
                 translatedQuery: cached.query,
                 mangaPageIndex: 0,
-                sortMode: cached.sortMode || 'popular',
-                showNsfw: cached.showNsfw
+                sortMode: cached.sortMode || 'popular_desc',
+                showNsfw: cached.showNsfw,
+                stats: { r18Count, sfwCount, aiCount }
+            });
+
+            // Add summary to embed
+            let summaryText;
+            if (cached.r18Only) {
+                summaryText = `🔥 Page ${newPage} - ${r18Count} R18 results`;
+            } else if (cached.showNsfw) {
+                summaryText = `🔞 Page ${newPage} - ${result.items.length} results (${r18Count} R18, ${sfwCount} SFW)`;
+            } else {
+                summaryText = `✅ Page ${newPage} - ${sfwCount} SFW results`;
+            }
+            if (aiCount > 0) {
+                summaryText += ` | 🤖 ${aiCount} AI`;
+            }
+
+            embed.setAuthor({ 
+                name: summaryText, 
+                iconURL: 'https://s.pximg.net/common/images/apple-touch-icon.png' 
             });
 
             return interaction.editReply({ embeds: [embed], components: rows });
