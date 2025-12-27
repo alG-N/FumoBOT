@@ -67,7 +67,20 @@ class StorageService {
             const isShiny = this.isShinyPlus(row.fumoName);
             const isHigh = this.isHighTier(rarity);
 
+            // Count total fumos
+            totalFumos += row.count;
+            
+            // Count shiny separately
+            if (isShiny) {
+                totalShinyPlus += row.count;
+            }
+
+            // Filter for display based on mode
+            // If showing shiny+, only show shiny fumos
+            // If showing normal, only show non-shiny fumos
             if (showShinyPlus !== isShiny) continue;
+            
+            // If showing normal fumos and it's high tier without fantasy book, skip
             if (!showShinyPlus && isHigh && !hasFantasyBook) continue;
 
             const cleanName = this.cleanFumoName(row.fumoName);
@@ -76,14 +89,10 @@ class StorageService {
                 count: row.count,
                 original: row.fumoName
             });
-            
-            totalFumos += row.count;
-            if (isShiny) totalShinyPlus += row.count;
         }
 
         const visibleRarities = RARITY_ORDER.filter(rarity => {
             if (!categories[rarity].length) return false;
-            if (!showShinyPlus && !hasFantasyBook && this.isHighTier(rarity)) return false;
             return true;
         });
 

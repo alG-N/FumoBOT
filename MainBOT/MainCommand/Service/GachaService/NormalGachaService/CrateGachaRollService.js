@@ -5,6 +5,7 @@ const { selectAndAddFumo, selectAndAddMultipleFumos } = require('./InventoryServ
 const { ASTRAL_PLUS_RARITIES, isRarer } = require('../../../Configuration/rarity');
 const { incrementWeeklyAstral } = require('../../../Ultility/weekly');
 const { debugLog } = require('../../../Core/logger');
+const StorageLimitService = require('../../UserDataService/StorageService/StorageLimitService');
 
 async function updateQuestsAndAchievements(userId, rollCount) {
     const { getWeekIdentifier } = require('../../../Ultility/weekly');
@@ -87,6 +88,16 @@ async function performSingleRoll(userId, fumos) {
     debugLog('ROLL', `Single roll for user ${userId}`);
     
     try {
+        // Check storage first
+        const storageCheck = await StorageLimitService.canAddFumos(userId, 1);
+        if (!storageCheck.canAdd) {
+            return { 
+                success: false, 
+                error: 'STORAGE_FULL',
+                storageStatus: storageCheck
+            };
+        }
+
         const row = await getUserRollData(userId);
         if (!row || row.coins < 100) {
             return { success: false, error: 'INSUFFICIENT_COINS' };
@@ -193,10 +204,22 @@ async function performMultiRoll(userId, fumos, rollCount, isAutoRoll = false) {
 
         const fumosBought = await selectAndAddMultipleFumos(userId, rarities, fumos, row.luck);
         
+        // Check if fumosBought is an error object
+        if (fumosBought && fumosBought.error === 'STORAGE_FULL') {
+            return {
+                success: false,
+                error: 'STORAGE_FULL',
+                storageStatus: fumosBought.storageStatus
+            };
+        }
+        
+        // Ensure fumosBought is an array
+        const fumoArray = Array.isArray(fumosBought) ? fumosBought : [];
+        
         let bestFumo = null;
-        if (fumosBought.length > 0) {
-            bestFumo = fumosBought[0];
-            for (const fumo of fumosBought) {
+        if (fumoArray.length > 0) {
+            bestFumo = fumoArray[0];
+            for (const fumo of fumoArray) {
                 if (isRarer(fumo.rarity, bestFumo.rarity)) {
                     bestFumo = fumo;
                 }
@@ -215,7 +238,16 @@ async function performMultiRoll(userId, fumos, rollCount, isAutoRoll = false) {
 
         await updateQuestsAndAchievements(userId, rollCount);
 
-        return { success: true, fumosBought, bestFumo };
+        // Check storage status after rolling
+        const storageStatus = await StorageLimitService.getStorageStatus(userId);
+        const storageWarning = storageStatus.status !== 'NORMAL' ? storageStatus : null;
+
+        return { 
+            success: true, 
+            fumosBought: fumoArray, 
+            bestFumo,
+            storageWarning
+        };
     } catch (error) {
         console.error(`❌ Error in performMultiRoll (${rollCount}x):`, error);
         debugLog('ROLL_ERROR', `Multi roll failed for ${userId}: ${error.message}`);

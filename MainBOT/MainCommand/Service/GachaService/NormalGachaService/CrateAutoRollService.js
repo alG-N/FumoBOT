@@ -2,12 +2,14 @@ const { get, run, all } = require('../../../Core/database');
 const { performBatch100Roll } = require('./CrateGachaRollService');
 const { calculateCooldown } = require('./BoostService');
 const { SELL_REWARDS, SHINY_CONFIG, SPECIAL_RARITIES, compareFumos } = require('../../../Configuration/rarity');
+const { STORAGE_CONFIG } = require('../../../Configuration/storageConfig');
 const { debugLog } = require('../../../Core/logger');
 const { 
     saveUnifiedAutoRollState, 
     loadNormalAutoRollState, 
     removeNormalUserState 
 } = require('../UnifiedAutoRollPersistence');
+const StorageLimitService = require('../../UserDataService/StorageService/StorageLimitService');
 
 const autoRollMap = new Map();
 const AUTO_SAVE_INTERVAL = 30000;
@@ -115,6 +117,16 @@ async function startAutoRoll(userId, fumos, autoSell = false) {
         return { success: false, error: 'ALREADY_RUNNING' };
     }
 
+    // Check storage - if full and no auto-sell, reject
+    const storageStatus = await StorageLimitService.getStorageStatus(userId);
+    if (storageStatus.current >= STORAGE_CONFIG.MAX_STORAGE && !autoSell) {
+        return { 
+            success: false, 
+            error: 'STORAGE_FULL',
+            message: 'Your storage is full! Enable auto-sell or free up space to continue.'
+        };
+    }
+
     const initialInterval = await calculateAutoRollInterval(userId);
 
     let rollCount = 0;
@@ -130,12 +142,35 @@ async function startAutoRoll(userId, fumos, autoSell = false) {
         bestFumoRoll: null,
         specialFumoCount: 0,
         specialFumoFirstAt: null,
-        specialFumoFirstRoll: null
+        specialFumoFirstRoll: null,
+        stoppedReason: null
     };
 
     async function autoRollLoop() {
         if (stopped) return;
         rollCount++;
+
+        // Check global storage limit
+        const currentStorage = await StorageLimitService.getCurrentStorage(userId);
+        if (currentStorage >= STORAGE_CONFIG.MAX_STORAGE) {
+            console.log(`🛑 Auto-roll STOPPED for user ${userId}: Storage limit reached (${currentStorage.toLocaleString()}/${STORAGE_CONFIG.MAX_STORAGE.toLocaleString()})`);
+            stopped = true;
+            const auto = autoRollMap.get(userId);
+            if (auto) auto.stoppedReason = 'STORAGE_LIMIT_REACHED';
+            stopAutoRoll(userId);
+            return;
+        }
+
+        // Check if enough space for next batch
+        const storageStatus = await StorageLimitService.getStorageStatus(userId);
+        if (storageStatus.remaining < 100 && !autoSell) {
+            console.log(`⚠️ Auto-roll stopped for user ${userId}: Not enough storage space`);
+            stopped = true;
+            const auto = autoRollMap.get(userId);
+            if (auto) auto.stoppedReason = 'STORAGE_FULL';
+            stopAutoRoll(userId);
+            return;
+        }
 
         const newInterval = await calculateAutoRollInterval(userId);
 
@@ -168,12 +203,17 @@ async function startAutoRoll(userId, fumos, autoSell = false) {
 
         } catch (error) {
             console.error(`Auto Roll failed at roll #${rollCount}:`, error);
+            stopped = true;
+            const auto = autoRollMap.get(userId);
+            if (auto) auto.stoppedReason = 'ERROR';
         }
 
         if (!stopped) {
             const intervalId = setTimeout(autoRollLoop, newInterval);
             const mapEntry = autoRollMap.get(userId);
             if (mapEntry) mapEntry.intervalId = intervalId;
+        } else {
+            stopAutoRoll(userId);
         }
     }
 

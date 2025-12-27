@@ -2,6 +2,8 @@ const { run, get, all, transaction } = require('../../../Core/database');
 const { SHINY_CONFIG, SELL_REWARDS } = require('../../../Configuration/rarity');
 const { incrementWeeklyShiny } = require('../../../Ultility/weekly');
 const { debugLog } = require('../../../Core/logger');
+const { STORAGE_CONFIG } = require('../../../Configuration/storageConfig');
+const StorageLimitService = require('../../UserDataService/StorageService/StorageLimitService');
 
 async function selectAndAddFumo(userId, rarity, fumos, luck = 0) {
     debugLog('INVENTORY', `Selecting fumo for user ${userId}, rarity: ${rarity}`);
@@ -42,6 +44,8 @@ async function selectAndAddMultipleFumos(userId, rarities, fumos, luck = 0) {
     
     const fumosToAdd = [];
     const fumoResults = [];
+    let shinyCount = 0;  // Add debug counter
+    let alGCount = 0;    // Add debug counter
     
     for (const rarity of rarities) {
         const matchingFumos = fumos.filter(f => f.name.includes(rarity));
@@ -58,9 +62,11 @@ async function selectAndAddMultipleFumos(userId, rarities, fumos, luck = 0) {
         let fumoName = fumo.name;
         if (isAlterGolden) {
             fumoName += '[🌟alG]';
+            alGCount++;
             await incrementWeeklyShiny(userId);
         } else if (isShiny) {
             fumoName += '[✨SHINY]';
+            shinyCount++;
             await incrementWeeklyShiny(userId);
         }
 
@@ -68,7 +74,12 @@ async function selectAndAddMultipleFumos(userId, rarities, fumos, luck = 0) {
         fumoResults.push({ ...fumo, rarity, name: fumoName });
     }
 
-    if (fumosToAdd.length === 0) return [];
+    // Debug log the actual counts
+    if (shinyCount > 0 || alGCount > 0) {
+        // console.log(`🌟 Roll results for ${userId}: ${shinyCount} SHINY, ${alGCount} alG`);
+    }
+
+    if (fumosToAdd.length === 0) return fumoResults;
 
     const placeholders = fumosToAdd.map(() => '(?, ?)').join(', ');
     const flatParams = fumosToAdd.flat();
@@ -79,6 +90,7 @@ async function selectAndAddMultipleFumos(userId, rarities, fumos, luck = 0) {
     );
 
     debugLog('INVENTORY', `Batch inserted ${fumosToAdd.length} fumos for user ${userId}`);
+    
     return fumoResults;
 }
 
