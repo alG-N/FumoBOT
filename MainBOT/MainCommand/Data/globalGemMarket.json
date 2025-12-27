@@ -1,6 +1,34 @@
 {
   "market": [
     {
+      "name": "Yukari(LEGENDARY)",
+      "price": 1250,
+      "rarity": "LEGENDARY",
+      "stock": 1,
+      "picture": null
+    },
+    {
+      "name": "Yuyuko(LEGENDARY)",
+      "price": 1550,
+      "rarity": "LEGENDARY",
+      "stock": 2,
+      "picture": null
+    },
+    {
+      "name": "Tenshi(MYTHICAL)",
+      "price": 97500,
+      "rarity": "MYTHICAL",
+      "stock": 2,
+      "picture": null
+    },
+    {
+      "name": "Bocchi(OTHERWORLDLY)",
+      "price": 950,
+      "rarity": "OTHERWORLDLY",
+      "stock": 3,
+      "picture": null
+    },
+    {
       "name": "Youmu(RARE)",
       "price": 35,
       "rarity": "RARE",
@@ -8,40 +36,19 @@
       "picture": null
     },
     {
-      "name": "Mima(INFINITE)",
-      "price": 10000000,
-      "rarity": "INFINITE",
-      "stock": 1,
-      "picture": null
-    },
-    {
-      "name": "TankReisen(OTHERWORLDLY)",
-      "price": 1000,
-      "rarity": "OTHERWORLDLY",
-      "stock": 2,
-      "picture": null
-    },
-    {
-      "name": "Flandere(LEGENDARY)",
-      "price": 1750,
-      "rarity": "LEGENDARY",
-      "stock": 2,
-      "picture": null
-    },
-    {
-      "name": "DarkYoumu(EXCLUSIVE)",
-      "price": 300000,
-      "rarity": "EXCLUSIVE",
-      "stock": 1,
-      "picture": null
-    },
-    {
-      "name": "Ran(EPIC)",
+      "name": "Satori(EPIC)",
       "price": 76,
       "rarity": "EPIC",
       "stock": 3,
       "picture": null
+    },
+    {
+      "name": "Eirin(MYTHICAL)",
+      "price": 135000,
+      "rarity": "MYTHICAL",
+      "stock": 1,
+      "picture": null
     }
   ],
-  "resetTime": 1766858400000
+  "resetTime": 1766880000000
 }
