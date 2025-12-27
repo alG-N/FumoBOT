@@ -420,13 +420,27 @@ client.on('interactionCreate', async interaction => {
 
 async function safeReply(interaction, content) {
     try {
-        if (interaction.replied || interaction.deferred) {
-            await interaction.followUp({ content, ephemeral: true });
+        // Check if interaction is still valid (within 3 second window for initial reply, 15 min for followup)
+        const interactionAge = Date.now() - interaction.createdTimestamp;
+        
+        // If more than 2.5 seconds old and not deferred/replied, interaction is likely expired
+        if (interactionAge > 2500 && !interaction.deferred && !interaction.replied) {
+            console.log(`[SafeReply] Interaction expired (${interactionAge}ms old), skipping reply`);
+            return;
+        }
+
+        if (interaction.replied) {
+            await interaction.followUp({ content, ephemeral: true }).catch(() => {});
+        } else if (interaction.deferred) {
+            await interaction.editReply({ content }).catch(() => {});
         } else {
-            await interaction.reply({ content, ephemeral: true });
+            await interaction.reply({ content, ephemeral: true }).catch(() => {});
         }
     } catch (error) {
-        console.error('Failed to send error message:', error);
+        // Silently ignore - interaction likely expired
+        if (error.code !== 10062) { // Only log non-"Unknown interaction" errors
+            console.error('Failed to send error message:', error.message);
+        }
     }
 }
 
