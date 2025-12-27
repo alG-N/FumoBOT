@@ -10,7 +10,7 @@ module.exports = {
         .setDescription('Search for artwork, manga, or novels on Pixiv')
         .addStringOption(option =>
             option.setName('query')
-                .setDescription('Search for content by tag or keyword')
+                .setDescription('Search by tag/keyword OR artwork ID (e.g., 139155931)')
                 .setRequired(true)
                 .setAutocomplete(true)
         )
@@ -26,23 +26,35 @@ module.exports = {
         )
         .addStringOption(option =>
             option.setName('sort')
-                .setDescription('Sort results by popularity period')
+                .setDescription('Sort results')
                 .setRequired(false)
                 .addChoices(
-                    { name: '🔥 Popular (Default)', value: 'popular' },
-                    { name: '📅 Daily Ranking', value: 'day' },
-                    { name: '📊 Weekly Ranking', value: 'week' },
-                    { name: '📈 Monthly Ranking', value: 'month' }
+                    { name: '🔥 Popular (Default)', value: 'popular_desc' },
+                    { name: '🆕 Newest First', value: 'date_desc' },
+                    { name: '📅 Oldest First', value: 'date_asc' },
+                    { name: '📊 Daily Ranking', value: 'day' },
+                    { name: '📈 Weekly Ranking', value: 'week' },
+                    { name: '🏆 Monthly Ranking', value: 'month' }
+                )
+        )
+        .addStringOption(option =>
+            option.setName('nsfw')
+                .setDescription('NSFW content filter')
+                .setRequired(false)
+                .addChoices(
+                    { name: '✅ SFW Only (Default)', value: 'sfw' },
+                    { name: '🔞 R18 + SFW (Show All)', value: 'all' },
+                    { name: '🔥 R18 Only', value: 'r18only' }
                 )
         )
         .addBooleanOption(option =>
-            option.setName('nsfw_filter')
-                .setDescription('Filter NSFW content (ON = hide R18, OFF = show R18)')
+            option.setName('ai_filter')
+                .setDescription('Hide AI-generated content (Default: OFF - shows AI art)')
                 .setRequired(false)
         )
         .addBooleanOption(option =>
-            option.setName('ai_filter')
-                .setDescription('Filter AI-generated content (ON = hide AI, OFF = show AI)')
+            option.setName('quality_filter')
+                .setDescription('Hide low quality art (under 1000 views)')
                 .setRequired(false)
         )
         .addBooleanOption(option =>
@@ -54,7 +66,13 @@ module.exports = {
             option.setName('page')
                 .setDescription('Page number (default: 1)')
                 .setMinValue(1)
-                .setMaxValue(10)
+                .setMaxValue(50)
+        )
+        .addIntegerOption(option =>
+            option.setName('min_bookmarks')
+                .setDescription('Minimum bookmarks filter (e.g., 100, 500, 1000)')
+                .setMinValue(0)
+                .setMaxValue(100000)
         ),
 
     async autocomplete(interaction) {
@@ -94,8 +112,8 @@ module.exports = {
                     const suggestions = await pixivService.getAutocompleteSuggestions(translated);
 
                     if (suggestions.length > 0) {
-                        // Limit translations to speed up response
-                        const limitedSuggestions = suggestions.slice(0, 8);
+                        // Increased limit for more suggestions
+                        const limitedSuggestions = suggestions.slice(0, 15);
                         const translationPromises = limitedSuggestions.map(async (keyword) => {
                             try {
                                 const englishTranslation = await pixivService.translateToEnglish(keyword);
@@ -118,11 +136,11 @@ module.exports = {
                         value: translated.slice(0, 100)
                     });
                 } else {
-                    // Japanese input - just get suggestions
+                    // Japanese input - get more suggestions
                     const suggestions = await pixivService.getAutocompleteSuggestions(focusedValue);
 
                     if (suggestions.length > 0) {
-                        choices = suggestions.slice(0, 10).map(keyword => ({
+                        choices = suggestions.slice(0, 20).map(keyword => ({
                             name: keyword.slice(0, 100),
                             value: keyword.slice(0, 100)
                         }));
@@ -145,10 +163,10 @@ module.exports = {
             
             await interaction.respond(choices).catch(() => {});
         } catch (error) {
-            // Silently fail with empty response
             console.log('[Pixiv Autocomplete] Timeout or error, responding empty');
+            const focusedValue = interaction.options.getFocused() || '';
             await interaction.respond([
-                { name: `🔍 Search: "${interaction.options.getFocused().slice(0, 85)}"`, value: interaction.options.getFocused().slice(0, 100) || 'search' }
+                { name: `🔍 Search: "${focusedValue.slice(0, 85)}"`, value: focusedValue.slice(0, 100) || 'search' }
             ]).catch(() => {});
         }
     },
@@ -163,11 +181,85 @@ module.exports = {
 
         const query = interaction.options.getString('query');
         const contentType = interaction.options.getString('type') || 'illust';
-        const sortMode = interaction.options.getString('sort') || 'popular';
-        const nsfwFilter = interaction.options.getBoolean('nsfw_filter') ?? true;
-        const aiFilter = interaction.options.getBoolean('ai_filter') ?? true;
+        const sortMode = interaction.options.getString('sort') || 'popular_desc';
+        const nsfwMode = interaction.options.getString('nsfw') || 'sfw'; // 'sfw', 'all', 'r18only'
+        const aiFilter = interaction.options.getBoolean('ai_filter') ?? false; // Changed default to false (show AI)
+        const qualityFilter = interaction.options.getBoolean('quality_filter') ?? false;
         const shouldTranslate = interaction.options.getBoolean('translate') || false;
         const page = interaction.options.getInteger('page') || 1;
+        const minBookmarks = interaction.options.getInteger('min_bookmarks') || 0;
+
+        // Determine NSFW settings
+        const showNsfw = nsfwMode !== 'sfw'; // true for 'all' or 'r18only'
+        const r18Only = nsfwMode === 'r18only';
+
+        // Check if query is an artwork ID (all digits)
+        const isArtworkId = /^\d+$/.test(query.trim());
+
+        if (isArtworkId) {
+            // Direct artwork lookup
+            const modeText = '🔍 Artwork ID Lookup';
+            await interaction.editReply({ content: `${modeText}: ${query}` }).catch(() => {});
+
+            try {
+                const artwork = await pixivService.getArtworkById(query.trim());
+                
+                if (!artwork) {
+                    return interaction.editReply({ 
+                        content: `❌ Artwork with ID **${query}** not found.` 
+                    });
+                }
+
+                const cacheKey = `${interaction.user.id}-${interaction.id}`;
+                
+                pixivCache.setResults(cacheKey, {
+                    items: [artwork],
+                    query: query,
+                    originalQuery: query,
+                    contentType: artwork.type || 'illust',
+                    showNsfw: true,
+                    r18Only: false,
+                    aiFilter: false,
+                    qualityFilter: false,
+                    minBookmarks: 0,
+                    shouldTranslate: false,
+                    sortMode: 'popular_desc',
+                    page: 1,
+                    hasNextPage: false,
+                    currentResultIndex: 0,
+                    currentPageIndex: 0
+                });
+
+                const { embed, rows } = await contentHandler.createContentEmbed(artwork, {
+                    resultIndex: 0,
+                    totalResults: 1,
+                    searchPage: 1,
+                    cacheKey,
+                    contentType: artwork.type || 'illust',
+                    hasNextPage: false,
+                    shouldTranslate: false,
+                    originalQuery: query,
+                    translatedQuery: query,
+                    mangaPageIndex: 0,
+                    sortMode: 'popular_desc',
+                    showNsfw: true
+                });
+
+                return interaction.editReply({ content: null, embeds: [embed], components: rows });
+
+            } catch (error) {
+                console.error('[Pixiv ID Lookup Error]', error);
+                return interaction.editReply({ 
+                    content: `❌ Failed to fetch artwork **${query}**: ${error.message}` 
+                });
+            }
+        }
+
+        // Regular search
+        const modeText = nsfwMode === 'sfw' ? '✅ SFW Mode' : nsfwMode === 'r18only' ? '🔥 R18 Only' : '🔞 All Content';
+        await interaction.editReply({ 
+            content: `🔍 Searching Pixiv... (${modeText})` 
+        }).catch(() => {});
 
         let translatedQuery = query;
         if (shouldTranslate) {
@@ -178,42 +270,82 @@ module.exports = {
             const offset = (page - 1) * 30;
             let result;
 
-            if (sortMode !== 'popular') {
-                if (contentType === 'novel') {
-                    result = await pixivService.search(translatedQuery, { offset, contentType, nsfwFilter, aiFilter });
-                } else {
-                    result = await pixivService.getRanking({ mode: sortMode, contentType, nsfwFilter, aiFilter, offset });
+            const searchOptions = {
+                offset,
+                contentType,
+                showNsfw,
+                r18Only,
+                aiFilter,
+                qualityFilter,
+                minBookmarks,
+                sort: sortMode // Pass sort mode
+            };
 
-                    if (query?.trim()) {
-                        result.items = result.items.filter(item =>
-                            item.title.toLowerCase().includes(translatedQuery.toLowerCase()) ||
-                            item.tags.some(tag => tag.name.toLowerCase().includes(translatedQuery.toLowerCase())) ||
-                            item.user.name.toLowerCase().includes(translatedQuery.toLowerCase())
-                        );
-                    }
+            // Check if it's a ranking mode
+            const isRankingMode = ['day', 'week', 'month'].includes(sortMode);
+
+            if (isRankingMode) {
+                result = await pixivService.getRanking({
+                    mode: sortMode,
+                    contentType,
+                    showNsfw,
+                    r18Only,
+                    aiFilter,
+                    offset,
+                    qualityFilter,
+                    minBookmarks
+                });
+
+                // Filter by query if provided
+                if (translatedQuery?.trim()) {
+                    result.items = result.items.filter(item =>
+                        item.title.toLowerCase().includes(translatedQuery.toLowerCase()) ||
+                        item.tags.some(tag => tag.name.toLowerCase().includes(translatedQuery.toLowerCase())) ||
+                        item.user.name.toLowerCase().includes(translatedQuery.toLowerCase())
+                    );
                 }
             } else {
-                result = await pixivService.search(translatedQuery, { offset, contentType, nsfwFilter, aiFilter });
+                result = await pixivService.search(translatedQuery, searchOptions);
             }
 
             if (!result.items || result.items.length === 0) {
                 const embed = contentHandler.createNoResultsEmbed(query, translatedQuery, shouldTranslate, contentType);
-                return interaction.editReply({ embeds: [embed] });
+                
+                // Add hint about R18 settings
+                if (showNsfw) {
+                    embed.addFields({
+                        name: '💡 Tip',
+                        value: 'Make sure your Pixiv account has R18 content enabled in settings. Try searching with Japanese tags like "R-18" directly.',
+                        inline: false
+                    });
+                }
+                
+                return interaction.editReply({ content: null, embeds: [embed] });
             }
+
+            // Log R18 content stats
+            const r18Count = result.items.filter(item => item.x_restrict > 0).length;
+            console.log(`[Pixiv] Found ${result.items.length} results (${r18Count} R18) for "${translatedQuery}" | Mode: ${nsfwMode}`);
 
             const cacheKey = `${interaction.user.id}-${interaction.id}`;
 
+            // Store all search parameters for page navigation
             pixivCache.setResults(cacheKey, {
                 items: result.items,
                 query: translatedQuery,
                 originalQuery: query,
                 contentType,
-                nsfwFilter,
+                showNsfw,
+                r18Only,
                 aiFilter,
+                qualityFilter,
+                minBookmarks,
                 shouldTranslate,
                 sortMode,
                 page,
-                hasNextPage: !!result.nextUrl
+                hasNextPage: !!result.nextUrl,
+                currentResultIndex: 0,
+                currentPageIndex: 0
             });
 
             const { embed, rows } = await contentHandler.createContentEmbed(result.items[0], {
@@ -227,15 +359,16 @@ module.exports = {
                 originalQuery: query,
                 translatedQuery,
                 mangaPageIndex: 0,
-                sortMode
+                sortMode,
+                showNsfw
             });
 
-            return interaction.editReply({ embeds: [embed], components: rows });
+            return interaction.editReply({ content: null, embeds: [embed], components: rows });
 
         } catch (error) {
             console.error('[Pixiv Command Error]', error);
             const embed = contentHandler.createErrorEmbed(error);
-            return interaction.editReply({ embeds: [embed] });
+            return interaction.editReply({ content: null, embeds: [embed] }).catch(() => {});
         }
     },
 
@@ -253,41 +386,52 @@ module.exports = {
             });
         }
 
-        if (action === 'counter' || action === 'pagecounter') {
+        if (action === 'counter' || action === 'pagecounter' || action === 'searchpageinfo') {
             return interaction.deferUpdate();
         }
 
         await interaction.deferUpdate();
 
-        const currentEmbed = interaction.message.embeds[0];
-        const footerText = currentEmbed.footer?.text || '';
+        const { items, query, originalQuery, contentType, page, shouldTranslate, sortMode, showNsfw, aiFilter, qualityFilter, minBookmarks } = cached;
+        
+        // Get current indices from cache
+        let currentResultIndex = cached.currentResultIndex || 0;
+        let currentPageIndex = cached.currentPageIndex || 0;
 
-        const resultMatch = footerText.match(/Result (\d+)\/(\d+)/);
-        const pageMatch = footerText.match(/Page (\d+)\/(\d+)/);
-
-        let currentResultIndex = resultMatch ? parseInt(resultMatch[1]) - 1 : 0;
-        let currentPageIndex = pageMatch ? parseInt(pageMatch[1]) - 1 : 0;
-
-        const { items, query, originalQuery, contentType, page, shouldTranslate, hasNextPage, sortMode } = cached;
         const currentItem = items[currentResultIndex];
         const totalPages = currentItem?.page_count || 1;
 
         switch (action) {
             case 'prev':
+                // Previous result
                 currentResultIndex = (currentResultIndex - 1 + items.length) % items.length;
                 currentPageIndex = 0;
                 break;
             case 'next':
+                // Next result
                 currentResultIndex = (currentResultIndex + 1) % items.length;
                 currentPageIndex = 0;
                 break;
             case 'pagedown':
+                // Previous manga/multi-image page
                 currentPageIndex = Math.max(0, currentPageIndex - 1);
                 break;
             case 'pageup':
+                // Next manga/multi-image page
                 currentPageIndex = Math.min(totalPages - 1, currentPageIndex + 1);
                 break;
+            case 'searchprev':
+                // Previous search page - fetch new results
+                return await this._handleSearchPageNav(interaction, cached, cacheKey, -1);
+            case 'searchnext':
+                // Next search page - fetch new results
+                return await this._handleSearchPageNav(interaction, cached, cacheKey, 1);
         }
+
+        // Update cache with new indices
+        cached.currentResultIndex = currentResultIndex;
+        cached.currentPageIndex = currentPageIndex;
+        pixivCache.setResults(cacheKey, cached);
 
         try {
             const { embed, rows } = await contentHandler.createContentEmbed(items[currentResultIndex], {
@@ -296,18 +440,85 @@ module.exports = {
                 searchPage: page,
                 cacheKey,
                 contentType,
-                hasNextPage,
+                hasNextPage: cached.hasNextPage,
                 shouldTranslate,
                 originalQuery,
                 translatedQuery: query,
                 mangaPageIndex: currentPageIndex,
-                sortMode: sortMode || 'popular'
+                sortMode: sortMode || 'popular',
+                showNsfw
             });
 
             return interaction.editReply({ embeds: [embed], components: rows });
         } catch (error) {
             console.error('[Pixiv Button Error]', error);
             return interaction.followUp({ content: '❌ Failed to navigate. Please try again.', ephemeral: true });
+        }
+    },
+
+    async _handleSearchPageNav(interaction, cached, cacheKey, direction) {
+        const newPage = cached.page + direction;
+        
+        if (newPage < 1) {
+            return interaction.followUp({ content: '❌ Already on the first page!', ephemeral: true });
+        }
+
+        try {
+            const offset = (newPage - 1) * 30;
+            const searchOptions = {
+                offset,
+                contentType: cached.contentType,
+                showNsfw: cached.showNsfw,
+                aiFilter: cached.aiFilter,
+                qualityFilter: cached.qualityFilter,
+                minBookmarks: cached.minBookmarks
+            };
+
+            let result;
+            if (cached.sortMode !== 'popular') {
+                if (cached.contentType === 'novel') {
+                    result = await pixivService.search(cached.query, searchOptions);
+                } else {
+                    result = await pixivService.getRanking({
+                        mode: cached.sortMode,
+                        ...searchOptions
+                    });
+                }
+            } else {
+                result = await pixivService.search(cached.query, searchOptions);
+            }
+
+            if (!result.items || result.items.length === 0) {
+                return interaction.followUp({ content: '❌ No more results on this page!', ephemeral: true });
+            }
+
+            // Update cache with new results
+            cached.items = result.items;
+            cached.page = newPage;
+            cached.hasNextPage = !!result.nextUrl;
+            cached.currentResultIndex = 0;
+            cached.currentPageIndex = 0;
+            pixivCache.setResults(cacheKey, cached);
+
+            const { embed, rows } = await contentHandler.createContentEmbed(result.items[0], {
+                resultIndex: 0,
+                totalResults: result.items.length,
+                searchPage: newPage,
+                cacheKey,
+                contentType: cached.contentType,
+                hasNextPage: !!result.nextUrl,
+                shouldTranslate: cached.shouldTranslate,
+                originalQuery: cached.originalQuery,
+                translatedQuery: cached.query,
+                mangaPageIndex: 0,
+                sortMode: cached.sortMode || 'popular',
+                showNsfw: cached.showNsfw
+            });
+
+            return interaction.editReply({ embeds: [embed], components: rows });
+        } catch (error) {
+            console.error('[Pixiv Search Page Nav Error]', error);
+            return interaction.followUp({ content: '❌ Failed to load page. Please try again.', ephemeral: true });
         }
     }
 };

@@ -63,8 +63,12 @@ class PixivService {
         const {
             offset = 0,
             contentType = 'illust',
-            nsfwFilter = true,
-            aiFilter = true
+            showNsfw = false,
+            r18Only = false,
+            aiFilter = false,
+            qualityFilter = false,
+            minBookmarks = 0,
+            sort = 'popular_desc' // Add sort option
         } = options;
 
         const token = await this.authenticate();
@@ -77,9 +81,15 @@ class PixivService {
 
         url.searchParams.append('word', query);
         url.searchParams.append('search_target', 'partial_match_for_tags');
-        url.searchParams.append('sort', 'popular_desc');
-        url.searchParams.append('offset', offset);
-        url.searchParams.append('filter', 'for_android');
+        url.searchParams.append('sort', sort); // Use provided sort
+        url.searchParams.append('offset', offset.toString());
+        
+        // Don't add filter when showing NSFW - this is critical
+        if (!showNsfw) {
+            url.searchParams.append('filter', 'for_android');
+        }
+
+        console.log(`[Pixiv Search] Query: "${query}" | NSFW: ${showNsfw} | R18Only: ${r18Only} | Sort: ${sort} | Offset: ${offset}`);
 
         const response = await fetch(url, {
             headers: {
@@ -89,34 +99,63 @@ class PixivService {
         });
 
         if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`[Pixiv API Error] ${response.status}: ${errorText}`);
             throw new Error(`Pixiv API error: ${response.status}`);
         }
 
         const data = await response.json();
-        return this._filterResults(data, contentType, nsfwFilter, aiFilter);
+        
+        // Log detailed info about what we got
+        const items = isNovel ? data.novels : data.illusts;
+        if (items && items.length > 0) {
+            const r18Count = items.filter(i => i.x_restrict > 0).length;
+            const sfwCount = items.filter(i => i.x_restrict === 0).length;
+            const aiCount = items.filter(i => i.illust_ai_type === 2).length;
+            console.log(`[Pixiv Search] Raw: ${items.length} items | ${r18Count} R18 | ${sfwCount} SFW | ${aiCount} AI`);
+            
+            // Log first few items for debugging
+            items.slice(0, 3).forEach((item, idx) => {
+                const tags = item.tags?.slice(0, 5).map(t => t.name).join(', ') || 'no tags';
+                console.log(`  [${idx}] "${item.title}" | R18: ${item.x_restrict > 0} | AI: ${item.illust_ai_type === 2} | Tags: ${tags}`);
+            });
+        }
+        
+        return this._filterResults(data, contentType, showNsfw, aiFilter, qualityFilter, minBookmarks, r18Only);
     }
 
     async getRanking(options = {}) {
         const {
             mode = 'day',
             contentType = 'illust',
-            nsfwFilter = true,
-            aiFilter = true,
-            offset = 0
+            showNsfw = false,
+            r18Only = false, // NEW
+            aiFilter = false, // Changed default
+            offset = 0,
+            qualityFilter = false,
+            minBookmarks = 0
         } = options;
 
         const token = await this.authenticate();
 
+        // Use R18 ranking modes when NSFW is enabled
         let rankingMode = mode;
-        if (!nsfwFilter) {
+        if (showNsfw) {
             if (mode === 'day') rankingMode = 'day_r18';
             else if (mode === 'week') rankingMode = 'week_r18';
+            else if (mode === 'month') rankingMode = 'month_r18';
         }
 
         const url = new URL('https://app-api.pixiv.net/v1/illust/ranking');
         url.searchParams.append('mode', rankingMode);
-        url.searchParams.append('filter', 'for_android');
-        url.searchParams.append('offset', offset);
+        url.searchParams.append('offset', offset.toString());
+        
+        // Don't add filter for R18 rankings
+        if (!showNsfw) {
+            url.searchParams.append('filter', 'for_android');
+        }
+
+        console.log(`[Pixiv Ranking] Mode: ${rankingMode}, NSFW: ${showNsfw}`);
 
         const response = await fetch(url, {
             headers: {
@@ -130,24 +169,63 @@ class PixivService {
         }
 
         const data = await response.json();
-        return this._filterResults({ illusts: data.illusts, next_url: data.next_url }, contentType, true, aiFilter);
+        return this._filterResults({ illusts: data.illusts, next_url: data.next_url }, contentType, showNsfw, aiFilter, qualityFilter, minBookmarks, r18Only);
     }
 
-    _filterResults(data, contentType, nsfwFilter, aiFilter) {
+    _filterResults(data, contentType, showNsfw, aiFilter, qualityFilter = false, minBookmarks = 0, r18Only = false) {
         const isNovel = contentType === 'novel';
         let items = isNovel ? data.novels : data.illusts;
 
         if (!items) return { items: [], nextUrl: data.next_url };
 
-        if (nsfwFilter) {
+        const originalCount = items.length;
+        const originalR18 = items.filter(i => i.x_restrict > 0).length;
+        const originalSFW = items.filter(i => i.x_restrict === 0).length;
+
+        // NSFW Filter Logic based on x_restrict field (this is Pixiv's official NSFW flag)
+        // x_restrict: 0 = SFW, 1 = R18, 2 = R18G
+        if (!showNsfw) {
+            // SFW only mode
             items = items.filter(item => item.x_restrict === 0);
+        } else if (r18Only) {
+            // R18 only mode - show only NSFW content
+            items = items.filter(item => item.x_restrict > 0);
         }
+        // When showNsfw = true and r18Only = false, keep ALL items
 
+        // AI Filter - based on illust_ai_type field (Pixiv's official AI flag)
+        // illust_ai_type: 0 = unknown, 1 = not AI, 2 = AI generated
         if (aiFilter) {
+            const beforeAI = items.length;
             items = items.filter(item => item.illust_ai_type !== 2);
+            const removed = beforeAI - items.length;
+            if (removed > 0) {
+                console.log(`[Pixiv Filter] AI filter removed ${removed} items`);
+            }
         }
 
-        if (!isNovel) {
+        // Quality Filter
+        if (qualityFilter) {
+            const beforeQuality = items.length;
+            items = items.filter(item => (item.total_view || 0) >= 1000);
+            const removed = beforeQuality - items.length;
+            if (removed > 0) {
+                console.log(`[Pixiv Filter] Quality filter removed ${removed} items`);
+            }
+        }
+
+        // Minimum bookmarks filter
+        if (minBookmarks > 0) {
+            const beforeBookmarks = items.length;
+            items = items.filter(item => (item.total_bookmarks || 0) >= minBookmarks);
+            const removed = beforeBookmarks - items.length;
+            if (removed > 0) {
+                console.log(`[Pixiv Filter] Bookmark filter removed ${removed} items`);
+            }
+        }
+
+        // Content type filter (manga vs illust)
+        if (!isNovel && contentType !== 'all') {
             if (contentType === 'manga') {
                 items = items.filter(item => item.type === 'manga');
             } else if (contentType === 'illust') {
@@ -155,15 +233,20 @@ class PixivService {
             }
         }
 
+        // Final stats
+        const finalR18 = items.filter(i => i.x_restrict > 0).length;
+        const finalSFW = items.filter(i => i.x_restrict === 0).length;
+        console.log(`[Pixiv Filter] Result: ${items.length}/${originalCount} | R18: ${finalR18}/${originalR18} | SFW: ${finalSFW}/${originalSFW}`);
+
         return { items, nextUrl: data.next_url };
     }
 
     async getAutocompleteSuggestions(query) {
         try {
             const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 1500);
+            const timeout = setTimeout(() => controller.abort(), 2000); // Increased timeout
 
-            const url = `https://www.pixiv.net/rpc/cps.php?keyword=${encodeURIComponent(query)}`;
+            const url = `https://www.pixiv.net/rpc/cps.php?keyword=${encodeURIComponent(query)}&lang=en`;
 
             const res = await fetch(url, {
                 headers: {
@@ -274,6 +357,40 @@ class PixivService {
         }
 
         return imageUrl.replace('i.pximg.net', 'i.pixiv.cat');
+    }
+
+    // NEW: Get artwork by ID
+    async getArtworkById(artworkId) {
+        const token = await this.authenticate();
+
+        const url = new URL('https://app-api.pixiv.net/v1/illust/detail');
+        url.searchParams.append('illust_id', artworkId);
+
+        console.log(`[Pixiv] Fetching artwork ID: ${artworkId}`);
+
+        const response = await fetch(url, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                ...this.baseHeaders
+            }
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`[Pixiv API Error] ${response.status}: ${errorText}`);
+            throw new Error(`Artwork not found or API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        if (!data.illust) {
+            throw new Error('Artwork not found');
+        }
+
+        const illust = data.illust;
+        console.log(`[Pixiv] Found artwork: "${illust.title}" | R18: ${illust.x_restrict > 0} | AI: ${illust.illust_ai_type === 2}`);
+        
+        return illust;
     }
 }
 

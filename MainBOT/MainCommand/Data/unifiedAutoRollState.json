@@ -37,19 +37,19 @@
       "specialFumoFirstRoll": 14
     },
     "normal": {
-      "rollCount": 7,
+      "rollCount": 4,
       "autoSell": true,
       "startTime": 1766863921196,
       "bestFumo": {
-        "name": "Junko(MYTHICAL)",
-        "rarity": "MYTHICAL",
-        "picture": "https://m.media-amazon.com/images/I/41gFcESKY3L.jpg"
+        "name": "Arisu(TRANSCENDENT)",
+        "rarity": "TRANSCENDENT",
+        "picture": "https://www.picclickimg.com/I70AAOSwPVJmW9NO/Blue-Archive-Tendou-Arisu-Fumo-Fumo-Plushie-Plush.webp"
       },
-      "bestFumoAt": "12/28/2025, 2:38:47 AM",
-      "bestFumoRoll": 2,
-      "specialFumoCount": 0,
-      "specialFumoFirstAt": null,
-      "specialFumoFirstRoll": null
+      "bestFumoAt": "12/28/2025, 4:10:38 AM",
+      "bestFumoRoll": 1,
+      "specialFumoCount": 21,
+      "specialFumoFirstAt": "12/28/2025, 2:44:50 AM",
+      "specialFumoFirstRoll": 8
     }
   },
   "1421544451897299024": {
