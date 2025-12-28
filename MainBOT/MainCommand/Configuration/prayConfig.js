@@ -305,9 +305,9 @@ const PRAY_CHARACTERS = {
         id: 'sanae',
         name: 'Sanae',
         rarity: 'Epic',
-        weight: 15,
+        weight: 22,
         enhancedWeight: 30,
-        picture: 'https://fumo.website/img/sanae.jpg',
+        picture: 'https://vignette.wikia.nocookie.net/the-outsider-who-loved-gensokyo/images/2/25/SanaeSmile.png/revision/latest?cb=20190504003049',
         description: 'The living goddess of the Moriya Shrine offers divine blessings through faith.',
         color: 0x00CED1,
         
@@ -496,11 +496,11 @@ const PRAY_CHARACTERS = {
                         rewards: {
                             coins: 500000000,
                             gems: 100000000,
-                            luck: { amount: 0.50, duration: 7 * 24 * 60 * 60 * 1000 },
+                            luck: { amount: 0.75, duration: 7 * 24 * 60 * 60 * 1000 },
                             freeCrafts: { duration: 7 * 24 * 60 * 60 * 1000 },
                             boostMultiplier: { multiplier: 5, duration: 7 * 24 * 60 * 60 * 1000 },
                             fumo: { rarity: 'TRANSCENDENT' },
-                            items: [{ name: 'DivineMantle(T)', quantity: 1 }]
+                            items: [{ name: 'DivineMantle(D)', quantity: 1 }]
                         }
                     }
                 ]

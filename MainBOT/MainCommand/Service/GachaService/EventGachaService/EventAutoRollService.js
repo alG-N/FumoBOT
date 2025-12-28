@@ -9,6 +9,10 @@ const {
     isEventActive
 } = require('../../../Configuration/eventConfig');
 const { SPECIAL_RARITIES, compareFumos, SELL_REWARDS, SHINY_CONFIG } = require('../../../Configuration/rarity');
+
+// Define special rarities for New Year event banner (UPPERCASE to match FumoPool)
+const EVENT_SPECIAL_RARITIES = ['???', 'TRANSCENDENT'];
+
 const { 
     saveUnifiedAutoRollState, 
     loadEventAutoRollState, 
@@ -159,6 +163,7 @@ async function startEventAutoRoll(userId, autoSell = false) {
                     auto.stoppedReason = 'LIMIT_REACHED';
                 }
                 stopped = true;
+                stopEventAutoRoll(userId);
                 return;
             }
 
@@ -174,6 +179,7 @@ async function startEventAutoRoll(userId, autoSell = false) {
                 if (auto) {
                     auto.stoppedReason = result.error;
                 }
+                stopEventAutoRoll(userId);
                 return;
             }
 
@@ -189,18 +195,31 @@ async function startEventAutoRoll(userId, autoSell = false) {
                 current.rollCount = rollCount;
                 current.totalFumosRolled += batchSize;
                 current.totalCoinsFromSales = totalCoinsFromSales;
+                
+                // Track Sanae guaranteed rolls used
+                if (result.sanaeGuaranteedUsed > 0) {
+                    current.sanaeGuaranteedUsed = (current.sanaeGuaranteedUsed || 0) + result.sanaeGuaranteedUsed;
+                }
+                
                 const timeStr = new Date().toLocaleString();
 
                 if (result.fumoList && result.fumoList.length > 0) {
                     for (const fumo of result.fumoList) {
-                        if (!current.bestFumo || compareFumos(fumo, current.bestFumo) > 0) {
+                        if (!current.bestFumo || compareEventFumos(fumo, current.bestFumo) > 0) {
                             current.bestFumo = fumo;
                             current.bestFumoAt = timeStr;
                             current.bestFumoRoll = rollCount;
                         }
 
-                        if (SPECIAL_RARITIES.includes(fumo.rarity)) {
+                        // Use event-specific special rarities
+                        if (EVENT_SPECIAL_RARITIES.includes(fumo.rarity)) {
                             current.specialFumoCount++;
+                            if (!current.specialFumos) current.specialFumos = [];
+                            current.specialFumos.push({
+                                ...fumo,
+                                roll: rollCount,
+                                at: timeStr
+                            });
                             if (!current.specialFumoFirstAt) {
                                 current.specialFumoFirstAt = timeStr;
                                 current.specialFumoFirstRoll = rollCount;
@@ -240,9 +259,11 @@ async function startEventAutoRoll(userId, autoSell = false) {
         specialFumoCount: 0,
         specialFumoFirstAt: null,
         specialFumoFirstRoll: null,
+        specialFumos: [],
         stoppedReason: null,
         autoSell,
-        startTime: Date.now()
+        startTime: Date.now(),
+        sanaeGuaranteedUsed: 0
     });
 
     eventAutoRollLoop();
@@ -350,6 +371,7 @@ async function restoreEventAutoRolls(client, options = {}) {
                     current.specialFumoFirstRoll = saved.specialFumoFirstRoll || null;
                     current.specialFumos = saved.specialFumos || [];
                     current.startTime = saved.startTime || Date.now();
+                    current.sanaeGuaranteedUsed = saved.sanaeGuaranteedUsed || 0;
                 }
 
                 restored++;
@@ -389,6 +411,17 @@ function shutdownEventAutoRolls() {
     console.log(`💾 Saved ${eventAutoRollMap.size} active event auto-rolls to unified file`);
 }
 
+/**
+ * Compare fumos for New Year event banner
+ * Uses UPPERCASE rarities to match FumoPool data
+ */
+function compareEventFumos(fumo1, fumo2) {
+    const rarityOrder = ['Common', 'UNCOMMON', 'RARE', '???', 'TRANSCENDENT'];
+    const idx1 = rarityOrder.indexOf(fumo1.rarity);
+    const idx2 = rarityOrder.indexOf(fumo2.rarity);
+    return idx1 - idx2;
+}
+
 module.exports = {
     startEventAutoRoll,
     stopEventAutoRoll,
@@ -401,5 +434,7 @@ module.exports = {
     restoreEventAutoRolls,
     shutdownEventAutoRolls,
     startEventAutoSave,
-    stopEventAutoSave
+    stopEventAutoSave,
+    compareEventFumos,
+    EVENT_SPECIAL_RARITIES
 };

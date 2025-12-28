@@ -33,7 +33,19 @@ function isRarerOrEqual(rarity1, rarity2) {
  * Check if a rarity meets minimum requirement
  */
 function meetsMinimumRarity(rarity, minRarity) {
-    return getRarityIndex(rarity) >= getRarityIndex(minRarity);
+    // Handle event rarities mapping
+    const eventRarityMap = {
+        'EPIC': 'EPIC',
+        'LEGENDARY': 'LEGENDARY', 
+        'MYTHICAL': 'MYTHICAL',
+        '???': '???',
+        'TRANSCENDENT': 'TRANSCENDENT'
+    };
+    
+    const normalizedRarity = eventRarityMap[rarity] || rarity;
+    const normalizedMin = eventRarityMap[minRarity] || minRarity;
+    
+    return getRarityIndex(normalizedRarity) >= getRarityIndex(normalizedMin);
 }
 
 /**
@@ -119,12 +131,13 @@ async function calculateRarity(userId, boosts, row, hasFantasyBook) {
         return { rarity, nullifiedUsed: true };
     }
 
-    // Calculate total luck multiplier
+    // Calculate total luck multiplier - now including base luck from row
     const totalLuck = calculateTotalLuckMultiplier(
         boosts, 
         row.boostActive && row.boostRollsRemaining > 0, 
         row.rollsLeft, 
-        row.totalRolls
+        row.totalRolls,
+        row.luck  // Pass the user's base luck stat
     );
     
     // Roll for rarity with luck applied

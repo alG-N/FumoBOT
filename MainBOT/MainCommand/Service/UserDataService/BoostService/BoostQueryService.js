@@ -12,13 +12,26 @@ async function getActiveBoosts(userId) {
                  WHERE userId = ? AND (expiresAt IS NULL OR expiresAt > ?)`,
                 [userId, now]
             ),
-            get(`SELECT rollsLeft FROM userCoins WHERE userId = ?`, [userId]),
+            get(`SELECT rollsLeft, luck FROM userCoins WHERE userId = ?`, [userId]),
             getMysteriousDiceBoost(userId, now),
             getTimeClockBoost(userId, now),
             getSanaeBoosts(userId, now)
         ]);
 
         const categorized = categorizeBoosts(boosts || []);
+
+        // Add permanent luck as a luck boost if > 0
+        // Cap display at 500% (5.0)
+        if (userData?.luck > 0) {
+            const cappedLuck = Math.min(userData.luck, 5.0); // Cap at 500%
+            categorized.luck.push({
+                type: 'luck',
+                source: 'Permanent (Sanae Blessing)',
+                multiplier: 1 + cappedLuck, // For calculation purposes
+                expiresAt: null,
+                displayValue: `+${(cappedLuck * 100).toFixed(1)}% permanent luck` // Display as percentage
+            });
+        }
 
         if (mysteriousDice) {
             categorized.luck.push(mysteriousDice);
@@ -116,7 +129,7 @@ async function getSanaeBoosts(userId, now) {
             });
         }
 
-        // Luck for Rolls
+        // Luck for Rolls - this is percentage based, display as percentage
         if (sanaeData.luckForRolls > 0 && sanaeData.luckForRollsAmount > 0) {
             boosts.push({
                 type: 'luckForRolls',
@@ -141,12 +154,16 @@ async function getSanaeBoosts(userId, now) {
 
         // Boost Multiplier
         if (sanaeData.boostMultiplierExpiry > now) {
+            // Get the actual multiplier value from the database
+            // If boostMultiplier column doesn't exist, check activeBoosts table
+            const actualMultiplier = sanaeData.boostMultiplier || 2;
+            
             boosts.push({
                 type: 'boostMultiplier',
                 source: 'Sanae Blessing',
-                multiplier: 2,
+                multiplier: actualMultiplier,
                 expiresAt: sanaeData.boostMultiplierExpiry,
-                displayValue: 'x2 all active boosts'
+                displayValue: `x${actualMultiplier} all active boosts`
             });
         }
 

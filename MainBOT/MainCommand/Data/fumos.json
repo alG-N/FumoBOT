@@ -515,7 +515,7 @@
       "marketPrice": null,
       "availability": {
         "crate": false,
-        "event": true,
+        "event": false,
         "pray": false,
         "library": true,
         "market": false
@@ -531,7 +531,7 @@
       "marketPrice": null,
       "availability": {
         "crate": false,
-        "event": true,
+        "event": false,
         "pray": false,
         "library": true,
         "market": false
@@ -547,7 +547,7 @@
       "marketPrice": null,
       "availability": {
         "crate": false,
-        "event": true,
+        "event": false,
         "pray": false,
         "library": true,
         "market": false
@@ -561,7 +561,7 @@
       "marketPrice": null,
       "availability": {
         "crate": false,
-        "event": true,
+        "event": false,
         "pray": false,
         "library": true,
         "market": false
@@ -575,7 +575,7 @@
       "marketPrice": null,
       "availability": {
         "crate": false,
-        "event": true,
+        "event": false,
         "pray": false,
         "library": true,
         "market": false
@@ -591,7 +591,7 @@
       "marketPrice": null,
       "availability": {
         "crate": false,
-        "event": true,
+        "event": false,
         "pray": false,
         "library": true,
         "market": false
@@ -605,7 +605,7 @@
       "marketPrice": null,
       "availability": {
         "crate": false,
-        "event": true,
+        "event": false,
         "pray": false,
         "library": true,
         "market": false
@@ -621,7 +621,7 @@
       "marketPrice": null,
       "availability": {
         "crate": false,
-        "event": true,
+        "event": false,
         "pray": false,
         "library": true,
         "market": false
@@ -637,7 +637,7 @@
       "marketPrice": null,
       "availability": {
         "crate": false,
-        "event": true,
+        "event": false,
         "pray": false,
         "library": true,
         "market": false
@@ -653,7 +653,7 @@
       "marketPrice": null,
       "availability": {
         "crate": false,
-        "event": true,
+        "event": false,
         "pray": false,
         "library": true,
         "market": false
@@ -665,11 +665,11 @@
       "id": "heiansukuna_transcendent",
       "name": "HeianSukuna",
       "rarity": "TRANSCENDENT",
-      "picture": "https://media.discordapp.net/attachments/1372426801472737280/1372880397599244378/raw.png?ex=68286201&is=68271081&hm=354b51c0bb278e08cef1d63050e9e0fc41765335d37309f15298050a8fdd03da&=&format=webp&quality=lossless&width=438&height=438",
+      "picture": "https://weebolt.com/cdn/shop/products/4026048-2760727.jpg?v=1635117016",
       "marketPrice": null,
       "availability": {
         "crate": false,
-        "event": true,
+        "event": false,
         "pray": false,
         "library": true,
         "market": false
@@ -784,6 +784,134 @@
       },
       "origin": "alterGolden or golden_exist",
       "fact": "I love fixing bug"
+    },
+    {
+      "id": "newyearreimu_common",
+      "name": "NewYearReimu",
+      "rarity": "Common",
+      "picture": "https://media.discordapp.net/attachments/1454788676549742613/1454788718006108303/image.png?ex=69525d13&is=69510b93&hm=1c2652c5b0ad4d0f3a33562439ab6fbb4a6ab3715a9dc38f1ee76ffff802f2ef&=&format=webp&quality=lossless&width=576&height=550",
+      "marketPrice": null,
+      "availability": {
+        "crate": false,
+        "event": true,
+        "pray": false,
+        "library": true,
+        "market": false
+      },
+      "origin": "Happy New Year 2026 Reimu Fumo",
+      "fact": "Released during the New Year 2026 event"
+    },
+    {
+      "id": "newyearmarisa_common",
+      "name": "NewYearMarisa",
+      "rarity": "Common",
+      "picture": "https://media.discordapp.net/attachments/1454788676549742613/1454790251896770663/image.png?ex=69525e80&is=69510d00&hm=2e891e3a3dc8b080bb55fd5c61067598245c6b592743b58c942c5ce06a6091dc&=&format=webp&quality=lossless&width=605&height=541",
+      "marketPrice": null,
+      "availability": {
+        "crate": false,
+        "event": true,
+        "pray": false,
+        "library": true,
+        "market": false
+      },
+      "origin": "Happy New Year 2026 Marisa Fumo",
+      "fact": "Released during the New Year 2026 event"
+    },
+    {
+      "id": "newyearsakuya_uncommon",
+      "name": "NewYearSakuya",
+      "rarity": "UNCOMMON",
+      "picture": "https://media.discordapp.net/attachments/1454788676549742613/1454791017835528369/image.png?ex=69525f37&is=69510db7&hm=f089ba4353880a04902c55dbef689c5e8f7f36373d669fd2b18872f055d6f738&=&format=webp&quality=lossless&width=596&height=556",
+      "marketPrice": null,
+      "availability": {
+        "crate": false,
+        "event": true,
+        "pray": false,
+        "library": true,
+        "market": false
+      },
+      "origin": "Happy New Year 2026 Sakuya Fumo",
+      "fact": "Released during the New Year 2026 event"
+    },
+    {
+      "id": "newyearsanae_uncommon",
+      "name": "NewYearSanae",
+      "rarity": "UNCOMMON",
+      "picture": "https://media.discordapp.net/attachments/1454788676549742613/1454791575967109150/image.png?ex=69525fbc&is=69510e3c&hm=8fcdec25a1bb10520afce460e5ef6e8cf3c1a3a9152f22e3ed19b90d4e07d680&=&format=webp&quality=lossless&width=620&height=596",
+      "marketPrice": null,
+      "availability": {
+        "crate": false,
+        "event": true,
+        "pray": false,
+        "library": true,
+        "market": false
+      },
+      "origin": "Happy New Year 2026 Sanae Fumo",
+      "fact": "Released during the New Year 2026 event"
+    },
+    {
+      "id": "newyearremilia_rare",
+      "name": "NewYearRemilia",
+      "rarity": "RARE",
+      "picture": "https://media.discordapp.net/attachments/1454788676549742613/1454792430984626176/image.png?ex=69526088&is=69510f08&hm=a55bfd6295ea07c631e9d191d94e665739ac3f79ced6af9b35673e75d16fe7c4&=&format=webp&quality=lossless&width=561&height=514",
+      "marketPrice": null,
+      "availability": {
+        "crate": false,
+        "event": true,
+        "pray": false,
+        "library": true,
+        "market": false
+      },
+      "origin": "Happy New Year 2026 Remilia Fumo",
+      "fact": "Released during the New Year 2026 event"
+    },
+    {
+      "id": "newyearflandere_rare",
+      "name": "NewYearFlandere",
+      "rarity": "RARE",
+      "picture": "https://media.discordapp.net/attachments/1454788676549742613/1454793326535512105/image.png?ex=6952615d&is=69510fdd&hm=d3978953aab43676bcb4bd182b104cfed8c1dcce9657211c81ec307c86d3a7a4&=&format=webp&quality=lossless&width=485&height=438",
+      "marketPrice": null,
+      "availability": {
+        "crate": false,
+        "event": true,
+        "pray": false,
+        "library": true,
+        "market": false
+      },
+      "origin": "Happy New Year 2026 Flandere Fumo",
+      "fact": "Released during the New Year 2026 event"
+    },
+    {
+      "id": "newyearyukari_",
+      "name": "NewYearYukari",
+      "rarity": "???",
+      "picture": "https://media.discordapp.net/attachments/1454788676549742613/1454793949175742648/image.png?ex=695261f2&is=69511072&hm=24bf8ee7ff9b814e5c2dfc6aa5e39ef5a41c55f8c286c7f1c076330f44b08576&=&format=webp&quality=lossless&width=618&height=585",
+      "marketPrice": null,
+      "availability": {
+        "crate": false,
+        "event": true,
+        "pray": false,
+        "library": true,
+        "market": false
+      },
+      "origin": "Happy New Year 2026 Yukari Fumo",
+      "fact": "Released during the New Year 2026 event"
+    },
+    {
+      "id": "newyeartheowner_transcendent",
+      "name": "NewYearTheOwner",
+      "rarity": "TRANSCENDENT",
+      "picture": "https://media.discordapp.net/attachments/1454788676549742613/1454794378127081545/image.png?ex=69526258&is=695110d8&hm=b1bf51e372654bfac33f97eee1344f850ee08ab19133e55c55b63a8c47790c46&=&format=webp&quality=lossless&width=579&height=538",
+      "marketPrice": null,
+      "availability": {
+        "crate": false,
+        "event": true,
+        "pray": false,
+        "library": true,
+        "market": false
+      },
+      "origin": "Happy New Year 2026 Transcendent Fumo",
+      "fact": "Released during the New Year 2026 event"
     }
   ],
   "lastMerge": {

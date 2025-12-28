@@ -1,34 +1,6 @@
 {
   "market": [
     {
-      "name": "Yukari(LEGENDARY)",
-      "price": 1250,
-      "rarity": "LEGENDARY",
-      "stock": 1,
-      "picture": null
-    },
-    {
-      "name": "Yuyuko(LEGENDARY)",
-      "price": 1550,
-      "rarity": "LEGENDARY",
-      "stock": 2,
-      "picture": null
-    },
-    {
-      "name": "Tenshi(MYTHICAL)",
-      "price": 97500,
-      "rarity": "MYTHICAL",
-      "stock": 2,
-      "picture": null
-    },
-    {
-      "name": "Bocchi(OTHERWORLDLY)",
-      "price": 950,
-      "rarity": "OTHERWORLDLY",
-      "stock": 3,
-      "picture": null
-    },
-    {
       "name": "Youmu(RARE)",
       "price": 35,
       "rarity": "RARE",
@@ -36,19 +8,40 @@
       "picture": null
     },
     {
-      "name": "Satori(EPIC)",
-      "price": 76,
+      "name": "Kasen(EPIC)",
+      "price": 90,
       "rarity": "EPIC",
       "stock": 3,
       "picture": null
     },
     {
-      "name": "Eirin(MYTHICAL)",
-      "price": 135000,
+      "name": "DarkYoumu(EXCLUSIVE)",
+      "price": 300000,
+      "rarity": "EXCLUSIVE",
+      "stock": 1,
+      "picture": null
+    },
+    {
+      "name": "Cheshire(ASTRAL)",
+      "price": 6415000,
+      "rarity": "ASTRAL",
+      "stock": 1,
+      "picture": null
+    },
+    {
+      "name": "Athena(ASTRAL)",
+      "price": 7594000,
+      "rarity": "ASTRAL",
+      "stock": 1,
+      "picture": null
+    },
+    {
+      "name": "Tenshi(MYTHICAL)",
+      "price": 97500,
       "rarity": "MYTHICAL",
       "stock": 1,
       "picture": null
     }
   ],
-  "resetTime": 1766880000000
+  "resetTime": 1766923200000
 }

@@ -105,7 +105,7 @@ module.exports = (client) => {
         }
 
         if (!isEventActive()) {
-            return message.reply('The banner has closed. Please wait for further updates.');
+            return message.reply('🎍 The New Year 2026 Banner has closed. Please wait for the next event!');
         }
 
         try {
@@ -191,7 +191,7 @@ module.exports = (client) => {
                 stopEventAutoRoll(userId);
             }
             return interaction.reply({
-                content: 'The banner has closed. All auto-rolls have been stopped.',
+                content: '🎍 The New Year 2026 Banner has closed. All auto-rolls have been stopped.',
                 ephemeral: true
             });
         }

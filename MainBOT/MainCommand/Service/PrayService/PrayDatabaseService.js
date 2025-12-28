@@ -116,19 +116,20 @@ async function deductUserCurrency(userId, coins, gems) {
     );
 }
 
-async function updateUserLuck(userId, luckIncrease, luckRarity = null) {
+async function updateUserLuck(userId, luckAmount) {
     userDataCache.delete(userId);
-    if (luckRarity) {
-        await run(
-            `UPDATE userCoins SET luck = CASE WHEN luck + ? > 1 THEN 1 ELSE luck + ? END, luckRarity = ? WHERE userId = ?`,
-            [luckIncrease, luckIncrease, luckRarity, userId]
-        );
-    } else {
-        await run(
-            `UPDATE userCoins SET luck = CASE WHEN luck + ? > 1 THEN 1 ELSE luck + ? END WHERE userId = ?`,
-            [luckIncrease, luckIncrease, userId]
-        );
-    }
+    
+    const MAX_PERMANENT_LUCK = 5.0; // 500% cap
+    
+    // ADD to existing luck, not replace
+    await run(
+        `UPDATE userCoins 
+         SET luck = MIN(?, COALESCE(luck, 0) + ?) 
+         WHERE userId = ?`,
+        [MAX_PERMANENT_LUCK, luckAmount, userId]
+    );
+    
+    return true;
 }
 
 async function updateUserRolls(userId, rollsToAdd) {
@@ -317,22 +318,28 @@ async function getYukariFumosByRarityGroups(userId, config) {
         ...rarityGroups.group3
     ];
     
-    const rarityConditions = allRarities.map(r => `rarity = '${r}'`).join(' OR ');
+    // Build LIKE conditions to extract rarity from fumoName like "Reimu(Common)"
+    const rarityConditions = allRarities.map(r => `fumoName LIKE '%(${r})%' OR fumoName LIKE '%(${r})[%'`).join(' OR ');
     
     const fumos = await all(
-        `SELECT id, fumoName, rarity, quantity 
+        `SELECT id, fumoName, COALESCE(quantity, 1) as quantity,
+         CASE 
+           ${allRarities.map(r => `WHEN fumoName LIKE '%(${r})%' THEN '${r}'`).join('\n           ')}
+           ELSE 'Common'
+         END as rarity
          FROM userInventory 
          WHERE userId = ? 
-         AND fumoName LIKE '%(%' 
+         AND fumoName IS NOT NULL
+         AND fumoName != ''
          AND (${rarityConditions})
          ORDER BY 
-           CASE rarity
-             WHEN 'ETERNAL' THEN 1
-             WHEN 'TRANSCENDENT' THEN 2
-             WHEN '???' THEN 3
-             WHEN 'ASTRAL' THEN 4
-             WHEN 'CELESTIAL' THEN 5
-             WHEN 'INFINITE' THEN 6
+           CASE 
+             WHEN fumoName LIKE '%(ETERNAL)%' THEN 1
+             WHEN fumoName LIKE '%(TRANSCENDENT)%' THEN 2
+             WHEN fumoName LIKE '%(???)%' THEN 3
+             WHEN fumoName LIKE '%(ASTRAL)%' THEN 4
+             WHEN fumoName LIKE '%(CELESTIAL)%' THEN 5
+             WHEN fumoName LIKE '%(INFINITE)%' THEN 6
              ELSE 7
            END,
            CASE 
@@ -344,17 +351,22 @@ async function getYukariFumosByRarityGroups(userId, config) {
         true
     );
 
-    return fumos;
+    return fumos || [];
 }
 
 async function getReimuRareFumos(userId, allowedRarities) {
-    const rarityConditions = allowedRarities.map(r => `rarity = '${r}'`).join(' OR ');
+    const rarityConditions = allowedRarities.map(r => `fumoName LIKE '%(${r})%' OR fumoName LIKE '%(${r})[%'`).join(' OR ');
     
     return await all(
-        `SELECT id, fumoName, rarity, quantity 
+        `SELECT id, fumoName, COALESCE(quantity, 1) as quantity,
+         CASE 
+           ${allowedRarities.map(r => `WHEN fumoName LIKE '%(${r})%' THEN '${r}'`).join('\n           ')}
+           ELSE 'RARE'
+         END as rarity
          FROM userInventory 
          WHERE userId = ? 
-         AND fumoName LIKE '%(%' 
+         AND fumoName IS NOT NULL
+         AND fumoName != ''
          AND (${rarityConditions})
          LIMIT 1000`,
         [userId],
@@ -363,13 +375,18 @@ async function getReimuRareFumos(userId, allowedRarities) {
 }
 
 async function getMythicalPlusFumos(userId, minRarities) {
-    const rarityConditions = minRarities.map(r => `rarity = '${r}'`).join(' OR ');
+    const rarityConditions = minRarities.map(r => `fumoName LIKE '%(${r})%' OR fumoName LIKE '%(${r})[%'`).join(' OR ');
     
     return await all(
-        `SELECT id, fumoName, rarity, quantity 
+        `SELECT id, fumoName, COALESCE(quantity, 1) as quantity,
+         CASE 
+           ${minRarities.map(r => `WHEN fumoName LIKE '%(${r})%' THEN '${r}'`).join('\n           ')}
+           ELSE 'MYTHICAL'
+         END as rarity
          FROM userInventory 
          WHERE userId = ? 
-         AND fumoName LIKE '%(%' 
+         AND fumoName IS NOT NULL
+         AND fumoName != ''
          AND (${rarityConditions})
          LIMIT 100`,
         [userId],
@@ -378,13 +395,18 @@ async function getMythicalPlusFumos(userId, minRarities) {
 }
 
 async function getLegendaryPlusFumos(userId, minRarities) {
-    const rarityConditions = minRarities.map(r => `rarity = '${r}'`).join(' OR ');
+    const rarityConditions = minRarities.map(r => `fumoName LIKE '%(${r})%' OR fumoName LIKE '%(${r})[%'`).join(' OR ');
     
     return await all(
-        `SELECT id, fumoName, rarity, quantity 
+        `SELECT id, fumoName, COALESCE(quantity, 1) as quantity,
+         CASE 
+           ${minRarities.map(r => `WHEN fumoName LIKE '%(${r})%' THEN '${r}'`).join('\n           ')}
+           ELSE 'LEGENDARY'
+         END as rarity
          FROM userInventory 
          WHERE userId = ? 
-         AND fumoName LIKE '%(%' 
+         AND fumoName IS NOT NULL
+         AND fumoName != ''
          AND (${rarityConditions})
          LIMIT 100`,
         [userId],
@@ -488,20 +510,22 @@ async function applyPermanentLuck(userId, luckAmount) {
     userDataCache.delete(userId);
     sanaeCache.delete(userId);
     
-    // Update user's permanent luck in userCoins
+    const MAX_PERMANENT_LUCK = 5.0; // 500% cap
+    
+    // Update user's permanent luck in userCoins, capped at MAX
     await run(
         `UPDATE userCoins 
-         SET luck = MIN(1, COALESCE(luck, 0) + ?) 
+         SET luck = MIN(?, COALESCE(luck, 0) + ?) 
          WHERE userId = ?`,
-        [luckAmount, userId]
+        [MAX_PERMANENT_LUCK, luckAmount, userId]
     );
     
     // Also track in sanaeBlessings for reference
     await run(
         `UPDATE sanaeBlessings 
-         SET permanentLuckBonus = COALESCE(permanentLuckBonus, 0) + ?, lastUpdated = ?
+         SET permanentLuckBonus = MIN(?, COALESCE(permanentLuckBonus, 0) + ?), lastUpdated = ?
          WHERE userId = ?`,
-        [luckAmount, Date.now(), userId]
+        [MAX_PERMANENT_LUCK, luckAmount, Date.now(), userId]
     );
     
     return { applied: true, amount: luckAmount };

@@ -29,17 +29,43 @@ const activeSanaeSessions = new Map();
  * Fixed: Properly counts quantity and filters by rarity column
  */
 async function getMythicalPlusFumos(userId, minRarities) {
-    const placeholders = minRarities.map(() => '?').join(', ');
+    // Build LIKE conditions to extract rarity from fumoName
+    const rarityConditions = minRarities.map(r => `fumoName LIKE '%(${r})%' OR fumoName LIKE '%(${r})[%'`).join(' OR ');
+    
+    // Define rarity order - LOWEST value = consume first
+    const rarityOrder = {
+        'MYTHICAL': 1,      // Consume first
+        'EXCLUSIVE': 2,
+        '???': 3,
+        'ASTRAL': 4,
+        'CELESTIAL': 5,
+        'INFINITE': 6,
+        'ETERNAL': 7,
+        'TRANSCENDENT': 8   // Consume last (most valuable)
+    };
+    
+    const orderCase = minRarities.map(r => 
+        `WHEN fumoName LIKE '%(${r})%' THEN ${rarityOrder[r] || 99}`
+    ).join('\n             ');
     
     const fumos = await all(
-        `SELECT id, fumoName, rarity, COALESCE(quantity, 1) as quantity 
+        `SELECT id, fumoName, COALESCE(quantity, 1) as quantity,
+         CASE 
+           ${minRarities.map(r => `WHEN fumoName LIKE '%(${r})%' THEN '${r}'`).join('\n           ')}
+           ELSE 'MYTHICAL'
+         END as rarity
          FROM userInventory 
          WHERE userId = ? 
          AND fumoName IS NOT NULL
          AND fumoName != ''
-         AND rarity IN (${placeholders})
-         ORDER BY rarity DESC`,
-        [userId, ...minRarities],
+         AND (${rarityConditions})
+         AND COALESCE(quantity, 1) > 0
+         ORDER BY 
+           CASE 
+             ${orderCase}
+             ELSE 99
+           END ASC`,
+        [userId],
         true
     );
     
@@ -51,17 +77,43 @@ async function getMythicalPlusFumos(userId, minRarities) {
  * Fixed: Properly counts quantity and filters by rarity column
  */
 async function getLegendaryPlusFumos(userId, minRarities) {
-    const placeholders = minRarities.map(() => '?').join(', ');
+    // Build LIKE conditions to extract rarity from fumoName
+    const rarityConditions = minRarities.map(r => `fumoName LIKE '%(${r})%' OR fumoName LIKE '%(${r})[%'`).join(' OR ');
+    
+    // Define rarity order - LOWEST value = consume first
+    const rarityOrder = {
+        'LEGENDARY': 1,     // Consume first
+        'MYTHICAL': 2,
+        'EXCLUSIVE': 3,
+        '???': 4,
+        'ASTRAL': 5,
+        'CELESTIAL': 6,
+        'INFINITE': 7,
+        'ETERNAL': 8,
+        'TRANSCENDENT': 9   // Consume last (most valuable)
+    };
+    
+    const orderCase = minRarities.map(r => 
+        `WHEN fumoName LIKE '%(${r})%' THEN ${rarityOrder[r] || 99}`
+    ).join('\n             ');
     
     const fumos = await all(
-        `SELECT id, fumoName, rarity, COALESCE(quantity, 1) as quantity 
+        `SELECT id, fumoName, COALESCE(quantity, 1) as quantity,
+         CASE 
+           ${minRarities.map(r => `WHEN fumoName LIKE '%(${r})%' THEN '${r}'`).join('\n           ')}
+           ELSE 'LEGENDARY'
+         END as rarity
          FROM userInventory 
          WHERE userId = ? 
          AND fumoName IS NOT NULL
          AND fumoName != ''
-         AND rarity IN (${placeholders})
-         ORDER BY rarity DESC`,
-        [userId, ...minRarities],
+         AND (${rarityConditions})
+         ORDER BY 
+           CASE 
+             ${orderCase}
+             ELSE 99
+           END ASC`,
+        [userId],
         true
     );
     
@@ -72,16 +124,19 @@ async function getLegendaryPlusFumos(userId, minRarities) {
  * Get total count of fumos matching rarities
  */
 async function getFumoCountByRarities(userId, rarities) {
-    const placeholders = rarities.map(() => '?').join(', ');
+    // Build LIKE conditions to extract rarity from fumoName
+    const rarityConditions = rarities.map(r => `fumoName LIKE '%(${r})%' OR fumoName LIKE '%(${r})[%'`).join(' OR ');
     
     const result = await get(
-        `SELECT COALESCE(SUM(COALESCE(quantity, 1)), 0) as total
+        `SELECT COALESCE(SUM(COALESCE(quantity, 1)), 0) as total 
          FROM userInventory 
          WHERE userId = ? 
          AND fumoName IS NOT NULL
          AND fumoName != ''
-         AND rarity IN (${placeholders})`,
-        [userId, ...rarities]
+         AND (${rarityConditions})
+         AND COALESCE(quantity, 1) > 0`,
+        [userId],
+        true
     );
     
     return result?.total || 0;
@@ -681,17 +736,80 @@ async function applyBlessingRewards(userId, rewards, config, rewardMult = 1) {
     if (rewards.luck) {
         const scaledLuck = rewards.luck.amount * Math.min(rewardMult, 2);
         if (rewards.luck.permanent) {
+            const MAX_PERMANENT_LUCK = 5.0; // 500% cap
+            
+            // Get current luck to check if we'll hit cap
+            const currentData = await get(
+                `SELECT luck FROM userCoins WHERE userId = ?`,
+                [userId]
+            );
+            const currentLuck = currentData?.luck || 0;
+            const newTotal = Math.min(currentLuck + scaledLuck, MAX_PERMANENT_LUCK);
+            const actualAdded = newTotal - currentLuck;
+            
             await updateUserLuck(userId, scaledLuck);
-            summary.push(`🍀 **+${(scaledLuck * 100).toFixed(1)}% permanent luck**`);
+            
+            if (actualAdded < scaledLuck) {
+                summary.push(`🍀 **+${(actualAdded * 100).toFixed(1)}% permanent luck** (Capped at ${(MAX_PERMANENT_LUCK * 100).toFixed(0)}%!)`);
+            } else {
+                summary.push(`🍀 **+${(scaledLuck * 100).toFixed(1)}% permanent luck** (Total: ${(newTotal * 100).toFixed(1)}%)`);
+            }
         } else {
             const expiry = now + rewards.luck.duration;
-            await run(
-                `INSERT OR REPLACE INTO activeBoosts (userId, type, source, multiplier, expiresAt) 
-                 VALUES (?, 'luck', 'SanaeBlessing', ?, ?)`,
-                [userId, 1 + scaledLuck, expiry]
-            );
             const hours = Math.floor(rewards.luck.duration / (60 * 60 * 1000));
-            summary.push(`🍀 **+${(scaledLuck * 100).toFixed(1)}% luck for ${hours}h**`);
+            
+            // Check for existing Sanae luck boost
+            const existingBoost = await get(
+                `SELECT multiplier, expiresAt FROM activeBoosts 
+                 WHERE userId = ? AND type = 'luck' AND source = 'SanaeBlessing'`,
+                [userId]
+            );
+            
+            // Convert luck amount to multiplier (0.50 = +50% = x1.5, 9.0 = +900% = x10)
+            const newMultiplier = 1 + scaledLuck;
+            
+            // Cap the total multiplier at x10 (changed from x50)
+            const MAX_LUCK_MULTIPLIER = 10;
+            
+            if (existingBoost && existingBoost.expiresAt > now) {
+                // Use additive stacking with a cap
+                const existingBonus = existingBoost.multiplier - 1;
+                const newBonus = newMultiplier - 1;
+                const combinedBonus = existingBonus + newBonus;
+                
+                const cappedMultiplier = Math.min(1 + combinedBonus, MAX_LUCK_MULTIPLIER);
+                
+                // Extend expiry to the longer of the two
+                const newExpiry = Math.max(existingBoost.expiresAt, expiry);
+                
+                await run(
+                    `UPDATE activeBoosts 
+                     SET multiplier = ?, expiresAt = ?
+                     WHERE userId = ? AND type = 'luck' AND source = 'SanaeBlessing'`,
+                    [cappedMultiplier, newExpiry, userId]
+                );
+                
+                if (cappedMultiplier >= MAX_LUCK_MULTIPLIER) {
+                    summary.push(`🍀 **x${newMultiplier.toFixed(2)} luck added → x${cappedMultiplier.toFixed(2)} total (MAX!) for ${hours}h**`);
+                } else {
+                    summary.push(`🍀 **x${newMultiplier.toFixed(2)} luck added → x${cappedMultiplier.toFixed(2)} total for ${hours}h**`);
+                }
+            } else {
+                // No existing boost, insert new one (also cap single blessing)
+                const cappedNewMultiplier = Math.min(newMultiplier, MAX_LUCK_MULTIPLIER);
+                
+                await run(
+                    `INSERT OR REPLACE INTO activeBoosts (userId, type, source, multiplier, expiresAt) 
+                     VALUES (?, 'luck', 'SanaeBlessing', ?, ?)`,
+                    [userId, cappedNewMultiplier, expiry]
+                );
+                
+                if (cappedNewMultiplier >= MAX_LUCK_MULTIPLIER) {
+                    summary.push(`🍀 **x${cappedNewMultiplier.toFixed(2)} luck (MAX!) for ${hours}h**`);
+                } else {
+                    summary.push(`🍀 **x${cappedNewMultiplier.toFixed(2)} luck for ${hours}h**`);
+                }
+            }
         }
     }
 
@@ -786,7 +904,11 @@ async function applyBlessingRewards(userId, rewards, config, rewardMult = 1) {
              WHERE userId = ? AND expiresAt > ?`,
             [rewards.boostMultiplier.multiplier, userId, now]
         );
-        await updateSanaeData(userId, { boostMultiplierExpiry: expiry });
+        // FIX: Also save the boostMultiplier value, not just the expiry
+        await updateSanaeData(userId, { 
+            boostMultiplierExpiry: expiry,
+            boostMultiplier: rewards.boostMultiplier.multiplier  // ADD THIS
+        });
         const days = Math.floor(rewards.boostMultiplier.duration / (24 * 60 * 60 * 1000));
         summary.push(`💫 **All active boosts x${rewards.boostMultiplier.multiplier} for ${days} days**`);
     }
@@ -898,11 +1020,14 @@ function formatBlessingRewards(rewards, rewardMult = 1) {
         parts.push(`💎 ${formatNumber(scaled)} gems`);
     }
     if (rewards.luck) {
+        const scaledLuck = rewards.luck.amount * Math.min(rewardMult, 2);
+        // Convert to multiplier format for display
+        const multiplier = 1 + scaledLuck;
         if (rewards.luck.permanent) {
-            parts.push(`🍀 +${(rewards.luck.amount * 100).toFixed(1)}% permanent luck`);
+            parts.push(`🍀 +${(scaledLuck * 100).toFixed(1)}% permanent luck`);
         } else {
             const hours = Math.floor(rewards.luck.duration / (60 * 60 * 1000));
-            parts.push(`🍀 +${(rewards.luck.amount * 100).toFixed(1)}% luck (${hours}h)`);
+            parts.push(`🍀 x${multiplier.toFixed(2)} luck (${hours}h)`);
         }
     }
     if (rewards.boost) {

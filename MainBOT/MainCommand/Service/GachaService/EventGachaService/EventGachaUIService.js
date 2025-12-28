@@ -4,23 +4,26 @@ const { PITY_THRESHOLDS } = require('../../../Configuration/rarity');
 const { EVENT_ROLL_LIMIT } = require('../../../Configuration/eventConfig');
 
 function createEventShopEmbed(userData, boosts, chances, eventTimeRemaining) {
-    const { gems, rollsInCurrentWindow, rollsSinceLastMythical, rollsSinceLastQuestionMark } = userData;
+    const { gems, rollsInCurrentWindow, rollsSinceLastQuestionMark } = userData;
 
+    // Build boost lines with Sanae information
+    const boostLines = [...(boosts.lines || [])];
+    
     const embed = new EmbedBuilder()
-        .setTitle('🎲 Jujutsu Kaisen turned into Marketable Fumo?!?! 🎲')
+        .setTitle('🎍 New Year 2026 Fumo Banner! 🎍')
         .setDescription(
             `💎 You're sitting on a treasure of ${formatNumber(gems)} gems. ` +
-            `Unleash the urge to gamble, each summon is just 100 gems for 1 marketable-fumo.`
+            `Celebrate the New Year with exclusive fumos! Each summon is just 100 gems for 1 festive fumo.`
         )
         .addFields([
             {
                 name: '🌟 Rarity Chances 🌟',
                 value: `Step right up and test your luck! Here are the odds for each rarity (with your luck applied):\n` +
-                    `🔮 EPIC - ${chances.epic.toFixed(4)}%\n` +
-                    `🟨 LEGENDARY - ${chances.legendary.toFixed(4)}%\n` +
-                    `🟥 MYTHICAL - ${chances.mythical.toFixed(4)}%\n` +
-                    `❓ ??? - ${chances.question.toFixed(5)}%\n` +
-                    `👑 TRANSCENDENT - ???%`
+                    `⚪ Common - ${chances.common.toFixed(2)}%\n` +
+                    `🟢 Uncommon - ${chances.uncommon.toFixed(2)}%\n` +
+                    `🔵 Rare - ${chances.rare.toFixed(2)}%\n` +
+                    `❓ ??? - ${chances.question.toFixed(4)}%\n` +
+                    `👑 Transcendent - 1 in ???`
             },
             { 
                 name: '⏳ Time Left', 
@@ -33,49 +36,43 @@ function createEventShopEmbed(userData, boosts, chances, eventTimeRemaining) {
                 inline: true 
             },
             { 
-                name: '🟥 Mythical Pity', 
-                value: `${rollsSinceLastMythical || 0} / ${PITY_THRESHOLDS.EVENT_MYTHICAL}`, 
-                inline: false 
-            },
-            { 
                 name: '❓ ??? Pity', 
                 value: `${rollsSinceLastQuestionMark || 0} / ${PITY_THRESHOLDS.EVENT_QUESTION}`, 
                 inline: false 
             }
         ])
-        .setColor(Colors.Blue)
-        .setImage('https://cdn141.picsart.com/322879240181201.jpg')
-        .setFooter({ text: boosts.lines.join('\n') || 'No luck boost applied...' });
+        .setColor(Colors.Gold)
+        .setImage('https://media.discordapp.net/attachments/1454788676549742613/1454800657335980175/image.png?ex=69526831&is=695116b1&hm=4d46f9b88c0aa41e4f117fa9d7fd1906cb87123dbb4fb0bc8ed2523dea90f12e&=&format=webp&quality=lossless&width=949&height=536')
+        .setFooter({ text: boostLines.join('\n') || 'No luck boost applied...' });
 
     return embed;
 }
 
 function createEventStatusEmbed(userData, boosts, chances, eventTimeRemaining, rollResetTime) {
-    const { gems, rollsInCurrentWindow, rollsSinceLastMythical, rollsSinceLastQuestionMark, rollsLeft } = userData;
+    const { gems, rollsInCurrentWindow, rollsSinceLastQuestionMark, rollsLeft } = userData;
 
     const embed = new EmbedBuilder()
-        .setTitle('🎲 Event Gacha Status')
+        .setTitle('🎍 New Year 2026 Event Status')
         .addFields([
             { name: 'Gems', value: formatNumber(gems), inline: true },
             { name: 'Rolls in Window', value: `${rollsInCurrentWindow || 0} / ${EVENT_ROLL_LIMIT}`, inline: true },
             { name: 'Window Reset', value: rollResetTime, inline: true },
             { 
                 name: 'Pity', 
-                value: `🟥 Mythical: ${rollsSinceLastMythical || 0} / ${PITY_THRESHOLDS.EVENT_MYTHICAL}\n` +
-                    `❓ ???: ${rollsSinceLastQuestionMark || 0} / ${PITY_THRESHOLDS.EVENT_QUESTION}`, 
+                value: `❓ ???: ${rollsSinceLastQuestionMark || 0} / ${PITY_THRESHOLDS.EVENT_QUESTION}`, 
                 inline: false 
             },
             { name: 'Event Time Left', value: eventTimeRemaining, inline: false },
             {
                 name: '🎲 Your Current Chances',
-                value: `🔮 EPIC - ${chances.epic.toFixed(4)}%\n` +
-                    `🟨 LEGENDARY - ${chances.legendary.toFixed(4)}%\n` +
-                    `🟥 MYTHICAL - ${chances.mythical.toFixed(4)}%\n` +
-                    `❓ ??? - ${chances.question.toFixed(5)}%\n` +
-                    `👑 TRANSCENDENT - ???%`
+                value: `⚪ Common - ${chances.common.toFixed(2)}%\n` +
+                    `🟢 Uncommon - ${chances.uncommon.toFixed(2)}%\n` +
+                    `🔵 Rare - ${chances.rare.toFixed(2)}%\n` +
+                    `❓ ??? - ${chances.question.toFixed(4)}%\n` +
+                    `👑 Transcendent - 1 in ???`
             }
         ])
-        .setColor(Colors.Blue)
+        .setColor(Colors.Gold)
         .setFooter({ text: boosts.lines.join('\n') || 'No luck boost applied...' });
 
     return embed;
@@ -107,15 +104,16 @@ function createEventShopButtons(userId, rollLimitReached, isAutoRollActive = fal
 }
 
 function createEventResultEmbed(result, numSummons, rollsInCurrentWindow, rollResetTime) {
-    const { fumoList, rollsSinceLastMythical, rollsSinceLastQuestionMark, boostText } = result;
+    const { fumoList, rollsSinceLastQuestionMark, boostText } = result;
 
     let description = '';
 
     if (numSummons === 1) {
         const fumo = fumoList[0];
-        description = `You acquired a ${fumo.rarity === 'TRANSCENDENT' ? '👑' : ''}${fumo.name} from the exclusive Event Fumo Crate! 🎊🎉`;
+        description = `You acquired a ${fumo.rarity === 'TRANSCENDENT' ? '👑' : ''}${fumo.name} from the New Year Fumo Banner! 🎍🎊`;
     } else {
-        const rarityOrder = ['EPIC', 'LEGENDARY', 'MYTHICAL', 'TRANSCENDENT', '???'];
+        // Use UPPERCASE rarities to match what selectEventRarity returns
+        const rarityOrder = ['Common', 'UNCOMMON', 'RARE', '???', 'TRANSCENDENT'];
         const grouped = fumoList.reduce((acc, fumo) => {
             if (!acc[fumo.rarity]) acc[fumo.rarity] = {};
             acc[fumo.rarity][fumo.name] = (acc[fumo.rarity][fumo.name] || 0) + 1;
@@ -125,7 +123,8 @@ function createEventResultEmbed(result, numSummons, rollsInCurrentWindow, rollRe
         for (const rarity of rarityOrder) {
             if (!grouped[rarity]) continue;
             const total = Object.values(grouped[rarity]).reduce((sum, count) => sum + count, 0);
-            description += `**${rarity === 'TRANSCENDENT' ? '👑 ' : ''}${rarity} (x${total}):**\n`;
+            const icon = rarity === 'TRANSCENDENT' ? '👑 ' : rarity === '???' ? '❓ ' : '';
+            description += `**${icon}${rarity} (x${total}):**\n`;
             for (const [name, count] of Object.entries(grouped[rarity])) {
                 description += `- ${name} x${count}\n`;
             }
@@ -135,17 +134,13 @@ function createEventResultEmbed(result, numSummons, rollsInCurrentWindow, rollRe
     const embed = new EmbedBuilder()
         .setTitle(
             numSummons === 1 
-                ? "🎉🎊 Woohoo! You've successfully unlocked a fantastic fumo! 🎊🎉"
-                : `🎉🎊 You've successfully unlocked ${numSummons} fantastic fumos from the JJK's Fumo Crate! 🎊🎉`
+                ? "🎍🎊 Happy New Year! You've unlocked a festive fumo! 🎊🎍"
+                : `🎍🎊 You've unlocked ${numSummons} festive fumos from the New Year Banner! 🎊🎍`
         )
         .setDescription(description)
         .addFields([
             { 
-                name: 'Mythical Pity', 
-                value: `${rollsSinceLastMythical} / ${PITY_THRESHOLDS.EVENT_MYTHICAL}` 
-            },
-            { 
-                name: '??? Pity', 
+                name: '❓ ??? Pity', 
                 value: `${rollsSinceLastQuestionMark} / ${PITY_THRESHOLDS.EVENT_QUESTION}` 
             },
             { 
@@ -153,6 +148,7 @@ function createEventResultEmbed(result, numSummons, rollsInCurrentWindow, rollRe
                 value: `${rollsInCurrentWindow} / ${EVENT_ROLL_LIMIT} rolls. ${rollResetTime} until reset.` 
             }
         ])
+        .setColor(Colors.Gold)
         .setFooter({ text: boostText });
 
     if (numSummons === 1 && fumoList[0]) {
@@ -173,9 +169,10 @@ function createContinueButton(userId, numSummons, rollLimitReached) {
 }
 
 function createEventAutoRollSummary(summary, userId) {
-    const { updateSummaryWithNotificationButton } = require('../../Service/GachaService/NotificationButtonsService');
+    const { updateSummaryWithNotificationButton } = require('../NotificationButtonsService');
     
-    const rarityOrder = ['TRANSCENDENT', '???', 'MYTHICAL', 'LEGENDARY', 'EPIC'];
+    // Updated rarity order for New Year banner
+    const rarityOrder = ['TRANSCENDENT', '???', 'RARE', 'UNCOMMON', 'Common'];
     
     let bestFumoText = 'None';
     let bestFumoImage = null;
@@ -201,7 +198,9 @@ function createEventAutoRollSummary(summary, userId) {
         fumoSummary[f.rarity].push(f);
     });
 
-    const summaryLines = rarityOrder.map(rarity => {
+    // Only show special rarities (??? and Transcendent for New Year banner)
+    const specialRarities = ['TRANSCENDENT', '???'];
+    const summaryLines = specialRarities.map(rarity => {
         const arr = fumoSummary[rarity] || [];
         if (arr.length === 0) return `**${rarity}:** None`;
         
@@ -212,28 +211,37 @@ function createEventAutoRollSummary(summary, userId) {
 
     const gemsSpent = summary.totalFumosRolled * 100;
     const stopReason = summary.stoppedReason === 'LIMIT_REACHED' 
-        ? '⚠️ Stopped: Roll limit reached (50,000)'
+        ? '⚠️ Stopped: Roll limit reached (10,000)'
         : summary.stoppedReason === 'INSUFFICIENT_GEMS'
         ? '⚠️ Stopped: Ran out of gems'
         : summary.stoppedReason === 'ERROR'
         ? '⚠️ Stopped: Error occurred'
+        : summary.stoppedReason === 'EVENT_ENDED'
+        ? '⚠️ Stopped: Event ended'
         : '✅ Stopped: Manual stop';
+
+    // Add Sanae blessing info if used
+    let sanaeText = '';
+    if (summary.sanaeGuaranteedUsed > 0) {
+        sanaeText = `\n⛩️ **Sanae Guaranteed Used:** \`${summary.sanaeGuaranteedUsed}\``;
+    }
 
     const statsField = [
         `🎲 **Total Batches:** \`${summary.rollCount}\``,
         `🎰 **Total Fumos:** \`${summary.totalFumosRolled.toLocaleString()}\``,
         `💎 **Gems Spent:** \`${gemsSpent.toLocaleString()}\``,
         bestFumoText,
+        sanaeText,
         `\n${stopReason}\n`,
         `\n__**Special Fumos Obtained:**__\n${summaryLines.join('\n')}`
-    ].join('\n');
+    ].filter(Boolean).join('\n');
 
     const embed = new EmbedBuilder()
-        .setTitle('🛑 Event Auto Roll Stopped!')
+        .setTitle('🛑 New Year Event Auto Roll Stopped!')
         .setDescription('Your event auto roll session has ended.\n\nHere\'s your summary:')
         .addFields([{ name: '📊 Results', value: statsField }])
         .setColor(summary.stoppedReason === 'LIMIT_REACHED' ? 0xFFA500 : 0xCC3300)
-        .setFooter({ text: 'Event Auto Roll Summary' })
+        .setFooter({ text: 'New Year 2026 Event Auto Roll Summary' })
         .setTimestamp();
 
     if (bestFumoImage) embed.setImage(bestFumoImage);

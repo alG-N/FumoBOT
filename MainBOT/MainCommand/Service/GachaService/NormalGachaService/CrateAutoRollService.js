@@ -1,5 +1,5 @@
 const { get, run, all } = require('../../../Core/database');
-const { performBatch100Roll } = require('./CrateGachaRollService');
+const { performMultiRoll } = require('./CrateGachaRollService');
 const { calculateCooldown } = require('./BoostService');
 const { SELL_REWARDS, SHINY_CONFIG, SPECIAL_RARITIES, compareFumos } = require('../../../Configuration/rarity');
 const { STORAGE_CONFIG } = require('../../../Configuration/storageConfig');
@@ -143,7 +143,8 @@ async function startAutoRoll(userId, fumos, autoSell = false) {
         specialFumoCount: 0,
         specialFumoFirstAt: null,
         specialFumoFirstRoll: null,
-        stoppedReason: null
+        stoppedReason: null,
+        sanaeGuaranteedUsed: 0
     };
 
     async function autoRollLoop() {
@@ -175,20 +176,37 @@ async function startAutoRoll(userId, fumos, autoSell = false) {
         const newInterval = await calculateAutoRollInterval(userId);
 
         try {
-            const result = await performBatch100Roll(userId, fumos);
+            // Use performMultiRoll to get full result including Sanae tracking
+            const result = await performMultiRoll(userId, fumos, 100, true);
+
+            if (!result.success) {
+                console.log(`⚠️ Auto-roll batch failed for user ${userId}: ${result.error}`);
+                stopped = true;
+                const auto = autoRollMap.get(userId);
+                if (auto) auto.stoppedReason = result.error;
+                stopAutoRoll(userId);
+                return;
+            }
 
             const current = autoRollMap.get(userId);
             if (current) {
                 current.rollCount = rollCount;
                 const timeStr = new Date().toLocaleString();
 
-                if (!current.bestFumo || (result && compareFumos(result, current.bestFumo) > 0)) {
-                    current.bestFumo = result;
+                // Track Sanae guaranteed rolls used
+                if (result.sanaeGuaranteedUsed > 0) {
+                    current.sanaeGuaranteedUsed = (current.sanaeGuaranteedUsed || 0) + result.sanaeGuaranteedUsed;
+                }
+
+                // Update best fumo if this batch has a better one
+                if (result.bestFumo && (!current.bestFumo || compareFumos(result.bestFumo, current.bestFumo) > 0)) {
+                    current.bestFumo = result.bestFumo;
                     current.bestFumoAt = timeStr;
                     current.bestFumoRoll = rollCount;
                 }
 
-                if (result && SPECIAL_RARITIES.includes(result.rarity)) {
+                // Track special fumos
+                if (result.bestFumo && SPECIAL_RARITIES.includes(result.bestFumo.rarity)) {
                     current.specialFumoCount++;
                     if (!current.specialFumoFirstAt) {
                         current.specialFumoFirstAt = timeStr;
@@ -304,6 +322,7 @@ async function restoreAutoRolls(client, fumoPool, options = {}) {
                     current.specialFumoCount = savedState.specialFumoCount || 0;
                     current.specialFumoFirstAt = savedState.specialFumoFirstAt || null;
                     current.specialFumoFirstRoll = savedState.specialFumoFirstRoll || null;
+                    current.sanaeGuaranteedUsed = savedState.sanaeGuaranteedUsed || 0;
                 }
 
                 restored++;
