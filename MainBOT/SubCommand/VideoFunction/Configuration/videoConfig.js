@@ -8,8 +8,12 @@ module.exports = {
         'http://localhost:9000'  // Your local Docker Cobalt instance
     ],
     
-    MAX_FILE_SIZE_MB: 25,
-    TARGET_COMPRESSION_MB: 8,
+    // Cobalt quality settings (helps avoid needing compression)
+    COBALT_VIDEO_QUALITY: '480',  // 144, 240, 360, 480, 720, 1080, 1440, 2160, max
+    COBALT_AUDIO_BITRATE: '128',  // 64, 96, 128, 192, 256, 320
+    
+    MAX_FILE_SIZE_MB: 50,       // Increased - Discord Nitro limit (or 25 for free)
+    TARGET_COMPRESSION_MB: 24,  // Target size after compression
     TEMP_FILE_CLEANUP_INTERVAL: 5 * 60 * 1000,
     TEMP_FILE_MAX_AGE: 15 * 60 * 1000,
     DOWNLOAD_TIMEOUT: 60000,

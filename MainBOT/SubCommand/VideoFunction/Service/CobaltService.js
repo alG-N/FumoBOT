@@ -77,11 +77,11 @@ class CobaltService {
 
     _requestDownload(url) {
         return new Promise((resolve, reject) => {
-            // Cobalt API format
+            // Cobalt API format - use configured quality
             const requestBody = JSON.stringify({
                 url: url,
-                videoQuality: '720',
-                audioBitrate: '128',
+                videoQuality: videoConfig.COBALT_VIDEO_QUALITY || '480',
+                audioBitrate: videoConfig.COBALT_AUDIO_BITRATE || '128',
                 filenameStyle: 'basic'
             });
 
