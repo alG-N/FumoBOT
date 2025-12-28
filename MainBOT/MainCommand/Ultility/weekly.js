@@ -76,31 +76,27 @@ function incrementWeeklyShiny(userId) {
                 WHEN weeklyQuestProgress.progress + 1 >= 25 THEN 1
                 ELSE weeklyQuestProgress.completed
             END
-    `, [userId, weekKey]);
+    `, [userId, weekKey], function (err) {
+        if (err) {
+            console.error(`[WeeklyShiny] Failed to update for ${userId}:`, err.message);
+        }
+    });
 }
 
 function incrementWeeklyAstral(userId) {
     const weekKey = getWeekIdentifier();
     db.run(`
-        UPDATE weeklyQuestProgress
-        SET 
-            progress = MIN(progress + 1, 1),
+        INSERT INTO weeklyQuestProgress (userId, questId, progress, completed, week)
+        VALUES (?, 'astral_plus', 1, 0, ?)
+        ON CONFLICT(userId, questId, week) DO UPDATE SET 
+            progress = MIN(weeklyQuestProgress.progress + 1, 1),
             completed = CASE 
-                WHEN MIN(progress + 1, 1) >= 1 THEN 1
-                ELSE completed
+                WHEN weeklyQuestProgress.progress + 1 >= 1 THEN 1
+                ELSE weeklyQuestProgress.completed
             END
-        WHERE userId = ? AND questId = 'astral_plus' AND week = ?
     `, [userId, weekKey], function (err) {
         if (err) {
-            db.run(`
-                INSERT INTO weeklyQuestProgress (userId, questId, progress, completed, week)
-                VALUES (?, 'astral_plus', 1, 1, ?)
-            `, [userId, weekKey]);
-        } else if (this.changes === 0) {
-            db.run(`
-                INSERT INTO weeklyQuestProgress (userId, questId, progress, completed, week)
-                VALUES (?, 'astral_plus', 1, 1, ?)
-            `, [userId, weekKey]);
+            console.error(`[WeeklyAstral] Failed to update for ${userId}:`, err.message);
         }
     });
 }

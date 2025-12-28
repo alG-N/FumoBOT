@@ -1,10 +1,10 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Colors } = require('discord.js');
 const { SPECIAL_RARITIES, RARITY_PRIORITY, isRarer } = require('../../../Configuration/rarity');
 const { formatNumber } = require('../../../Ultility/formatting');
-const { getSanaeBoostDisplay } = require('./CrateGachaRollService');
+const { getSanaeBoostDisplay } = require('./BoostService');
 
 function createShopEmbed(userData, boosts, hasFantasyBook, isAutoRollActive) {
-    const { coins, boostCharge, boostActive, boostRollsRemaining, rollsLeft, totalRolls } = userData;
+    const { coins, boostCharge, boostActive, boostRollsRemaining, rollsLeft, totalRolls, luck } = userData;
     const { pityTranscendent, pityEternal, pityInfinite, pityCelestial, pityAstral } = userData;
 
     const baseChances = [
@@ -27,10 +27,18 @@ function createShopEmbed(userData, boosts, hasFantasyBook, isAutoRollActive) {
     const isBoostActive = boostActive && boostRollsRemaining > 0;
 
     function applyBoosts(baseChance) {
-        let boosted = baseChance * boosts.ancientLuckMultiplier *
+        // Start with base luck multiplier
+        const baseLuckMult = Math.max(1, 1 + (luck || 0));
+        
+        let boosted = baseChance * baseLuckMult * boosts.ancientLuckMultiplier *
             boosts.mysteriousLuckMultiplier *
             boosts.mysteriousDiceMultiplier *
             boosts.petBoost;
+
+        // Apply Sanae direct luck multiplier
+        if (boosts.sanaeTempLuckMultiplier > 1) {
+            boosted *= boosts.sanaeTempLuckMultiplier;
+        }
 
         if (isBoostActive) {
             boosted *= 25;
@@ -93,6 +101,26 @@ function createShopEmbed(userData, boosts, hasFantasyBook, isAutoRollActive) {
     if (boosts.petBoost > 1) {
         ancientNoteLines.push(`🐰 Pet boost active! Luck boosted by ${boosts.petBoost.toFixed(4)}×`);
     }
+    if (luck > 0) {
+        ancientNoteLines.push(`🍀 Base Luck: +${(luck * 100).toFixed(1)}% (permanent)`);
+    }
+    // Sanae direct luck multiplier (x10, etc.)
+    if (boosts.sanaeTempLuckMultiplier > 1) {
+        ancientNoteLines.push(`⛩️ SanaeBlessing active! Luck boosted by ${boosts.sanaeTempLuckMultiplier}×`);
+    }
+    // Sanae global boost multiplier (x5 all boosts)
+    if (boosts.sanaeGlobalMultiplier > 1) {
+        ancientNoteLines.push(`✨ Sanae Blessing: All boosts multiplied by ${boosts.sanaeGlobalMultiplier}×`);
+    }
+
+    // Build Sanae blessing text for footer
+    const sanaeBoosts = getSanaeBoostDisplay(boosts);
+    if (sanaeBoosts.length > 0) {
+        ancientNoteLines.push(''); // Empty line separator
+        ancientNoteLines.push('⛩️ Sanae Blessings Active:');
+        sanaeBoosts.forEach(boost => ancientNoteLines.push(`  ${boost}`));
+    }
+
     const ancientNote = ancientNoteLines.length > 0 ? ancientNoteLines.join('\n') : 'No luck boost applied...';
 
     const pitySection =
@@ -124,16 +152,6 @@ Take a chance—who knows what you'll get?
         .setColor(Colors.Blue)
         .setImage('https://pbs.twimg.com/media/EkXjV4sU0AIwSr5.png')
         .setFooter({ text: ancientNote });
-
-    // Add Sanae boost section if active
-    const sanaeBoosts = getSanaeBoostDisplay(boosts);
-    if (sanaeBoosts.length > 0) {
-        embed.addFields({
-            name: '⛩️ Sanae Blessings Active',
-            value: sanaeBoosts.join('\n'),
-            inline: false
-        });
-    }
 
     return embed;
 }
@@ -281,6 +299,12 @@ function createAutoRollSummary(summary, userId) {
         }
     }
 
+    // Add Sanae blessing info if used
+    let sanaeText = '';
+    if (summary.sanaeGuaranteedUsed > 0) {
+        sanaeText = `\n⛩️ **Sanae Guaranteed Used:** \`${summary.sanaeGuaranteedUsed}\``;
+    }
+
     const rollCount = summary.rollCount || 0;
     const coinsSpent = rollCount * 10000;
     
@@ -291,13 +315,14 @@ function createAutoRollSummary(summary, userId) {
         stopReasonText = '\n\n🛑 **Stopped:** Storage is full\n💡 **Tip:** Enable auto-sell next time to continue automatically!';
     }
     
-    const statsField = [
-        `🎲 **Total Rolls:** \`${(rollCount * 100).toLocaleString()}\``,
-        `💸 **Coins Spent:** \`${coinsSpent.toLocaleString()}\``,
-        bestFumoText,
-        specialText,
-        stopReasonText
-    ].filter(Boolean).join('\n');
+const statsField = [
+    `🎲 **Total Rolls:** \`${(rollCount * 100).toLocaleString()}\``,
+    `💸 **Coins Spent:** \`${coinsSpent.toLocaleString()}\``,
+    bestFumoText,
+    specialText,
+    sanaeText,
+    stopReasonText
+].filter(Boolean).join('\n');
 
     const embed = new EmbedBuilder()
         .setTitle('🛑 Auto Roll Stopped!')

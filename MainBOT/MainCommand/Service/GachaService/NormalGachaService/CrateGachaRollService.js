@@ -1,6 +1,6 @@
 const { get, run } = require('../../../Core/database');
-const { getUserBoosts, calculateTotalLuckMultiplier, consumeSanaeLuckRoll, consumeSanaeGuaranteedRoll } = require
-const { calculateRarity, updatePityCounters, updateBoostCharge } = require('./RarityService');
+const { getUserBoosts, calculateTotalLuckMultiplier, consumeSanaeLuckRoll, consumeSanaeGuaranteedRoll } = require('./BoostService');
+const { calculateRarity, updatePityCounters, updateBoostCharge, meetsMinimumRarity } = require('./RarityService');
 const { selectAndAddFumo, selectAndAddMultipleFumos } = require('./InventoryService');
 const { ASTRAL_PLUS_RARITIES, isRarer } = require('../../../Configuration/rarity');
 const { incrementWeeklyAstral } = require('../../../Ultility/weekly');
@@ -106,7 +106,21 @@ async function performSingleRoll(userId, fumos) {
         const hasFantasyBook = !!row.hasFantasyBook;
         const boosts = await getUserBoosts(userId);
 
-        const { rarity } = await calculateRarity(userId, boosts, row, hasFantasyBook);
+        // Check for Sanae guaranteed rarity
+        let sanaeGuaranteedUsed = false;
+        const sanaeGuaranteed = boosts.sanaeGuaranteedRolls || 0;
+        const sanaeMinRarity = boosts.sanaeGuaranteedRarity || null;
+
+        let { rarity } = await calculateRarity(userId, boosts, row, hasFantasyBook);
+
+        // Apply Sanae guaranteed rarity if available
+        if (sanaeGuaranteed > 0 && sanaeMinRarity) {
+            if (!meetsMinimumRarity(rarity, sanaeMinRarity)) {
+                rarity = sanaeMinRarity;
+            }
+            await consumeSanaeGuaranteedRoll(userId);
+            sanaeGuaranteedUsed = true;
+        }
 
         if (ASTRAL_PLUS_RARITIES.includes(rarity)) {
             await incrementWeeklyAstral(userId);
@@ -142,7 +156,7 @@ async function performSingleRoll(userId, fumos) {
 
         await updateQuestsAndAchievements(userId, 1);
 
-        return { success: true, fumo, rarity };
+        return { success: true, fumo, rarity, sanaeGuaranteedUsed };
     } catch (error) {
         console.error('❌ Error in performSingleRoll:', error);
         debugLog('ROLL_ERROR', `Single roll failed for ${userId}: ${error.message}`);
@@ -175,6 +189,11 @@ async function performMultiRoll(userId, fumos, rollCount, isAutoRoll = false) {
 
         const rarities = [];
         let currentRolls = row.totalRolls;
+        let sanaeGuaranteedUsed = 0;
+
+        // Check how many guaranteed rolls we have
+        let sanaeGuaranteedRemaining = boosts.sanaeGuaranteedRolls || 0;
+        const sanaeMinRarity = boosts.sanaeGuaranteedRarity || null;
 
         for (let i = 0; i < rollCount; i++) {
             currentRolls++;
@@ -187,7 +206,20 @@ async function performMultiRoll(userId, fumos, rollCount, isAutoRoll = false) {
                 ...pities
             };
 
-            const { rarity } = await calculateRarity(userId, boosts, tempRow, hasFantasyBook);
+            let { rarity } = await calculateRarity(userId, boosts, tempRow, hasFantasyBook);
+
+            // Check if we should use Sanae guaranteed rarity
+            if (sanaeGuaranteedRemaining > 0 && sanaeMinRarity) {
+                if (!meetsMinimumRarity(rarity, sanaeMinRarity)) {
+                    rarity = sanaeMinRarity;
+                }
+                sanaeGuaranteedRemaining--;
+                sanaeGuaranteedUsed++;
+                
+                // Consume the guaranteed roll from database
+                await consumeSanaeGuaranteedRoll(userId);
+            }
+
             rarities.push(rarity);
 
             if (ASTRAL_PLUS_RARITIES.includes(rarity)) {
@@ -204,7 +236,6 @@ async function performMultiRoll(userId, fumos, rollCount, isAutoRoll = false) {
 
         const fumosBought = await selectAndAddMultipleFumos(userId, rarities, fumos, row.luck);
         
-        // Check if fumosBought is an error object
         if (fumosBought && fumosBought.error === 'STORAGE_FULL') {
             return {
                 success: false,
@@ -213,7 +244,6 @@ async function performMultiRoll(userId, fumos, rollCount, isAutoRoll = false) {
             };
         }
         
-        // Ensure fumosBought is an array
         const fumoArray = Array.isArray(fumosBought) ? fumosBought : [];
         
         let bestFumo = null;
@@ -238,7 +268,6 @@ async function performMultiRoll(userId, fumos, rollCount, isAutoRoll = false) {
 
         await updateQuestsAndAchievements(userId, rollCount);
 
-        // Check storage status after rolling
         const storageStatus = await StorageLimitService.getStorageStatus(userId);
         const storageWarning = storageStatus.status !== 'NORMAL' ? storageStatus : null;
 
@@ -246,7 +275,8 @@ async function performMultiRoll(userId, fumos, rollCount, isAutoRoll = false) {
             success: true, 
             fumosBought: fumoArray, 
             bestFumo,
-            storageWarning
+            storageWarning,
+            sanaeGuaranteedUsed
         };
     } catch (error) {
         console.error(`❌ Error in performMultiRoll (${rollCount}x):`, error);
@@ -257,7 +287,10 @@ async function performMultiRoll(userId, fumos, rollCount, isAutoRoll = false) {
 
 async function performBatch100Roll(userId, fumos) {
     const result = await performMultiRoll(userId, fumos, 100, true);
-    return result.success ? result.bestFumo : null;
+    if (result.success) {
+        return result.bestFumo;
+    }
+    return null;
 }
 
 module.exports = {

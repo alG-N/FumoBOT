@@ -5,32 +5,58 @@ const { updateQuestsAndAchievements } = require('../NormalGachaService/CrateGach
 const { incrementWeeklyShiny } = require('../../../Ultility/weekly');
 const FumoPool = require('../../../Data/FumoPool');
 const StorageLimitService = require('../../UserDataService/StorageService/StorageLimitService');
-const { getUserBoosts, consumeSanaeLuckRoll, consumeSanaeGuaranteedRoll } = require('../NormalGachaService/BoostService');
+const { getUserBoosts, consumeSanaeLuckRoll, consumeSanaeGuaranteedRoll, getSanaeBoostMultiplier } = require('../NormalGachaService/BoostService');
 const { meetsMinimumRarity, getRaritiesAbove } = require('../NormalGachaService/RarityService');
 
 async function getEventUserBoosts(userId) {
     const now = Date.now();
 
-    const [ancientRelic, mysteriousCube, mysteriousDice, lumina, petBoosts, nullified] = await Promise.all([
+    const [ancientRelic, mysteriousCube, mysteriousDice, lumina, petBoosts, nullified, sanaeBoostMultiplier, sanaeTempLuck, sanaeData] = await Promise.all([
         get(`SELECT multiplier, expiresAt FROM activeBoosts WHERE userId = ? AND type = 'luck' AND source = 'AncientRelic'`, [userId]),
         get(`SELECT multiplier, expiresAt FROM activeBoosts WHERE userId = ? AND type = 'luck' AND source = 'MysteriousCube'`, [userId]),
         get(`SELECT multiplier, expiresAt, extra FROM activeBoosts WHERE userId = ? AND type = 'luck' AND source = 'MysteriousDice'`, [userId]),
         get(`SELECT 1 FROM activeBoosts WHERE userId = ? AND type = 'luckEvery10'`, [userId]),
-        get(`SELECT multiplier FROM activeBoosts WHERE userId = ? AND type = 'luck'`, [userId]).then(rows => rows || []),
-        get(`SELECT uses FROM activeBoosts WHERE userId = ? AND type = 'rarityOverride' AND source = 'Nullified'`, [userId])
+        get(`SELECT multiplier, source FROM activeBoosts WHERE userId = ? AND type = 'luck' AND source NOT IN ('SanaeBlessing') AND expiresAt > ?`, [userId, now]).then(rows => rows || []),
+        get(`SELECT uses FROM activeBoosts WHERE userId = ? AND type = 'rarityOverride' AND source = 'Nullified'`, [userId]),
+        getSanaeBoostMultiplier(userId),
+        get(`SELECT multiplier, expiresAt FROM activeBoosts WHERE userId = ? AND type = 'luck' AND source = 'SanaeBlessing' AND expiresAt > ?`, [userId, now]),
+        get(`SELECT luckForRolls, luckForRollsAmount, guaranteedRarityRolls, guaranteedMinRarity FROM sanaeBlessings WHERE userId = ?`, [userId])
     ]);
 
-    const ancientLuckMultiplier = (ancientRelic && ancientRelic.expiresAt > now) ? ancientRelic.multiplier : 1;
-    const mysteriousLuckMultiplier = (mysteriousCube && mysteriousCube.expiresAt > now) ? mysteriousCube.multiplier : 1;
+    const globalMultiplier = sanaeBoostMultiplier || 1;
+
+    let ancientLuckMultiplier = (ancientRelic && ancientRelic.expiresAt > now) ? ancientRelic.multiplier : 1;
+    let mysteriousLuckMultiplier = (mysteriousCube && mysteriousCube.expiresAt > now) ? mysteriousCube.multiplier : 1;
 
     let mysteriousDiceMultiplier = 1;
     if (mysteriousDice && mysteriousDice.expiresAt > now) {
         mysteriousDiceMultiplier = await calculateEventDiceMultiplier(userId, mysteriousDice);
     }
 
-    const petBoost = Array.isArray(petBoosts) 
-        ? petBoosts.reduce((acc, row) => acc * row.multiplier, 1) 
-        : 1;
+    let petBoost = 1;
+    if (Array.isArray(petBoosts)) {
+        for (const row of petBoosts) {
+            if (row.source !== 'SanaeBlessing') {
+                petBoost *= (row.multiplier || 1);
+            }
+        }
+    }
+
+    // Apply global multiplier from Sanae blessing (x2, x5, etc.)
+    if (globalMultiplier > 1) {
+        if (ancientLuckMultiplier > 1) ancientLuckMultiplier *= globalMultiplier;
+        if (mysteriousLuckMultiplier > 1) mysteriousLuckMultiplier *= globalMultiplier;
+        if (mysteriousDiceMultiplier > 1) mysteriousDiceMultiplier *= globalMultiplier;
+        if (petBoost > 1) petBoost *= globalMultiplier;
+    }
+
+    const sanaeTempLuckMultiplier = sanaeTempLuck?.multiplier || 1;
+
+    // Sanae roll-based boosts
+    const sanaeGuaranteedRolls = sanaeData?.guaranteedRarityRolls || 0;
+    const sanaeGuaranteedRarity = sanaeData?.guaranteedMinRarity || null;
+    const sanaeLuckRollsRemaining = sanaeData?.luckForRolls || 0;
+    const sanaeLuckBoost = sanaeData?.luckForRollsAmount || 0;
 
     return {
         ancient: ancientLuckMultiplier,
@@ -39,7 +65,13 @@ async function getEventUserBoosts(userId) {
         pet: petBoost,
         lumina: !!lumina,
         nullified: nullified || null,
-        lines: buildBoostLines(ancientLuckMultiplier, mysteriousLuckMultiplier, mysteriousDiceMultiplier, petBoost, !!lumina)
+        sanaeTempLuckMultiplier,
+        sanaeGlobalMultiplier: globalMultiplier,
+        sanaeGuaranteedRolls,
+        sanaeGuaranteedRarity,
+        sanaeLuckRollsRemaining,
+        sanaeLuckBoost,
+        lines: buildBoostLines(ancientLuckMultiplier, mysteriousLuckMultiplier, mysteriousDiceMultiplier, petBoost, !!lumina, sanaeTempLuckMultiplier, globalMultiplier, sanaeGuaranteedRolls, sanaeGuaranteedRarity, sanaeLuckRollsRemaining, sanaeLuckBoost)
     };
 }
 
@@ -70,29 +102,57 @@ async function calculateEventDiceMultiplier(userId, diceBoost) {
     return currentHour.multiplier;
 }
 
-function buildBoostLines(ancient, mysterious, dice, pet, lumina) {
+function buildBoostLines(ancient, mysterious, dice, pet, lumina, sanaeTempLuck = 1, globalMultiplier = 1, sanaeGuaranteedRolls = 0, sanaeGuaranteedRarity = null, sanaeLuckRolls = 0, sanaeLuckBoost = 0) {
     const lines = [];
-    if (ancient > 1) lines.push(`🎇 AncientRelic x${ancient}`);
+    if (ancient > 1) lines.push(`🎇 AncientRelic x${ancient.toFixed(2)}`);
     if (mysterious > 1) lines.push(`🧊 MysteriousCube x${mysterious.toFixed(2)}`);
     if (dice !== 1) lines.push(`🎲 MysteriousDice x${dice.toFixed(4)}`);
     if (pet > 1) lines.push(`🐰 Pet x${pet.toFixed(4)}`);
     if (lumina) lines.push('🌟 Lumina (Every 10th roll x5)');
+    
+    // Sanae boosts
+    if (sanaeTempLuck > 1) {
+        lines.push(`⛩️ SanaeBlessing x${sanaeTempLuck} Luck`);
+    }
+    if (globalMultiplier > 1) {
+        lines.push(`✨ All Boosts x${globalMultiplier} (Sanae)`);
+    }
+    if (sanaeGuaranteedRolls > 0 && sanaeGuaranteedRarity) {
+        lines.push(`🎲 ${sanaeGuaranteedRolls} guaranteed ${sanaeGuaranteedRarity}+`);
+    }
+    if (sanaeLuckRolls > 0 && sanaeLuckBoost > 0) {
+        lines.push(`🍀 +${(sanaeLuckBoost * 100).toFixed(0)}% luck (${sanaeLuckRolls} rolls)`);
+    }
+    
     return lines;
 }
 
 function calculateEventLuckMultiplier(boosts, luck, rollsLeft, isBoostActive) {
     const bonusRollMultiplier = (rollsLeft > 0 && !isBoostActive) ? 2 : 1;
-    return boosts.ancient * boosts.mysterious * boosts.mysteriousDice * boosts.pet * Math.max(1, luck) * bonusRollMultiplier;
+    let total = boosts.ancient * boosts.mysterious * boosts.mysteriousDice * boosts.pet * Math.max(1, luck) * bonusRollMultiplier;
+    
+    // Apply Sanae direct luck multiplier
+    if (boosts.sanaeTempLuckMultiplier > 1) {
+        total *= boosts.sanaeTempLuckMultiplier;
+    }
+    
+    // Apply Sanae roll-based luck boost
+    if (boosts.sanaeLuckBoost > 0 && boosts.sanaeLuckRollsRemaining > 0) {
+        total *= (1 + boosts.sanaeLuckBoost);
+    }
+    
+    return total;
 }
 
 function calculateEventChances(totalLuckMultiplier) {
-    const mythical = Math.min(EVENT_BASE_CHANCES.MYTHICAL * totalLuckMultiplier, 5);
-    const question = Math.min(EVENT_BASE_CHANCES.QUESTION * totalLuckMultiplier, 0.5);
-    const transcendent = EVENT_BASE_CHANCES.TRANSCENDENT;
-    const legendary = Math.max(EVENT_BASE_CHANCES.LEGENDARY - (mythical + question + transcendent), 0.01);
-    const epic = 100 - (legendary + mythical + question + transcendent);
+    // New Year banner uses different rarities
+    const transcendent = EVENT_BASE_CHANCES.TRANSCENDENT; // 1 in 1 billion base
+    const question = Math.min(EVENT_BASE_CHANCES.QUESTION * totalLuckMultiplier, 10); // ??? caps at 10%
+    const rare = Math.min(EVENT_BASE_CHANCES.RARE * totalLuckMultiplier, 40); // Rare caps at 40%
+    const uncommon = Math.min(EVENT_BASE_CHANCES.UNCOMMON * totalLuckMultiplier, 50); // Uncommon caps at 50%
+    const common = Math.max(100 - (uncommon + rare + question + transcendent), 1); // Common is remainder
 
-    return { epic, legendary, mythical, question, transcendent };
+    return { common, uncommon, rare, question, transcendent };
 }
 
 async function getEventUserRollData(userId) {
@@ -127,16 +187,16 @@ async function updateEventUserAfterRoll(userId, updates) {
     );
 }
 
-async function selectEventRarity(userId, boosts, rollsSinceLastMythical, rollsSinceLastQuestionMark, totalRolls, luck, rollsLeft) {
+async function selectEventRarity(userId, boosts, rollsSinceLastMythical, rollsSinceLastQuestionMark, totalRolls, luck, rollsLeft, consumeSanae = false) {
+    // Pity system for ??? rarity (using existing pity counter)
     if (rollsSinceLastQuestionMark >= PITY_THRESHOLDS.EVENT_QUESTION) {
-        return '???';
+        return { rarity: '???', sanaeUsed: false };
     }
-    if (rollsSinceLastMythical >= PITY_THRESHOLDS.EVENT_MYTHICAL) {
-        return 'MYTHICAL';
-    }
+    // Note: No mythical pity for New Year banner since there's no MYTHICAL rarity
+    // We can repurpose the mythical pity for RARE if desired, or remove it
 
     if (boosts.nullified?.uses > 0) {
-        const rarities = ['EPIC', 'LEGENDARY', 'MYTHICAL', '???', 'TRANSCENDENT'];
+        const rarities = ['Common', 'UNCOMMON', 'RARE', '???', 'TRANSCENDENT'];
         const rarity = rarities[Math.floor(Math.random() * rarities.length)];
 
         if (boosts.nullified.uses > 1) {
@@ -151,7 +211,7 @@ async function selectEventRarity(userId, boosts, rollsSinceLastMythical, rollsSi
             );
         }
 
-        return rarity;
+        return { rarity, sanaeUsed: false };
     }
 
     const totalLuck = calculateEventLuckMultiplier(
@@ -168,11 +228,44 @@ async function selectEventRarity(userId, boosts, rollsSinceLastMythical, rollsSi
         roll /= 5;
     }
 
-    if (roll < chances.transcendent) return 'TRANSCENDENT';
-    if (roll < chances.question + chances.transcendent) return '???';
-    if (roll < chances.mythical + chances.question + chances.transcendent) return 'MYTHICAL';
-    if (roll < chances.legendary + chances.mythical + chances.question + chances.transcendent) return 'LEGENDARY';
-    return 'EPIC';
+    // Use UPPERCASE for rarities to match FumoPool data
+    let selectedRarity;
+    if (roll < chances.transcendent) selectedRarity = 'TRANSCENDENT';
+    else if (roll < chances.question + chances.transcendent) selectedRarity = '???';
+    else if (roll < chances.rare + chances.question + chances.transcendent) selectedRarity = 'RARE';
+    else if (roll < chances.uncommon + chances.rare + chances.question + chances.transcendent) selectedRarity = 'UNCOMMON';
+    else selectedRarity = 'Common';
+
+    // Apply Sanae guaranteed rarity if available and consumeSanae is true
+    let sanaeUsed = false;
+    if (consumeSanae && boosts.sanaeGuaranteedRolls > 0 && boosts.sanaeGuaranteedRarity) {
+        // Map event rarities for comparison (use UPPERCASE to match FumoPool)
+        const eventRarityOrder = ['Common', 'UNCOMMON', 'RARE', '???', 'TRANSCENDENT'];
+        
+        // Normalize the guaranteed rarity from DB to UPPERCASE
+        const dbRarity = boosts.sanaeGuaranteedRarity.toUpperCase();
+        const rarityMap = {
+            'COMMON': 'Common',
+            'UNCOMMON': 'UNCOMMON', 
+            'RARE': 'RARE',
+            '???': '???',
+            'TRANSCENDENT': 'TRANSCENDENT'
+        };
+        const normalizedGuaranteed = rarityMap[dbRarity] || dbRarity;
+        
+        const minIndex = eventRarityOrder.indexOf(normalizedGuaranteed);
+        const currentIndex = eventRarityOrder.indexOf(selectedRarity);
+        
+        // Only upgrade if both indices are valid and current is below minimum
+        if (minIndex !== -1 && currentIndex !== -1 && currentIndex < minIndex) {
+            selectedRarity = eventRarityOrder[minIndex];
+        }
+        
+        await consumeSanaeGuaranteedRoll(userId);
+        sanaeUsed = true;
+    }
+
+    return { rarity: selectedRarity, sanaeUsed };
 }
 
 /**
@@ -257,32 +350,40 @@ async function performEventSummon(userId, numSummons) {
         const boosts = await getEventUserBoosts(userId);
         const fumoList = [];
 
-        let currentMythical = userData.rollsSinceLastMythical || 0;
+        // For New Year banner, we don't track mythical pity (no MYTHICAL rarity)
+        // We only track ??? pity
         let currentQuestion = userData.rollsSinceLastQuestionMark || 0;
         let currentTotalRolls = userData.totalRolls || 0;
         let currentRollsLeft = userData.rollsLeft || 0;
+        let sanaeGuaranteedRemaining = boosts.sanaeGuaranteedRolls || 0;
+        let totalSanaeUsed = 0;
 
         for (let i = 0; i < actualSummons; i++) {
             currentTotalRolls++;
 
-            const rarity = await selectEventRarity(
+            // Determine if we should use Sanae guaranteed for this roll
+            const useSanae = sanaeGuaranteedRemaining > 0;
+            
+            const { rarity, sanaeUsed } = await selectEventRarity(
                 userId, 
-                boosts, 
-                currentMythical, 
+                { ...boosts, sanaeGuaranteedRolls: sanaeGuaranteedRemaining }, 
+                0, // No mythical pity for New Year banner
                 currentQuestion,
                 currentTotalRolls, 
                 userData.luck,
-                currentRollsLeft
+                currentRollsLeft,
+                useSanae
             );
 
+            if (sanaeUsed) {
+                sanaeGuaranteedRemaining--;
+                totalSanaeUsed++;
+            }
+
+            // Update ??? pity counter
             if (rarity === '???') {
-                currentMythical++;
                 currentQuestion = 0;
-            } else if (rarity === 'MYTHICAL') {
-                currentMythical = 0;
-                currentQuestion++;
             } else {
-                currentMythical++;
                 currentQuestion++;
             }
 
@@ -299,7 +400,7 @@ async function performEventSummon(userId, numSummons) {
         await updateEventUserAfterRoll(userId, {
             cost: 100 * numSummons,
             rollCount: numSummons,
-            rollsSinceLastMythical: currentMythical,
+            rollsSinceLastMythical: 0, // Not used for New Year banner
             rollsSinceLastQuestionMark: currentQuestion
         });
 
@@ -308,13 +409,14 @@ async function performEventSummon(userId, numSummons) {
         return {
             success: true,
             fumoList,
-            rollsSinceLastMythical: currentMythical,
+            rollsSinceLastMythical: 0, // Not applicable
             rollsSinceLastQuestionMark: currentQuestion,
             boostText: boosts.lines.join('\n') || 'No luck boost applied...',
             partialSummon: actualSummons < numSummons,
             requestedCount: numSummons,
             actualCount: actualSummons,
-            storageWarning: actualSummons < numSummons ? storageCheck : null
+            storageWarning: actualSummons < numSummons ? storageCheck : null,
+            sanaeGuaranteedUsed: totalSanaeUsed
         };
     } catch (error) {
         console.error(`❌ Error in performEventSummon for user ${userId}:`, error);

@@ -604,7 +604,8 @@ function createIndexes() {
                 craftProtection INTEGER DEFAULT 0,
                 boostMultiplierExpiry INTEGER DEFAULT 0,
                 permanentLuckBonus REAL DEFAULT 0,
-                lastUpdated INTEGER DEFAULT 0
+                lastUpdated INTEGER DEFAULT 0,
+                boostMultiplier INTEGER DEFAULT 1
             )`, (err) => {
                 if (err) {
                     console.error('Error creating sanaeBlessings table:', err.message);
@@ -684,6 +685,7 @@ async function ensureColumnsExist() {
             { name: 'guaranteedMinRarity', type: 'TEXT DEFAULT NULL' },
             { name: 'luckForRollsAmount', type: 'REAL DEFAULT 0' },
             { name: 'boostMultiplierExpiry', type: 'INTEGER DEFAULT 0' },
+            { name: 'boostMultiplier', type: 'INTEGER DEFAULT 1' },  // ADD THIS
             { name: 'lastUpdated', type: 'INTEGER DEFAULT 0' }
         ];
 

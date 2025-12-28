@@ -60,7 +60,8 @@ function formatBoostLabel(boost, timeLeft) {
 
     if (type === 'luck') {
         const prefix = isDynamic ? 'this hour' : 'total';
-        return `• x${multiplier} Luck Boost (${prefix}) from **${source}** (${timeLeft})`;
+        // Display as multiplier format (x2, x10, etc.)
+        return `• x${multiplier.toFixed(2)} Luck Boost (${prefix}) from **${source}** (${timeLeft})`;
     }
 
     // Sanae specific types (fallback)

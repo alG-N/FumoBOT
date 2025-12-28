@@ -2,6 +2,25 @@ const { get, all, run } = require('../../../Core/database');
 const { debugLog } = require('../../../Core/logger');
 
 /**
+ * Get Sanae boost multiplier (x2, x5, etc.) that applies to all other boosts
+ */
+async function getSanaeBoostMultiplier(userId) {
+    try {
+        const now = Date.now();
+        const sanaeMultiplier = await get(
+            `SELECT multiplier, expiresAt FROM activeBoosts 
+             WHERE userId = ? AND type = 'boostMultiplier' AND source = 'SanaeBlessing' AND expiresAt > ?`,
+            [userId, now]
+        );
+        
+        return sanaeMultiplier?.multiplier || 1;
+    } catch (error) {
+        console.error('[BOOST] Sanae multiplier fetch error:', error);
+        return 1;
+    }
+}
+
+/**
  * Get all active boosts for a user including Sanae blessings
  */
 async function getUserBoosts(userId) {
@@ -10,36 +29,76 @@ async function getUserBoosts(userId) {
 
     const now = Date.now();
     
-    const [ancientRelic, mysteriousCube, mysteriousDice, lumina, timeBlessing, timeClock, petBoosts, nullified, sanaeBoosts] = await Promise.all([
+    const [ancientRelic, mysteriousCube, mysteriousDice, lumina, timeBlessing, timeClock, petBoosts, nullified, sanaeBoosts, sanaeBoostMultiplier] = await Promise.all([
         get(`SELECT multiplier, expiresAt FROM activeBoosts WHERE userId = ? AND type = 'luck' AND source = 'AncientRelic'`, [userId]),
         get(`SELECT multiplier, expiresAt FROM activeBoosts WHERE userId = ? AND type = 'luck' AND source = 'MysteriousCube'`, [userId]),
         get(`SELECT multiplier, expiresAt, extra FROM activeBoosts WHERE userId = ? AND type = 'luck' AND source = 'MysteriousDice'`, [userId]),
         get(`SELECT 1 FROM activeBoosts WHERE userId = ? AND type = 'luckEvery10'`, [userId]),
         get(`SELECT multiplier FROM activeBoosts WHERE userId = ? AND type = 'summonCooldown' AND source = 'TimeBlessing' AND expiresAt > ?`, [userId, now]),
         get(`SELECT multiplier FROM activeBoosts WHERE userId = ? AND type = 'summonSpeed' AND source = 'TimeClock' AND expiresAt > ?`, [userId, now]),
-        all(`SELECT multiplier FROM activeBoosts WHERE userId = ? AND type = 'luck' AND expiresAt > ?`, [userId, now]),
+        all(`SELECT multiplier, source FROM activeBoosts WHERE userId = ? AND type = 'luck' AND source NOT IN ('SanaeBlessing') AND expiresAt > ?`, [userId, now]),
         get(`SELECT uses FROM activeBoosts WHERE userId = ? AND type = 'rarityOverride' AND source = 'Nullified'`, [userId]),
-        getSanaeLuckBoosts(userId, now)
+        getSanaeLuckBoosts(userId, now),
+        getSanaeBoostMultiplier(userId)
     ]);
 
-    const ancientLuckMultiplier = (ancientRelic && ancientRelic.expiresAt > now) ? ancientRelic.multiplier : 1;
-    const mysteriousLuckMultiplier = (mysteriousCube && mysteriousCube.expiresAt > now) ? mysteriousCube.multiplier : 1;
-
-    let mysteriousDiceMultiplier = 1;
-    if (mysteriousDice && mysteriousDice.expiresAt > now) {
-        mysteriousDiceMultiplier = await calculateDiceMultiplier(userId, mysteriousDice);
-    }
-
-    const petBoost = Array.isArray(petBoosts) 
-        ? petBoosts.reduce((acc, row) => acc * (row.multiplier || 1), 1) 
-        : 1;
-
-    // Get Sanae temporary luck boost from activeBoosts
+    // Get Sanae temporary luck boost from activeBoosts (this is different from the roll-based luck)
     const sanaeTempLuck = await get(
         `SELECT multiplier, expiresAt FROM activeBoosts 
          WHERE userId = ? AND type = 'luck' AND source = 'SanaeBlessing' AND expiresAt > ?`,
         [userId, now]
     );
+
+    // Apply Sanae boost multiplier to all luck boosts
+    const globalMultiplier = sanaeBoostMultiplier || 1;
+
+    // Base multipliers before global boost
+    let baseAncient = (ancientRelic && ancientRelic.expiresAt > now) ? ancientRelic.multiplier : 1;
+    let baseMysterious = (mysteriousCube && mysteriousCube.expiresAt > now) ? mysteriousCube.multiplier : 1;
+
+    let baseDice = 1;
+    if (mysteriousDice && mysteriousDice.expiresAt > now) {
+        baseDice = await calculateDiceMultiplier(userId, mysteriousDice);
+    }
+
+    // Calculate pet boost (excluding Sanae from pet boosts)
+    let basePet = 1;
+    if (Array.isArray(petBoosts)) {
+        for (const row of petBoosts) {
+            if (row.source !== 'SanaeBlessing') {
+                basePet *= (row.multiplier || 1);
+            }
+        }
+    }
+
+    // Apply global multiplier from Sanae blessing (x2, x5, etc.) - multiply the EFFECT, not the base
+    let ancientLuckMultiplier = baseAncient;
+    let mysteriousLuckMultiplier = baseMysterious;
+    let mysteriousDiceMultiplier = baseDice;
+    let petBoost = basePet;
+
+    if (globalMultiplier > 1) {
+        // For multipliers > 1, multiply by globalMultiplier
+        // For multipliers = 1 (inactive), keep as 1
+        if (baseAncient > 1) {
+            ancientLuckMultiplier = baseAncient * globalMultiplier;
+        }
+        if (baseMysterious > 1) {
+            mysteriousLuckMultiplier = baseMysterious * globalMultiplier;
+        }
+        if (baseDice > 1) {
+            mysteriousDiceMultiplier = baseDice * globalMultiplier;
+        }
+        if (basePet > 1) {
+            petBoost = basePet * globalMultiplier;
+        }
+    }
+
+    // Sanae direct luck multiplier (x10 luck from SanaeBlessing) - also affected by global multiplier
+    let sanaeLuckMultiplier = sanaeTempLuck?.multiplier || 1;
+    if (globalMultiplier > 1 && sanaeLuckMultiplier > 1) {
+        sanaeLuckMultiplier = sanaeLuckMultiplier * globalMultiplier;
+    }
 
     const elapsed = Date.now() - startTime;
     debugLog('BOOST', `Boosts fetched in ${elapsed}ms`, {
@@ -48,7 +107,8 @@ async function getUserBoosts(userId) {
         dice: mysteriousDiceMultiplier,
         pet: petBoost,
         sanae: sanaeBoosts,
-        sanaeTempLuck: sanaeTempLuck?.multiplier || 1
+        sanaeTempLuck: sanaeLuckMultiplier,
+        globalMultiplier
     });
 
     return {
@@ -65,7 +125,8 @@ async function getUserBoosts(userId) {
         sanaeLuckRollsRemaining: sanaeBoosts.luckRollsRemaining,
         sanaeGuaranteedRarity: sanaeBoosts.guaranteedRarity,
         sanaeGuaranteedRolls: sanaeBoosts.guaranteedRolls,
-        sanaeTempLuckMultiplier: sanaeTempLuck?.multiplier || 1
+        sanaeTempLuckMultiplier: sanaeLuckMultiplier,
+        sanaeGlobalMultiplier: globalMultiplier
     };
 }
 
@@ -95,7 +156,7 @@ async function getSanaeLuckBoosts(userId, now) {
             luckRollsRemaining: sanaeData.luckForRolls || 0,
             guaranteedRarity: sanaeData.guaranteedRarityRolls > 0 ? sanaeData.guaranteedMinRarity : null,
             guaranteedRolls: sanaeData.guaranteedRarityRolls || 0,
-            permanentLuck: 0 // Will be added when column exists
+            permanentLuck: 0
         };
     } catch (error) {
         console.error('[BOOST] Sanae luck fetch error:', error);
@@ -205,21 +266,31 @@ async function calculateDiceMultiplier(userId, diceBoost) {
 /**
  * Build boost display lines for UI
  */
-function buildBoostLines(ancient, mysterious, dice, pet, lumina, sanaeBoosts = {}) {
+function buildBoostLines(ancient, mysterious, dice, pet, lumina, sanaeBoosts = {}, sanaeLuckMultiplier = 1, globalMultiplier = 1) {
     const lines = [];
     
-    if (ancient > 1) lines.push(`🎇 AncientRelic x${ancient}`);
+    if (ancient > 1) lines.push(`🎇 AncientRelic x${ancient.toFixed(2)}`);
     if (mysterious > 1) lines.push(`🧊 MysteriousCube x${mysterious.toFixed(2)}`);
     if (dice !== 1) lines.push(`🎲 MysteriousDice x${dice.toFixed(4)}`);
     if (pet > 1) lines.push(`🐰 Pet x${pet.toFixed(4)}`);
     if (lumina) lines.push('🌟 Lumina (Every 10th roll x5)');
     
-    // Sanae boosts
+    // Sanae direct luck multiplier (x10 from blessing)
+    if (sanaeLuckMultiplier > 1) {
+        lines.push(`⛩️ SanaeBlessing x${sanaeLuckMultiplier} Luck`);
+    }
+    
+    // Sanae roll-based luck boosts
     if (sanaeBoosts.luckRolls > 0 && sanaeBoosts.luckBoost > 0) {
         lines.push(`⛩️ Sanae Luck +${(sanaeBoosts.luckBoost * 100).toFixed(0)}% (${sanaeBoosts.luckRolls} rolls)`);
     }
     if (sanaeBoosts.guaranteedRolls > 0 && sanaeBoosts.guaranteedRarity) {
         lines.push(`🎲 Guaranteed ${sanaeBoosts.guaranteedRarity}+ (${sanaeBoosts.guaranteedRolls} rolls)`);
+    }
+    
+    // Global boost multiplier
+    if (globalMultiplier > 1) {
+        lines.push(`✨ All Boosts x${globalMultiplier} (Sanae Blessing)`);
     }
     
     return lines;
@@ -232,15 +303,19 @@ function getSanaeBoostDisplay(boosts) {
     const display = [];
     
     if (boosts.sanaeGuaranteedRolls > 0 && boosts.sanaeGuaranteedRarity) {
-        display.push(`🎲 **${boosts.sanaeGuaranteedRolls}** guaranteed ${boosts.sanaeGuaranteedRarity}+`);
+        display.push(`🎲 ${boosts.sanaeGuaranteedRolls} guaranteed ${boosts.sanaeGuaranteedRarity}+`);
     }
     
     if (boosts.sanaeLuckRollsRemaining > 0 && boosts.sanaeLuckBoost > 0) {
-        display.push(`🍀 **+${(boosts.sanaeLuckBoost * 100).toFixed(0)}%** luck (${boosts.sanaeLuckRollsRemaining} rolls)`);
+        display.push(`🍀 +${(boosts.sanaeLuckBoost * 100).toFixed(0)}% luck (${boosts.sanaeLuckRollsRemaining} rolls)`);
     }
     
-    if (boosts.sanaePermanentLuck > 0) {
-        display.push(`⛩️ **+${(boosts.sanaePermanentLuck * 100).toFixed(1)}%** permanent luck`);
+    if (boosts.sanaeTempLuckMultiplier > 1) {
+        display.push(`⛩️ x${boosts.sanaeTempLuckMultiplier} luck from Sanae`);
+    }
+    
+    if (boosts.sanaeGlobalMultiplier > 1) {
+        display.push(`✨ x${boosts.sanaeGlobalMultiplier} all boosts from Sanae`);
     }
     
     return display;
@@ -249,19 +324,24 @@ function getSanaeBoostDisplay(boosts) {
 /**
  * Calculate total luck multiplier including all sources
  */
-function calculateTotalLuckMultiplier(boosts, isBoostActive, rollsLeft, totalRolls) {
+function calculateTotalLuckMultiplier(boosts, isBoostActive, rollsLeft, totalRolls, baseLuck = 0) {
     const bonusRollMultiplier = (rollsLeft > 0 && !isBoostActive) ? 2 : 1;
     
-    let totalLuck = boosts.ancientLuckMultiplier * boosts.mysteriousLuckMultiplier * boosts.mysteriousDiceMultiplier * boosts.petBoost * bonusRollMultiplier;
+    // Start with base luck (permanent luck from Sanae, etc.) - minimum of 1 for multiplication
+    const baseLuckMultiplier = Math.max(1, 1 + baseLuck);
     
-    // Add Sanae luck boost
-    if (boosts.sanaeLuckBoost > 0 && boosts.sanaeLuckRollsRemaining > 0) {
-        totalLuck *= (1 + boosts.sanaeLuckBoost);
+    let totalLuck = baseLuckMultiplier * boosts.ancientLuckMultiplier * 
+                    boosts.mysteriousLuckMultiplier * boosts.mysteriousDiceMultiplier * 
+                    boosts.petBoost * bonusRollMultiplier;
+    
+    // Apply Sanae direct luck multiplier (x10, etc.)
+    if (boosts.sanaeTempLuckMultiplier > 1) {
+        totalLuck *= boosts.sanaeTempLuckMultiplier;
     }
     
-    // Add permanent luck
-    if (boosts.sanaePermanentLuck > 0) {
-        totalLuck *= (1 + boosts.sanaePermanentLuck);
+    // Add Sanae luck boost (percentage based, for rolls)
+    if (boosts.sanaeLuckBoost > 0 && boosts.sanaeLuckRollsRemaining > 0) {
+        totalLuck *= (1 + boosts.sanaeLuckBoost);
     }
     
     // Lumina boost every 10th roll
@@ -314,10 +394,13 @@ async function checkSanaeGuaranteedRarity(userId) {
 module.exports = {
     getUserBoosts,
     getSanaeLuckBoosts,
+    getSanaeBoostMultiplier,
     calculateDiceMultiplier,
     buildBoostLines,
     calculateTotalLuckMultiplier,
     consumeSanaeGuaranteedRoll,
     consumeSanaeLuckRoll,
-    getSanaeBoostDisplay
+    getSanaeBoostDisplay,
+    calculateCooldown,
+    checkSanaeGuaranteedRarity
 };

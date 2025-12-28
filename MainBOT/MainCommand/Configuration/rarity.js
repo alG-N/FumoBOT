@@ -29,12 +29,13 @@ const GACHA_THRESHOLDS = {
     UNCOMMON: 42.5318767,
 };
 
+// Event Banner Base Chances (New Year 2026)
 const EVENT_BASE_CHANCES = {
-    EPIC: 86.3899,
-    LEGENDARY: 13.5,
-    MYTHICAL: 0.1,
-    QUESTION: 0.01,        
-    TRANSCENDENT: 0.0001
+    Common: 49,           // 49%
+    UNCOMMON: 30,         // 30%
+    RARE: 20,             // 20%
+    QUESTION: 1,          // 1%
+    TRANSCENDENT: 0.000000001  // 1 in 1 billion
 };
 
 const PITY_THRESHOLDS = {
