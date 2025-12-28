@@ -1,5 +1,6 @@
 const path = require('path');
 const fs = require('fs');
+const cobaltService = require('./CobaltService');
 const ytDlpService = require('./YtdlpService');
 const ffmpegService = require('./FFmpegService');
 const videoConfig = require('../Configuration/videoConfig');
@@ -10,17 +11,50 @@ class VideoDownloadService {
     }
 
     async initialize() {
-        await ytDlpService.initialize();
+        // FFmpeg is still needed for compression
         await ffmpegService.initialize();
+        
+        // Initialize yt-dlp (fallback method)
+        await ytDlpService.initialize();
+        
         this.startCleanupInterval();
+        
+        if (videoConfig.USE_COBALT) {
+            console.log(`✅ Video download service initialized (Cobalt: ${videoConfig.COBALT_INSTANCES[0]})`);
+        } else {
+            console.log('✅ Video download service initialized (using yt-dlp)');
+        }
     }
 
     async downloadVideo(url) {
         const timestamp = Date.now();
         
         try {
-            const videoPath = await ytDlpService.downloadVideo(url, this.tempDir);
+            let videoPath;
+
+            // Try Cobalt first if enabled
+            if (videoConfig.USE_COBALT) {
+                try {
+                    console.log(`📥 Downloading via Cobalt (${videoConfig.COBALT_INSTANCES[0]})...`);
+                    videoPath = await cobaltService.downloadVideo(url, this.tempDir);
+                    console.log('✅ Cobalt download successful');
+                } catch (cobaltError) {
+                    console.error('⚠️ Cobalt failed:', cobaltError.message);
+                    
+                    if (videoConfig.USE_YTDLP_FALLBACK) {
+                        console.log('📥 Falling back to yt-dlp...');
+                        videoPath = await ytDlpService.downloadVideo(url, this.tempDir);
+                    } else {
+                        throw cobaltError;
+                    }
+                }
+            } else {
+                // Use yt-dlp directly
+                console.log('📥 Downloading via yt-dlp...');
+                videoPath = await ytDlpService.downloadVideo(url, this.tempDir);
+            }
             
+            // Compress if needed
             const finalPath = await ffmpegService.compressVideo(videoPath, videoConfig.TARGET_COMPRESSION_MB);
             const finalStats = fs.statSync(finalPath);
             const finalSizeMB = finalStats.size / (1024 * 1024);
@@ -36,6 +70,7 @@ class VideoDownloadService {
         } catch (error) {
             console.error('❌ Download error:', error.message);
             
+            // Cleanup any partial files
             if (fs.existsSync(this.tempDir)) {
                 const files = fs.readdirSync(this.tempDir).filter(f => f.startsWith(`video_${timestamp}`));
                 files.forEach(file => {
@@ -51,23 +86,38 @@ class VideoDownloadService {
 
     async getDirectUrl(url) {
         try {
-            const info = await ytDlpService.getVideoInfo(url);
-            const formats = info.formats || [];
+            // Try Cobalt first for direct URL
+            const info = await cobaltService.getVideoInfo(url);
             
-            const suitableFormat = formats.find(f => 
-                f.ext === 'mp4' && 
-                f.filesize && 
-                f.filesize < videoConfig.MAX_FILE_SIZE_MB * 1024 * 1024 &&
-                f.url
-            );
-
-            if (suitableFormat) {
+            if (info.url) {
                 return {
-                    directUrl: suitableFormat.url,
-                    size: (suitableFormat.filesize / (1024 * 1024)).toFixed(2),
-                    title: info.title,
-                    thumbnail: info.thumbnail
+                    directUrl: info.url,
+                    size: 'Unknown',
+                    title: 'Video',
+                    thumbnail: null
                 };
+            }
+
+            // Fallback to yt-dlp if available
+            if (videoConfig.USE_YTDLP_FALLBACK) {
+                const ytInfo = await ytDlpService.getVideoInfo(url);
+                const formats = ytInfo.formats || [];
+                
+                const suitableFormat = formats.find(f => 
+                    f.ext === 'mp4' && 
+                    f.filesize && 
+                    f.filesize < videoConfig.MAX_FILE_SIZE_MB * 1024 * 1024 &&
+                    f.url
+                );
+
+                if (suitableFormat) {
+                    return {
+                        directUrl: suitableFormat.url,
+                        size: (suitableFormat.filesize / (1024 * 1024)).toFixed(2),
+                        title: ytInfo.title,
+                        thumbnail: ytInfo.thumbnail
+                    };
+                }
             }
 
             return null;

@@ -28,16 +28,16 @@
       },
       "bestFumoAt": "12/29/2025, 12:22:48 AM",
       "bestFumoRoll": 3,
-      "specialFumoCount": 40,
+      "specialFumoCount": 64,
       "specialFumoFirstAt": "12/28/2025, 11:41:18 PM",
       "specialFumoFirstRoll": 1
     },
     "event": {
-      "rollCount": 7,
+      "rollCount": 8,
       "autoSell": true,
       "startTime": 1766940101618,
-      "totalFumosRolled": 7500,
-      "totalCoinsFromSales": 36770,
+      "totalFumosRolled": 12200,
+      "totalCoinsFromSales": 42670,
       "bestFumo": {
         "name": "NewYearYukari(???)",
         "rarity": "???",
@@ -45,7 +45,7 @@
       },
       "bestFumoAt": "12/28/2025, 11:41:41 PM",
       "bestFumoRoll": 1,
-      "specialFumoCount": 1003,
+      "specialFumoCount": 1675,
       "specialFumoFirstAt": "12/28/2025, 11:41:41 PM",
       "specialFumoFirstRoll": 1
     }
