@@ -5,7 +5,7 @@ async function getActiveBoosts(userId) {
     const now = Date.now();
 
     try {
-        const [boosts, userData, mysteriousDice, timeClock] = await Promise.all([
+        const [boosts, userData, mysteriousDice, timeClock, sanaeBoosts] = await Promise.all([
             all(
                 `SELECT type, source, multiplier, expiresAt, uses
                  FROM activeBoosts
@@ -14,7 +14,8 @@ async function getActiveBoosts(userId) {
             ),
             get(`SELECT rollsLeft FROM userCoins WHERE userId = ?`, [userId]),
             getMysteriousDiceBoost(userId, now),
-            getTimeClockBoost(userId, now)
+            getTimeClockBoost(userId, now),
+            getSanaeBoosts(userId, now)
         ]);
 
         const categorized = categorizeBoosts(boosts || []);
@@ -25,6 +26,13 @@ async function getActiveBoosts(userId) {
 
         if (timeClock) {
             categorized.cooldown.push(timeClock);
+        }
+
+        // Add Sanae boosts
+        if (sanaeBoosts && sanaeBoosts.length > 0) {
+            categorized.sanae = sanaeBoosts;
+        } else {
+            categorized.sanae = [];
         }
 
         if (userData?.rollsLeft > 0) {
@@ -48,6 +56,117 @@ async function getActiveBoosts(userId) {
     } catch (error) {
         console.error('[BOOST_QUERY] Error:', error);
         throw error;
+    }
+}
+
+async function getSanaeBoosts(userId, now) {
+    try {
+        const sanaeData = await get(
+            `SELECT * FROM sanaeBlessings WHERE userId = ?`,
+            [userId]
+        );
+
+        if (!sanaeData) return [];
+
+        const boosts = [];
+
+        // Craft Discount
+        if (sanaeData.craftDiscountExpiry > now && sanaeData.craftDiscount > 0) {
+            boosts.push({
+                type: 'craftDiscount',
+                source: 'Sanae Blessing',
+                multiplier: sanaeData.craftDiscount,
+                expiresAt: sanaeData.craftDiscountExpiry,
+                displayValue: `${sanaeData.craftDiscount}% off crafts`
+            });
+        }
+
+        // Free Crafts
+        if (sanaeData.freeCraftsExpiry > now) {
+            boosts.push({
+                type: 'freeCrafts',
+                source: 'Sanae Blessing',
+                multiplier: 1,
+                expiresAt: sanaeData.freeCraftsExpiry,
+                displayValue: 'Free crafts (no coin/gem cost)'
+            });
+        }
+
+        // Craft Protection
+        if (sanaeData.craftProtection > 0) {
+            boosts.push({
+                type: 'craftProtection',
+                source: 'Sanae Blessing',
+                multiplier: 1,
+                expiresAt: null,
+                uses: sanaeData.craftProtection,
+                displayValue: `${sanaeData.craftProtection} craft fail protections`
+            });
+        }
+
+        // Guaranteed Rarity Rolls
+        if (sanaeData.guaranteedRarityRolls > 0 && sanaeData.guaranteedMinRarity) {
+            boosts.push({
+                type: 'guaranteedRarity',
+                source: 'Sanae Blessing',
+                multiplier: 1,
+                expiresAt: null,
+                uses: sanaeData.guaranteedRarityRolls,
+                displayValue: `${sanaeData.guaranteedRarityRolls} guaranteed ${sanaeData.guaranteedMinRarity}+ rolls`
+            });
+        }
+
+        // Luck for Rolls
+        if (sanaeData.luckForRolls > 0 && sanaeData.luckForRollsAmount > 0) {
+            boosts.push({
+                type: 'luckForRolls',
+                source: 'Sanae Blessing',
+                multiplier: sanaeData.luckForRollsAmount,
+                expiresAt: null,
+                uses: sanaeData.luckForRolls,
+                displayValue: `+${(sanaeData.luckForRollsAmount * 100).toFixed(0)}% luck (${sanaeData.luckForRolls} rolls left)`
+            });
+        }
+
+        // Pray Immunity
+        if (sanaeData.prayImmunityExpiry > now) {
+            boosts.push({
+                type: 'prayImmunity',
+                source: 'Sanae Blessing',
+                multiplier: 1,
+                expiresAt: sanaeData.prayImmunityExpiry,
+                displayValue: 'Pray penalty immunity'
+            });
+        }
+
+        // Boost Multiplier
+        if (sanaeData.boostMultiplierExpiry > now) {
+            boosts.push({
+                type: 'boostMultiplier',
+                source: 'Sanae Blessing',
+                multiplier: 2,
+                expiresAt: sanaeData.boostMultiplierExpiry,
+                displayValue: 'x2 all active boosts'
+            });
+        }
+
+        // Faith Points (always show if > 0)
+        if (sanaeData.faithPoints > 0) {
+            boosts.push({
+                type: 'faithPoints',
+                source: 'Sanae',
+                multiplier: 1,
+                expiresAt: null,
+                uses: sanaeData.faithPoints,
+                displayValue: `${sanaeData.faithPoints}/20 Faith Points`
+            });
+        }
+
+        return boosts;
+
+    } catch (error) {
+        console.error('[BOOST_QUERY] Sanae boosts error:', error);
+        return [];
     }
 }
 
@@ -120,7 +239,8 @@ function categorizeBoosts(boosts) {
         luck: [],
         cooldown: [],
         debuff: [],
-        yuyukoRolls: []
+        yuyukoRolls: [],
+        sanae: []
     };
 
     for (const boost of boosts) {
@@ -158,5 +278,6 @@ function calculateTotals(categorized) {
 module.exports = {
     getActiveBoosts,
     getMysteriousDiceBoost,
-    getTimeClockBoost
+    getTimeClockBoost,
+    getSanaeBoosts
 };

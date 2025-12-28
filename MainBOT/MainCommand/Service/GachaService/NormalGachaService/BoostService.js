@@ -7,7 +7,7 @@ async function getUserBoosts(userId) {
 
     const now = Date.now();
     
-    const [ancientRelic, mysteriousCube, mysteriousDice, lumina, timeBlessing, timeClock, petBoosts, nullified] = await Promise.all([
+    const [ancientRelic, mysteriousCube, mysteriousDice, lumina, timeBlessing, timeClock, petBoosts, nullified, sanaeBoosts] = await Promise.all([
         get(`SELECT multiplier, expiresAt FROM activeBoosts WHERE userId = ? AND type = 'luck' AND source = 'AncientRelic'`, [userId]),
         get(`SELECT multiplier, expiresAt FROM activeBoosts WHERE userId = ? AND type = 'luck' AND source = 'MysteriousCube'`, [userId]),
         get(`SELECT multiplier, expiresAt, extra FROM activeBoosts WHERE userId = ? AND type = 'luck' AND source = 'MysteriousDice'`, [userId]),
@@ -15,7 +15,8 @@ async function getUserBoosts(userId) {
         get(`SELECT multiplier FROM activeBoosts WHERE userId = ? AND type = 'summonCooldown' AND source = 'TimeBlessing' AND expiresAt > ?`, [userId, now]),
         get(`SELECT multiplier FROM activeBoosts WHERE userId = ? AND type = 'summonSpeed' AND source = 'TimeClock' AND expiresAt > ?`, [userId, now]),
         get(`SELECT multiplier FROM activeBoosts WHERE userId = ? AND type = 'luck'`, [userId]).then(rows => rows || []),
-        get(`SELECT uses FROM activeBoosts WHERE userId = ? AND type = 'rarityOverride' AND source = 'Nullified'`, [userId])
+        get(`SELECT uses FROM activeBoosts WHERE userId = ? AND type = 'rarityOverride' AND source = 'Nullified'`, [userId]),
+        getSanaeLuckBoosts(userId, now)
     ]);
 
     const ancientLuckMultiplier = (ancientRelic && ancientRelic.expiresAt > now) ? ancientRelic.multiplier : 1;
@@ -35,7 +36,8 @@ async function getUserBoosts(userId) {
         ancient: ancientLuckMultiplier,
         cube: mysteriousLuckMultiplier,
         dice: mysteriousDiceMultiplier,
-        pet: petBoost
+        pet: petBoost,
+        sanae: sanaeBoosts
     });
 
     return {
@@ -46,8 +48,88 @@ async function getUserBoosts(userId) {
         luminaActive: !!lumina,
         timeBlessingMultiplier: timeBlessing?.multiplier || 1,
         timeClockMultiplier: timeClock?.multiplier || 1,
-        nullifiedUses: nullified?.uses || 0
+        nullifiedUses: nullified?.uses || 0,
+        sanaeLuckBoost: sanaeBoosts.luckBoost,
+        sanaeGuaranteedRarity: sanaeBoosts.guaranteedRarity,
+        sanaeGuaranteedRolls: sanaeBoosts.guaranteedRolls
     };
+}
+
+async function getSanaeLuckBoosts(userId, now) {
+    try {
+        const sanaeData = await get(
+            `SELECT luckForRolls, luckForRollsAmount, guaranteedRarityRolls, guaranteedMinRarity 
+             FROM sanaeBlessings WHERE userId = ?`,
+            [userId]
+        );
+
+        if (!sanaeData) {
+            return { luckBoost: 0, guaranteedRarity: null, guaranteedRolls: 0 };
+        }
+
+        return {
+            luckBoost: sanaeData.luckForRolls > 0 ? sanaeData.luckForRollsAmount : 0,
+            guaranteedRarity: sanaeData.guaranteedRarityRolls > 0 ? sanaeData.guaranteedMinRarity : null,
+            guaranteedRolls: sanaeData.guaranteedRarityRolls || 0
+        };
+    } catch (error) {
+        console.error('[BOOST] Sanae luck fetch error:', error);
+        return { luckBoost: 0, guaranteedRarity: null, guaranteedRolls: 0 };
+    }
+}
+
+async function consumeSanaeLuckRoll(userId) {
+    try {
+        const sanaeData = await get(
+            `SELECT luckForRolls, luckForRollsAmount FROM sanaeBlessings WHERE userId = ?`,
+            [userId]
+        );
+
+        if (!sanaeData || sanaeData.luckForRolls <= 0) {
+            return { consumed: false, luckBonus: 0 };
+        }
+
+        await run(
+            `UPDATE sanaeBlessings SET luckForRolls = luckForRolls - 1, lastUpdated = ? WHERE userId = ?`,
+            [Date.now(), userId]
+        );
+
+        return {
+            consumed: true,
+            luckBonus: sanaeData.luckForRollsAmount,
+            remaining: sanaeData.luckForRolls - 1
+        };
+    } catch (error) {
+        console.error('[BOOST] Sanae luck consume error:', error);
+        return { consumed: false, luckBonus: 0 };
+    }
+}
+
+async function consumeSanaeGuaranteedRoll(userId) {
+    try {
+        const sanaeData = await get(
+            `SELECT guaranteedRarityRolls, guaranteedMinRarity FROM sanaeBlessings WHERE userId = ?`,
+            [userId]
+        );
+
+        if (!sanaeData || sanaeData.guaranteedRarityRolls <= 0) {
+            return { consumed: false, minRarity: null };
+        }
+
+        await run(
+            `UPDATE sanaeBlessings SET guaranteedRarityRolls = guaranteedRarityRolls - 1, lastUpdated = ? WHERE userId = ?`,
+            [Date.now(), userId]
+        );
+
+        return {
+            consumed: true,
+            minRarity: sanaeData.guaranteedMinRarity,
+            remaining: sanaeData.guaranteedRarityRolls - 1
+        };
+    } catch (error) {
+        console.error('[BOOST] Sanae guaranteed consume error:', error);
+        return { consumed: false, minRarity: null };
+    }
 }
 
 async function calculateDiceMultiplier(userId, diceBoost) {
@@ -86,6 +168,11 @@ function calculateTotalLuckMultiplier(boosts, isBoostActive, rollsLeft, totalRol
         boosts.mysteriousDiceMultiplier *
         boosts.petBoost;
 
+    // Add Sanae luck boost
+    if (boosts.sanaeLuckBoost > 0) {
+        multiplier *= (1 + boosts.sanaeLuckBoost);
+    }
+
     if (boosts.luminaActive && totalRolls % 10 === 0) {
         multiplier *= 5;
     }
@@ -119,5 +206,8 @@ module.exports = {
     getUserBoosts,
     calculateTotalLuckMultiplier,
     calculateCooldown,
-    calculateDiceMultiplier
+    calculateDiceMultiplier,
+    getSanaeLuckBoosts,
+    consumeSanaeLuckRoll,
+    consumeSanaeGuaranteedRoll
 };

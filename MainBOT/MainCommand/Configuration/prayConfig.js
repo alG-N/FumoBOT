@@ -299,11 +299,6 @@ const PRAY_CHARACTERS = {
                 rewardMultiplier: 4,
                 noCost: true
             }
-        },
-        actualLimits: {
-            usesPerWindow: 6,
-            resetLogic: 'Smart reset: 12h if <6 uses, 24h if >=6 uses',
-            coinGemCaps: 'NONE'
         }
     },
     SANAE: {
@@ -315,6 +310,8 @@ const PRAY_CHARACTERS = {
         picture: 'https://fumo.website/img/sanae.jpg',
         description: 'The living goddess of the Moriya Shrine offers divine blessings through faith.',
         color: 0x00CED1,
+        
+        // Faith system
         faithPoints: {
             max: 20,
             rerollThreshold: 5,
@@ -322,35 +319,71 @@ const PRAY_CHARACTERS = {
             upgradeTierThreshold: 15,
             divineInterventionThreshold: 20
         },
+        
+        // Percentage-based scaling: higher faith = higher requirements = higher rewards
+        faithScaling: {
+            // Cost multiplier based on current faith points (percentage increase)
+            costMultiplier: {
+                0: 1.0,      // Base cost
+                5: 1.25,     // 25% more expensive
+                10: 1.5,     // 50% more expensive
+                15: 2.0,     // 100% more expensive
+                18: 2.5      // 150% more expensive
+            },
+            // Reward multiplier based on current faith points
+            rewardMultiplier: {
+                0: 1.0,      // Base rewards
+                5: 1.5,      // 50% better rewards
+                10: 2.0,     // 100% better rewards
+                15: 3.0,     // 200% better rewards
+                18: 5.0      // 400% better rewards
+            },
+            // Tier upgrade chance based on faith
+            tierUpgradeChance: {
+                0: 0,
+                5: 0.10,
+                10: 0.20,
+                15: 0.35,
+                18: 0.50
+            }
+        },
+        
+        // Base donation options (scaled by faithScaling.costMultiplier)
         donationOptions: {
             A: {
                 label: 'Coin Offering',
-                cost: { coins: 100000, gems: 0, fumos: null },
+                baseCost: { coins: 100000, gems: 0 },
                 faithPoints: 1,
-                description: '100,000 coins → 1 Faith Point'
+                description: 'coins → 1 Faith Point'
             },
             B: {
                 label: 'Gem Offering',
-                cost: { coins: 0, gems: 15000, fumos: null },
+                baseCost: { coins: 0, gems: 15000 },
                 faithPoints: 2,
-                description: '15,000 gems → 2 Faith Points'
+                description: 'gems → 2 Faith Points'
             },
             C: {
                 label: 'Fumo Sacrifice',
-                cost: { coins: 0, gems: 0, fumos: { count: 3, minRarity: 'MYTHICAL' } },
+                baseCost: { coins: 0, gems: 0 },
+                fumoRequirement: { count: 3, minRarity: 'MYTHICAL' },
                 faithPoints: 3,
-                description: '3 MYTHICAL+ fumos → 3 Faith Points'
+                description: 'MYTHICAL+ fumos → 3 Faith Points'
             },
             D: {
                 label: 'Combo Offering',
-                cost: { coins: 50000, gems: 5000, fumos: { count: 1, minRarity: 'LEGENDARY' } },
+                baseCost: { coins: 50000, gems: 5000 },
+                fumoRequirement: { count: 1, minRarity: 'LEGENDARY' },
                 faithPoints: 4,
-                description: '50k coins + 5k gems + 1 LEGENDARY fumo → 4 Faith Points'
+                description: 'coins + gems + LEGENDARY fumo → 4 Faith Points'
             }
         },
+        
+        // Blessing tiers with weight adjustments based on faith
         blessingTiers: {
             COMMON: {
                 weight: 50,
+                faithWeightReduction: 3,  // Reduce weight by 3 per faith scaling tier
+                minWeight: 20,
                 blessings: [
                     {
                         name: "Wind's Fortune",
@@ -379,6 +412,8 @@ const PRAY_CHARACTERS = {
             },
             RARE: {
                 weight: 30,
+                faithWeightBonus: 1,  // Increase weight by 1 per faith scaling tier
+                maxWeight: 45,
                 blessings: [
                     {
                         name: "Moriya's Favor",
@@ -392,7 +427,7 @@ const PRAY_CHARACTERS = {
                     {
                         name: "Divine Wind",
                         rewards: {
-                            fumo: { rarity: 'MYTHICAL', guaranteed: true },
+                            fumo: { rarity: 'MYTHICAL' },
                             items: [{ name: 'ChromaShard(M)', quantity: 10 }]
                         }
                     },
@@ -407,6 +442,8 @@ const PRAY_CHARACTERS = {
             },
             LEGENDARY: {
                 weight: 15,
+                faithWeightBonus: 0.75,
+                maxWeight: 30,
                 blessings: [
                     {
                         name: "Sanae's Miracle",
@@ -435,6 +472,8 @@ const PRAY_CHARACTERS = {
             },
             DIVINE: {
                 weight: 4,
+                faithWeightBonus: 0.5,
+                maxWeight: 12,
                 blessings: [
                     {
                         name: "Suwako's Ancient Power",
@@ -456,6 +495,8 @@ const PRAY_CHARACTERS = {
             },
             MIRACLE: {
                 weight: 1,
+                faithWeightBonus: 0.25,
+                maxWeight: 5,
                 blessings: [
                     {
                         name: "Living Goddess Incarnate",
@@ -465,18 +506,20 @@ const PRAY_CHARACTERS = {
                             luck: { amount: 0.50, duration: 7 * 24 * 60 * 60 * 1000 },
                             freeCrafts: { duration: 7 * 24 * 60 * 60 * 1000 },
                             boostMultiplier: { multiplier: 5, duration: 7 * 24 * 60 * 60 * 1000 },
-                            fumo: { rarity: 'TRANSCENDENT', guaranteed: true },
-                            items: [{ name: 'DivineMantle(T)', quantity: 1 }]
+                            fumo: { rarity: 'TRANSCENDENT' },
+                            items: [{ name: 'DivineMantle(D)', quantity: 1 }]
                         }
                     }
                 ]
             }
         },
+        
         specialEvents: {
             trainingChance: 0.10,
             miracleSurgeChance: 0.05,
             divineScamChance: 0.03
         },
+        
         mythicalPlusRarities: ['MYTHICAL', 'EXCLUSIVE', '???', 'ASTRAL', 'CELESTIAL', 'INFINITE', 'ETERNAL', 'TRANSCENDENT'],
         legendaryPlusRarities: ['LEGENDARY', 'MYTHICAL', 'EXCLUSIVE', '???', 'ASTRAL', 'CELESTIAL', 'INFINITE', 'ETERNAL', 'TRANSCENDENT']
     }
@@ -491,54 +534,128 @@ const RARITY_CONFIG = {
     Divine: { color: 0xFFFF66, weight: 1, emoji: '✨' }
 };
 
-const config = {
-    PRAY_CHARACTERS,
-    RARITY_CONFIG,
-    PRAY_LIMITS: {
-        maxUsagePerHour: 25,
-        ticketRequired: 'PrayTicket(R)',
-        cooldownDuration: 10 * 60 * 1000,
-        interactionTimeout: 60000
-    },
-    FUMO_PRICES: {
-        Common: 113,
-        UNCOMMON: 270,
-        RARE: 675,
-        EPIC: 1125,
-        OTHERWORLDLY: 1800,
-        LEGENDARY: 18000,
-        MYTHICAL: 168750,
-        EXCLUSIVE: 1125000,
-        '???': 22500000,
-        ASTRAL: 45000000,
-        CELESTIAL: 90000000,
-        INFINITE: 180000000,
-        ETERNAL: 360000000,
-        TRANSCENDENT: 720000000
-    },
-
-    getCharacterPool(enhanced = false) {
-        const pool = [];
-        const weightKey = enhanced ? 'enhancedWeight' : 'weight';
-        for (const character of Object.values(PRAY_CHARACTERS)) {
-            for (let i = 0; i < character[weightKey]; i++) {
-                pool.push(character);
-            }
-        }
-        return pool;
-    },
-
-    selectRandomCharacter(enhanced = false) {
-        const pool = config.getCharacterPool(enhanced);
-        return pool[Math.floor(Math.random() * pool.length)];
-    },
-
-    getRarityColor(rarity) {
-        return RARITY_CONFIG[rarity]?.color || 0x808080;
-    },
-    getRarityEmoji(rarity) {
-        return RARITY_CONFIG[rarity]?.emoji || '⚪';
-    }
+const PRAY_LIMITS = {
+    maxUsagePerHour: 25,
+    ticketRequired: 'PrayTicket(R)',
+    cooldownDuration: 10 * 60 * 1000,
+    interactionTimeout: 60000
 };
 
-module.exports = config;
+const FUMO_PRICES = {
+    Common: 113,
+    UNCOMMON: 270,
+    RARE: 675,
+    EPIC: 1125,
+    OTHERWORLDLY: 1800,
+    LEGENDARY: 18000,
+    MYTHICAL: 168750,
+    EXCLUSIVE: 1125000,
+    '???': 22500000,
+    ASTRAL: 45000000,
+    CELESTIAL: 90000000,
+    INFINITE: 180000000,
+    ETERNAL: 360000000,
+    TRANSCENDENT: 720000000
+};
+
+/**
+ * Get the cost multiplier based on current faith points
+ */
+function getFaithCostMultiplier(faithPoints) {
+    const scaling = PRAY_CHARACTERS.SANAE.faithScaling.costMultiplier;
+    const thresholds = Object.keys(scaling).map(Number).sort((a, b) => b - a);
+    
+    for (const threshold of thresholds) {
+        if (faithPoints >= threshold) {
+            return scaling[threshold];
+        }
+    }
+    return 1.0;
+}
+
+/**
+ * Get the reward multiplier based on current faith points
+ */
+function getFaithRewardMultiplier(faithPoints) {
+    const scaling = PRAY_CHARACTERS.SANAE.faithScaling.rewardMultiplier;
+    const thresholds = Object.keys(scaling).map(Number).sort((a, b) => b - a);
+    
+    for (const threshold of thresholds) {
+        if (faithPoints >= threshold) {
+            return scaling[threshold];
+        }
+    }
+    return 1.0;
+}
+
+/**
+ * Get tier upgrade chance based on current faith points
+ */
+function getFaithTierUpgradeChance(faithPoints) {
+    const scaling = PRAY_CHARACTERS.SANAE.faithScaling.tierUpgradeChance;
+    const thresholds = Object.keys(scaling).map(Number).sort((a, b) => b - a);
+    
+    for (const threshold of thresholds) {
+        if (faithPoints >= threshold) {
+            return scaling[threshold];
+        }
+    }
+    return 0;
+}
+
+/**
+ * Calculate scaled donation costs for Sanae
+ */
+function getSanaeDonationCosts(option, faithPoints) {
+    const optionConfig = PRAY_CHARACTERS.SANAE.donationOptions[option];
+    if (!optionConfig) return null;
+    
+    const costMult = getFaithCostMultiplier(faithPoints);
+    
+    return {
+        coins: Math.floor((optionConfig.baseCost?.coins || 0) * costMult),
+        gems: Math.floor((optionConfig.baseCost?.gems || 0) * costMult),
+        fumoRequirement: optionConfig.fumoRequirement || null,
+        faithPoints: optionConfig.faithPoints,
+        label: optionConfig.label
+    };
+}
+
+function getCharacterPool(enhanced = false) {
+    const pool = [];
+    const weightKey = enhanced ? 'enhancedWeight' : 'weight';
+    for (const character of Object.values(PRAY_CHARACTERS)) {
+        for (let i = 0; i < character[weightKey]; i++) {
+            pool.push(character);
+        }
+    }
+    return pool;
+}
+
+function selectRandomCharacter(enhanced = false) {
+    const pool = getCharacterPool(enhanced);
+    return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function getRarityColor(rarity) {
+    return RARITY_CONFIG[rarity]?.color || 0x808080;
+}
+
+function getRarityEmoji(rarity) {
+    return RARITY_CONFIG[rarity]?.emoji || '⚪';
+}
+
+module.exports = {
+    PRAY_CHARACTERS,
+    RARITY_CONFIG,
+    PRAY_LIMITS,
+    FUMO_PRICES,
+    getCharacterPool,
+    selectRandomCharacter,
+    getRarityColor,
+    getRarityEmoji,
+    getFaithCostMultiplier,
+    getFaithRewardMultiplier,
+    getFaithTierUpgradeChance,
+    getSanaeDonationCosts
+};

@@ -4,9 +4,11 @@ const { getWeekIdentifier } = require('../../Ultility/weekly');
 const inventoryCache = new Map();
 const userDataCache = new Map();
 const prayItemCache = new Map();
+const sanaeCache = new Map();
 const INVENTORY_CACHE_TTL = 5000;
 const USER_DATA_CACHE_TTL = 3000;
 const PRAY_ITEM_CACHE_TTL = 10000;
+const SANAE_CACHE_TTL = 5000;
 
 async function consumeTicket(userId) {
     inventoryCache.delete(userId);
@@ -360,60 +362,6 @@ async function getReimuRareFumos(userId, allowedRarities) {
     );
 }
 
-async function getSanaeFaithPoints(userId) {
-    const user = await getUserData(userId);
-    return user?.sanaeFaithPoints || 0;
-}
-
-async function updateSanaeFaithPoints(userId, points) {
-    userDataCache.delete(userId);
-    await run(
-        `UPDATE userCoins SET sanaeFaithPoints = ? WHERE userId = ?`,
-        [points, userId]
-    );
-}
-
-async function addSanaeFaithPoints(userId, points) {
-    userDataCache.delete(userId);
-    await run(
-        `UPDATE userCoins SET sanaeFaithPoints = COALESCE(sanaeFaithPoints, 0) + ? WHERE userId = ?`,
-        [points, userId]
-    );
-}
-
-async function getSanaeData(userId) {
-    const user = await getUserData(userId);
-    return {
-        faithPoints: user?.sanaeFaithPoints || 0,
-        rerollsUsed: user?.sanaeRerollsUsed || 0,
-        craftDiscount: user?.sanaeCraftDiscount || 0,
-        craftDiscountExpiry: user?.sanaeCraftDiscountExpiry || 0,
-        freeCraftsExpiry: user?.sanaeFreeCraftsExpiry || 0,
-        prayImmunityExpiry: user?.sanaePrayImmunityExpiry || 0,
-        guaranteedRarityRolls: user?.sanaeGuaranteedRarityRolls || 0,
-        luckForRolls: user?.sanaeLuckForRolls || 0,
-        craftProtection: user?.sanaeCraftProtection || 0
-    };
-}
-
-async function updateSanaeData(userId, updates) {
-    userDataCache.delete(userId);
-    const fields = [];
-    const values = [];
-
-    for (const [key, value] of Object.entries(updates)) {
-        fields.push(`${key} = ?`);
-        values.push(value);
-    }
-
-    values.push(userId);
-
-    await run(
-        `UPDATE userCoins SET ${fields.join(', ')} WHERE userId = ?`,
-        values
-    );
-}
-
 async function getMythicalPlusFumos(userId, minRarities) {
     const rarityConditions = minRarities.map(r => `rarity = '${r}'`).join(' OR ');
     
@@ -442,6 +390,180 @@ async function getLegendaryPlusFumos(userId, minRarities) {
         [userId],
         true
     );
+}
+
+async function getSanaeData(userId) {
+    const cached = sanaeCache.get(userId);
+    if (cached && Date.now() - cached.timestamp < SANAE_CACHE_TTL) {
+        return cached.data;
+    }
+
+    let data = await get(`SELECT * FROM sanaeBlessings WHERE userId = ?`, [userId], true);
+    
+    if (!data) {
+        await run(
+            `INSERT INTO sanaeBlessings (userId, faithPoints, lastUpdated) VALUES (?, 0, ?)`,
+            [userId, Date.now()]
+        );
+        data = {
+            faithPoints: 0,
+            rerollsUsed: 0,
+            craftDiscount: 0,
+            craftDiscountExpiry: 0,
+            freeCraftsExpiry: 0,
+            prayImmunityExpiry: 0,
+            guaranteedRarityRolls: 0,
+            guaranteedMinRarity: null,
+            luckForRolls: 0,
+            luckForRollsAmount: 0,
+            craftProtection: 0,
+            boostMultiplierExpiry: 0,
+            lastUpdated: Date.now()
+        };
+    }
+
+    sanaeCache.set(userId, { data, timestamp: Date.now() });
+    return data;
+}
+
+async function updateSanaeData(userId, updates) {
+    sanaeCache.delete(userId);
+    
+    const existing = await get(`SELECT userId FROM sanaeBlessings WHERE userId = ?`, [userId]);
+    
+    updates.lastUpdated = Date.now();
+    
+    if (existing) {
+        const fields = [];
+        const values = [];
+
+        for (const [key, value] of Object.entries(updates)) {
+            fields.push(`${key} = ?`);
+            values.push(value);
+        }
+
+        values.push(userId);
+
+        await run(
+            `UPDATE sanaeBlessings SET ${fields.join(', ')} WHERE userId = ?`,
+            values
+        );
+    } else {
+        const columns = ['userId', ...Object.keys(updates)];
+        const placeholders = columns.map(() => '?').join(', ');
+        const values = [userId, ...Object.values(updates)];
+
+        await run(
+            `INSERT INTO sanaeBlessings (${columns.join(', ')}) VALUES (${placeholders})`,
+            values
+        );
+    }
+}
+
+async function getSanaeFaithPoints(userId) {
+    const data = await getSanaeData(userId);
+    return data.faithPoints || 0;
+}
+
+async function updateSanaeFaithPoints(userId, points) {
+    await updateSanaeData(userId, { faithPoints: points });
+}
+
+async function addSanaeFaithPoints(userId, points) {
+    const current = await getSanaeFaithPoints(userId);
+    await updateSanaeFaithPoints(userId, current + points);
+}
+
+async function consumeSanaeGuaranteedRoll(userId) {
+    sanaeCache.delete(userId);
+    const data = await getSanaeData(userId);
+    
+    if (data.guaranteedRarityRolls > 0) {
+        await run(
+            `UPDATE sanaeBlessings SET guaranteedRarityRolls = guaranteedRarityRolls - 1, lastUpdated = ? WHERE userId = ?`,
+            [Date.now(), userId]
+        );
+        return {
+            active: true,
+            minRarity: data.guaranteedMinRarity,
+            remaining: data.guaranteedRarityRolls - 1
+        };
+    }
+    return { active: false };
+}
+
+async function consumeSanaeLuckRoll(userId) {
+    sanaeCache.delete(userId);
+    const data = await getSanaeData(userId);
+    
+    if (data.luckForRolls > 0) {
+        await run(
+            `UPDATE sanaeBlessings SET luckForRolls = luckForRolls - 1, lastUpdated = ? WHERE userId = ?`,
+            [Date.now(), userId]
+        );
+        return {
+            active: true,
+            luckBonus: data.luckForRollsAmount,
+            remaining: data.luckForRolls - 1
+        };
+    }
+    return { active: false, luckBonus: 0 };
+}
+
+async function consumeSanaeCraftProtection(userId) {
+    sanaeCache.delete(userId);
+    const data = await getSanaeData(userId);
+    
+    if (data.craftProtection > 0) {
+        await run(
+            `UPDATE sanaeBlessings SET craftProtection = craftProtection - 1, lastUpdated = ? WHERE userId = ?`,
+            [Date.now(), userId]
+        );
+        return { protected: true, remaining: data.craftProtection - 1 };
+    }
+    return { protected: false };
+}
+
+async function checkSanaeCraftDiscount(userId) {
+    const data = await getSanaeData(userId);
+    const now = Date.now();
+    
+    if (data.craftDiscountExpiry > now && data.craftDiscount > 0) {
+        return { 
+            active: true, 
+            discount: data.craftDiscount / 100,
+            expiry: data.craftDiscountExpiry
+        };
+    }
+    return { active: false, discount: 0 };
+}
+
+async function checkSanaeFreeCrafts(userId) {
+    const data = await getSanaeData(userId);
+    const now = Date.now();
+    
+    if (data.freeCraftsExpiry > now) {
+        return { active: true, expiry: data.freeCraftsExpiry };
+    }
+    return { active: false };
+}
+
+async function checkSanaePrayImmunity(userId) {
+    const data = await getSanaeData(userId);
+    const now = Date.now();
+    
+    if (data.prayImmunityExpiry > now) {
+        return { active: true, expiry: data.prayImmunityExpiry };
+    }
+    return { active: false };
+}
+
+function clearSanaeCache(userId = null) {
+    if (userId) {
+        sanaeCache.delete(userId);
+    } else {
+        sanaeCache.clear();
+    }
 }
 
 function clearInventoryCache(userId = null) {
@@ -485,11 +607,18 @@ module.exports = {
     addSpiritTokens,
     getYukariFumosByRarityGroups,
     getReimuRareFumos,
+    getSanaeData,
+    updateSanaeData,
     getSanaeFaithPoints,
     updateSanaeFaithPoints,
     addSanaeFaithPoints,
-    getSanaeData,
-    updateSanaeData,
+    consumeSanaeGuaranteedRoll,
+    consumeSanaeLuckRoll,
+    consumeSanaeCraftProtection,
+    checkSanaeCraftDiscount,
+    checkSanaeFreeCrafts,
+    checkSanaePrayImmunity,
+    clearSanaeCache,
     getMythicalPlusFumos,
     getLegendaryPlusFumos,
     clearInventoryCache,

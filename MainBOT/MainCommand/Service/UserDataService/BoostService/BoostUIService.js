@@ -13,7 +13,7 @@ function createBoostEmbed(boostData, detailsType = null) {
     const embed = new EmbedBuilder()
         .setTitle("🚀 Active Boosts")
         .setColor(BOOST_COLORS.DEFAULT)
-        .setFooter({ text: "Boosts apply automatically when farming! Use `.boost details <type>` for more info." })
+        .setFooter({ text: "Boosts apply automatically! Use `.boost details <type>` for more info." })
         .setTimestamp();
 
     const fields = buildBoostFields(boosts, now);
@@ -34,7 +34,8 @@ function createDetailsEmbed(boosts, detailsType, now) {
         luck: "🍀 Luck Boosts",
         cooldown: "⏱️ Cooldown Reductions",
         debuff: "⚠️ Debuffs",
-        yuyuko: "🌸 Yuyuko Rolls"
+        yuyuko: "🌸 Yuyuko Rolls",
+        sanae: "⛩️ Sanae Blessings"
     };
 
     const categoryKey = detailsType === 'yuyuko' ? 'yuyukoRolls' : detailsType;
@@ -75,7 +76,8 @@ function buildBoostFields(boosts, now) {
         { key: 'luck', name: '🍀 Luck Boosts' },
         { key: 'cooldown', name: '⏱️ Cooldown Reductions' },
         { key: 'debuff', name: '⚠️ Debuffs' },
-        { key: 'yuyukoRolls', name: '🌸 Yuyuko Rolls' }
+        { key: 'yuyukoRolls', name: '🌸 Yuyuko Rolls' },
+        { key: 'sanae', name: '⛩️ Sanae Blessings' }
     ];
 
     for (const { key, name } of categories) {

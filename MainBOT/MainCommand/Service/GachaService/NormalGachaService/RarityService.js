@@ -1,6 +1,23 @@
 const { run } = require('../../../Core/database');
 const { GACHA_THRESHOLDS, PITY_THRESHOLDS } = require('../../../Configuration/rarity');
 const { calculateTotalLuckMultiplier } = require('./BoostService');
+const { 
+    checkGuaranteedRarity, 
+    consumeGuaranteedRoll,
+    checkLuckForRolls,
+    consumeLuckRoll 
+} = require('../../PrayService/CharacterHandlers/SanaeHandler/SanaeBlessingService');
+
+const RARITY_ORDER = [
+    'Common', 'UNCOMMON', 'RARE', 'EPIC', 'OTHERWORLDLY', 
+    'LEGENDARY', 'MYTHICAL', 'EXCLUSIVE', '???', 
+    'ASTRAL', 'CELESTIAL', 'INFINITE', 'ETERNAL', 'TRANSCENDENT'
+];
+
+function getRarityIndex(rarity) {
+    const index = RARITY_ORDER.indexOf(rarity);
+    return index === -1 ? 0 : index;
+}
 
 async function calculateRarity(userId, boosts, row, hasFantasyBook) {
     if (hasFantasyBook) {
@@ -90,8 +107,48 @@ function updateBoostCharge(boostCharge, boostActive, boostRollsRemaining) {
     }
 }
 
+// Add this to your rarity selection logic
+async function applySanaeBlessings(userId, selectedRarity) {
+    const guaranteedRarity = await checkGuaranteedRarity(userId);
+    
+    if (guaranteedRarity.active) {
+        const minIndex = getRarityIndex(guaranteedRarity.minRarity);
+        const currentIndex = getRarityIndex(selectedRarity);
+        
+        if (currentIndex < minIndex) {
+            selectedRarity = guaranteedRarity.minRarity;
+        }
+        
+        // Consume the guaranteed roll
+        await consumeGuaranteedRoll(userId);
+    }
+    
+    return selectedRarity;
+}
+
+async function getSanaeLuckBonus(userId) {
+    const luckBonus = await checkLuckForRolls(userId);
+    
+    if (luckBonus.active) {
+        await consumeLuckRoll(userId);
+        return luckBonus.luckBonus;
+    }
+    
+    return 0;
+}
+
+async function calculateTotalLuck(userId, baseLuck) {
+    const sanaeBonus = await getSanaeLuckBonus(userId);
+    return baseLuck + sanaeBonus;
+}
+
 module.exports = {
     calculateRarity,
     updatePityCounters,
-    updateBoostCharge
+    updateBoostCharge,
+    applySanaeBlessings,
+    getSanaeLuckBonus,
+    calculateTotalLuck,
+    getRarityIndex,
+    RARITY_ORDER
 };
