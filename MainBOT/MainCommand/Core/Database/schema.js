@@ -67,6 +67,9 @@ function createIndexes() {
         `CREATE INDEX IF NOT EXISTS idx_farmingFumos_user ON farmingFumos(userId, fumoName)`,
         `CREATE INDEX IF NOT EXISTS idx_sakuyaUsage_user ON sakuyaUsage(userId, uses, lastUsed)`,
         `CREATE INDEX IF NOT EXISTS idx_userCoins_pray ON userCoins(userId, prayedToMarisa, reimuStatus, yukariMark)`,
+        
+        // Sanae Blessings
+        `CREATE INDEX IF NOT EXISTS idx_sanaeBlessings_user ON sanaeBlessings(userId)`,
     ];
 
     return new Promise((resolve, reject) => {
@@ -113,7 +116,7 @@ function createIndexes() {
             }
         };
 
-        // User Coins Table
+        // User Coins Table - Remove Sanae columns
         tables.push(new Promise((res) => {
             db.run(`CREATE TABLE IF NOT EXISTS userCoins (
                 userId TEXT PRIMARY KEY, 
@@ -161,16 +164,7 @@ function createIndexes() {
                 hasFantasyBook INTEGER DEFAULT 0,
                 yukariMark INTEGER DEFAULT 0,
                 reimuPityCount INTEGER DEFAULT 0,
-                timeclockLastUsed INTEGER DEFAULT 0,
-                sanaeFaithPoints INTEGER DEFAULT 0,
-                sanaeRerollsUsed INTEGER DEFAULT 0,
-                sanaeCraftDiscount INTEGER DEFAULT 0,
-                sanaeCraftDiscountExpiry INTEGER DEFAULT 0,
-                sanaeFreeCraftsExpiry INTEGER DEFAULT 0,
-                sanaePrayImmunityExpiry INTEGER DEFAULT 0,
-                sanaeGuaranteedRarityRolls INTEGER DEFAULT 0,
-                sanaeLuckForRolls INTEGER DEFAULT 0,
-                sanaeCraftProtection INTEGER DEFAULT 0
+                timeclockLastUsed INTEGER DEFAULT 0
             )`, (err) => {
                 if (err) console.error('Error creating userCoins table:', err.message);
                 res();
@@ -593,6 +587,33 @@ function createIndexes() {
             });
         }));
 
+        // Sanae Blessings Table - NEW
+        tables.push(new Promise((res) => {
+            db.run(`CREATE TABLE IF NOT EXISTS sanaeBlessings (
+                userId TEXT PRIMARY KEY,
+                faithPoints INTEGER DEFAULT 0,
+                rerollsUsed INTEGER DEFAULT 0,
+                craftDiscount INTEGER DEFAULT 0,
+                craftDiscountExpiry INTEGER DEFAULT 0,
+                freeCraftsExpiry INTEGER DEFAULT 0,
+                prayImmunityExpiry INTEGER DEFAULT 0,
+                guaranteedRarityRolls INTEGER DEFAULT 0,
+                guaranteedMinRarity TEXT DEFAULT NULL,
+                luckForRolls INTEGER DEFAULT 0,
+                luckForRollsAmount REAL DEFAULT 0,
+                craftProtection INTEGER DEFAULT 0,
+                boostMultiplierExpiry INTEGER DEFAULT 0,
+                lastUpdated INTEGER DEFAULT 0
+            )`, (err) => {
+                if (err) {
+                    console.error('Error creating sanaeBlessings table:', err.message);
+                } else {
+                    console.log('✅ Table sanaeBlessings is ready');
+                }
+                res();
+            });
+        }));
+
         // Wait for all tables to complete
         Promise.all(tables).then(resolve);
     });
@@ -632,7 +653,7 @@ async function ensureColumnsExist() {
             console.log('✅ Added limitBreaks column to userUpgrades table');
         }
 
-        // Ensure userCoins has all required columns
+        // Ensure userCoins has all required columns (removed Sanae columns)
         const userCoinsRows = await dbAllAsync(`PRAGMA table_info(userCoins)`, []);
         const existingCoinsColumns = userCoinsRows.map(row => row.name);
         const requiredColumns = [
@@ -642,16 +663,7 @@ async function ensureColumnsExist() {
             'rebirth',
             'yukariMark',
             'reimuPityCount',
-            'timeclockLastUsed',
-            'sanaeFaithPoints',
-            'sanaeRerollsUsed',
-            'sanaeCraftDiscount',
-            'sanaeCraftDiscountExpiry',
-            'sanaeFreeCraftsExpiry',
-            'sanaePrayImmunityExpiry',
-            'sanaeGuaranteedRarityRolls',
-            'sanaeLuckForRolls',
-            'sanaeCraftProtection'
+            'timeclockLastUsed'
         ];
 
         for (const col of requiredColumns) {
@@ -661,6 +673,22 @@ async function ensureColumnsExist() {
                     columnType = 'INTEGER DEFAULT 1';
                 }
                 await addColumnIfNotExists('userCoins', col, columnType);
+            }
+        }
+
+        // Ensure sanaeBlessings has all required columns
+        const sanaeRows = await dbAllAsync(`PRAGMA table_info(sanaeBlessings)`, []);
+        const existingSanaeColumns = sanaeRows.map(row => row.name);
+        const sanaeCols = [
+            { name: 'guaranteedMinRarity', type: 'TEXT DEFAULT NULL' },
+            { name: 'luckForRollsAmount', type: 'REAL DEFAULT 0' },
+            { name: 'boostMultiplierExpiry', type: 'INTEGER DEFAULT 0' },
+            { name: 'lastUpdated', type: 'INTEGER DEFAULT 0' }
+        ];
+
+        for (const col of sanaeCols) {
+            if (!existingSanaeColumns.includes(col.name)) {
+                await addColumnIfNotExists('sanaeBlessings', col.name, col.type);
             }
         }
 

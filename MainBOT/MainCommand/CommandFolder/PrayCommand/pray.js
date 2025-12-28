@@ -24,7 +24,7 @@ const { handleYukari } = require('../../Service/PrayService/CharacterHandlers/Yu
 const { handleReimu } = require('../../Service/PrayService/CharacterHandlers/ReimuHandler');
 const { handleMarisa } = require('../../Service/PrayService/CharacterHandlers/MarisaHandler');
 const { handleSakuya } = require('../../Service/PrayService/CharacterHandlers/SakuyaHandler');
-const { handleSanae } = require('../../Service/PrayService/CharacterHandlers/SanaeHandler');
+const { handleSanae } = require('../../Service/PrayService/CharacterHandlers/SanaeHandler/SanaeHandler');
 
 const BASIC_SHARDS = ['RedShard(L)', 'BlueShard(L)', 'YellowShard(L)', 'WhiteShard(L)', 'DarkShard(L)'];
 const ENHANCED_SHARDS = {

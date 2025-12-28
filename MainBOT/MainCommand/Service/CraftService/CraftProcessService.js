@@ -2,6 +2,16 @@ const { run, transaction, get, all } = require('../../Core/database');
 const { clearUserCache } = require('./CraftCacheService');
 const { getCraftTimer, CRAFT_CONFIG } = require('../../Configuration/craftConfig');
 const { incrementDailyCraft } = require('../../Ultility/weekly');
+const {
+    checkCraftDiscount,
+    checkFreeCrafts,
+    consumeCraftProtection
+} = require('../PrayService/CharacterHandlers/SanaeHandler/SanaeBlessingService');
+const { 
+    checkSanaeCraftDiscount, 
+    checkSanaeFreeCrafts, 
+    consumeSanaeCraftProtection 
+} = require('../PrayService/PrayDatabaseService');
 
 async function getUserQueueCount(userId) {
     const result = await get(
@@ -195,6 +205,254 @@ async function claimAllReady(userId) {
     return claimed;
 }
 
+async function calculateCraftCostWithBlessings(userId, baseCoinCost, baseGemCost) {
+    const freeCrafts = await checkFreeCrafts(userId);
+    if (freeCrafts.active) {
+        return {
+            coins: 0,
+            gems: 0,
+            freeCraftActive: true,
+            discountActive: false,
+            discountPercent: 0
+        };
+    }
+    
+    const discount = await checkCraftDiscount(userId);
+    if (discount.active) {
+        return {
+            coins: Math.floor(baseCoinCost * (1 - discount.discount)),
+            gems: Math.floor(baseGemCost * (1 - discount.discount)),
+            freeCraftActive: false,
+            discountActive: true,
+            discountPercent: discount.discount * 100
+        };
+    }
+    
+    return {
+        coins: baseCoinCost,
+        gems: baseGemCost,
+        freeCraftActive: false,
+        discountActive: false,
+        discountPercent: 0
+    };
+}
+
+async function handleCraftFailure(userId) {
+    const protection = await consumeCraftProtection(userId);
+    
+    if (protection.protected) {
+        return {
+            failed: false,
+            protected: true,
+            message: `🛡️ Sanae's protection nullified the craft failure! (${protection.remaining} protections remaining)`,
+            remaining: protection.remaining
+        };
+    }
+    
+    return {
+        failed: true,
+        protected: false,
+        message: null,
+        remaining: 0
+    };
+}
+
+async function getCraftBlessingStatus(userId) {
+    const [freeCrafts, discount] = await Promise.all([
+        checkFreeCrafts(userId),
+        checkCraftDiscount(userId)
+    ]);
+
+    const status = [];
+    
+    if (freeCrafts.active) {
+        const remaining = Math.ceil((freeCrafts.expiry - Date.now()) / (24 * 60 * 60 * 1000));
+        status.push(`🆓 Free crafts active (${remaining}d left)`);
+    }
+    
+    if (discount.active) {
+        const remaining = Math.ceil((discount.expiry - Date.now()) / (60 * 60 * 1000));
+        status.push(`🔨 ${discount.discount * 100}% discount (${remaining}h left)`);
+    }
+    
+    return status;
+}
+
+/**
+ * Calculate craft costs with Sanae bonuses applied
+ */
+async function calculateCraftCost(userId, baseCoinCost, baseGemCost) {
+    // Check for free crafts first
+    const freeCrafts = await checkSanaeFreeCrafts(userId);
+    if (freeCrafts.active) {
+        return {
+            coinCost: 0,
+            gemCost: 0,
+            freeCraft: true,
+            discount: 0
+        };
+    }
+
+    // Check for craft discount
+    const discountData = await checkSanaeCraftDiscount(userId);
+    let coinCost = baseCoinCost;
+    let gemCost = baseGemCost;
+    
+    if (discountData.active) {
+        coinCost = Math.floor(baseCoinCost * (1 - discountData.discount));
+        gemCost = Math.floor(baseGemCost * (1 - discountData.discount));
+    }
+
+    return {
+        coinCost,
+        gemCost,
+        freeCraft: false,
+        discount: discountData.active ? discountData.discount * 100 : 0
+    };
+}
+
+/**
+ * Check if craft failure should be protected by Sanae blessing
+ */
+async function checkCraftProtection(userId) {
+    const protection = await consumeSanaeCraftProtection(userId);
+    return protection;
+}
+
+/**
+ * Process a craft with Sanae bonuses
+ */
+async function processCraftWithBonuses(userId, recipe, craftAmount = 1) {
+    const results = {
+        success: false,
+        crafted: 0,
+        failed: 0,
+        protected: 0,
+        costSummary: {
+            coins: 0,
+            gems: 0,
+            freeCrafts: 0,
+            discountApplied: 0
+        },
+        items: []
+    };
+
+    try {
+        for (let i = 0; i < craftAmount; i++) {
+            // Calculate cost for this craft
+            const costData = await calculateCraftCost(
+                userId, 
+                recipe.coinCost || 0, 
+                recipe.gemCost || 0
+            );
+
+            // Deduct costs if not free
+            if (!costData.freeCraft) {
+                await run(
+                    `UPDATE userCoins SET coins = coins - ?, gems = gems - ? WHERE userId = ?`,
+                    [costData.coinCost, costData.gemCost, userId]
+                );
+                results.costSummary.coins += costData.coinCost;
+                results.costSummary.gems += costData.gemCost;
+            } else {
+                results.costSummary.freeCrafts++;
+            }
+
+            if (costData.discount > 0) {
+                results.costSummary.discountApplied = costData.discount;
+            }
+
+            // Roll for craft success
+            const successRate = recipe.successRate || 1.0;
+            const roll = Math.random();
+
+            if (roll <= successRate) {
+                // Success
+                results.crafted++;
+                results.items.push({
+                    name: recipe.result,
+                    quantity: recipe.resultAmount || 1,
+                    success: true
+                });
+            } else {
+                // Failed - check for protection
+                const protection = await checkCraftProtection(userId);
+                
+                if (protection.protected) {
+                    // Protected from failure
+                    results.protected++;
+                    results.crafted++;
+                    results.items.push({
+                        name: recipe.result,
+                        quantity: recipe.resultAmount || 1,
+                        success: true,
+                        wasProtected: true
+                    });
+                } else {
+                    // Actually failed
+                    results.failed++;
+                    results.items.push({
+                        name: recipe.result,
+                        quantity: 0,
+                        success: false
+                    });
+                }
+            }
+        }
+
+        results.success = results.crafted > 0;
+        return results;
+
+    } catch (error) {
+        console.error('[CraftProcess] Error processing craft:', error);
+        throw error;
+    }
+}
+
+/**
+ * Get Sanae craft bonuses summary for a user
+ */
+async function getSanaeCraftBonuses(userId) {
+    const [freeCrafts, discount, protection] = await Promise.all([
+        checkSanaeFreeCrafts(userId),
+        checkSanaeCraftDiscount(userId),
+        get(`SELECT craftProtection FROM sanaeBlessings WHERE userId = ?`, [userId])
+    ]);
+
+    const now = Date.now();
+    const bonuses = [];
+
+    if (freeCrafts.active) {
+        const remaining = Math.ceil((freeCrafts.expiry - now) / (60 * 60 * 1000));
+        bonuses.push({
+            type: 'freeCrafts',
+            description: `🆓 Free Crafts (${remaining}h remaining)`,
+            active: true
+        });
+    }
+
+    if (discount.active) {
+        const remaining = Math.ceil((discount.expiry - now) / (60 * 60 * 1000));
+        bonuses.push({
+            type: 'discount',
+            description: `🔨 ${discount.discount * 100}% Craft Discount (${remaining}h remaining)`,
+            active: true,
+            value: discount.discount
+        });
+    }
+
+    if (protection?.craftProtection > 0) {
+        bonuses.push({
+            type: 'protection',
+            description: `🛡️ ${protection.craftProtection} Craft Fail Protections`,
+            active: true,
+            value: protection.craftProtection
+        });
+    }
+
+    return bonuses;
+}
+
 module.exports = {
     processCraft,
     claimQueuedCraft,
@@ -207,5 +465,12 @@ module.exports = {
     deductMaterials,
     addCraftedItem,
     addToQueue,
-    logCraftHistory
+    logCraftHistory,
+    calculateCraftCostWithBlessings,
+    handleCraftFailure,
+    getCraftBlessingStatus,
+    calculateCraftCost,
+    checkCraftProtection,
+    processCraftWithBonuses,
+    getSanaeCraftBonuses
 };

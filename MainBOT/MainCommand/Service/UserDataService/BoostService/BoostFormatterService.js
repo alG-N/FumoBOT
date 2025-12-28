@@ -26,7 +26,15 @@ function formatBoostPercentage(multiplier) {
 }
 
 function formatBoostLabel(boost, timeLeft) {
-    const { type, source, multiplier, uses, isDynamic } = boost;
+    const { type, source, multiplier, uses, isDynamic, displayValue } = boost;
+
+    // Sanae blessing types with custom display
+    if (displayValue) {
+        if (uses !== undefined && uses !== null) {
+            return `• 🌊 **${displayValue}** from **${source}**`;
+        }
+        return `• 🌊 **${displayValue}** from **${source}** (${timeLeft})`;
+    }
 
     if (type === 'yuyukoRolls') {
         return `• 🌸 **${formatNumber(uses)} Rolls Left** from Yuyuko's Blessing`;
@@ -53,6 +61,35 @@ function formatBoostLabel(boost, timeLeft) {
     if (type === 'luck') {
         const prefix = isDynamic ? 'this hour' : 'total';
         return `• x${multiplier} Luck Boost (${prefix}) from **${source}** (${timeLeft})`;
+    }
+
+    // Sanae specific types (fallback)
+    if (type === 'craftDiscount') {
+        return `• 🔨 **${multiplier}% Craft Discount** from **${source}** (${timeLeft})`;
+    }
+
+    if (type === 'freeCrafts') {
+        return `• 🆓 **Free Crafts** from **${source}** (${timeLeft})`;
+    }
+
+    if (type === 'craftProtection') {
+        return `• 🛡️ **${uses} Craft Protections** from **${source}**`;
+    }
+
+    if (type === 'guaranteedRarity') {
+        return `• 🎲 **Guaranteed Rarity Rolls** from **${source}** (${uses} left)`;
+    }
+
+    if (type === 'luckForRolls') {
+        return `• 🍀 **+${(multiplier * 100).toFixed(0)}% Luck** from **${source}** (${uses} rolls left)`;
+    }
+
+    if (type === 'prayImmunity') {
+        return `• 🙏 **Pray Immunity** from **${source}** (${timeLeft})`;
+    }
+
+    if (type === 'faithPoints') {
+        return `• ⛩️ **${uses}/20 Faith Points** - Sanae`;
     }
 
     const percentLabel = formatBoostPercentage(multiplier);
