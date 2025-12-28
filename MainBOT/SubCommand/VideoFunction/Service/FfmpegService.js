@@ -6,6 +6,7 @@ const videoConfig = require('../Configuration/videoConfig');
 class FFmpegService {
     constructor() {
         this.ffmpegBinary = 'ffmpeg';
+        this.isAvailable = false;
     }
 
     async initialize() {
@@ -17,15 +18,20 @@ class FFmpegService {
 
             process.on('close', (code) => {
                 if (code === 0) {
+                    this.isAvailable = true;
                     console.log('✅ FFmpeg is available');
                 } else {
-                    console.log('⚠️ FFmpeg not found');
+                    this.isAvailable = false;
+                    console.log('⚠️ FFmpeg not found - compression disabled');
                 }
                 resolve();
             });
 
             process.on('error', () => {
-                console.log('⚠️ FFmpeg not found');
+                this.isAvailable = false;
+                console.log('⚠️ FFmpeg not found - compression disabled');
+                console.log('   Install FFmpeg: https://ffmpeg.org/download.html');
+                console.log('   Or use: winget install ffmpeg');
                 resolve();
             });
         });
@@ -37,6 +43,12 @@ class FFmpegService {
 
         if (currentSizeMB <= targetSizeMB) {
             console.log(`✅ Video is already under ${targetSizeMB}MB (${currentSizeMB.toFixed(2)}MB)`);
+            return inputPath;
+        }
+
+        // If FFmpeg is not available, return original file
+        if (!this.isAvailable) {
+            console.log(`⚠️ FFmpeg not available - skipping compression (file is ${currentSizeMB.toFixed(2)}MB)`);
             return inputPath;
         }
 
@@ -83,12 +95,18 @@ class FFmpegService {
 
                     resolve(outputPath);
                 } else {
-                    reject(new Error(`FFmpeg compression failed: ${stderr.trim()}`));
+                    // Compression failed, return original file
+                    console.log(`⚠️ Compression failed, using original file`);
+                    if (fs.existsSync(outputPath)) {
+                        fs.unlinkSync(outputPath);
+                    }
+                    resolve(inputPath);
                 }
             });
 
             process.on('error', (error) => {
-                reject(error);
+                console.log(`⚠️ FFmpeg error: ${error.message}, using original file`);
+                resolve(inputPath);
             });
         });
     }

@@ -54,8 +54,15 @@ class VideoDownloadService {
                 videoPath = await ytDlpService.downloadVideo(url, this.tempDir);
             }
             
-            // Compress if needed
-            const finalPath = await ffmpegService.compressVideo(videoPath, videoConfig.TARGET_COMPRESSION_MB);
+            // Try to compress if needed (will skip if FFmpeg unavailable)
+            let finalPath = videoPath;
+            try {
+                finalPath = await ffmpegService.compressVideo(videoPath, videoConfig.TARGET_COMPRESSION_MB);
+            } catch (compressError) {
+                console.log('⚠️ Compression skipped:', compressError.message);
+                finalPath = videoPath;
+            }
+            
             const finalStats = fs.statSync(finalPath);
             const finalSizeMB = finalStats.size / (1024 * 1024);
 
