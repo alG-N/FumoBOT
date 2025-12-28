@@ -1,6 +1,7 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Colors } = require('discord.js');
 const { SPECIAL_RARITIES, RARITY_PRIORITY, isRarer } = require('../../../Configuration/rarity');
 const { formatNumber } = require('../../../Ultility/formatting');
+const { getSanaeBoostDisplay } = require('./CrateGachaRollService');
 
 function createShopEmbed(userData, boosts, hasFantasyBook, isAutoRollActive) {
     const { coins, boostCharge, boostActive, boostRollsRemaining, rollsLeft, totalRolls } = userData;
@@ -123,6 +124,16 @@ Take a chance—who knows what you'll get?
         .setColor(Colors.Blue)
         .setImage('https://pbs.twimg.com/media/EkXjV4sU0AIwSr5.png')
         .setFooter({ text: ancientNote });
+
+    // Add Sanae boost section if active
+    const sanaeBoosts = getSanaeBoostDisplay(boosts);
+    if (sanaeBoosts.length > 0) {
+        embed.addFields({
+            name: '⛩️ Sanae Blessings Active',
+            value: sanaeBoosts.join('\n'),
+            inline: false
+        });
+    }
 
     return embed;
 }

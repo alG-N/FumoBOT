@@ -186,6 +186,23 @@ function getCacheStats() {
     };
 }
 
+// Add this function and call it during initialization
+async function ensureSanaeColumns() {
+    try {
+        await run(`ALTER TABLE sanaeBlessings ADD COLUMN permanentLuckBonus REAL DEFAULT 0`);
+        console.log('[DB] Added permanentLuckBonus column');
+    } catch (error) {
+        // Column already exists or table doesn't exist - ignore
+        if (!error.message.includes('duplicate column')) {
+            // Only log if it's not a duplicate column error
+            // console.log('[DB] Sanae column check:', error.message);
+        }
+    }
+}
+
+// Call this after database is opened
+// ensureSanaeColumns();
+
 module.exports = {
     get,
     all,

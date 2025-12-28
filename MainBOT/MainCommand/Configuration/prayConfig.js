@@ -311,7 +311,6 @@ const PRAY_CHARACTERS = {
         description: 'The living goddess of the Moriya Shrine offers divine blessings through faith.',
         color: 0x00CED1,
         
-        // Faith system
         faithPoints: {
             max: 20,
             rerollThreshold: 5,
@@ -320,25 +319,21 @@ const PRAY_CHARACTERS = {
             divineInterventionThreshold: 20
         },
         
-        // Percentage-based scaling: higher faith = higher requirements = higher rewards
         faithScaling: {
-            // Cost multiplier based on current faith points (percentage increase)
             costMultiplier: {
-                0: 1.0,      // Base cost
-                5: 1.25,     // 25% more expensive
-                10: 1.5,     // 50% more expensive
-                15: 2.0,     // 100% more expensive
-                18: 2.5      // 150% more expensive
+                0: 1.0,
+                5: 1.25,
+                10: 1.5,
+                15: 2.0,
+                18: 2.5
             },
-            // Reward multiplier based on current faith points
             rewardMultiplier: {
-                0: 1.0,      // Base rewards
-                5: 1.5,      // 50% better rewards
-                10: 2.0,     // 100% better rewards
-                15: 3.0,     // 200% better rewards
-                18: 5.0      // 400% better rewards
+                0: 1.0,
+                5: 1.5,
+                10: 2.0,
+                15: 3.0,
+                18: 5.0
             },
-            // Tier upgrade chance based on faith
             tierUpgradeChance: {
                 0: 0,
                 5: 0.10,
@@ -348,7 +343,6 @@ const PRAY_CHARACTERS = {
             }
         },
         
-        // Base donation options (scaled by faithScaling.costMultiplier)
         donationOptions: {
             A: {
                 label: 'Coin Offering',
@@ -378,11 +372,10 @@ const PRAY_CHARACTERS = {
             }
         },
         
-        // Blessing tiers with weight adjustments based on faith
         blessingTiers: {
             COMMON: {
                 weight: 50,
-                faithWeightReduction: 3,  // Reduce weight by 3 per faith scaling tier
+                faithWeightReduction: 3,
                 minWeight: 20,
                 blessings: [
                     {
@@ -412,7 +405,7 @@ const PRAY_CHARACTERS = {
             },
             RARE: {
                 weight: 30,
-                faithWeightBonus: 1,  // Increase weight by 1 per faith scaling tier
+                faithWeightBonus: 1,
                 maxWeight: 45,
                 blessings: [
                     {
@@ -507,7 +500,7 @@ const PRAY_CHARACTERS = {
                             freeCrafts: { duration: 7 * 24 * 60 * 60 * 1000 },
                             boostMultiplier: { multiplier: 5, duration: 7 * 24 * 60 * 60 * 1000 },
                             fumo: { rarity: 'TRANSCENDENT' },
-                            items: [{ name: 'DivineMantle(D)', quantity: 1 }]
+                            items: [{ name: 'DivineMantle(T)', quantity: 1 }]
                         }
                     }
                 ]

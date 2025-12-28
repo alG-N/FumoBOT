@@ -1,5 +1,5 @@
 const { get, run } = require('../../../Core/database');
-const { getUserBoosts } = require('./BoostService');
+const { getUserBoosts, calculateTotalLuckMultiplier, consumeSanaeLuckRoll, consumeSanaeGuaranteedRoll } = require
 const { calculateRarity, updatePityCounters, updateBoostCharge } = require('./RarityService');
 const { selectAndAddFumo, selectAndAddMultipleFumos } = require('./InventoryService');
 const { ASTRAL_PLUS_RARITIES, isRarer } = require('../../../Configuration/rarity');
