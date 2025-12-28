@@ -91,6 +91,12 @@ module.exports = {
                 ]).catch(() => {});
             }
 
+            // Check cache first
+            const cached = pixivCache.getSearchSuggestions(focusedValue);
+            if (cached) {
+                return interaction.respond(cached).catch(() => {});
+            }
+
             // Set a strict timeout
             const timeoutPromise = new Promise((_, reject) => 
                 setTimeout(() => reject(new Error('Timeout')), 2000)
@@ -116,39 +122,40 @@ module.exports = {
                                 value: translated.slice(0, 100)
                             });
                         }
-                    } catch {}
 
-                    // Get suggestions based on translated query
-                    try {
-                        const translated = await pixivService.translateToJapanese(focusedValue);
+                        // Get suggestions based on translated query
                         const suggestions = await pixivService.getAutocompleteSuggestions(translated);
                         
                         if (suggestions.length > 0) {
                             // Translate suggestions to English for display
-                            const translationPromises = suggestions.slice(0, 12).map(async (keyword) => {
+                            const limitedSuggestions = suggestions.slice(0, 12);
+                            
+                            for (const keyword of limitedSuggestions) {
                                 if (keyword.toLowerCase() === focusedValue.toLowerCase() || 
                                     keyword.toLowerCase() === translated?.toLowerCase()) {
-                                    return null;
+                                    continue;
                                 }
 
                                 try {
                                     const englishTranslation = await pixivService.translateToEnglish(keyword);
                                     if (englishTranslation && englishTranslation !== keyword) {
-                                        return {
+                                        choices.push({
                                             name: `${keyword} (${englishTranslation})`.slice(0, 100),
                                             value: keyword.slice(0, 100)
-                                        };
+                                        });
+                                    } else {
+                                        choices.push({
+                                            name: keyword.slice(0, 100),
+                                            value: keyword.slice(0, 100)
+                                        });
                                     }
-                                } catch {}
-
-                                return {
-                                    name: keyword.slice(0, 100),
-                                    value: keyword.slice(0, 100)
-                                };
-                            });
-
-                            const translated = (await Promise.all(translationPromises)).filter(Boolean);
-                            choices.push(...translated);
+                                } catch {
+                                    choices.push({
+                                        name: keyword.slice(0, 100),
+                                        value: keyword.slice(0, 100)
+                                    });
+                                }
+                            }
                         }
                     } catch {}
                 } else {
@@ -158,32 +165,37 @@ module.exports = {
                         
                         if (suggestions.length > 0) {
                             // Translate each suggestion to English for better understanding
-                            const translationPromises = suggestions.slice(0, 15).map(async (keyword) => {
+                            const limitedSuggestions = suggestions.slice(0, 18);
+                            
+                            for (const keyword of limitedSuggestions) {
                                 // Skip if same as user input
                                 if (keyword.toLowerCase() === focusedValue.toLowerCase()) {
-                                    return null;
+                                    continue;
                                 }
 
                                 try {
                                     const englishTranslation = await pixivService.translateToEnglish(keyword);
                                     if (englishTranslation && englishTranslation !== keyword) {
-                                        // Show as "巫女 (miko)" but value is just "巫女"
-                                        return {
+                                        // Show as "巫女 (shrine maiden)" but value is just "巫女"
+                                        choices.push({
                                             name: `${keyword} (${englishTranslation})`.slice(0, 100),
                                             value: keyword.slice(0, 100)
-                                        };
+                                        });
+                                    } else {
+                                        // Translation failed or same - just show keyword
+                                        choices.push({
+                                            name: keyword.slice(0, 100),
+                                            value: keyword.slice(0, 100)
+                                        });
                                     }
-                                } catch {}
-
-                                // If translation fails, just show the keyword
-                                return {
-                                    name: keyword.slice(0, 100),
-                                    value: keyword.slice(0, 100)
-                                };
-                            });
-
-                            const translatedSuggestions = (await Promise.all(translationPromises)).filter(Boolean);
-                            choices.push(...translatedSuggestions);
+                                } catch {
+                                    // Translation error - just show keyword
+                                    choices.push({
+                                        name: keyword.slice(0, 100),
+                                        value: keyword.slice(0, 100)
+                                    });
+                                }
+                            }
                         }
                     } catch {}
                 }
@@ -192,6 +204,10 @@ module.exports = {
             })();
 
             const choices = await Promise.race([searchPromise, timeoutPromise]);
+
+            // Cache results
+            pixivCache.setSearchSuggestions(focusedValue, choices);
+            
             await interaction.respond(choices).catch(() => {});
         } catch (error) {
             console.log('[Pixiv Autocomplete] Error, responding with user input');

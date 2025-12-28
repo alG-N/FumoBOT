@@ -161,7 +161,16 @@ function createIndexes() {
                 hasFantasyBook INTEGER DEFAULT 0,
                 yukariMark INTEGER DEFAULT 0,
                 reimuPityCount INTEGER DEFAULT 0,
-                timeclockLastUsed INTEGER DEFAULT 0
+                timeclockLastUsed INTEGER DEFAULT 0,
+                sanaeFaithPoints INTEGER DEFAULT 0,
+                sanaeRerollsUsed INTEGER DEFAULT 0,
+                sanaeCraftDiscount INTEGER DEFAULT 0,
+                sanaeCraftDiscountExpiry INTEGER DEFAULT 0,
+                sanaeFreeCraftsExpiry INTEGER DEFAULT 0,
+                sanaePrayImmunityExpiry INTEGER DEFAULT 0,
+                sanaeGuaranteedRarityRolls INTEGER DEFAULT 0,
+                sanaeLuckForRolls INTEGER DEFAULT 0,
+                sanaeCraftProtection INTEGER DEFAULT 0
             )`, (err) => {
                 if (err) console.error('Error creating userCoins table:', err.message);
                 res();
@@ -633,7 +642,16 @@ async function ensureColumnsExist() {
             'rebirth',
             'yukariMark',
             'reimuPityCount',
-            'timeclockLastUsed'
+            'timeclockLastUsed',
+            'sanaeFaithPoints',
+            'sanaeRerollsUsed',
+            'sanaeCraftDiscount',
+            'sanaeCraftDiscountExpiry',
+            'sanaeFreeCraftsExpiry',
+            'sanaePrayImmunityExpiry',
+            'sanaeGuaranteedRarityRolls',
+            'sanaeLuckForRolls',
+            'sanaeCraftProtection'
         ];
 
         for (const col of requiredColumns) {

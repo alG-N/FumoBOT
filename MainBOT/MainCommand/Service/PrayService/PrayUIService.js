@@ -292,6 +292,38 @@ function createInfoEmbed(character) {
                 `• 1-3 rolls per item type!\n\n` +
                 `**💡 Strategy:** Much lower tribute = keep 82-90% of rewards!`;
             break;
+
+        case 'sanae':
+            detailsText = 
+                `**🌊 Faith Exchange System:**\n` +
+                `Sanae offers divine blessings in exchange for faith.\n\n` +
+                `**💫 Donation Options:**\n` +
+                `• **A:** 100,000 coins → 1 Faith Point\n` +
+                `• **B:** 15,000 gems → 2 Faith Points\n` +
+                `• **C:** 3 MYTHICAL+ fumos → 3 Faith Points\n` +
+                `• **D:** 50k coins + 5k gems + 1 LEGENDARY fumo → 4 Faith Points\n\n` +
+                `**📊 Faith Point Milestones:**\n` +
+                `• **5 FP:** Reroll one blessing (once per visit)\n` +
+                `• **10 FP:** Unlock 4th blessing option\n` +
+                `• **15 FP:** Upgrade ALL blessing tiers by one level!\n` +
+                `• **20 FP:** 🌟 DIVINE INTERVENTION - Guaranteed MIRACLE blessing!\n\n` +
+                `**🎁 Blessing Tiers:**\n` +
+                `⚪ **Common (50%):** 300k-500k coins, shards, small luck\n` +
+                `🔵 **Rare (30%):** 1.5M+ coins, MYTHICAL fumo, 100 epic+ pulls\n` +
+                `🟡 **Legendary (15%):** 5M+ coins, 7-day luck, craft protections\n` +
+                `🟣 **Divine (4%):** 50-100M coins, permanent luck, FrogSigil(?)\n` +
+                `🌟 **Miracle (1%):** 500M coins, TRANSCENDENT fumo, 7-day free crafts\n\n` +
+                `**⚠️ Special Events:**\n` +
+                `• 10% → Sanae training (no blessing but FP saved)\n` +
+                `• 5% → Miracle Surge (all tiers upgraded!)\n` +
+                `• 3% → Divine Scam (Kanako takes your FP!)\n\n` +
+                `**💡 Strategy:**\n` +
+                `Save to 20 FP for guaranteed MIRACLE, or spend FP for rerolls!\n` +
+                `"Free crafts" means no coin/gem cost - items still required.`;
+            break;
+
+        default:
+            detailsText = `No details available. This character is a mystery...`;
     }
 
     return new EmbedBuilder()
@@ -299,7 +331,7 @@ function createInfoEmbed(character) {
         .setDescription(detailsText)
         .setThumbnail(character.picture)
         .setColor(rarityColor)
-        .setFooter({ text: `Rarity: ${character.rarity} | ALL CHARACTERS SIGNIFICANTLY BUFFED!` })
+        .setFooter({ text: `Rarity: ${character.rarity}` })
         .setTimestamp();
 }
 

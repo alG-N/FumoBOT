@@ -360,6 +360,90 @@ async function getReimuRareFumos(userId, allowedRarities) {
     );
 }
 
+async function getSanaeFaithPoints(userId) {
+    const user = await getUserData(userId);
+    return user?.sanaeFaithPoints || 0;
+}
+
+async function updateSanaeFaithPoints(userId, points) {
+    userDataCache.delete(userId);
+    await run(
+        `UPDATE userCoins SET sanaeFaithPoints = ? WHERE userId = ?`,
+        [points, userId]
+    );
+}
+
+async function addSanaeFaithPoints(userId, points) {
+    userDataCache.delete(userId);
+    await run(
+        `UPDATE userCoins SET sanaeFaithPoints = COALESCE(sanaeFaithPoints, 0) + ? WHERE userId = ?`,
+        [points, userId]
+    );
+}
+
+async function getSanaeData(userId) {
+    const user = await getUserData(userId);
+    return {
+        faithPoints: user?.sanaeFaithPoints || 0,
+        rerollsUsed: user?.sanaeRerollsUsed || 0,
+        craftDiscount: user?.sanaeCraftDiscount || 0,
+        craftDiscountExpiry: user?.sanaeCraftDiscountExpiry || 0,
+        freeCraftsExpiry: user?.sanaeFreeCraftsExpiry || 0,
+        prayImmunityExpiry: user?.sanaePrayImmunityExpiry || 0,
+        guaranteedRarityRolls: user?.sanaeGuaranteedRarityRolls || 0,
+        luckForRolls: user?.sanaeLuckForRolls || 0,
+        craftProtection: user?.sanaeCraftProtection || 0
+    };
+}
+
+async function updateSanaeData(userId, updates) {
+    userDataCache.delete(userId);
+    const fields = [];
+    const values = [];
+
+    for (const [key, value] of Object.entries(updates)) {
+        fields.push(`${key} = ?`);
+        values.push(value);
+    }
+
+    values.push(userId);
+
+    await run(
+        `UPDATE userCoins SET ${fields.join(', ')} WHERE userId = ?`,
+        values
+    );
+}
+
+async function getMythicalPlusFumos(userId, minRarities) {
+    const rarityConditions = minRarities.map(r => `rarity = '${r}'`).join(' OR ');
+    
+    return await all(
+        `SELECT id, fumoName, rarity, quantity 
+         FROM userInventory 
+         WHERE userId = ? 
+         AND fumoName LIKE '%(%' 
+         AND (${rarityConditions})
+         LIMIT 100`,
+        [userId],
+        true
+    );
+}
+
+async function getLegendaryPlusFumos(userId, minRarities) {
+    const rarityConditions = minRarities.map(r => `rarity = '${r}'`).join(' OR ');
+    
+    return await all(
+        `SELECT id, fumoName, rarity, quantity 
+         FROM userInventory 
+         WHERE userId = ? 
+         AND fumoName LIKE '%(%' 
+         AND (${rarityConditions})
+         LIMIT 100`,
+        [userId],
+        true
+    );
+}
+
 function clearInventoryCache(userId = null) {
     if (userId) {
         inventoryCache.delete(userId);
@@ -401,6 +485,13 @@ module.exports = {
     addSpiritTokens,
     getYukariFumosByRarityGroups,
     getReimuRareFumos,
+    getSanaeFaithPoints,
+    updateSanaeFaithPoints,
+    addSanaeFaithPoints,
+    getSanaeData,
+    updateSanaeData,
+    getMythicalPlusFumos,
+    getLegendaryPlusFumos,
     clearInventoryCache,
     clearUserDataCache
 };
