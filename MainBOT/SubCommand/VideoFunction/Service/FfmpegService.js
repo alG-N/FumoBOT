@@ -49,10 +49,13 @@ class FFmpegService {
                 '-i', inputPath,
                 '-c:v', 'libx264',
                 '-preset', videoConfig.FFMPEG_PRESET,
-                '-crf', '28',
+                '-crf', videoConfig.FFMPEG_CRF,
+                '-maxrate', videoConfig.VIDEO_BITRATE,
+                '-bufsize', '3M',
                 '-c:a', 'aac',
                 '-b:a', videoConfig.AUDIO_BITRATE,
                 '-movflags', '+faststart',
+                '-threads', '0',
                 '-y',
                 outputPath
             ];

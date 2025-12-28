@@ -150,7 +150,7 @@ class YtDlpService {
         await new Promise((resolve, reject) => {
             const args = [
                 url,
-                '-f', 'b[filesize<15M]/bv*[height<=720]+ba/bv*+ba/b',
+                '-f', 'b[filesize<20M][height<=720]/bv*[height<=720][filesize<15M]+ba/bv*[height<=480]+ba/b',
                 '--merge-output-format', 'mp4',
                 '--max-filesize', '25M',
                 '--no-playlist',
@@ -161,10 +161,13 @@ class YtDlpService {
                 '--newline',
                 '--retries', videoConfig.MAX_RETRIES.toString(),
                 '--fragment-retries', videoConfig.FRAGMENT_RETRIES.toString(),
-                '--no-continue',
+                '--concurrent-fragments', videoConfig.CONCURRENT_FRAGMENTS.toString(),
                 '--buffer-size', videoConfig.BUFFER_SIZE,
-                '--extractor-args', 'youtube:player_client=android,web',
-                '--user-agent', videoConfig.USER_AGENT
+                '--http-chunk-size', '10M',
+                '--extractor-args', 'youtube:player_client=ios,web',
+                '--user-agent', videoConfig.USER_AGENT,
+                '--no-check-certificates',
+                '--prefer-free-formats'
             ];
 
             const process = spawn(this.ytDlpBinary, args, {

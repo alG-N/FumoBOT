@@ -12,16 +12,16 @@
     "generatedAt": 1765284944072
   },
   "845274868697661440": {
-    "stage": 147,
+    "stage": 151,
     "requirements": {
       "fumos": [
         {
-          "name": "Cloaker(OTHERWORLDLY)[✨SHINY]",
+          "name": "Yukari(LEGENDARY)[✨SHINY]",
           "requireTrait": true,
           "higherRarity": true
         }
       ]
     },
-    "generatedAt": 1766865270628
+    "generatedAt": 1766940485273
   }
 }

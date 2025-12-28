@@ -230,7 +230,7 @@ module.exports = (client) => {
                         '→ Rolls 100 fumos every 30 seconds\n' +
                         '→ **Automatically sells all EPIC and LEGENDARY fumos for coins**\n' +
                         '→ Keeps MYTHICAL, ???, and TRANSCENDENT\n\n' +
-                        '⚠️ Both modes will stop automatically at 10,000 roll limit'
+                        '⚠️ Both modes will stop automatically at 50,000 roll limit'
                     )
                     .setColor(Colors.Blue);
 
@@ -274,10 +274,10 @@ module.exports = (client) => {
                                 `💰 Auto-selling all **EPIC** and **LEGENDARY** fumos for coins\n` +
                                 `📦 Keeping: MYTHICAL, ???, TRANSCENDENT\n\n` +
                                 `Use the 🛑 Stop button to cancel.`
-                                : `Rolling **100 fumos every ${result.interval / 1000} seconds** until limit reached (10,000 rolls).\n\n` +
+                                : `Rolling **100 fumos every ${result.interval / 1000} seconds** until limit reached (50,000 rolls).\n\n` +
                                 `Use the 🛑 Stop button to cancel.`,
                             color: autoSell ? 0x00AA00 : 0x00FF00,
-                            footer: { text: autoSell ? 'Auto-sell: EPIC & LEGENDARY only' : 'Auto-roll will stop at 10k limit' }
+                            footer: { text: autoSell ? 'Auto-sell: EPIC & LEGENDARY only' : 'Auto-roll will stop at 50k limit' }
                         }],
                         ephemeral: true
                     });
