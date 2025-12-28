@@ -150,46 +150,55 @@ class YtDlpService {
         await new Promise((resolve, reject) => {
             const args = [
                 url,
-                '-f', 'b[filesize<20M][height<=720]/bv*[height<=720][filesize<15M]+ba/bv*[height<=480]+ba/b',
-                '--merge-output-format', 'mp4',
-                '--max-filesize', '25M',
+                // Most flexible format - just get best available, let yt-dlp decide
+                '-f', 'best[height<=720]/best',
                 '--no-playlist',
                 '-o', outputTemplate,
                 '--no-warnings',
-                '--quiet',
                 '--progress',
                 '--newline',
                 '--retries', videoConfig.MAX_RETRIES.toString(),
                 '--fragment-retries', videoConfig.FRAGMENT_RETRIES.toString(),
-                '--concurrent-fragments', videoConfig.CONCURRENT_FRAGMENTS.toString(),
-                '--buffer-size', videoConfig.BUFFER_SIZE,
-                '--http-chunk-size', '10M',
-                '--extractor-args', 'youtube:player_client=ios,web',
                 '--user-agent', videoConfig.USER_AGENT,
                 '--no-check-certificates',
-                '--prefer-free-formats'
+                '--socket-timeout', '30',
+                '--extractor-args', 'youtube:player_client=mweb,android',
+                '--cookies-from-browser', 'chrome',  // Try to use browser cookies
+                '--ignore-errors'
             ];
 
-            const process = spawn(this.ytDlpBinary, args, {
+            const ytProcess = spawn(this.ytDlpBinary, args, {
                 windowsHide: true,
                 stdio: 'pipe'
             });
             
             let stderr = '';
+            let stdout = '';
 
-            process.stderr.on('data', (data) => {
+            ytProcess.stdout.on('data', (data) => {
+                stdout += data.toString();
+            });
+
+            ytProcess.stderr.on('data', (data) => {
                 stderr += data.toString();
             });
 
-            process.on('close', (code) => {
+            ytProcess.on('close', (code) => {
                 if (code === 0) {
                     resolve();
                 } else {
-                    reject(new Error(`Download failed: ${stderr.trim() || 'Unknown error'}`));
+                    // If format selection failed, try again with no format restriction
+                    if (stderr.includes('Requested format is not available')) {
+                        this._downloadWithoutFormatRestriction(url, outputTemplate)
+                            .then(resolve)
+                            .catch(reject);
+                    } else {
+                        reject(new Error(`Download failed: ${stderr.trim() || stdout.trim() || 'Unknown error'}`));
+                    }
                 }
             });
 
-            process.on('error', (error) => {
+            ytProcess.on('error', (error) => {
                 reject(error);
             });
         });
@@ -211,17 +220,51 @@ class YtDlpService {
         const stats = fs.statSync(actualPath);
         const fileSizeInMB = stats.size / (1024 * 1024);
 
-        if (fileSizeInMB > videoConfig.MAX_FILE_SIZE_MB) {
-            fs.unlinkSync(actualPath);
-            throw new Error(`Video is too large (${fileSizeInMB.toFixed(2)}MB). Discord has a ${videoConfig.MAX_FILE_SIZE_MB}MB limit. Try a shorter video.`);
-        }
-
         if (fileSizeInMB === 0) {
             fs.unlinkSync(actualPath);
             throw new Error('Downloaded file is empty.');
         }
 
         return actualPath;
+    }
+
+    async _downloadWithoutFormatRestriction(url, outputTemplate) {
+        return new Promise((resolve, reject) => {
+            console.log('🔄 Retrying with no format restriction...');
+            
+            const args = [
+                url,
+                '-f', 'best',  // Just get whatever is available
+                '--no-playlist',
+                '-o', outputTemplate,
+                '--no-warnings',
+                '--retries', '3',
+                '--user-agent', videoConfig.USER_AGENT,
+                '--no-check-certificates',
+                '--extractor-args', 'youtube:player_client=tv_embedded'
+            ];
+
+            const ytProcess = spawn(this.ytDlpBinary, args, {
+                windowsHide: true,
+                stdio: 'pipe'
+            });
+
+            let stderr = '';
+
+            ytProcess.stderr.on('data', (data) => {
+                stderr += data.toString();
+            });
+
+            ytProcess.on('close', (code) => {
+                if (code === 0) {
+                    resolve();
+                } else {
+                    reject(new Error(`Download failed: ${stderr.trim() || 'Unknown error'}`));
+                }
+            });
+
+            ytProcess.on('error', reject);
+        });
     }
 
     async getVideoInfo(url) {

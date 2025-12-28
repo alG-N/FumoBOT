@@ -1,4 +1,13 @@
 module.exports = {
+    // Download method settings
+    USE_COBALT: true,           // Use self-hosted Cobalt API (primary)
+    USE_YTDLP_FALLBACK: true,   // Fall back to yt-dlp if Cobalt fails
+    
+    // Self-hosted Cobalt instance (Docker)
+    COBALT_INSTANCES: [
+        'http://localhost:9000'  // Your local Docker Cobalt instance
+    ],
+    
     MAX_FILE_SIZE_MB: 25,
     TARGET_COMPRESSION_MB: 8,
     TEMP_FILE_CLEANUP_INTERVAL: 5 * 60 * 1000,
