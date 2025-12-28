@@ -1,21 +1,4 @@
 {
-  "845274868697661440": {
-    "normal": {
-      "rollCount": 1,
-      "autoSell": true,
-      "startTime": 1766906413616,
-      "bestFumo": {
-        "name": "Cheshire(ASTRAL)",
-        "rarity": "ASTRAL",
-        "picture": "https://images.tokopedia.net/img/cache/500-square/VqbcmM/2024/2/25/932b310d-4256-42bc-abf7-c7d83869ee0c.jpg"
-      },
-      "bestFumoAt": "12/28/2025, 2:38:19 PM",
-      "bestFumoRoll": 7,
-      "specialFumoCount": 29,
-      "specialFumoFirstAt": "12/28/2025, 2:28:18 PM",
-      "specialFumoFirstRoll": 4
-    }
-  },
   "1421544451897299024": {
     "normal": {
       "rollCount": 40,
@@ -30,6 +13,40 @@
       "bestFumoRoll": 1415,
       "specialFumoCount": 408,
       "specialFumoFirstAt": "12/26/2025, 7:07:40 PM",
+      "specialFumoFirstRoll": 1
+    }
+  },
+  "1128296349566251068": {
+    "normal": {
+      "rollCount": 4,
+      "autoSell": true,
+      "startTime": 1766940078002,
+      "bestFumo": {
+        "name": "UltraKillV2(ETERNAL)",
+        "rarity": "ETERNAL",
+        "picture": "https://th.bing.com/th/id/OIP.0rsVamUgjh_eW_1Ep5NDfAAAAA?cb=iwp2&rs=1&pid=ImgDetMain"
+      },
+      "bestFumoAt": "12/29/2025, 12:22:48 AM",
+      "bestFumoRoll": 3,
+      "specialFumoCount": 40,
+      "specialFumoFirstAt": "12/28/2025, 11:41:18 PM",
+      "specialFumoFirstRoll": 1
+    },
+    "event": {
+      "rollCount": 7,
+      "autoSell": true,
+      "startTime": 1766940101618,
+      "totalFumosRolled": 7500,
+      "totalCoinsFromSales": 36770,
+      "bestFumo": {
+        "name": "NewYearYukari(???)",
+        "rarity": "???",
+        "picture": "https://media.discordapp.net/attachments/1454788676549742613/1454793949175742648/image.png?ex=695261f2&is=69511072&hm=24bf8ee7ff9b814e5c2dfc6aa5e39ef5a41c55f8c286c7f1c076330f44b08576&=&format=webp&quality=lossless&width=618&height=585"
+      },
+      "bestFumoAt": "12/28/2025, 11:41:41 PM",
+      "bestFumoRoll": 1,
+      "specialFumoCount": 1003,
+      "specialFumoFirstAt": "12/28/2025, 11:41:41 PM",
       "specialFumoFirstRoll": 1
     }
   }

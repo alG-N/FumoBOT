@@ -16,12 +16,11 @@ const coinBannerChances = {
 };
 
 const gemBannerChances = {
-    'RARE': '90%',
-    'EPIC': '55%',
-    'LEGENDARY': '10%',
-    'MYTHICAL': '0.1%',
-    '???': '0.01%',
-    'TRANSCENDENT': '0.0001%'
+    'COMMON': '49%',
+    'UNCOMMON': '30%',
+    'RARE': '20%',
+    '???': '1%',
+    'TRANSCENDENT': '0.000000001%'
 };
 
 const ReimuChances = {

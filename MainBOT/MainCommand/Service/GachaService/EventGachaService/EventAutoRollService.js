@@ -77,16 +77,22 @@ async function performEventAutoSell(userId) {
     let totalCoins = 0;
     const toDelete = [];
 
+    // Rarities to auto-sell for New Year event banner (keep ??? and TRANSCENDENT)
+    const SELLABLE_EVENT_RARITIES = ['Common', 'UNCOMMON', 'RARE'];
+
     for (const row of inventoryRows) {
         let rarity = null;
         
-        if (row.fumoName.includes('(EPIC)')) {
-            rarity = 'EPIC';
-        } else if (row.fumoName.includes('(LEGENDARY)')) {
-            rarity = 'LEGENDARY';
+        // Check for event banner rarities
+        if (row.fumoName.includes('(Common)')) {
+            rarity = 'Common';
+        } else if (row.fumoName.includes('(UNCOMMON)')) {
+            rarity = 'UNCOMMON';
+        } else if (row.fumoName.includes('(RARE)')) {
+            rarity = 'RARE';
         }
 
-        if (rarity && ['EPIC', 'LEGENDARY'].includes(rarity)) {
+        if (rarity && SELLABLE_EVENT_RARITIES.includes(rarity)) {
             let value = SELL_REWARDS[rarity] || 0;
             
             if (row.fumoName.includes('[🌟alG]')) {
@@ -95,7 +101,7 @@ async function performEventAutoSell(userId) {
                 value *= SHINY_CONFIG.SHINY_MULTIPLIER;
             }
             
-            totalCoins += value * row.quantity;
+            totalCoins += value * (row.quantity || 1);
             toDelete.push(row.id);
         }
     }
@@ -105,9 +111,6 @@ async function performEventAutoSell(userId) {
             `DELETE FROM userInventory WHERE userId = ? AND id IN (${toDelete.map(() => '?').join(',')})`,
             [userId, ...toDelete]
         );
-    }
-
-    if (totalCoins > 0) {
         await run(`UPDATE userCoins SET coins = coins + ? WHERE userId = ?`, [totalCoins, userId]);
     }
 
