@@ -305,6 +305,180 @@ const PRAY_CHARACTERS = {
             resetLogic: 'Smart reset: 12h if <6 uses, 24h if >=6 uses',
             coinGemCaps: 'NONE'
         }
+    },
+    SANAE: {
+        id: 'sanae',
+        name: 'Sanae',
+        rarity: 'Epic',
+        weight: 15,
+        enhancedWeight: 30,
+        picture: 'https://fumo.website/img/sanae.jpg',
+        description: 'The living goddess of the Moriya Shrine offers divine blessings through faith.',
+        color: 0x00CED1,
+        faithPoints: {
+            max: 20,
+            rerollThreshold: 5,
+            fourthBlessingThreshold: 10,
+            upgradeTierThreshold: 15,
+            divineInterventionThreshold: 20
+        },
+        donationOptions: {
+            A: {
+                label: 'Coin Offering',
+                cost: { coins: 100000, gems: 0, fumos: null },
+                faithPoints: 1,
+                description: '100,000 coins → 1 Faith Point'
+            },
+            B: {
+                label: 'Gem Offering',
+                cost: { coins: 0, gems: 15000, fumos: null },
+                faithPoints: 2,
+                description: '15,000 gems → 2 Faith Points'
+            },
+            C: {
+                label: 'Fumo Sacrifice',
+                cost: { coins: 0, gems: 0, fumos: { count: 3, minRarity: 'MYTHICAL' } },
+                faithPoints: 3,
+                description: '3 MYTHICAL+ fumos → 3 Faith Points'
+            },
+            D: {
+                label: 'Combo Offering',
+                cost: { coins: 50000, gems: 5000, fumos: { count: 1, minRarity: 'LEGENDARY' } },
+                faithPoints: 4,
+                description: '50k coins + 5k gems + 1 LEGENDARY fumo → 4 Faith Points'
+            }
+        },
+        blessingTiers: {
+            COMMON: {
+                weight: 50,
+                blessings: [
+                    {
+                        name: "Wind's Fortune",
+                        rewards: {
+                            coins: 300000,
+                            gems: 50000,
+                            luck: { amount: 0.02, duration: 24 * 60 * 60 * 1000 }
+                        }
+                    },
+                    {
+                        name: "Miracle's Touch",
+                        rewards: {
+                            coins: 500000,
+                            gems: 100000,
+                            items: [{ name: 'MysteriousShard(M)', quantity: 3 }]
+                        }
+                    },
+                    {
+                        name: "Shrine's Protection",
+                        rewards: {
+                            craftDiscount: { percent: 30, duration: 48 * 60 * 60 * 1000 },
+                            items: [{ name: 'TimeClock-Broken(L)', quantity: 5 }]
+                        }
+                    }
+                ]
+            },
+            RARE: {
+                weight: 30,
+                blessings: [
+                    {
+                        name: "Moriya's Favor",
+                        rewards: {
+                            coins: 1500000,
+                            gems: 250000,
+                            luck: { amount: 0.05, duration: 48 * 60 * 60 * 1000 },
+                            boost: { type: 'coin', multiplier: 1.5, duration: 48 * 60 * 60 * 1000 }
+                        }
+                    },
+                    {
+                        name: "Divine Wind",
+                        rewards: {
+                            fumo: { rarity: 'MYTHICAL', guaranteed: true },
+                            items: [{ name: 'ChromaShard(M)', quantity: 10 }]
+                        }
+                    },
+                    {
+                        name: "Faith Resonance",
+                        rewards: {
+                            guaranteedRarity: { minRarity: 'EPIC', rolls: 100 },
+                            luckForRolls: { amount: 0.10, rolls: 100 }
+                        }
+                    }
+                ]
+            },
+            LEGENDARY: {
+                weight: 15,
+                blessings: [
+                    {
+                        name: "Sanae's Miracle",
+                        rewards: {
+                            coins: 5000000,
+                            gems: 1000000,
+                            luck: { amount: 0.10, duration: 7 * 24 * 60 * 60 * 1000 },
+                            craftProtection: { nullifyFails: 5 }
+                        }
+                    },
+                    {
+                        name: "Living God's Blessing",
+                        rewards: {
+                            boost: { type: 'income', multiplier: 3, duration: 72 * 60 * 60 * 1000 },
+                            prayImmunity: { duration: 7 * 24 * 60 * 60 * 1000 },
+                            items: [{ name: 'StarShard(M)', quantity: 20 }]
+                        }
+                    },
+                    {
+                        name: "Yasaka's Gambit",
+                        rewards: {
+                            gambit: { pulls: 50, keepTop: 10, convertRest: true }
+                        }
+                    }
+                ]
+            },
+            DIVINE: {
+                weight: 4,
+                blessings: [
+                    {
+                        name: "Suwako's Ancient Power",
+                        rewards: {
+                            coins: 50000000,
+                            items: [{ name: 'FrogSigil(?)', quantity: 1 }]
+                        }
+                    },
+                    {
+                        name: "Kanako's Tempest",
+                        rewards: {
+                            coins: 100000000,
+                            gems: 20000000,
+                            luck: { amount: 0.25, permanent: true },
+                            items: [{ name: 'EquinoxAlloy(M)', quantity: 50 }]
+                        }
+                    }
+                ]
+            },
+            MIRACLE: {
+                weight: 1,
+                blessings: [
+                    {
+                        name: "Living Goddess Incarnate",
+                        rewards: {
+                            coins: 500000000,
+                            gems: 100000000,
+                            luck: { amount: 0.50, duration: 7 * 24 * 60 * 60 * 1000 },
+                            freeCrafts: { duration: 7 * 24 * 60 * 60 * 1000 },
+                            boostMultiplier: { multiplier: 5, duration: 7 * 24 * 60 * 60 * 1000 },
+                            fumo: { rarity: 'TRANSCENDENT', guaranteed: true },
+                            items: [{ name: 'DivineMantle(T)', quantity: 1 }]
+                        }
+                    }
+                ]
+            }
+        },
+        specialEvents: {
+            trainingChance: 0.10,
+            miracleSurgeChance: 0.05,
+            divineScamChance: 0.03
+        },
+        mythicalPlusRarities: ['MYTHICAL', 'EXCLUSIVE', '???', 'ASTRAL', 'CELESTIAL', 'INFINITE', 'ETERNAL', 'TRANSCENDENT'],
+        legendaryPlusRarities: ['LEGENDARY', 'MYTHICAL', 'EXCLUSIVE', '???', 'ASTRAL', 'CELESTIAL', 'INFINITE', 'ETERNAL', 'TRANSCENDENT']
     }
 };
 
