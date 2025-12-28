@@ -14,12 +14,75 @@ const RARITY_ORDER = [
     'ASTRAL', 'CELESTIAL', 'INFINITE', 'ETERNAL', 'TRANSCENDENT'
 ];
 
+/**
+ * Get the index of a rarity in the order (higher = rarer)
+ */
 function getRarityIndex(rarity) {
     const index = RARITY_ORDER.indexOf(rarity);
     return index === -1 ? 0 : index;
 }
 
+/**
+ * Check if rarity1 is rarer than or equal to rarity2
+ */
+function isRarerOrEqual(rarity1, rarity2) {
+    return getRarityIndex(rarity1) >= getRarityIndex(rarity2);
+}
+
+/**
+ * Check if a rarity meets minimum requirement
+ */
+function meetsMinimumRarity(rarity, minRarity) {
+    return getRarityIndex(rarity) >= getRarityIndex(minRarity);
+}
+
+/**
+ * Get all rarities at or above a minimum rarity
+ */
+function getRaritiesAbove(minRarity) {
+    const minIndex = getRarityIndex(minRarity);
+    return RARITY_ORDER.filter((_, index) => index >= minIndex);
+}
+
+/**
+ * Get all rarities below a maximum rarity
+ */
+function getRaritiesBelow(maxRarity) {
+    const maxIndex = getRarityIndex(maxRarity);
+    return RARITY_ORDER.filter((_, index) => index <= maxIndex);
+}
+
+/**
+ * Compare two rarities
+ * Returns: positive if a > b, negative if a < b, 0 if equal
+ */
+function compareRarities(rarityA, rarityB) {
+    return getRarityIndex(rarityA) - getRarityIndex(rarityB);
+}
+
+/**
+ * Get the next higher rarity
+ */
+function getNextRarity(rarity) {
+    const index = getRarityIndex(rarity);
+    if (index >= RARITY_ORDER.length - 1) return rarity;
+    return RARITY_ORDER[index + 1];
+}
+
+/**
+ * Get the next lower rarity
+ */
+function getPreviousRarity(rarity) {
+    const index = getRarityIndex(rarity);
+    if (index <= 0) return rarity;
+    return RARITY_ORDER[index - 1];
+}
+
+/**
+ * Main rarity calculation function with pity system and boosts
+ */
 async function calculateRarity(userId, boosts, row, hasFantasyBook) {
+    // Check pity thresholds first (highest priority)
     if (hasFantasyBook) {
         if (row.pityTranscendent >= PITY_THRESHOLDS.TRANSCENDENT) {
             return { rarity: 'TRANSCENDENT', resetPity: 'pityTranscendent' };
@@ -38,6 +101,7 @@ async function calculateRarity(userId, boosts, row, hasFantasyBook) {
         }
     }
 
+    // Check Nullified item override (equal chance for all rarities)
     if (boosts.nullifiedUses > 0) {
         const rarities = hasFantasyBook
             ? ['TRANSCENDENT', 'ETERNAL', 'INFINITE', 'CELESTIAL', 'ASTRAL', '???', 'EXCLUSIVE', 'MYTHICAL', 'LEGENDARY', 'OTHERWORLDLY', 'EPIC', 'RARE', 'UNCOMMON', 'Common']
@@ -55,14 +119,18 @@ async function calculateRarity(userId, boosts, row, hasFantasyBook) {
         return { rarity, nullifiedUsed: true };
     }
 
+    // Calculate total luck multiplier
     const totalLuck = calculateTotalLuckMultiplier(
         boosts, 
         row.boostActive && row.boostRollsRemaining > 0, 
         row.rollsLeft, 
         row.totalRolls
     );
+    
+    // Roll for rarity with luck applied
     let rarityRoll = (Math.random() * 100) / totalLuck;
 
+    // Check thresholds from rarest to common
     if (rarityRoll < GACHA_THRESHOLDS.TRANSCENDENT && hasFantasyBook) return { rarity: 'TRANSCENDENT' };
     if (rarityRoll < GACHA_THRESHOLDS.ETERNAL && hasFantasyBook) return { rarity: 'ETERNAL' };
     if (rarityRoll < GACHA_THRESHOLDS.INFINITE && hasFantasyBook) return { rarity: 'INFINITE' };
@@ -79,6 +147,9 @@ async function calculateRarity(userId, boosts, row, hasFantasyBook) {
     return { rarity: 'Common' };
 }
 
+/**
+ * Update pity counters after a roll
+ */
 function updatePityCounters(pities, rarity, hasFantasyBook) {
     if (!hasFantasyBook) return pities;
 
@@ -91,6 +162,9 @@ function updatePityCounters(pities, rarity, hasFantasyBook) {
     };
 }
 
+/**
+ * Update boost charge system
+ */
 function updateBoostCharge(boostCharge, boostActive, boostRollsRemaining) {
     if (!boostActive) {
         boostCharge++;
@@ -107,48 +181,184 @@ function updateBoostCharge(boostCharge, boostActive, boostRollsRemaining) {
     }
 }
 
-// Add this to your rarity selection logic
+/**
+ * Apply Sanae guaranteed rarity blessing
+ * Upgrades the selected rarity if it's below the guaranteed minimum
+ */
 async function applySanaeBlessings(userId, selectedRarity) {
-    const guaranteedRarity = await checkGuaranteedRarity(userId);
-    
-    if (guaranteedRarity.active) {
-        const minIndex = getRarityIndex(guaranteedRarity.minRarity);
-        const currentIndex = getRarityIndex(selectedRarity);
+    try {
+        const guaranteedRarity = await checkGuaranteedRarity(userId);
         
-        if (currentIndex < minIndex) {
-            selectedRarity = guaranteedRarity.minRarity;
+        if (guaranteedRarity.active) {
+            const minIndex = getRarityIndex(guaranteedRarity.minRarity);
+            const currentIndex = getRarityIndex(selectedRarity);
+            
+            if (currentIndex < minIndex) {
+                selectedRarity = guaranteedRarity.minRarity;
+            }
+            
+            // Consume the guaranteed roll
+            await consumeGuaranteedRoll(userId);
         }
         
-        // Consume the guaranteed roll
-        await consumeGuaranteedRoll(userId);
+        return selectedRarity;
+    } catch (error) {
+        console.error('[RarityService] Error applying Sanae blessings:', error);
+        return selectedRarity;
     }
-    
-    return selectedRarity;
 }
 
+/**
+ * Get Sanae luck bonus for current roll
+ */
 async function getSanaeLuckBonus(userId) {
-    const luckBonus = await checkLuckForRolls(userId);
-    
-    if (luckBonus.active) {
-        await consumeLuckRoll(userId);
-        return luckBonus.luckBonus;
+    try {
+        const luckBonus = await checkLuckForRolls(userId);
+        
+        if (luckBonus.active) {
+            await consumeLuckRoll(userId);
+            return luckBonus.luckBonus;
+        }
+        
+        return 0;
+    } catch (error) {
+        console.error('[RarityService] Error getting Sanae luck bonus:', error);
+        return 0;
     }
-    
-    return 0;
 }
 
+/**
+ * Calculate total luck including Sanae blessing bonus
+ */
 async function calculateTotalLuck(userId, baseLuck) {
     const sanaeBonus = await getSanaeLuckBonus(userId);
     return baseLuck + sanaeBonus;
 }
 
+/**
+ * Check if rarity is considered "ultra rare"
+ */
+function isUltraRare(rarity) {
+    const ultraRares = ['???', 'ASTRAL', 'CELESTIAL', 'INFINITE', 'ETERNAL', 'TRANSCENDENT'];
+    return ultraRares.includes(rarity);
+}
+
+/**
+ * Check if rarity is considered "high tier"
+ */
+function isHighTier(rarity) {
+    const highTiers = ['LEGENDARY', 'MYTHICAL', 'EXCLUSIVE', '???', 'ASTRAL', 'CELESTIAL', 'INFINITE', 'ETERNAL', 'TRANSCENDENT'];
+    return highTiers.includes(rarity);
+}
+
+/**
+ * Get rarity display info (color, emoji)
+ */
+function getRarityInfo(rarity) {
+    const colors = {
+        Common: 0x808080,
+        UNCOMMON: 0x1ABC9C,
+        RARE: 0x3498DB,
+        EPIC: 0x9B59B6,
+        OTHERWORLDLY: 0xE91E63,
+        LEGENDARY: 0xF39C12,
+        MYTHICAL: 0xE74C3C,
+        EXCLUSIVE: 0xFF69B4,
+        '???': 0x2C3E50,
+        ASTRAL: 0x00CED1,
+        CELESTIAL: 0xFFD700,
+        INFINITE: 0x8B00FF,
+        ETERNAL: 0x00FF00,
+        TRANSCENDENT: 0xFFFFFF
+    };
+    
+    const emojis = {
+        Common: '⚪',
+        UNCOMMON: '🟢',
+        RARE: '🔵',
+        EPIC: '🟣',
+        OTHERWORLDLY: '🌸',
+        LEGENDARY: '🟠',
+        MYTHICAL: '🔴',
+        EXCLUSIVE: '💗',
+        '???': '❓',
+        ASTRAL: '🌟',
+        CELESTIAL: '✨',
+        INFINITE: '💜',
+        ETERNAL: '💚',
+        TRANSCENDENT: '🌈'
+    };
+    
+    return {
+        color: colors[rarity] || 0x808080,
+        emoji: emojis[rarity] || '⚪',
+        index: getRarityIndex(rarity)
+    };
+}
+
+/**
+ * Select rarity with pity system consideration (simplified version for standalone use)
+ */
+function selectRarityWithPity(luckMultiplier, pityCounters, guaranteedMinRarity = null) {
+    // Check pity thresholds first
+    if (pityCounters.transcendent >= PITY_THRESHOLDS.TRANSCENDENT) return 'TRANSCENDENT';
+    if (pityCounters.eternal >= PITY_THRESHOLDS.ETERNAL) return 'ETERNAL';
+    if (pityCounters.infinite >= PITY_THRESHOLDS.INFINITE) return 'INFINITE';
+    if (pityCounters.celestial >= PITY_THRESHOLDS.CELESTIAL) return 'CELESTIAL';
+    if (pityCounters.astral >= PITY_THRESHOLDS.ASTRAL) return 'ASTRAL';
+    if (pityCounters.mythical >= PITY_THRESHOLDS.MYTHICAL) return 'MYTHICAL';
+    
+    // Roll with luck
+    let rarityRoll = (Math.random() * 100) / luckMultiplier;
+    let selectedRarity = 'Common';
+    
+    if (rarityRoll < GACHA_THRESHOLDS.TRANSCENDENT) selectedRarity = 'TRANSCENDENT';
+    else if (rarityRoll < GACHA_THRESHOLDS.ETERNAL) selectedRarity = 'ETERNAL';
+    else if (rarityRoll < GACHA_THRESHOLDS.INFINITE) selectedRarity = 'INFINITE';
+    else if (rarityRoll < GACHA_THRESHOLDS.CELESTIAL) selectedRarity = 'CELESTIAL';
+    else if (rarityRoll < GACHA_THRESHOLDS.ASTRAL) selectedRarity = 'ASTRAL';
+    else if (rarityRoll < GACHA_THRESHOLDS.QUESTION) selectedRarity = '???';
+    else if (rarityRoll < GACHA_THRESHOLDS.EXCLUSIVE) selectedRarity = 'EXCLUSIVE';
+    else if (rarityRoll < GACHA_THRESHOLDS.MYTHICAL) selectedRarity = 'MYTHICAL';
+    else if (rarityRoll < GACHA_THRESHOLDS.LEGENDARY) selectedRarity = 'LEGENDARY';
+    else if (rarityRoll < GACHA_THRESHOLDS.OTHERWORLDLY) selectedRarity = 'OTHERWORLDLY';
+    else if (rarityRoll < GACHA_THRESHOLDS.EPIC) selectedRarity = 'EPIC';
+    else if (rarityRoll < GACHA_THRESHOLDS.RARE) selectedRarity = 'RARE';
+    else if (rarityRoll < GACHA_THRESHOLDS.UNCOMMON) selectedRarity = 'UNCOMMON';
+    
+    // Apply guaranteed minimum rarity if specified
+    if (guaranteedMinRarity && !meetsMinimumRarity(selectedRarity, guaranteedMinRarity)) {
+        selectedRarity = guaranteedMinRarity;
+    }
+    
+    return selectedRarity;
+}
+
 module.exports = {
+    // Core rarity functions
+    RARITY_ORDER,
+    getRarityIndex,
+    isRarerOrEqual,
+    meetsMinimumRarity,
+    getRaritiesAbove,
+    getRaritiesBelow,
+    compareRarities,
+    getNextRarity,
+    getPreviousRarity,
+    
+    // Main gacha functions
     calculateRarity,
     updatePityCounters,
     updateBoostCharge,
+    selectRarityWithPity,
+    
+    // Sanae blessing integration
     applySanaeBlessings,
     getSanaeLuckBonus,
     calculateTotalLuck,
-    getRarityIndex,
-    RARITY_ORDER
+    
+    // Utility functions
+    isUltraRare,
+    isHighTier,
+    getRarityInfo
 };

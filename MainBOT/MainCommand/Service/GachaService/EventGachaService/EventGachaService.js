@@ -5,6 +5,8 @@ const { updateQuestsAndAchievements } = require('../NormalGachaService/CrateGach
 const { incrementWeeklyShiny } = require('../../../Ultility/weekly');
 const FumoPool = require('../../../Data/FumoPool');
 const StorageLimitService = require('../../UserDataService/StorageService/StorageLimitService');
+const { getUserBoosts, consumeSanaeLuckRoll, consumeSanaeGuaranteedRoll } = require('../NormalGachaService/BoostService');
+const { meetsMinimumRarity, getRaritiesAbove } = require('../NormalGachaService/RarityService');
 
 async function getEventUserBoosts(userId) {
     const now = Date.now();
@@ -173,6 +175,57 @@ async function selectEventRarity(userId, boosts, rollsSinceLastMythical, rollsSi
     return 'EPIC';
 }
 
+/**
+ * Perform event roll with Sanae boost integration
+ */
+async function performEventRollWithSanae(userId, eventPool, boosts) {
+    const sanaeInfo = {
+        guaranteedUsed: false,
+        luckBoostUsed: false,
+        guaranteedMinRarity: null,
+        extraLuck: 0
+    };
+    
+    // Check for guaranteed rarity
+    if (boosts.sanaeGuaranteedRolls > 0 && boosts.sanaeGuaranteedRarity) {
+        const consumed = await consumeSanaeGuaranteedRoll(userId);
+        if (consumed.consumed) {
+            sanaeInfo.guaranteedUsed = true;
+            sanaeInfo.guaranteedMinRarity = consumed.minRarity;
+            sanaeInfo.remainingGuaranteed = consumed.remaining;
+        }
+    }
+    
+    // Check for luck boost
+    if (!sanaeInfo.guaranteedUsed && boosts.sanaeLuckBoost > 0 && boosts.sanaeLuckRollsRemaining > 0) {
+        const consumed = await consumeSanaeLuckRoll(userId);
+        if (consumed.consumed) {
+            sanaeInfo.luckBoostUsed = true;
+            sanaeInfo.extraLuck = consumed.luckBonus;
+            sanaeInfo.remainingLuckRolls = consumed.remaining;
+        }
+    }
+    
+    return sanaeInfo;
+}
+
+/**
+ * Get Sanae boost display for event gacha UI
+ */
+function getEventSanaeBoostDisplay(boosts) {
+    const display = [];
+    
+    if (boosts.sanaeGuaranteedRolls > 0 && boosts.sanaeGuaranteedRarity) {
+        display.push(`🎲 **${boosts.sanaeGuaranteedRolls}** guaranteed ${boosts.sanaeGuaranteedRarity}+`);
+    }
+    
+    if (boosts.sanaeLuckRollsRemaining > 0 && boosts.sanaeLuckBoost > 0) {
+        display.push(`🍀 **+${(boosts.sanaeLuckBoost * 100).toFixed(0)}%** luck (${boosts.sanaeLuckRollsRemaining} rolls)`);
+    }
+    
+    return display;
+}
+
 async function performEventSummon(userId, numSummons) {
     const eventFumos = FumoPool.getForEvent();
 
@@ -276,5 +329,7 @@ module.exports = {
     performEventSummon,
     getEventUserRollData,
     updateEventUserAfterRoll,
-    selectEventRarity
+    selectEventRarity,
+    performEventRollWithSanae,
+    getEventSanaeBoostDisplay
 };

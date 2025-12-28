@@ -8,7 +8,7 @@ const {
 } = require('../../../../Configuration/prayConfig');
 const { formatNumber } = require('../../../../Ultility/formatting');
 const FumoPool = require('../../../../Data/FumoPool');
-const { run, all } = require('../../../../Core/database');
+const { run, all, get } = require('../../../../Core/database');
 const {
     getUserData,
     deductUserCurrency,
@@ -24,34 +24,67 @@ const {
 
 const activeSanaeSessions = new Map();
 
+/**
+ * Get fumos of MYTHICAL+ rarity for Sanae offering
+ * Fixed: Properly counts quantity and filters by rarity column
+ */
 async function getMythicalPlusFumos(userId, minRarities) {
-    const rarityConditions = minRarities.map(r => `rarity = '${r}'`).join(' OR ');
+    const placeholders = minRarities.map(() => '?').join(', ');
     
-    return await all(
-        `SELECT id, fumoName, rarity, quantity 
+    const fumos = await all(
+        `SELECT id, fumoName, rarity, COALESCE(quantity, 1) as quantity 
          FROM userInventory 
          WHERE userId = ? 
          AND fumoName IS NOT NULL
          AND fumoName != ''
-         AND (${rarityConditions})`,
-        [userId],
+         AND rarity IN (${placeholders})
+         ORDER BY rarity DESC`,
+        [userId, ...minRarities],
         true
     );
+    
+    return fumos || [];
 }
 
+/**
+ * Get fumos of LEGENDARY+ rarity for Sanae offering
+ * Fixed: Properly counts quantity and filters by rarity column
+ */
 async function getLegendaryPlusFumos(userId, minRarities) {
-    const rarityConditions = minRarities.map(r => `rarity = '${r}'`).join(' OR ');
+    const placeholders = minRarities.map(() => '?').join(', ');
     
-    return await all(
-        `SELECT id, fumoName, rarity, quantity 
+    const fumos = await all(
+        `SELECT id, fumoName, rarity, COALESCE(quantity, 1) as quantity 
          FROM userInventory 
          WHERE userId = ? 
          AND fumoName IS NOT NULL
          AND fumoName != ''
-         AND (${rarityConditions})`,
-        [userId],
+         AND rarity IN (${placeholders})
+         ORDER BY rarity DESC`,
+        [userId, ...minRarities],
         true
     );
+    
+    return fumos || [];
+}
+
+/**
+ * Get total count of fumos matching rarities
+ */
+async function getFumoCountByRarities(userId, rarities) {
+    const placeholders = rarities.map(() => '?').join(', ');
+    
+    const result = await get(
+        `SELECT COALESCE(SUM(COALESCE(quantity, 1)), 0) as total
+         FROM userInventory 
+         WHERE userId = ? 
+         AND fumoName IS NOT NULL
+         AND fumoName != ''
+         AND rarity IN (${placeholders})`,
+        [userId, ...rarities]
+    );
+    
+    return result?.total || 0;
 }
 
 async function handleSanae(userId, channel) {
@@ -104,21 +137,26 @@ async function sendDonationOptions(userId, channel, user, config, sanaeData) {
     const costMult = getFaithCostMultiplier(faithPoints);
     const rewardMult = getFaithRewardMultiplier(faithPoints);
     
-    const mythicalFumos = await getMythicalPlusFumos(userId, config.mythicalPlusRarities);
-    const legendaryFumos = await getLegendaryPlusFumos(userId, config.legendaryPlusRarities);
-    
-    const totalMythical = mythicalFumos.reduce((sum, f) => sum + (f.quantity || 1), 0);
-    const totalLegendary = legendaryFumos.reduce((sum, f) => sum + (f.quantity || 1), 0);
+    // Fixed: Get actual fumo counts using proper queries
+    const [mythicalFumos, legendaryFumos, totalMythical, totalLegendary] = await Promise.all([
+        getMythicalPlusFumos(userId, config.mythicalPlusRarities),
+        getLegendaryPlusFumos(userId, config.legendaryPlusRarities),
+        getFumoCountByRarities(userId, config.mythicalPlusRarities),
+        getFumoCountByRarities(userId, config.legendaryPlusRarities)
+    ]);
 
     const costA = getSanaeDonationCosts('A', faithPoints);
     const costB = getSanaeDonationCosts('B', faithPoints);
     const costC = getSanaeDonationCosts('C', faithPoints);
     const costD = getSanaeDonationCosts('D', faithPoints);
 
+    const requiredMythical = costC.fumoRequirement?.count || 3;
+    const requiredLegendary = costD.fumoRequirement?.count || 1;
+
     const canAffordA = user.coins >= costA.coins;
     const canAffordB = user.gems >= costB.gems;
-    const canAffordC = totalMythical >= (costC.fumoRequirement?.count || 3);
-    const canAffordD = user.coins >= costD.coins && user.gems >= costD.gems && totalLegendary >= (costD.fumoRequirement?.count || 1);
+    const canAffordC = totalMythical >= requiredMythical;
+    const canAffordD = user.coins >= costD.coins && user.gems >= costD.gems && totalLegendary >= requiredLegendary;
 
     const costMultPercent = Math.round((costMult - 1) * 100);
     const rewardMultPercent = Math.round((rewardMult - 1) * 100);
@@ -147,12 +185,12 @@ async function sendDonationOptions(userId, channel, user, config, sanaeData) {
             },
             {
                 name: '🎴 Option C: Fumo Sacrifice',
-                value: `${canAffordC ? '✅' : '❌'} ${costC.fumoRequirement?.count || 3} MYTHICAL+ fumos → **3 Faith Points**\nYou have: ${totalMythical} eligible fumos`,
+                value: `${canAffordC ? '✅' : '❌'} ${requiredMythical} MYTHICAL+ fumos → **3 Faith Points**\nYou have: **${totalMythical}** eligible fumos`,
                 inline: true
             },
             {
                 name: '✨ Option D: Combo Offering',
-                value: `${canAffordD ? '✅' : '❌'} ${formatNumber(costD.coins)} coins + ${formatNumber(costD.gems)} gems + 1 LEGENDARY+ fumo → **4 Faith Points**\nYou have: ${totalLegendary} eligible fumos`,
+                value: `${canAffordD ? '✅' : '❌'} ${formatNumber(costD.coins)} coins + ${formatNumber(costD.gems)} gems + ${requiredLegendary} LEGENDARY+ fumo → **4 Faith Points**\nYou have: **${totalLegendary}** eligible fumos`,
                 inline: true
             }
         )
@@ -183,7 +221,7 @@ async function sendDonationOptions(userId, channel, user, config, sanaeData) {
             .setDisabled(!canAffordB),
         new ButtonBuilder()
             .setCustomId(`sanae_donate_C_${userId}`)
-            .setLabel(`🎴 ${costC.fumoRequirement?.count || 3} Fumos`)
+            .setLabel(`🎴 ${requiredMythical} Fumos`)
             .setStyle(ButtonStyle.Primary)
             .setDisabled(!canAffordC),
         new ButtonBuilder()
@@ -210,6 +248,8 @@ async function sendDonationOptions(userId, channel, user, config, sanaeData) {
         channelId: channel.id,
         mythicalFumos,
         legendaryFumos,
+        totalMythical,
+        totalLegendary,
         faithPoints
     });
 

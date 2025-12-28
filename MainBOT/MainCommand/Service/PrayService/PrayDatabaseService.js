@@ -418,6 +418,7 @@ async function getSanaeData(userId) {
             luckForRollsAmount: 0,
             craftProtection: 0,
             boostMultiplierExpiry: 0,
+            permanentLuckBonus: 0,
             lastUpdated: Date.now()
         };
     }
@@ -449,15 +450,168 @@ async function updateSanaeData(userId, updates) {
             values
         );
     } else {
-        const columns = ['userId', ...Object.keys(updates)];
+        // Ensure all required columns exist
+        const defaultData = {
+            faithPoints: 0,
+            rerollsUsed: 0,
+            craftDiscount: 0,
+            craftDiscountExpiry: 0,
+            freeCraftsExpiry: 0,
+            prayImmunityExpiry: 0,
+            guaranteedRarityRolls: 0,
+            guaranteedMinRarity: null,
+            luckForRolls: 0,
+            luckForRollsAmount: 0,
+            craftProtection: 0,
+            boostMultiplierExpiry: 0,
+            permanentLuckBonus: 0,
+            lastUpdated: Date.now(),
+            ...updates
+        };
+        
+        const columns = ['userId', ...Object.keys(defaultData)];
         const placeholders = columns.map(() => '?').join(', ');
-        const values = [userId, ...Object.values(updates)];
+        const values = [userId, ...Object.values(defaultData)];
 
         await run(
             `INSERT INTO sanaeBlessings (${columns.join(', ')}) VALUES (${placeholders})`,
             values
         );
     }
+}
+
+/**
+ * Apply permanent luck bonus from Sanae blessing
+ * This directly updates the user's base luck stat
+ */
+async function applyPermanentLuck(userId, luckAmount) {
+    userDataCache.delete(userId);
+    sanaeCache.delete(userId);
+    
+    // Update user's permanent luck in userCoins
+    await run(
+        `UPDATE userCoins 
+         SET luck = MIN(1, COALESCE(luck, 0) + ?) 
+         WHERE userId = ?`,
+        [luckAmount, userId]
+    );
+    
+    // Also track in sanaeBlessings for reference
+    await run(
+        `UPDATE sanaeBlessings 
+         SET permanentLuckBonus = COALESCE(permanentLuckBonus, 0) + ?, lastUpdated = ?
+         WHERE userId = ?`,
+        [luckAmount, Date.now(), userId]
+    );
+    
+    return { applied: true, amount: luckAmount };
+}
+
+/**
+ * Get all active Sanae boosts for gacha integration
+ */
+async function getActiveSanaeBoosts(userId) {
+    const sanaeData = await getSanaeData(userId);
+    const now = Date.now();
+    
+    const boosts = {
+        // Luck boosts
+        luckForRolls: {
+            active: sanaeData.luckForRolls > 0,
+            amount: sanaeData.luckForRollsAmount || 0,
+            remaining: sanaeData.luckForRolls || 0
+        },
+        
+        // Guaranteed rarity
+        guaranteedRarity: {
+            active: sanaeData.guaranteedRarityRolls > 0,
+            minRarity: sanaeData.guaranteedMinRarity,
+            remaining: sanaeData.guaranteedRarityRolls || 0
+        },
+        
+        // Craft bonuses
+        craftDiscount: {
+            active: sanaeData.craftDiscountExpiry > now && sanaeData.craftDiscount > 0,
+            percent: sanaeData.craftDiscount || 0,
+            expiry: sanaeData.craftDiscountExpiry
+        },
+        
+        freeCrafts: {
+            active: sanaeData.freeCraftsExpiry > now,
+            expiry: sanaeData.freeCraftsExpiry
+        },
+        
+        craftProtection: {
+            active: sanaeData.craftProtection > 0,
+            remaining: sanaeData.craftProtection || 0
+        },
+        
+        // Pray immunity
+        prayImmunity: {
+            active: sanaeData.prayImmunityExpiry > now,
+            expiry: sanaeData.prayImmunityExpiry
+        },
+        
+        // Permanent luck (cumulative)
+        permanentLuck: sanaeData.permanentLuckBonus || 0,
+        
+        // Faith points
+        faithPoints: sanaeData.faithPoints || 0
+    };
+    
+    return boosts;
+}
+
+/**
+ * Consume one guaranteed rarity roll
+ * Returns the minimum rarity and remaining count
+ */
+async function consumeSanaeGuaranteedRoll(userId) {
+    sanaeCache.delete(userId);
+    const data = await getSanaeData(userId);
+    
+    if (!data || data.guaranteedRarityRolls <= 0) {
+        return { consumed: false, minRarity: null, remaining: 0 };
+    }
+    
+    await run(
+        `UPDATE sanaeBlessings 
+         SET guaranteedRarityRolls = guaranteedRarityRolls - 1, lastUpdated = ?
+         WHERE userId = ?`,
+        [Date.now(), userId]
+    );
+    
+    return {
+        consumed: true,
+        minRarity: data.guaranteedMinRarity,
+        remaining: data.guaranteedRarityRolls - 1
+    };
+}
+
+/**
+ * Consume one luck roll bonus
+ * Returns the luck amount and remaining count
+ */
+async function consumeSanaeLuckRoll(userId) {
+    sanaeCache.delete(userId);
+    const data = await getSanaeData(userId);
+    
+    if (!data || data.luckForRolls <= 0) {
+        return { consumed: false, luckBonus: 0, remaining: 0 };
+    }
+    
+    await run(
+        `UPDATE sanaeBlessings 
+         SET luckForRolls = luckForRolls - 1, lastUpdated = ?
+         WHERE userId = ?`,
+        [Date.now(), userId]
+    );
+    
+    return {
+        consumed: true,
+        luckBonus: data.luckForRollsAmount || 0,
+        remaining: data.luckForRolls - 1
+    };
 }
 
 async function getSanaeFaithPoints(userId) {
@@ -622,5 +776,7 @@ module.exports = {
     getMythicalPlusFumos,
     getLegendaryPlusFumos,
     clearInventoryCache,
-    clearUserDataCache
+    clearUserDataCache,
+    applyPermanentLuck,
+    getActiveSanaeBoosts
 };

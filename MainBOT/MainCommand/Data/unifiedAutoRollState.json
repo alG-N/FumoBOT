@@ -37,19 +37,15 @@
       "specialFumoFirstRoll": 14
     },
     "normal": {
-      "rollCount": 5,
+      "rollCount": 0,
       "autoSell": true,
-      "startTime": 1766906413616,
-      "bestFumo": {
-        "name": "Cheshire(ASTRAL)",
-        "rarity": "ASTRAL",
-        "picture": "https://images.tokopedia.net/img/cache/500-square/VqbcmM/2024/2/25/932b310d-4256-42bc-abf7-c7d83869ee0c.jpg"
-      },
-      "bestFumoAt": "12/28/2025, 2:38:19 PM",
-      "bestFumoRoll": 7,
-      "specialFumoCount": 6,
-      "specialFumoFirstAt": "12/28/2025, 2:28:18 PM",
-      "specialFumoFirstRoll": 4
+      "startTime": 1766909895781,
+      "bestFumo": null,
+      "bestFumoAt": null,
+      "bestFumoRoll": null,
+      "specialFumoCount": 0,
+      "specialFumoFirstAt": null,
+      "specialFumoFirstRoll": null
     }
   },
   "1421544451897299024": {

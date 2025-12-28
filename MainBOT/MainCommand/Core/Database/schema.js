@@ -603,6 +603,7 @@ function createIndexes() {
                 luckForRollsAmount REAL DEFAULT 0,
                 craftProtection INTEGER DEFAULT 0,
                 boostMultiplierExpiry INTEGER DEFAULT 0,
+                permanentLuckBonus REAL DEFAULT 0,
                 lastUpdated INTEGER DEFAULT 0
             )`, (err) => {
                 if (err) {
