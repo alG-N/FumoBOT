@@ -146,9 +146,10 @@ const afk = require('./SubCommand/BasicCommand/afk');
 const reddit = require('./SubCommand/API-Website/Reddit/reddit');
 const pixiv = require('./SubCommand/API-Website/Pixiv/pixiv');
 const steam = require('./SubCommand/API-Website/Steam/steam');
+const rule34 = require('./SubCommand/API-Website/Rule34/rule34');
 
 // Register API commands
-[reddit, pixiv, steam].forEach(cmd => {
+[reddit, pixiv, steam, rule34].forEach(cmd => {
     if (cmd?.data?.name) {
         client.commands.set(cmd.data.name, cmd);
         console.log(`✅ Loaded ${cmd.data.name} command`);
@@ -396,6 +397,17 @@ client.on('interactionCreate', async interaction => {
         if (interaction.customId.startsWith('steam_')) {
             // Steam buttons are handled by the collector in saleHandler
             return;
+        }
+
+        if (interaction.customId.startsWith('rule34_')) {
+            const rule34Command = client.commands.get('rule34');
+            if (rule34Command && rule34Command.handleButton) {
+                try {
+                    await rule34Command.handleButton(interaction);
+                } catch (error) {
+                    console.error('Rule34 button handler error:', error);
+                }
+            }
         }
 
         return;

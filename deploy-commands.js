@@ -61,6 +61,7 @@ loadCommand("./MainBOT/SubCommand/API-Website/Anime/anime.js", "anime");
 loadCommand("./MainBOT/SubCommand/API-Website/Reddit/reddit.js", "reddit");
 loadCommand("./MainBOT/SubCommand/API-Website/Pixiv/pixiv.js", "pixiv");
 loadCommand("./MainBOT/SubCommand/API-Website/Steam/steam.js", "steam");
+loadCommand("./MainBOT/SubCommand/API-Website/Rule34/rule34.js", "rule34");
 
 // Video Command
 loadCommand("./MainBOT/SubCommand/VideoFunction/MainCommand/video.js", "video");
