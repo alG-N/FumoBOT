@@ -4,120 +4,160 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 
+// ═══════════════════════════════════════════════════════════════
+// CORE SYSTEMS
+// ═══════════════════════════════════════════════════════════════
 const { initializeDatabase } = require('./MainCommand/Core/Database/schema');
 const { startIncomeSystem } = require('./MainCommand/Core/Database/PassiveIncome/income');
 const { scheduleBackups } = require('./MainCommand/Core/Database/backup');
 const { initializeErrorHandlers } = require('./MainCommand/Ultility/errorHandler');
+const { LOG_CHANNEL_ID } = require('./MainCommand/Core/logger');
+
+// ═══════════════════════════════════════════════════════════════
+// SERVICES
+// ═══════════════════════════════════════════════════════════════
 const { initializeShop } = require('./MainCommand/Service/MarketService/EggShopService/EggShopCacheService');
 const { initializeSeasonSystem } = require('./MainCommand/Service/FarmingService/SeasonService/SeasonManagerService');
 const { shutdownAutoRolls } = require('./MainCommand/Service/GachaService/NormalGachaService/CrateAutoRollService');
-const FumoPool = require('./MainCommand/Data/FumoPool');
-const { LOG_CHANNEL_ID } = require('./MainCommand/Core/logger');
-const { registerAdminCommands } = require('./MainCommand/Administrator/adminCommands');
-const { registerBanSystem } = require('./MainCommand/Administrator/banSystem');
-const { registerTicketSystem } = require('./MainCommand/Administrator/ticketSystem');
-const { registerCodeRedemption } = require('./MainCommand/CommandFolder/UserDataCommand/UsuableCommand/codeRedemption');
 const initializeShardHandler = require('./MainCommand/Service/UserDataService/UseService/ShardInteractionHandler');
-const { maintenance, developerID } = require("./MainCommand/Configuration/maintenanceConfig");
-const { initializeGuildTracking } = require('./MainCommand/Administrator/guildTracking');
 const PetIntervalManager = require('./MainCommand/Service/PetService/PetIntervalManager');
+
+// ═══════════════════════════════════════════════════════════════
+// ADMINISTRATOR MODULE (Consolidated)
+// ═══════════════════════════════════════════════════════════════
+const {
+    registerAdminCommands,
+    registerBanSystem,
+    registerTicketSystem,
+    initializeGuildTracking,
+    migratePetsCommand
+} = require('./MainCommand/Administrator');
+
+// ═══════════════════════════════════════════════════════════════
+// DATA & CONFIGURATION
+// ═══════════════════════════════════════════════════════════════
+const FumoPool = require('./MainCommand/Data/FumoPool');
+const { registerCodeRedemption } = require('./MainCommand/CommandFolder/UserDataCommand/UsuableCommand/codeRedemption');
+const { maintenance, developerID } = require('./MainCommand/Configuration/maintenanceConfig');
 
 console.log(`Maintenance mode is currently: ${maintenance}`);
 
+// ═══════════════════════════════════════════════════════════════
+// CLIENT INITIALIZATION
+// ═══════════════════════════════════════════════════════════════
 const client = createClient();
 client.commands = new Collection();
 
+// Pre-initialize Lavalink before login
 const lavalinkService = require('./SubCommand/MusicFunction/Service/LavalinkService');
 console.log('[Lavalink] Pre-initializing before client login...');
 lavalinkService.preInitialize(client);
 
+// ═══════════════════════════════════════════════════════════════
+// COMMAND LOADER (Optimized)
+// ═══════════════════════════════════════════════════════════════
 function loadCommandsRecursively(directory, depth = 0) {
-    const indent = '  '.repeat(depth);
     const items = fs.readdirSync(directory, { withFileTypes: true });
     for (const item of items) {
         const fullPath = path.join(directory, item.name);
-
         if (item.isDirectory()) {
             loadCommandsRecursively(fullPath, depth + 1);
         } else if (item.isFile() && item.name.endsWith('.js')) {
             try {
                 const command = require(fullPath);
-                if (command && command.data && command.data.name) {
+                if (command?.data?.name) {
                     client.commands.set(command.data.name, command);
                 }
             } catch (error) {
-                console.error(`${indent}❌ Error loading ${item.name}:`, error.message);
+                console.error(`❌ Error loading ${item.name}:`, error.message);
             }
         }
     }
 }
 
-const gacha = require('./MainCommand/CommandFolder/GachaCommand/crategacha');
-const help = require('./MainCommand/CommandFolder/TutorialCommand/help');
-const inventory = require('./MainCommand/CommandFolder/UserDataCommand/UserBalance/Storage');
-const balance = require('./MainCommand/CommandFolder/UserDataCommand/UserBalance/Balance');
-const item = require('./MainCommand/CommandFolder/UserDataCommand/UserBalance/Item');
-const Egacha = require('./MainCommand/CommandFolder/GachaCommand/eventgacha');
-const library = require('./MainCommand/CommandFolder/FumoDataCommand/library');
-const inform = require('./MainCommand/CommandFolder/FumoDataCommand/inform');
-const leaderboard = require('./MainCommand/CommandFolder/UserDataCommand/UsuableCommand/leaderboard');
-const gamble = require('./MainCommand/CommandFolder/GachaCommand/gamble');
-const slot = require('./MainCommand/CommandFolder/GachaCommand/slot');
-const flip = require('./MainCommand/CommandFolder/GachaCommand/flip');
-const mysteryCrate = require('./MainCommand/CommandFolder/GachaCommand/mysterycrate');
-const diceduel = require('./MainCommand/CommandFolder/GachaCommand/diceduel')
-const sell = require('./MainCommand/CommandFolder/UserDataCommand/UsuableCommand/sell');
-const pray = require('./MainCommand/CommandFolder/PrayCommand/pray');
-const market = require('./MainCommand/CommandFolder/MarketCommand/market');
-const exchange = require('./MainCommand/CommandFolder/MarketCommand/exchange');
-const shop = require('./MainCommand/CommandFolder/MarketCommand/shop');
-const useItem = require('./MainCommand/CommandFolder/UserDataCommand/UsuableCommand/use');
-const itemInfo = require('./MainCommand/CommandFolder/UserDataCommand/UsuableCommand/itemInfo');
-const boost = require('./MainCommand/CommandFolder/UserDataCommand/UserBalance/boost');
-const credit = require('./MainCommand/CommandFolder/TutorialCommand/aboutBot');
-const craft = require('./MainCommand/CommandFolder/CraftCommand/craft');
-const quest = require('./MainCommand/CommandFolder/UserDataCommand/UsuableCommand/quest');
-const daily = require('./MainCommand/CommandFolder/UserDataCommand/DailyStuff/daily');
-const starter = require('./MainCommand/CommandFolder/UserDataCommand/DailyStuff/starter');
-const eggshop = require('./MainCommand/CommandFolder/MarketCommand/eggshop');
-const eggInventory = require('./MainCommand/CommandFolder/PetCommand/eggInventory');
-const eggOpen = require('./MainCommand/CommandFolder/PetCommand/eggOpen');
-const eggcheck = require('./MainCommand/CommandFolder/PetCommand/eggCheck');
-const equipPet = require('./MainCommand/CommandFolder/PetCommand/equipPet');
-const migratePets = require('./MainCommand/Administrator/migratePets');
-const useFragment = require('./MainCommand/CommandFolder/FarmingCommand/useFragment');
-const addFarm = require('./MainCommand/CommandFolder/FarmingCommand/AddFarm');
-const addBest = require('./MainCommand/CommandFolder/FarmingCommand/AddBest');
-const endFarm = require('./MainCommand/CommandFolder/FarmingCommand/EndFarm');
-const farmCheck = require('./MainCommand/CommandFolder/FarmingCommand/FarmCheck');
-const farmInfo = require('./MainCommand/CommandFolder/FarmingCommand/FarmInfo');
-const InitializeFarming = require('./MainCommand/CommandFolder/FarmingCommand/InitializeFarming');
-const trade = require('./MainCommand/CommandFolder/TradeCommand/trade');
+// ═══════════════════════════════════════════════════════════════
+// COMMAND MODULES (Lazy-loaded for faster startup)
+// ═══════════════════════════════════════════════════════════════
+const commandModules = {
+    // Gacha Commands
+    gacha: () => require('./MainCommand/CommandFolder/GachaCommand/crategacha'),
+    Egacha: () => require('./MainCommand/CommandFolder/GachaCommand/eventgacha'),
+    gamble: () => require('./MainCommand/CommandFolder/GachaCommand/gamble'),
+    slot: () => require('./MainCommand/CommandFolder/GachaCommand/slot'),
+    flip: () => require('./MainCommand/CommandFolder/GachaCommand/flip'),
+    mysteryCrate: () => require('./MainCommand/CommandFolder/GachaCommand/mysterycrate'),
+    diceduel: () => require('./MainCommand/CommandFolder/GachaCommand/diceduel'),
+    
+    // Tutorial Commands
+    help: () => require('./MainCommand/CommandFolder/TutorialCommand/help'),
+    credit: () => require('./MainCommand/CommandFolder/TutorialCommand/aboutBot'),
+    
+    // User Data Commands
+    inventory: () => require('./MainCommand/CommandFolder/UserDataCommand/UserBalance/Storage'),
+    balance: () => require('./MainCommand/CommandFolder/UserDataCommand/UserBalance/Balance'),
+    item: () => require('./MainCommand/CommandFolder/UserDataCommand/UserBalance/Item'),
+    boost: () => require('./MainCommand/CommandFolder/UserDataCommand/UserBalance/boost'),
+    leaderboard: () => require('./MainCommand/CommandFolder/UserDataCommand/UsuableCommand/leaderboard'),
+    sell: () => require('./MainCommand/CommandFolder/UserDataCommand/UsuableCommand/sell'),
+    useItem: () => require('./MainCommand/CommandFolder/UserDataCommand/UsuableCommand/use'),
+    itemInfo: () => require('./MainCommand/CommandFolder/UserDataCommand/UsuableCommand/itemInfo'),
+    quest: () => require('./MainCommand/CommandFolder/UserDataCommand/UsuableCommand/quest'),
+    daily: () => require('./MainCommand/CommandFolder/UserDataCommand/DailyStuff/daily'),
+    starter: () => require('./MainCommand/CommandFolder/UserDataCommand/DailyStuff/starter'),
+    
+    // Fumo Data Commands
+    library: () => require('./MainCommand/CommandFolder/FumoDataCommand/library'),
+    inform: () => require('./MainCommand/CommandFolder/FumoDataCommand/inform'),
+    
+    // Market Commands
+    pray: () => require('./MainCommand/CommandFolder/PrayCommand/pray'),
+    market: () => require('./MainCommand/CommandFolder/MarketCommand/market'),
+    exchange: () => require('./MainCommand/CommandFolder/MarketCommand/exchange'),
+    shop: () => require('./MainCommand/CommandFolder/MarketCommand/shop'),
+    eggshop: () => require('./MainCommand/CommandFolder/MarketCommand/eggshop'),
+    
+    // Craft Commands
+    craft: () => require('./MainCommand/CommandFolder/CraftCommand/craft'),
+    
+    // Pet Commands
+    eggInventory: () => require('./MainCommand/CommandFolder/PetCommand/eggInventory'),
+    eggOpen: () => require('./MainCommand/CommandFolder/PetCommand/eggOpen'),
+    eggcheck: () => require('./MainCommand/CommandFolder/PetCommand/eggCheck'),
+    equipPet: () => require('./MainCommand/CommandFolder/PetCommand/equipPet'),
+    
+    // Farming Commands
+    useFragment: () => require('./MainCommand/CommandFolder/FarmingCommand/useFragment'),
+    addFarm: () => require('./MainCommand/CommandFolder/FarmingCommand/AddFarm'),
+    addBest: () => require('./MainCommand/CommandFolder/FarmingCommand/AddBest'),
+    endFarm: () => require('./MainCommand/CommandFolder/FarmingCommand/EndFarm'),
+    farmCheck: () => require('./MainCommand/CommandFolder/FarmingCommand/FarmCheck'),
+    farmInfo: () => require('./MainCommand/CommandFolder/FarmingCommand/FarmInfo'),
+    InitializeFarming: () => require('./MainCommand/CommandFolder/FarmingCommand/InitializeFarming'),
+    
+    // Trade Commands
+    trade: () => require('./MainCommand/CommandFolder/TradeCommand/trade')
+};
 
+// ═══════════════════════════════════════════════════════════════
+// SUBCOMMAND MODULES
+// ═══════════════════════════════════════════════════════════════
 const anime = require('./SubCommand/API-Website/Anime/anime');
 const afk = require('./SubCommand/BasicCommand/afk');
 const reddit = require('./SubCommand/API-Website/Reddit/reddit');
 const pixiv = require('./SubCommand/API-Website/Pixiv/pixiv');
 const steam = require('./SubCommand/API-Website/Steam/steam');
 
-if (reddit && reddit.data && reddit.data.name) {
-    client.commands.set(reddit.data.name, reddit);
-    console.log('✅ Manually loaded reddit command');
-}
+// Register API commands
+[reddit, pixiv, steam].forEach(cmd => {
+    if (cmd?.data?.name) {
+        client.commands.set(cmd.data.name, cmd);
+        console.log(`✅ Loaded ${cmd.data.name} command`);
+    }
+});
 
-if (pixiv && pixiv.data && pixiv.data.name) {
-    client.commands.set(pixiv.data.name, pixiv);
-    console.log('✅ Manually loaded pixiv command');
-}
-
-if (steam && steam.data && steam.data.name) {
-    client.commands.set(steam.data.name, steam);
-    console.log('✅ Manually loaded steam command');
-}
-
+// Load SubCommand folder
 console.log('🔄 Loading commands from SubCommand folder...');
-const subCommandPath = path.join(__dirname, 'SubCommand');
-loadCommandsRecursively(subCommandPath);
+loadCommandsRecursively(path.join(__dirname, 'SubCommand'));
 console.log(`✅ Total commands loaded: ${client.commands.size}`);
 
 client.login(process.env.BOT_TOKEN);
@@ -147,9 +187,13 @@ client.once('ready', async () => {
     setPresence(client, 'online', '.help and .starter', ActivityType.PLAYING);
     initializeSeasonSystem(client);
     initializeShop();
-    initializeShardHandler(client);
-    initializeGuildTracking(client);
-    PetIntervalManager.startAllPetIntervals();
+    // Parallel initialization for faster startup
+    await Promise.all([
+        Promise.resolve(initializeShardHandler(client)),
+        Promise.resolve(initializeGuildTracking(client)),
+        Promise.resolve(PetIntervalManager.startAllPetIntervals())
+    ]);
+    
     await restoreAutoRollSystems(client);
 
     console.log('🚀 Bot is fully operational!');
@@ -159,7 +203,7 @@ async function restoreAutoRollSystems(client) {
     try {
         console.log('🔄 Checking for auto-rolls to restore...');
         const crateFumos = FumoPool.getForCrate();
-        const eventFumos = FumoPool.getForEvent();
+
 
         const {
             notifyUserUnifiedAutoRoll,
@@ -270,51 +314,24 @@ async function restoreAutoRollSystems(client) {
     }
 }
 
-gacha(client);
-Egacha(client);
-starter(client);
-daily(client);
-help(client);
-inventory(client);
-balance(client);
-item(client);
-library(client);
-inform(client);
-leaderboard(client);
-gamble(client);
-slot(client);
-flip(client);
-mysteryCrate(client);
-diceduel(client);
-sell(client);
-pray(client);
-market(client);
-exchange(client);
-shop(client);
-useItem(client);
-itemInfo(client);
-boost(client);
-useFragment(client);
-addFarm(client);
-addBest(client);
-endFarm(client);
-farmCheck(client);
-farmInfo(client);
-InitializeFarming(client);
-credit(client);
-craft(client);
-quest(client);
-eggshop(client);
-eggInventory(client);
-eggOpen(client);
-eggcheck(client);
-equipPet(client);
-migratePets(client);
-trade(client);
+// ═══════════════════════════════════════════════════════════════
+// REGISTER ALL COMMANDS (Batch initialization)
+// ═══════════════════════════════════════════════════════════════
+Object.entries(commandModules).forEach(([name, loader]) => {
+    try {
+        loader()(client);
+    } catch (error) {
+        console.error(`❌ Failed to initialize ${name}:`, error.message);
+    }
+});
 
+// ═══════════════════════════════════════════════════════════════
+// ADMIN & SYSTEM REGISTRATION
+// ═══════════════════════════════════════════════════════════════
 registerAdminCommands(client);
 registerBanSystem(client, developerID);
 registerTicketSystem(client);
+migratePetsCommand(client);
 registerCodeRedemption(client);
 
 

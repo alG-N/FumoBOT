@@ -2,10 +2,15 @@ const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
 const https = require('https');
+const { EventEmitter } = require('events');
 const videoConfig = require('../Configuration/videoConfig');
 
-class YtDlpService {
+/**
+ * Enhanced YtDlpService with progress tracking and event emission
+ */
+class YtDlpService extends EventEmitter {
     constructor() {
+        super();
         this.ytDlpDir = path.join(__dirname, '..', 'yt-dlp-bin');
         this.ytDlpBinary = path.join(this.ytDlpDir, process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp');
     }
@@ -147,6 +152,8 @@ class YtDlpService {
             fs.mkdirSync(tempDir, { recursive: true });
         }
 
+        this.emit('stage', { stage: 'connecting', message: 'Initializing yt-dlp...' });
+
         await new Promise((resolve, reject) => {
             const args = [
                 url,
@@ -174,9 +181,58 @@ class YtDlpService {
             
             let stderr = '';
             let stdout = '';
+            let lastProgressUpdate = 0;
 
             ytProcess.stdout.on('data', (data) => {
-                stdout += data.toString();
+                const output = data.toString();
+                stdout += output;
+                
+                // Parse progress from yt-dlp output
+                const progressMatch = output.match(/(\d+\.?\d*)%/);
+                const sizeMatch = output.match(/of\s+~?\s*(\d+\.?\d*)(Ki?B|Mi?B|Gi?B)/i);
+                const speedMatch = output.match(/at\s+(\d+\.?\d*)(Ki?B|Mi?B)\/s/i);
+                const etaMatch = output.match(/ETA\s+(\d+:\d+)/);
+                
+                const now = Date.now();
+                if (progressMatch && now - lastProgressUpdate >= 500) {
+                    const percent = parseFloat(progressMatch[1]);
+                    let total = 0;
+                    let speed = 0;
+                    let eta = 0;
+                    
+                    if (sizeMatch) {
+                        const multiplier = sizeMatch[2].toLowerCase().startsWith('g') ? 1024 * 1024 * 1024 :
+                                          sizeMatch[2].toLowerCase().startsWith('m') ? 1024 * 1024 : 1024;
+                        total = parseFloat(sizeMatch[1]) * multiplier;
+                    }
+                    
+                    if (speedMatch) {
+                        const multiplier = speedMatch[2].toLowerCase().startsWith('m') ? 1024 * 1024 : 1024;
+                        speed = parseFloat(speedMatch[1]) * multiplier;
+                    }
+                    
+                    if (etaMatch) {
+                        const parts = etaMatch[1].split(':');
+                        eta = parseInt(parts[0]) * 60 + parseInt(parts[1]);
+                    }
+                    
+                    this.emit('progress', {
+                        percent,
+                        total,
+                        downloaded: total * (percent / 100),
+                        speed,
+                        eta
+                    });
+                    
+                    lastProgressUpdate = now;
+                }
+
+                // Detect stage changes
+                if (output.includes('Downloading')) {
+                    this.emit('stage', { stage: 'downloading', message: 'Downloading video...' });
+                } else if (output.includes('Merging')) {
+                    this.emit('stage', { stage: 'processing', message: 'Merging video and audio...' });
+                }
             });
 
             ytProcess.stderr.on('data', (data) => {
@@ -185,6 +241,7 @@ class YtDlpService {
 
             ytProcess.on('close', (code) => {
                 if (code === 0) {
+                    this.emit('stage', { stage: 'complete', message: 'Download complete!' });
                     resolve();
                 } else {
                     // If format selection failed, try again with no format restriction

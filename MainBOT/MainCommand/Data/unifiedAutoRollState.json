@@ -18,32 +18,19 @@
   },
   "1128296349566251068": {
     "normal": {
-      "rollCount": 1,
+      "rollCount": 12,
       "autoSell": true,
-      "startTime": 1766940078002,
+      "startTime": 1766972753618,
       "bestFumo": {
-        "name": "UltraKillV2(ETERNAL)",
-        "rarity": "ETERNAL",
-        "picture": "https://th.bing.com/th/id/OIP.0rsVamUgjh_eW_1Ep5NDfAAAAA?cb=iwp2&rs=1&pid=ImgDetMain"
+        "name": "Rinnosuke(TRANSCENDENT)",
+        "rarity": "TRANSCENDENT",
+        "picture": "https://img1.picmix.com/output/stamp/normal/6/1/0/7/2577016_a2c58.png"
       },
-      "bestFumoAt": "12/29/2025, 12:22:48 AM",
-      "bestFumoRoll": 3,
-      "specialFumoCount": 75,
-      "specialFumoFirstAt": "12/28/2025, 11:41:18 PM",
+      "bestFumoAt": "12/29/2025, 11:27:28 AM",
+      "bestFumoRoll": 11,
+      "specialFumoCount": 258,
+      "specialFumoFirstAt": "12/29/2025, 8:45:53 AM",
       "specialFumoFirstRoll": 1
-    },
-    "event": {
-      "rollCount": 0,
-      "autoSell": true,
-      "startTime": 1766944970374,
-      "totalFumosRolled": 0,
-      "totalCoinsFromSales": 0,
-      "bestFumo": null,
-      "bestFumoAt": null,
-      "bestFumoRoll": null,
-      "specialFumoCount": 0,
-      "specialFumoFirstAt": null,
-      "specialFumoFirstRoll": null
     }
   }
 }

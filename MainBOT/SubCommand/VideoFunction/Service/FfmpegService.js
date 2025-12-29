@@ -1,11 +1,17 @@
 const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
+const { EventEmitter } = require('events');
 const videoConfig = require('../Configuration/videoConfig');
 
-class FFmpegService {
+/**
+ * Enhanced FFmpegService with progress tracking and event emission
+ */
+class FFmpegService extends EventEmitter {
     constructor() {
+        super();
         this.ffmpegBinary = 'ffmpeg';
+        this.ffprobeBinary = 'ffprobe';
         this.isAvailable = false;
     }
 
@@ -53,8 +59,13 @@ class FFmpegService {
         }
 
         console.log(`🔄 Compressing video from ${currentSizeMB.toFixed(2)}MB to ~${targetSizeMB}MB...`);
+        this.emit('stage', { stage: 'compressing', message: 'Starting compression...' });
+        this.emit('compressionStart', { originalSize: currentSizeMB, targetSize: targetSizeMB });
 
         const outputPath = inputPath.replace(/(\.[^.]+)$/, '_compressed$1');
+        
+        // Get video duration for progress tracking
+        const duration = await this._getVideoDuration(inputPath);
 
         return new Promise((resolve, reject) => {
             const args = [
@@ -68,6 +79,7 @@ class FFmpegService {
                 '-b:a', videoConfig.AUDIO_BITRATE,
                 '-movflags', '+faststart',
                 '-threads', '0',
+                '-progress', 'pipe:1',  // Output progress to stdout
                 '-y',
                 outputPath
             ];
@@ -78,6 +90,30 @@ class FFmpegService {
             });
 
             let stderr = '';
+            let lastProgressUpdate = 0;
+
+            process.stdout.on('data', (data) => {
+                const output = data.toString();
+                
+                // Parse FFmpeg progress output
+                const timeMatch = output.match(/out_time_ms=(\d+)/);
+                if (timeMatch && duration > 0) {
+                    const currentTime = parseInt(timeMatch[1]) / 1000000; // Convert microseconds to seconds
+                    const percent = Math.min((currentTime / duration) * 100, 100);
+                    
+                    const now = Date.now();
+                    if (now - lastProgressUpdate >= 500) {
+                        this.emit('progress', {
+                            percent,
+                            currentTime,
+                            duration,
+                            originalSize: currentSizeMB,
+                            targetSize: targetSizeMB
+                        });
+                        lastProgressUpdate = now;
+                    }
+                }
+            });
 
             process.stderr.on('data', (data) => {
                 stderr += data.toString();
@@ -92,6 +128,12 @@ class FFmpegService {
                     const compressedStats = fs.statSync(outputPath);
                     const compressedSizeMB = compressedStats.size / (1024 * 1024);
                     console.log(`✅ Compressed to ${compressedSizeMB.toFixed(2)}MB`);
+                    
+                    this.emit('compressionComplete', { 
+                        originalSize: currentSizeMB, 
+                        compressedSize: compressedSizeMB,
+                        savings: ((currentSizeMB - compressedSizeMB) / currentSizeMB * 100).toFixed(1)
+                    });
 
                     resolve(outputPath);
                 } else {
@@ -107,6 +149,40 @@ class FFmpegService {
             process.on('error', (error) => {
                 console.log(`⚠️ FFmpeg error: ${error.message}, using original file`);
                 resolve(inputPath);
+            });
+        });
+    }
+
+    /**
+     * Get video duration using ffprobe
+     */
+    async _getVideoDuration(inputPath) {
+        return new Promise((resolve) => {
+            const args = [
+                '-v', 'error',
+                '-show_entries', 'format=duration',
+                '-of', 'default=noprint_wrappers=1:nokey=1',
+                inputPath
+            ];
+
+            const process = spawn(this.ffprobeBinary, args, {
+                windowsHide: true,
+                stdio: 'pipe'
+            });
+
+            let stdout = '';
+
+            process.stdout.on('data', (data) => {
+                stdout += data.toString();
+            });
+
+            process.on('close', () => {
+                const duration = parseFloat(stdout.trim());
+                resolve(isNaN(duration) ? 0 : duration);
+            });
+
+            process.on('error', () => {
+                resolve(0);
             });
         });
     }
