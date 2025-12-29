@@ -3,6 +3,7 @@
 FumoBOT is a versatile, feature-rich Discord bot designed to enhance your server experience with fun, economy systems, customization, utilities, and more. This document merges both the feature overview and tutorial commands into one unified reference.
 
 It's one of my first project when I'm still learning on FPT Polytechnic School(although ngl, the school's mid, aside from Java and uh CRUD stuff, and some cool tool we got to know, so I'll still give a credit for that). And yes, this project is **NOT** a graduation project. This is my own project, developed by me, thanks to my homies in Discord telling me to try to make one, although, uh, the bot at the start is not like this, but because of my passion and not wanting to make an easy bot, I decided to go **WILD**.
+
 ---
 
 ## 🌟 Features
@@ -21,7 +22,7 @@ It's one of my first project when I'm still learning on FPT Polytechnic School(a
 1. **Invite FumoBOT:** [Invite Link](https://discord.com/oauth2/authorize?client_id=1254962096924397569&permissions=182273&integration_type=0&scope=bot)
 2. **Configure:** Use settings or commands to customize.
 3. **Type `.help`:** See all commands and categories.
-4. **Join the Community:** [Discord Server](https://discord.gg/3vJEyCCdaA) for support and updates.
+4. **Join the Community:** [Discord Server](https://discord.gg/xhmbQCHs) for support and updates.
 
 ---
 
