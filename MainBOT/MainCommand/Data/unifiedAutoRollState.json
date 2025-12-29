@@ -20,16 +20,16 @@
     "normal": {
       "rollCount": 12,
       "autoSell": true,
-      "startTime": 1766972753618,
+      "startTime": 1766990191906,
       "bestFumo": {
-        "name": "Rinnosuke(TRANSCENDENT)",
-        "rarity": "TRANSCENDENT",
-        "picture": "https://img1.picmix.com/output/stamp/normal/6/1/0/7/2577016_a2c58.png"
+        "name": "Cheshire(ASTRAL)",
+        "rarity": "ASTRAL",
+        "picture": "https://images.tokopedia.net/img/cache/500-square/VqbcmM/2024/2/25/932b310d-4256-42bc-abf7-c7d83869ee0c.jpg"
       },
-      "bestFumoAt": "12/29/2025, 11:27:28 AM",
-      "bestFumoRoll": 11,
-      "specialFumoCount": 258,
-      "specialFumoFirstAt": "12/29/2025, 8:45:53 AM",
+      "bestFumoAt": "12/29/2025, 1:40:13 PM",
+      "bestFumoRoll": 4,
+      "specialFumoCount": 11,
+      "specialFumoFirstAt": "12/29/2025, 1:37:09 PM",
       "specialFumoFirstRoll": 1
     }
   }
