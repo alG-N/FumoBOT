@@ -4,7 +4,7 @@
 FumoBOT is a versatile, feature-rich Discord bot designed to enhance your server experience with fun, economy systems, customization, utilities, and more. This document merges both the feature overview and tutorial commands into one unified reference.
 
 **A little story:**
-It's one of my first projects when I was still learning at FPT Polytechnic School (although ngl, the school's mid, aside from Java and uh CRUD stuff, and some cool tools we got to know, so I'll still give a credit for that). And yes, this project is **NOT** a graduation project. This is my own project, developed by me, thanks to my homies in Discord telling me to try to make one. Although, uh, the bot at the start is not like this, but because of my passion and not wanting to make an easy bot, I decided to go **WILD**.
+It's one of my first projects when I was still learning at FPT Polytechnic School (although ngl, the school's mid, aside from Java and uh CRUD stuff, and some cool tools we got to know, so I'll still give a credit for that). And yes, this project is **NOT** a graduation project. This is my own project, developed by me and the other close friend of mine, thanks to my homies in Discord telling me to try to make one(and started this motivation for me to code, because I'd have ended as a hentai artist anyway lmao). Although, uh, the bot at the start is not like this, but because of my passion and not wanting to make an easy bot, I decided to go **WILD**.
 
 **Note:** This bot is still under active development and is not yet complete. Some bugs may appear, but we're always working to fix them. Your feedback and bug reports are welcome!
 
@@ -30,6 +30,57 @@ It's one of my first projects when I was still learning at FPT Polytechnic Schoo
 3. **Type `.help`:** See all commands and categories.
 4. **Join the Community:** [Discord Server](https://discord.gg/xhmbQCHs) for support and updates.
 
+### Step-by-Step Setup
+
+1. **Invite FumoBOT to your Discord server:**
+   - Use the [Invite Link](https://discord.com/oauth2/authorize?client_id=1254962096924397569&permissions=182273&integration_type=0&scope=bot)
+   - Grant necessary permissions (message, voice, manage roles, etc.)
+2. **Configure your bot:**
+   - Edit `MainBOT/config.json` for global settings (prefix, language, etc.)
+   - Set up `.env` with all required tokens and API keys (see Requirements section)
+   - Adjust `MainBOT/MainCommand/Configuration/` files for custom economy, items, events, and more
+3. **Start the bot:**
+   - Run with Node.js: `node MainBOT/FumoBOTMain.js`
+   - Or use PM2 for process management: `pm2 start MainBOT/FumoBOTMain.js --name=fumobot`
+   - For Docker: `docker-compose up --build` (if using containers)
+4. **Register commands:**
+   - Use `.help` in Discord to see all available commands and categories
+   - Use `.tutorialHelp` for a guided walkthrough of features
+5. **Join the Community:**
+   - [Discord Server](https://discord.gg/xhmbQCHs) for support, updates, and feedback
+
+### Advanced Configuration
+
+- **Lavalink:**
+  - Edit `application.yml` for password, port, and server settings
+  - Ensure bot config matches Lavalink endpoint and password
+- **yt-cipher & cobalt:**
+  - If running in Docker, ensure ports are mapped and endpoints are correct in bot config
+- **Database:**
+  - For SQLite, database file is in `MainBOT/Data/`
+  - For SQL Server, update connection string in `.env` and ORM config
+- **API Keys:**
+  - Store all secrets in `.env` and never commit this file
+
+### Example .env
+
+```
+DISCORD_TOKEN=your-bot-token
+DISCORD_CLIENT_ID=your-client-id
+DISCORD_GUILD_ID=your-guild-id
+LAVALINK_PASSWORD=your-lavalink-password
+LAVALINK_HOST=localhost
+LAVALINK_PORT=2333
+YTCIPHER_HOST=localhost
+YTCIPHER_PORT=8060
+COBALT_HOST=localhost
+COBALT_PORT=8080
+REDDIT_CLIENT_ID=your-reddit-client-id
+REDDIT_CLIENT_SECRET=your-reddit-client-secret
+REDDIT_USER_AGENT=your-app-user-agent
+# ...other keys
+```
+
 ---
 
 # 📚 Command Categories
@@ -37,76 +88,61 @@ It's one of my first projects when I was still learning at FPT Polytechnic Schoo
 ## Main Commands
 
 ### Tutorial & Help
-- `.starter` – Claim starter coins and gems
-- `.daily` – Daily reward
-- `.library` – View discovered fumos
-- `.inform <FumoName+Rarity>` – Fumo information
-- `.sell` – Sell fumos
-- `.code` – Redeem codes
-- `.quest` – Show current quest
-- `.claim` – Claim completed quest
-- `.help` – Show help menu
-- `.aboutBot` – Bot info
 
-### Information & Inventory
-- `.storage` – Fumo collection
-- `.balance [@user/id]` – Check balance
-- `.items` – Item inventory
-- `.itemInfo <item>` – Info about an item
-- `.use <item>` – Use an item
-- `.boost` – Show boosts
+### Example Command Usage
+
+1. **Claim Starter Coins:**
+   - Command: `.starter`
+   - Description: Claim your starter coins and gems to begin your journey.
+
+2. **Daily Reward:**
+   - Command: `.daily`
+   - Description: Receive your daily reward of coins and gems.
+
+3. **View Fumos:**
+   - Command: `.library`
+   - Description: Check your collection of discovered fumos.
+
+4. **Fumo Information:**
+   - Command: `.inform <FumoName+Rarity>`
+   - Description: Get detailed information about a specific fumo.
+
+5. **Sell Fumos:**
+   - Command: `.sell <FumoName>`
+   - Description: Sell a specific fumo from your collection.
+
+6. **Redeem Codes:**
+   - Command: `.code <code>`
+   - Description: Redeem a promotional code for rewards.
+
+7. **Show Current Quest:**
+   - Command: `.quest`
+   - Description: Display your current quest and its progress.
+
+8. **Claim Completed Quest:**
+   - Command: `.claim`
+   - Description: Claim rewards for completed quests.
+
+9. **Help Menu:**
+   - Command: `.help`
+   - Description: Show a menu of all available commands.
+
+10. **Bot Information:**
+    - Command: `.aboutBot`
+    - Description: Get information about the bot and its features.
+
+
 - `.craft` – Crafting recipes
-
-### Gacha & Gambling
-- `.crategacha` – Roll crate gacha for fumos/items
-- `.eventgacha` – Limited-time event gacha
-- `.slot` – Slot-machine gamble
-- `.gamble` – Bet coins for a chance to multiply
-- `.flip` – 50/50 coin flip
 - `.mysterycrate` – Open mystery crates for rewards
-- `.diceduel` – Dice duel with the house
-
-### Shop & Market
-- `.shop` – Main shop
 - `.market` – Marketplace for users
-- `.exchange coins/gems <amount>` – Convert currency
-- `.eggshop` – Purchase eggs/materials
-
-### Farming & Capitalism
-- `.addfarm <fumo>` – Add fumos to farm slots
-- `.farmcheck` – Check farming progress
 - `.endfarm <fumo>` – Finish farming
-- `.addbest` – Auto-select best fumos for farming
-- `.farminfo` – Show detailed farm stats
-- `.usefragment <amount>` – Upgrade farm slots
-
 ### Egg & Pet System
-- `.egginventory` – View eggs and pets
 - `.eggcheck` – Check egg hatching progress
 - `.useegg <egg>` – Hatch/cook eggs
-- `.equippet <pet>` – Equip pets for boosts
-
-### Trading
-- `.trade` – Trade fumos/items with other users
-
----
-
 ## Sub Commands
-
 ### Basic Utility
-- `.afk` – Set AFK status
-- `.avatar` – Display avatar/user info
 - `.groupInform` – Server information
-- `.invite` – Invite the bot
-- `.ping` – Check bot latency
-- `.roleinfo [@role]` – Show role details
-- `.tutorialHelp` – Show tutorial help
-
 ### Interactive User Commands
-- (See folder for more, e.g. custom games, quizzes, etc.)
-
-### Music & Video
-- Music: Play, queue, skip, etc. (see MusicFunction folder)
 - Video: Play, search, etc. (see VideoFunction folder)
 
 ### API-Website Integration
@@ -127,70 +163,174 @@ It's one of my first projects when I was still learning at FPT Polytechnic Schoo
 
 # 📝 How FumoBOT Works
 
-- **Command System:** Modular, with folders for each category (Tutorial, Information, Gacha, Shop, Capitalism, Egg/Pet, Misc).
-- **Event Listeners:** Each command registers listeners for Discord events (message, interaction, etc).
-- **Database:** Uses SQLite3 for user data, inventory, economy, and stats.
-- **Admin Tools:** Ban system, ticket system, and guild tracking are in `MainCommand/Administrator/`.
-- **SubCommands:** Utility and API commands are in `SubCommand/` (music, anime, reddit, etc).
-- **Config Files:** All settings and constants are in `MainCommand/Configuration/`.
+# 📝 How FumoBOT Works (In Depth)
+
+## Project Structure
+
+- `MainBOT/MainCommand/CommandFolder/`: Main commands, organized by category (Craft, Farming, Gacha, Market, Pet, Pray, Trade, Tutorial, UserData)
+- `MainBOT/MainCommand/Configuration/`: All config files for economy, items, events, etc.
+- `MainBOT/MainCommand/Administrator/`: Admin tools, ban system, ticket system, guild tracking
+- `MainBOT/MainCommand/Core/`: Database and logger modules
+- `MainBOT/MainCommand/Data/`: Persistent data files (JSON, SQLite)
+- `MainBOT/SubCommand/`: Utility, music, video, and API integrations
+
+## Command System
+
+- Modular design: Each command is a separate file/module, easy to add/remove
+- Event listeners: Commands register listeners for Discord events (message, interaction, reaction, etc.)
+- Aliases: Many commands have short aliases for quick access
+- Permissions: Admin commands require elevated permissions
+
+## Database
+
+- Uses SQLite3 by default (file in `MainBOT/Data/`)
+- Supports SQL Server for advanced setups (update ORM config and `.env`)
+- Handles user profiles, inventory, currency, farming, pets, quests, achievements, and more
+
+## Music & Media System
+
+- Lavalink: Audio streaming node, must run locally
+- Shoukaku: Node.js library for connecting bot to Lavalink
+- yt-cipher & cobalt: Local services (often Dockerized) for YouTube ciphering and scraping
+- ffmpeg & yt-dlp: Media processing and downloading
+- Flow: User command → Bot → Shoukaku → Lavalink → yt-cipher/cobalt → Lavalink → Discord
+
+## Configuration & Customization
+
+- All settings (economy, items, events, etc.) are in `MainCommand/Configuration/`
+- Edit config files to customize rewards, prices, event schedules, item stats, etc.
+- Use `.env` for secrets and API keys
+
+## Logging & Error Handling
+
+- Advanced logger in `MainCommand/Core/logger.js`
+- All errors are logged with timestamps and context
+- User-facing errors are safe and descriptive
+
+## Extending the Bot
+
+- Add new commands by creating files in the appropriate folder
+- Register new event listeners in the main bot file
+- Add new config options in `Configuration/` and update relevant modules
 
 ---
 
 # 📖 Detailed Tutorial
 
+# 📖 Detailed Tutorial & Usage Examples
+
 ## 1. Getting Started
 
-- **Invite the bot** to your server.
-- Type `.starter` to claim your starter pack.
-- Use `.help` or `.tutorialHelp` for a full command list.
+### Step-by-Step
+1. **Invite the bot:** Use the invite link and grant all required permissions.
+2. **Claim your starter pack:** Type `.starter` to receive coins, gems, and basic items.
+3. **Explore commands:** Use `.help` or `.tutorialHelp` for a categorized list and usage guide.
+4. **Configure your experience:** Edit config files for custom settings, or use commands to adjust preferences.
 
 ## 2. Collecting & Inventory
 
-- `.library` – View discovered fumos.
-- `.storage` – See your full fumo collection.
-- `.items` – Check your item inventory.
-- `.itemInfo <item>` – Get details about any item.
+- **View discovered fumos:**
+   - Command: `.library`
+   - Shows all fumos you've unlocked, with rarity, stats, and lore.
+- **See your full fumo collection:**
+   - Command: `.storage`
+   - Lists all fumos you own, sortable by rarity, type, or acquisition date.
+- **Check your item inventory:**
+   - Command: `.items`
+   - Displays all usable items, their quantities, and effects.
+- **Get details about any item:**
+   - Command: `.itemInfo <item>`
+   - Shows description, usage, and where to obtain the item.
 
 ## 3. Earning & Spending
 
-- `.daily` – Claim daily coins/gems.
-- `.quest` – View your quests.
-- `.claim` – Claim quest rewards.
-- `.shop` / `.market` – Buy/sell items and fumos.
-- `.exchange coins/gems <amount>` – Convert currency.
+- **Claim daily coins/gems:**
+   - Command: `.daily`
+   - Can be claimed once per day, resets at midnight UTC.
+- **View your quests:**
+   - Command: `.quest`
+   - Shows active quests, progress, and possible rewards.
+- **Claim quest rewards:**
+   - Command: `.claim`
+   - Completes the quest and gives you the reward.
+- **Buy/sell items and fumos:**
+   - Command: `.shop` (NPC shop), `.market` (player-driven market)
+   - Use `.shop buy <item>` or `.market sell <fumo>` for transactions.
+- **Convert currency:**
+   - Command: `.exchange coins/gems <amount>`
+   - Exchange rates are set in the config files.
 
 ## 4. Gacha & Gambling
 
-- `.crategacha` / `.eventgacha` – Roll for fumos/items.
-- `.slot` / `.gamble` / `.flip` / `.mysterycrate` / `.diceduel` – Try your luck!
+- **Roll for fumos/items:**
+   - Command: `.crategacha` or `.eventgacha`
+   - Event crates have special drops and limited-time rewards.
+- **Try your luck:**
+   - Commands: `.slot`, `.gamble <amount>`, `.flip`, `.mysterycrate`, `.diceduel`
+   - Each command has unique odds and rewards. Use `.help gambling` for details.
 
 ## 5. Farming & Capitalism
 
-- `.addfarm <fumo>` – Add fumos to farm slots.
-- `.farmcheck` – Check farm progress.
-- `.endfarm <fumo>` – Finish farming.
-- `.addbest` – Auto-select best fumos for farming.
-- `.usefragment <amount>` – Upgrade farm slots.
+- **Add fumos to farm slots:**
+   - Command: `.addfarm <fumo>`
+   - Assign fumos to farm slots; boosts depend on rarity and type.
+- **Check farming progress:**
+   - Command: `.farmcheck`
+   - Shows time left, expected yield, and active boosts.
+- **Finish farming:**
+   - Command: `.endfarm <fumo>`
+   - Collect results; fumos may level up or break.
+- **Auto-select best fumos for farming:**
+   - Command: `.addbest`
+   - Optimizes farm slots for maximum yield.
+- **Show detailed farm stats:**
+   - Command: `.farminfo`
+   - Displays all farm slots, boosts, and farming history.
+- **Upgrade farm slots:**
+   - Command: `.usefragment <amount>`
+   - Spend fragments to unlock or upgrade slots.
 
 ## 6. Pets & Eggs
 
-- `.egginventory` – View eggs/pets.
-- `.eggcheck` – Check hatching progress.
-- `.useegg <egg>` – Hatch/cook eggs.
-- `.equippet <pet>` – Equip pets for boosts.
+- **View eggs and pets:**
+   - Command: `.egginventory`
+   - Shows all eggs and pets owned; hatchable eggs are highlighted.
+- **Check egg hatching progress:**
+   - Command: `.eggcheck`
+   - Shows time left and possible pet outcomes.
+- **Hatch/cook eggs:**
+   - Command: `.useegg <egg>`
+   - Consumes the egg and gives a pet or item.
+- **Equip pets for boosts:**
+   - Command: `.equippet <pet>`
+   - Equipped pets give passive bonuses to farming, gacha, or other activities.
 
 ## 7. Trading
 
-- `.trade <user> <item/fumo>` – Trade with other users.
+- **Trade with other users:**
+   - Command: `.trade <user> <item/fumo>`
+   - Initiates a trade, confirms via DM or reaction. Both parties must accept for the trade to complete.
 
 ## 8. Miscellaneous & Utility
 
-- `.leaderboard` – See top players.
-- `.report` – Report bugs/issues.
-- `.credit` – Bot credits.
-- `.otherCMD` – Hidden/extra commands.
-- `.anime`, `.pixiv`, `.reddit`, `.rule34`, `.steam` – API integrations.
-- `.afk`, `.avatar`, `.groupInform`, `.invite`, `.ping`, `.roleinfo` – Utility commands.
+- **See top players:**
+   - Command: `.leaderboard`
+   - Shows rankings for coins, fumos, quests, and more.
+- **Report bugs/issues:**
+   - Command: `.report <description>`
+   - Sends a report to the devs; include as much detail as possible.
+- **Bot credits:**
+   - Command: `.credit`
+   - Lists all contributors and developers.
+- **Hidden/extra commands:**
+   - Command: `.otherCMD`
+   - Easter eggs, dev tools, and undocumented features.
+- **API integrations:**
+   - Commands: `.anime`, `.pixiv`, `.reddit`, `.rule34`, `.steam`
+   - Fetch info, images, posts, and more from external sources.
+- **Utility commands:**
+   - Commands: `.afk`, `.avatar`, `.groupInform`, `.invite`, `.ping`, `.roleinfo`
+   - Get server info, user info, bot status, and more.
 
 ---
 
@@ -198,21 +338,37 @@ It's one of my first projects when I was still learning at FPT Polytechnic Schoo
 
 ## 📌 Contribution Guidelines
 
-- **Allowed:** Suggest features, report bugs, submit PRs, improve code/docs, reuse small portions.
-- **Not Allowed:** Copying/rebranding, selling, removing credits, malicious use, violating MIT License.
+- **Allowed:**
+   - Suggest features (open an issue or DM devs)
+   - Report bugs (include command, error, steps, logs)
+   - Submit PRs (fork, branch, test, document)
+   - Improve code/docs (refactor, add comments, update README)
+   - Reuse small portions for your own projects (with credit)
+- **Not Allowed:**
+   - Copying/rebranding without major changes
+   - Selling the bot or code
+   - Removing credits
+   - Malicious use or violating MIT License
 
-If you fork:
-- Keep original credits.
-- Document changes.
-- Don’t upload clones with no modification.
+**If you fork:**
+- Keep original credits in README and code headers
+- Document all changes in your fork
+- Do not upload clones with no modification
 
 ## 📝 Submitting Contributions
 
-- **Feature Suggestions:** Clear description, benefit, examples.
-- **Bug Reports:** Command/module, error/logs, steps, expected/actual.
-- **Pull Requests:** Clean code, clear commits, test everything.
+- **Feature Suggestions:**
+   - Describe the feature, why it's useful, and example usage
+   - Suggest config options if needed
+- **Bug Reports:**
+   - Specify command/module, error/logs, steps to reproduce, expected/actual behavior
+   - Attach screenshots or logs if possible
+- **Pull Requests:**
+   - Clean code, clear commit messages, tested locally
+   - Document changes in PR description
+   - Reference related issues
 
-Example PR message:
+**Example PR message:**
 ```
 [Fix] Corrected farm boost calculation
 - Adjusted formula for boost scaling
@@ -222,14 +378,26 @@ Example PR message:
 
 ## 📂 Using the Code
 
-- **Allowed:** Learn, reuse small parts, make your own inspired bot, expand/modify.
-- **Not Allowed:** Copy-paste whole bot, rebrand, remove credits, monetize without permission.
+- **Allowed:**
+   - Learn from the codebase
+   - Reuse small parts for your own bot (with credit)
+   - Expand/modify for your own server
+- **Not Allowed:**
+   - Copy-paste whole bot and rebrand
+   - Remove credits
+   - Monetize without permission
+
+## Developer Workflow
+
+1. Fork the repo and create a new branch for your feature/fix
+2. Make small, focused commits with clear messages
+3. Test all changes locally (use Jest for unit tests, manual Discord testing for commands)
+4. Update documentation and config files as needed
+5. Submit a PR and wait for review
 
 ---
 
-
 # 🧪 Developer Setup, Testing, and Deployment Guide
-
 
 ## 🧰 Requirements
 
@@ -242,7 +410,6 @@ Example PR message:
 - **SQLite3** (current) / **SQL Server** (future): Database for storing user data, inventory, economy, and stats.
 - **Discord Bot Token, Client ID, Guild ID**: Required to connect the bot to your Discord server. Get these from the [Discord Developer Portal](https://discord.com/developers/applications).
 - **Reddit API keys(and so alot more other API keys...)**: Needed for Reddit integration commands. Register an app at [Reddit Apps](https://www.reddit.com/prefs/apps).
-
 
 ### Additional/Recommended Tools & Libraries
 
@@ -280,7 +447,6 @@ REDDIT_CLIENT_SECRET=your-reddit-client-secret
 REDDIT_USER_AGENT=your-app-user-agent
 # Add any other API keys or secrets as needed
 ```
-
 
 ### Music/Video/Media Setup & Flow
 
@@ -348,11 +514,12 @@ REDDIT_USER_AGENT=your-app-user-agent
 
 **Note:** Some features (like music, video, or API integrations) may require additional dependencies or external binaries. Always check the relevant folders and documentation for setup instructions.
 
-## ⚙️ Project Setup
+## ⚙️ Project Setup (Step-by-Step)
 
 1. **Clone the repository:**
    ```sh
    git clone https://github.com/alG-N/FumoBOT.git
+   cd FumoBOT
    ```
 2. **Install dependencies:**
    ```sh
@@ -360,70 +527,128 @@ REDDIT_USER_AGENT=your-app-user-agent
    ```
 3. **Install Docker Desktop:**
    - Download and install from [https://www.docker.com/products/docker-desktop/](https://www.docker.com/products/docker-desktop/)
-   - Start Docker Desktop and ensure it is running.
+   - Start Docker Desktop and ensure it is running
 4. **Install required binaries:**
    - [ffmpeg](https://ffmpeg.org/download.html) (add to PATH)
    - [yt-dlp](https://github.com/yt-dlp/yt-dlp) (add to PATH)
 5. **Create `.env` file:**
-   - Add your Discord bot token, client ID, guild ID, Reddit API keys, and any other required secrets.
-6. **Start the bot:**
-   ```sh
-   node MainBOT/FumoBOTMain.js
-   ```
-   Or with PM2:
-   ```sh
-   npm install pm2 -g
-   pm2 start MainBOT/FumoBOTMain.js --name=fumobot
-   ```
+   - Copy the example from above and fill in all required secrets
+6. **Configure Lavalink, yt-cipher, cobalt:**
+   - Download Lavalink, configure `application.yml`, run on `localhost:2333`
+   - Run yt-cipher and cobalt as Docker containers (see Music/Video/Media Setup)
+   - Update bot config to match endpoints and passwords
+7. **Start the bot:**
+   - With Node.js:
+     ```sh
+     node MainBOT/FumoBOTMain.js
+     ```
+   - With PM2:
+     ```sh
+     npm install pm2 -g
+     pm2 start MainBOT/FumoBOTMain.js --name=fumobot
+     ```
+   - With Docker Compose:
+     ```sh
+     docker-compose up --build
+     ```
+8. **Register commands and test:**
+   - Use `.help` and `.tutorialHelp` in Discord
+   - Check logs for errors and fix any issues
+
+---
 
 ## 🧪 Testing Guidelines
 
-- Test all commands (success/fail, aliases)
-- Test database operations (read/write, inventory, currency, farm, quest)
-- Test economy balancing (no infinite loops/dupes)
-- Test error handling (safe messages, no crashes)
-- Simulate user flows (new users, rolls, daily, items, quests, farming, pets)
-- Test music/video/API features (ensure ffmpeg, yt-dlp, yt-cipher, cobalt, etc. are working)
+## 🧪 Testing Guidelines (Comprehensive)
 
-## 🚀 Deployment Guide
+- **Command Testing:**
+   - Test every command for success and failure cases
+   - Test all aliases and edge cases
+   - Use Jest for unit tests (see `MainCommand/Test/`)
+- **Database Testing:**
+   - Verify read/write operations for user profiles, inventory, currency, farming, pets, quests
+   - Test migrations and backup/restore
+- **Economy Balancing:**
+   - Simulate earning/spending flows, check for infinite loops or exploits
+   - Adjust config files for fair rates
+- **Error Handling:**
+   - Trigger errors intentionally, verify safe user messages and proper logging
+- **User Flow Simulation:**
+   - Create new users, run through starter, daily, gacha, farming, pets, trading
+- **Music/Video/API Features:**
+   - Test music playback (Lavalink, yt-cipher, ffmpeg, yt-dlp)
+   - Test API integrations (Reddit, Pixiv, Steam, etc.)
+   - Check Docker containers are running and accessible
+- **Performance Testing:**
+   - Simulate high user load, check for lag or crashes
+- **Security Testing:**
+   - Ensure secrets are not exposed, permissions are correct, and no sensitive data is leaked
 
-- Deploy on Railway, Render.com, VPS, local machine, or your own server.
-- Use Docker for containerized deployment if desired (see Dockerfile or docker-compose.yml if available).
-- Use PM2 for process management.
-- Never commit `.env` or sensitive data.
-- Test in a private Discord server before deploying.
+---
+
+## 🚀 Deployment Guide (Options & Checklist)
+
+### Options
+- **Railway/Render.com:**
+   - Push your repo, set up environment variables, configure Docker if needed
+- **VPS/Local:**
+   - Install all dependencies, set up Docker, run bot and services
+- **Docker:**
+   - Use provided Dockerfile/docker-compose.yml for full stack deployment
+- **PM2:**
+   - Use for process management, auto-restart, and log management
+
+### Checklist
+- Never commit `.env` or sensitive data
+- Remove debug logs before production
+- Ensure all commands are registered and working
+- Test in a private Discord server before public launch
+- Monitor logs and performance after deployment
 
 ---
 
 # 🧼 Deployment Checklist
 
 - `.env` is not committed
-- Remove debug logs
-- No sensitive data exposed
-- Commands registered correctly
+- Remove debug logs and sensitive info
+- No sensitive data exposed in logs or errors
+- All commands registered and tested
 - Test in private Discord server
-- No breaking changes
+- No breaking changes or regressions
+- Docker containers running and accessible
+- API keys and endpoints verified
+- Database backups created
+- Monitor bot after launch for errors and performance
 
 ---
 
-# 🧪 Recommended Tools
+# 🧪 Recommended Tools & Utilities
 
-- Nodemon (live reload)
-- ESLint (code quality)
-- Prettier (formatting)
-- SQLite viewer
-- GitHub Copilot (AI coding assistant)
+- **Nodemon:** Live reload for development
+- **ESLint:** Code quality and linting
+- **Prettier:** Code formatting
+- **SQLite viewer:** GUI for inspecting database
+- **GitHub Copilot:** AI coding assistant
+- **Jest:** Unit testing framework
+- **PM2:** Process management and monitoring
+- **Docker Compose:** Multi-service orchestration
+- **DB Browser for SQLite:** Database inspection and editing
+- **Discord.js DevTools:** For debugging Discord API issues
 
 ---
 
-# 🧷 Notes for New Developers
+# 🧷 Notes for New Developers (Best Practices)
 
-- Work in your own branch
-- Small, meaningful commits
-- Update docs for new features
-- Ask before rewriting major systems
-- Respect code style/structure
-- Avoid unnecessary dependencies
+- Always work in your own branch
+- Make small, meaningful commits with clear messages
+- Update documentation for every new feature or change
+- Ask before rewriting major systems or refactoring core modules
+- Respect code style, structure, and naming conventions
+- Avoid unnecessary dependencies and keep package.json clean
+- Test all changes locally and in Discord before PR
+- Communicate with other devs for major changes
+
+---
 
 ---
 
