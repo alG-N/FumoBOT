@@ -241,7 +241,7 @@ Example PR message:
 - **Visual Studio Code**: Recommended editor for development.
 - **SQLite3** (current) / **SQL Server** (future): Database for storing user data, inventory, economy, and stats.
 - **Discord Bot Token, Client ID, Guild ID**: Required to connect the bot to your Discord server. Get these from the [Discord Developer Portal](https://discord.com/developers/applications).
-- **Reddit API keys**: Needed for Reddit integration commands. Register an app at [Reddit Apps](https://www.reddit.com/prefs/apps).
+- **Reddit API keys(and so alot more other API keys...)**: Needed for Reddit integration commands. Register an app at [Reddit Apps](https://www.reddit.com/prefs/apps).
 
 
 ### Additional/Recommended Tools & Libraries
