@@ -18,17 +18,17 @@
   },
   "1128296349566251068": {
     "normal": {
-      "rollCount": 12,
+      "rollCount": 63,
       "autoSell": true,
       "startTime": 1766990191906,
       "bestFumo": {
-        "name": "Cheshire(ASTRAL)",
-        "rarity": "ASTRAL",
-        "picture": "https://images.tokopedia.net/img/cache/500-square/VqbcmM/2024/2/25/932b310d-4256-42bc-abf7-c7d83869ee0c.jpg"
+        "name": "UltraKillV2(ETERNAL)",
+        "rarity": "ETERNAL",
+        "picture": "https://th.bing.com/th/id/OIP.0rsVamUgjh_eW_1Ep5NDfAAAAA?cb=iwp2&rs=1&pid=ImgDetMain"
       },
-      "bestFumoAt": "12/29/2025, 1:40:13 PM",
-      "bestFumoRoll": 4,
-      "specialFumoCount": 11,
+      "bestFumoAt": "12/29/2025, 2:52:03 PM",
+      "bestFumoRoll": 29,
+      "specialFumoCount": 107,
       "specialFumoFirstAt": "12/29/2025, 1:37:09 PM",
       "specialFumoFirstRoll": 1
     }
