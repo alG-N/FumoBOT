@@ -10,8 +10,6 @@ It's one of my first projects when I was still learning at FPT Polytechnic Schoo
 
 ---
 
----
-
 ## 🌟 Features
 
 - **Economy System:** Coins, gems, shops, quests, leaderboards, and more.
@@ -28,7 +26,7 @@ It's one of my first projects when I was still learning at FPT Polytechnic Schoo
 1. **Invite FumoBOT:** [Invite Link](https://discord.com/oauth2/authorize?client_id=1254962096924397569&permissions=182273&integration_type=0&scope=bot)
 2. **Configure:** Use settings or commands to customize.
 3. **Type `.help`:** See all commands and categories.
-4. **Join the Community:** [Discord Server](https://discord.gg/xhmbQCHs) for support and updates.
+4. **Join the Community:** [Discord Server](https://discord.gg/3vJEyCCdaA) for support and updates.
 
 ### Step-by-Step Setup
 
@@ -163,8 +161,6 @@ REDDIT_USER_AGENT=your-app-user-agent
 
 # 📝 How FumoBOT Works
 
-# 📝 How FumoBOT Works (In Depth)
-
 ## Project Structure
 
 - `MainBOT/MainCommand/CommandFolder/`: Main commands, organized by category (Craft, Farming, Gacha, Market, Pet, Pray, Trade, Tutorial, UserData)
@@ -214,8 +210,6 @@ REDDIT_USER_AGENT=your-app-user-agent
 - Add new config options in `Configuration/` and update relevant modules
 
 ---
-
-# 📖 Detailed Tutorial
 
 # 📖 Detailed Tutorial & Usage Examples
 
@@ -326,10 +320,10 @@ REDDIT_USER_AGENT=your-app-user-agent
    - Command: `.otherCMD`
    - Easter eggs, dev tools, and undocumented features.
 - **API integrations:**
-   - Commands: `.anime`, `.pixiv`, `.reddit`, `.rule34`, `.steam`
+   - Commands: `/anime`, `/pixiv`, `/reddit`, `/rule34`, `/steam`
    - Fetch info, images, posts, and more from external sources.
 - **Utility commands:**
-   - Commands: `.afk`, `.avatar`, `.groupInform`, `.invite`, `.ping`, `.roleinfo`
+   - Commands: `/afk`, `/avatar`, `/groupInform`, `/invite`, `/ping`, `/roleinfo`
    - Get server info, user info, bot status, and more.
 
 ---
@@ -559,8 +553,6 @@ REDDIT_USER_AGENT=your-app-user-agent
 
 ## 🧪 Testing Guidelines
 
-## 🧪 Testing Guidelines (Comprehensive)
-
 - **Command Testing:**
    - Test every command for success and failure cases
    - Test all aliases and edge cases
@@ -647,8 +639,6 @@ REDDIT_USER_AGENT=your-app-user-agent
 - Avoid unnecessary dependencies and keep package.json clean
 - Test all changes locally and in Discord before PR
 - Communicate with other devs for major changes
-
----
 
 ---
 
