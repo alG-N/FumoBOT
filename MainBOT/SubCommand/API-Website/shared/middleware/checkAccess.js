@@ -15,10 +15,10 @@ try {
 }
 
 try {
-    const banUtils = require(path.join(__dirname, '../../../MainCommand/Administrator/BannedList/BanUtils.js'));
-    isBanned = banUtils.isBanned;
+    const Administrator = require(path.join(__dirname, '../../../MainCommand/Administrator'));
+    isBanned = Administrator.isBanned;
 } catch (err) {
-    console.log('[checkAccess] Could not load ban utils, bans disabled');
+    console.log('[checkAccess] Could not load Administrator module, bans disabled');
 }
 
 async function checkAccess(interaction) {

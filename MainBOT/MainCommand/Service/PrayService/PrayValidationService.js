@@ -88,7 +88,7 @@ function checkUsageLimit(userId) {
         return {
             valid: false,
             error: 'LIMIT_REACHED',
-            message: `You've used the \`/pray\` command **${PRAY_LIMITS.maxUsagePerHour} times** in the past hour.\nPlease wait **${minutes}m ${seconds}s** before praying again.`
+            message: `You've used the \`.pray\` command **${PRAY_LIMITS.maxUsagePerHour} times** in the past hour.\nPlease wait **${minutes}m ${seconds}s** before praying again.`
         };
     }
 

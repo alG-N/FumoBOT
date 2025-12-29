@@ -1,6 +1,6 @@
 const { EmbedBuilder, Colors } = require('discord.js');
 const { maintenance, developerID } = require('../Configuration/maintenanceConfig');
-const { isBanned } = require('../Administrator/BannedList/BanUtils');
+const { isBanned } = require('../Administrator/Service/BanService');
 
 const restrictionCache = new Map();
 const CACHE_TTL = 30000;

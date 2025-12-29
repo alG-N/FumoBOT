@@ -1,12 +1,20 @@
+/**
+ * Migrate Pets Command
+ * Administrative command for migrating pet abilities
+ */
+
 const { EmbedBuilder } = require('discord.js');
-const PetStats = require('../Service/PetService/PetStatsService');
+const PetStats = require('../../Service/PetService/PetStatsService');
+const { DEVELOPER_ID, isDeveloper, EMBED_COLORS } = require('../Config/adminConfig');
 
-const AUTHORIZED_USER_ID = '1128296349566251068'; // Replace with your Discord ID
-
+/**
+ * Register the migrate pets command
+ * @param {Client} client - Discord client
+ */
 module.exports = async (client) => {
     client.on('messageCreate', async (message) => {
         if (message.author.bot) return;
-        if (message.author.id !== AUTHORIZED_USER_ID) return;
+        if (!isDeveloper(message.author.id) && message.author.id !== DEVELOPER_ID) return;
 
         const content = message.content.trim().toLowerCase();
 
@@ -18,7 +26,7 @@ module.exports = async (client) => {
 
                 const embed = new EmbedBuilder()
                     .setTitle('✅ Pet Migration Complete')
-                    .setColor('#00FF00')
+                    .setColor(EMBED_COLORS.SUCCESS)
                     .addFields(
                         { name: 'Total Pets Found', value: result.total.toString(), inline: true },
                         { name: 'Pets Updated', value: result.updated.toString(), inline: true }

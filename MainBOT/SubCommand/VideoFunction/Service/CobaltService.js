@@ -2,10 +2,15 @@ const https = require('https');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const { EventEmitter } = require('events');
 const videoConfig = require('../Configuration/videoConfig');
 
-class CobaltService {
+/**
+ * Enhanced CobaltService with progress tracking and event emission
+ */
+class CobaltService extends EventEmitter {
     constructor() {
+        super();
         // Use configured Cobalt instances
         this.apiUrls = videoConfig.COBALT_INSTANCES || [
             'http://localhost:9000'
@@ -20,6 +25,7 @@ class CobaltService {
     switchApi() {
         this.currentApiIndex = (this.currentApiIndex + 1) % this.apiUrls.length;
         console.log(`🔄 Switching to Cobalt API: ${this.apiUrl}`);
+        this.emit('apiSwitch', { api: this.apiUrl });
     }
 
     async downloadVideo(url, tempDir) {
@@ -30,14 +36,18 @@ class CobaltService {
         const timestamp = Date.now();
         let lastError = null;
 
+        this.emit('stage', { stage: 'connecting', message: 'Connecting to Cobalt API...' });
+
         // Try each API instance
         for (let attempt = 0; attempt < this.apiUrls.length; attempt++) {
             try {
+                this.emit('attempt', { attempt: attempt + 1, total: this.apiUrls.length, api: this.apiUrl });
                 const result = await this._tryDownload(url, tempDir, timestamp);
                 return result;
             } catch (error) {
                 lastError = error;
                 console.error(`❌ Cobalt API ${this.apiUrl} failed:`, error.message);
+                this.emit('error', { api: this.apiUrl, error: error.message });
                 this.switchApi();
             }
         }
@@ -46,11 +56,14 @@ class CobaltService {
     }
 
     async _tryDownload(url, tempDir, timestamp) {
+        this.emit('stage', { stage: 'analyzing', message: 'Analyzing video...' });
         const downloadInfo = await this._requestDownload(url);
 
         if (!downloadInfo.url) {
             throw new Error(downloadInfo.error || 'Failed to get download URL');
         }
+
+        this.emit('stage', { stage: 'downloading', message: 'Downloading video file...' });
 
         const extension = downloadInfo.filename?.split('.').pop() || 'mp4';
         const outputPath = path.join(tempDir, `video_${timestamp}.${extension}`);
@@ -67,6 +80,12 @@ class CobaltService {
             fs.unlinkSync(outputPath);
             throw new Error('Downloaded file is empty');
         }
+
+        this.emit('complete', { 
+            path: outputPath, 
+            size: fileSizeInMB,
+            filename: downloadInfo.filename 
+        });
 
         if (fileSizeInMB > videoConfig.MAX_FILE_SIZE_MB) {
             console.log(`⚠️ Video is ${fileSizeInMB.toFixed(2)}MB, will attempt compression`);
@@ -172,6 +191,10 @@ class CobaltService {
             let redirectCount = 0;
             const maxRedirects = 10;
             let totalBytes = 0;
+            let downloadedBytes = 0;
+            let lastProgressUpdate = 0;
+            const progressUpdateInterval = 500; // Update every 500ms
+            const startTime = Date.now();
 
             const download = (downloadUrl) => {
                 if (redirectCount >= maxRedirects) {
@@ -210,17 +233,48 @@ class CobaltService {
                         return;
                     }
 
+                    // Get content length for progress tracking
+                    totalBytes = parseInt(response.headers['content-length'], 10) || 0;
+
                     const file = fs.createWriteStream(outputPath);
                     
                     response.on('data', (chunk) => {
-                        totalBytes += chunk.length;
+                        downloadedBytes += chunk.length;
+                        
+                        // Emit progress updates at intervals
+                        const now = Date.now();
+                        if (now - lastProgressUpdate >= progressUpdateInterval) {
+                            const elapsed = (now - startTime) / 1000;
+                            const speed = downloadedBytes / elapsed;
+                            const percent = totalBytes > 0 ? (downloadedBytes / totalBytes) * 100 : 0;
+                            const eta = totalBytes > 0 && speed > 0 ? (totalBytes - downloadedBytes) / speed : 0;
+                            
+                            this.emit('progress', {
+                                downloaded: downloadedBytes,
+                                total: totalBytes,
+                                percent: Math.min(percent, 100),
+                                speed,
+                                eta
+                            });
+                            lastProgressUpdate = now;
+                        }
                     });
                     
                     response.pipe(file);
 
                     file.on('finish', () => {
                         file.close();
-                        console.log(`✅ Downloaded ${(totalBytes / 1024 / 1024).toFixed(2)} MB`);
+                        
+                        // Emit final progress
+                        this.emit('progress', {
+                            downloaded: downloadedBytes,
+                            total: downloadedBytes,
+                            percent: 100,
+                            speed: 0,
+                            eta: 0
+                        });
+                        
+                        console.log(`✅ Downloaded ${(downloadedBytes / 1024 / 1024).toFixed(2)} MB`);
                         resolve();
                     });
 
