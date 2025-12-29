@@ -335,8 +335,31 @@ registerTicketSystem(client);
 migratePetsCommand(client);
 registerCodeRedemption(client);
 
-
 client.on('interactionCreate', async interaction => {
+    // Handle Select Menus FIRST (before buttons)
+    if (interaction.isStringSelectMenu()) {
+        console.log('📋 Select menu interaction received:', interaction.customId);
+
+        // Rule34 settings select menus
+        if (interaction.customId.startsWith('r34_setting_')) {
+            const rule34Command = client.commands.get('rule34');
+            if (rule34Command && rule34Command.handleSelectMenu) {
+                try {
+                    await rule34Command.handleSelectMenu(interaction);
+                } catch (error) {
+                    console.error('Rule34 select menu handler error:', error);
+                    if (!interaction.replied && !interaction.deferred) {
+                        await interaction.reply({
+                            content: '❌ An error occurred while updating settings.',
+                            ephemeral: true
+                        }).catch(() => {});
+                    }
+                }
+            }
+            return;
+        }
+    }
+
     if (interaction.isButton()) {
         console.log('🔘 Button interaction received:', interaction.customId);
 
@@ -367,7 +390,7 @@ client.on('interactionCreate', async interaction => {
             return;
         }
 
-        // Reddit button handlers - updated patterns
+        // Reddit button handlers
         if (interaction.customId.startsWith('reddit_')) {
             const redditCommand = client.commands.get('reddit');
             if (redditCommand && redditCommand.handleButton) {
@@ -395,19 +418,26 @@ client.on('interactionCreate', async interaction => {
 
         // Steam button handlers
         if (interaction.customId.startsWith('steam_')) {
-            // Steam buttons are handled by the collector in saleHandler
             return;
         }
 
-        if (interaction.customId.startsWith('rule34_')) {
+        // Rule34 button handlers
+        if (interaction.customId.startsWith('r34_') || interaction.customId.startsWith('rule34_')) {
             const rule34Command = client.commands.get('rule34');
             if (rule34Command && rule34Command.handleButton) {
                 try {
                     await rule34Command.handleButton(interaction);
                 } catch (error) {
                     console.error('Rule34 button handler error:', error);
+                    if (!interaction.replied && !interaction.deferred) {
+                        await interaction.reply({
+                            content: '❌ An error occurred. Please try again.',
+                            ephemeral: true
+                        }).catch(() => {});
+                    }
                 }
             }
+            return;
         }
 
         return;
@@ -440,7 +470,6 @@ client.on('interactionCreate', async interaction => {
         try {
             await command.autocomplete(interaction);
         } catch (error) {
-            // Silently ignore autocomplete errors - they're non-critical
             console.log(`[Autocomplete] Error for ${interaction.commandName}:`, error.message);
         }
         return;

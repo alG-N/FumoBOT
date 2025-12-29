@@ -146,11 +146,11 @@ class LavalinkService {
             });
 
             player.on('exception', (data) => {
-                console.log(`[Lavalink] PLAYER EVENT: exception fired for guild ${guildId}`);
+                console.log(`[Lavalink] PLAYER EVENT: exception fired for guild ${guildId}`, data);
             });
 
             player.on('stuck', (data) => {
-                console.log(`[Lavalink] PLAYER EVENT: stuck fired for guild ${guildId}`);
+                console.log(`[Lavalink] PLAYER EVENT: stuck fired for guild ${guildId}, data:`, data);
             });
 
             player.on('update', (data) => {
@@ -334,7 +334,7 @@ class LavalinkService {
             });
 
             if (!result || result.loadType === 'error' || result.loadType === 'empty') {
-                console.log('[Lavalink] YouTube playlist search failed, trying SoundCloud fallback...');
+                console.log(`[Lavalink] ${lavalinkConfig.defaultSearchPlatform} playlist search failed, trying fallback search without platform prefix...`);
                 
                 result = await node.rest.resolve(query);
 
