@@ -360,9 +360,11 @@ async function confirmSigilActivation(interaction, client) {
         // Disable all other boosts by marking them and storing remaining time for timer freeze
         const now = Date.now();
         const otherBoosts = await all(
-            `SELECT id, expiresAt, extra FROM activeBoosts WHERE userId = ? AND source != ?`,
+            `SELECT userId, type, source, expiresAt, extra FROM activeBoosts WHERE userId = ? AND source != ?`,
             [userId, SIGIL_CONFIG.source]
         );
+        
+        console.log(`[S!gil] Freezing ${otherBoosts.length} boosts for user ${userId}`);
         
         for (const boost of otherBoosts) {
             let extra = {};
@@ -374,11 +376,14 @@ async function confirmSigilActivation(interaction, client) {
             // Store remaining time so we can restore it when S!gil expires
             if (boost.expiresAt && boost.expiresAt > now) {
                 extra.frozenTimeRemaining = boost.expiresAt - now;
+                console.log(`[S!gil] Freezing boost ${boost.type}/${boost.source}: expiresAt=${boost.expiresAt}, now=${now}, frozenTimeRemaining=${extra.frozenTimeRemaining}`);
+            } else {
+                console.log(`[S!gil] Boost ${boost.type}/${boost.source} has no valid expiresAt (${boost.expiresAt})`);
             }
             
             await run(
-                `UPDATE activeBoosts SET extra = ? WHERE id = ?`,
-                [JSON.stringify(extra), boost.id]
+                `UPDATE activeBoosts SET extra = ? WHERE userId = ? AND type = ? AND source = ?`,
+                [JSON.stringify(extra), boost.userId, boost.type, boost.source]
             );
         }
 

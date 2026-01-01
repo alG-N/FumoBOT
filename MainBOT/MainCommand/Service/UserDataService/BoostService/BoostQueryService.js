@@ -39,7 +39,7 @@ async function getActiveBoosts(userId) {
                 `SELECT type, source, multiplier, expiresAt, uses, stack, extra
                  FROM activeBoosts
                  WHERE userId = ? AND source != 'S!gil' AND (expiresAt IS NULL OR expiresAt > ?)
-                 AND json_extract(extra, '$.sigilDisabled') = true`,
+                 AND json_extract(extra, '$.sigilDisabled') = 1`,
                 [userId, now]
             );
         } else {
@@ -48,7 +48,7 @@ async function getActiveBoosts(userId) {
                 `SELECT type, source, multiplier, expiresAt, uses, stack, extra
                  FROM activeBoosts
                  WHERE userId = ? AND (expiresAt IS NULL OR expiresAt > ?)
-                 AND (extra IS NULL OR json_extract(extra, '$.sigilDisabled') IS NOT true)`,
+                 AND (extra IS NULL OR json_extract(extra, '$.sigilDisabled') IS NULL OR json_extract(extra, '$.sigilDisabled') != 1)`,
                 [userId, now]
             );
         }

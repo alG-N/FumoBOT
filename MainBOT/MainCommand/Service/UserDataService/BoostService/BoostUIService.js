@@ -178,10 +178,18 @@ function formatDisabledBoostLine(boost) {
     if (extra) {
         try {
             const extraData = typeof extra === 'string' ? JSON.parse(extra) : extra;
+            console.log(`[formatDisabledBoostLine] ${type}/${source} extraData:`, extraData);
             if (extraData.frozenTimeRemaining && extraData.frozenTimeRemaining > 0) {
                 frozenTimer = ` (${formatTime(extraData.frozenTimeRemaining)})`;
+                console.log(`[formatDisabledBoostLine] Using frozenTimeRemaining: ${extraData.frozenTimeRemaining}`);
+            } else {
+                console.log(`[formatDisabledBoostLine] No frozenTimeRemaining found in extra`);
             }
-        } catch {}
+        } catch (e) {
+            console.log(`[formatDisabledBoostLine] Error parsing extra:`, e.message);
+        }
+    } else {
+        console.log(`[formatDisabledBoostLine] ${type}/${source} has no extra field`);
     }
 
     // Use custom displayValue if available
@@ -214,16 +222,16 @@ function formatDisabledBoostLine(boost) {
         return `• ~~**${source}**~~ — ×${multiplier.toFixed(2)} roll speed${frozenTimer} (**FROZEN**)`;
     }
 
-    // VOID Trait
+    // VOID Trait - use 1 in X format
     if (type === 'voidTrait') {
-        const chance = (multiplier * 100).toFixed(2);
-        return `• ~~**${source}**~~ — 🌀 VOID Trait: ${chance}%${frozenTimer} (**FROZEN**)`;
+        const oneInX = multiplier > 0 ? Math.round(1 / multiplier).toLocaleString() : '?';
+        return `• ~~**${source}**~~ — 🌀 VOID Trait: 1 in ${oneInX}${frozenTimer} (**FROZEN**)`;
     }
 
     // GLITCHED Trait  
     if (type === 'glitchedTrait') {
-        const chance = multiplier > 0 ? `1 in ${Math.round(1/multiplier).toLocaleString()}` : 'Enabled';
-        return `• ~~**${source}**~~ — 🔮 GLITCHED Trait: ${chance}${frozenTimer} (**FROZEN**)`;
+        const oneInX = multiplier > 0 ? Math.round(1 / multiplier).toLocaleString() : '?';
+        return `• ~~**${source}**~~ — 🔮 GLITCHED Trait: 1 in ${oneInX}${frozenTimer} (**FROZEN**)`;
     }
 
     // Variant/Trait Luck
@@ -282,16 +290,16 @@ function formatBoostLine(boost, now) {
 
     // === SPECIAL EFFECTS ===
     
-    // VOID Trait
+    // VOID Trait - use 1 in X format
     if (type === 'voidTrait') {
-        const chance = (multiplier * 100).toFixed(2);
-        return `• **${source}** — 🌀 VOID Trait: ${chance}% chance (${timeLeft})`;
+        const oneInX = multiplier > 0 ? Math.round(1 / multiplier).toLocaleString() : '?';
+        return `• **${source}** — 🌀 VOID Trait: 1 in ${oneInX} (${timeLeft})`;
     }
 
     // GLITCHED Trait  
     if (type === 'glitchedTrait') {
-        const chance = multiplier > 0 ? `1 in ${Math.round(1/multiplier).toLocaleString()}` : 'Enabled';
-        return `• **${source}** — 🔮 GLITCHED Trait: ${chance} (${timeLeft})`;
+        const oneInX = multiplier > 0 ? Math.round(1 / multiplier).toLocaleString() : '?';
+        return `• **${source}** — 🔮 GLITCHED Trait: 1 in ${oneInX} (${timeLeft})`;
     }
 
     // Variant/Trait Luck

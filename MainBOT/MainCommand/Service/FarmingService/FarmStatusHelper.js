@@ -78,7 +78,7 @@ async function getActiveBoosts(userId, now) {
         return await all(
             `SELECT type, multiplier, source, expiresAt FROM activeBoosts 
              WHERE userId = ? AND (expiresAt IS NULL OR expiresAt > ?)
-             AND (extra IS NULL OR json_extract(extra, '$.sigilDisabled') IS NOT true)`,
+             AND (extra IS NULL OR json_extract(extra, '$.sigilDisabled') IS NULL OR json_extract(extra, '$.sigilDisabled') != 1)`,
             [userId, now]
         );
     }

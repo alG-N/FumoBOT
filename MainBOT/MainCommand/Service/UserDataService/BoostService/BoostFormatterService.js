@@ -108,13 +108,13 @@ function formatBoostLabel(boost, timeLeft) {
 
     // === TIER 6 SPECIAL EFFECTS ===
     if (type === 'voidTrait') {
-        const chance = (multiplier * 100).toFixed(2);
-        return `• 🌀 **${source}** ([VOID Trait]: ${chance}% chance): ${timeLeft}`;
+        const oneInX = multiplier > 0 ? Math.round(1 / multiplier).toLocaleString() : '?';
+        return `• 🌀 **${source}** ([VOID Trait]: 1 in ${oneInX}): ${timeLeft}`;
     }
 
     if (type === 'glitchedTrait') {
-        const chance = multiplier > 0 ? `1 in ${Math.round(1/multiplier).toLocaleString()}` : 'Enabled';
-        return `• 🔮 **${source}** ([GLITCHED Trait]: ${chance}): ${timeLeft}`;
+        const oneInX = multiplier > 0 ? Math.round(1 / multiplier).toLocaleString() : '?';
+        return `• 🔮 **${source}** ([GLITCHED Trait]: 1 in ${oneInX}): ${timeLeft}`;
     }
 
     if (type === 'traitLuck') {

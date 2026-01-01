@@ -191,7 +191,7 @@ async function cleanupExpiredSigilBoosts(userId) {
     if (sigil && sigil.expiresAt && sigil.expiresAt <= now) {
         // Re-enable disabled boosts and restore frozen timers
         const disabledBoosts = await all(
-            `SELECT id, extra FROM activeBoosts 
+            `SELECT userId, type, source, extra FROM activeBoosts 
              WHERE userId = ? AND source != 'S!gil'
              AND json_extract(extra, '$.sigilDisabled') = 1`,
             [userId]
@@ -215,13 +215,13 @@ async function cleanupExpiredSigilBoosts(userId) {
             
             if (newExpiresAt) {
                 await run(
-                    `UPDATE activeBoosts SET extra = ?, expiresAt = ? WHERE id = ?`,
-                    [JSON.stringify(extra), newExpiresAt, boost.id]
+                    `UPDATE activeBoosts SET extra = ?, expiresAt = ? WHERE userId = ? AND type = ? AND source = ?`,
+                    [JSON.stringify(extra), newExpiresAt, boost.userId, boost.type, boost.source]
                 );
             } else {
                 await run(
-                    `UPDATE activeBoosts SET extra = ? WHERE id = ?`,
-                    [JSON.stringify(extra), boost.id]
+                    `UPDATE activeBoosts SET extra = ? WHERE userId = ? AND type = ? AND source = ?`,
+                    [JSON.stringify(extra), boost.userId, boost.type, boost.source]
                 );
             }
         }
