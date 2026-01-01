@@ -18,7 +18,7 @@
   },
   "1128296349566251068": {
     "normal": {
-      "rollCount": 3,
+      "rollCount": 2,
       "autoSell": true,
       "startTime": 1767252351086,
       "bestFumo": {
@@ -28,14 +28,14 @@
       },
       "bestFumoAt": "1/1/2026, 2:50:24 PM",
       "bestFumoRoll": 8,
-      "specialFumoCount": 175,
+      "specialFumoCount": 182,
       "specialFumoFirstAt": "1/1/2026, 2:25:51 PM",
       "specialFumoFirstRoll": 1
     }
   },
   "1448912158367813662": {
     "normal": {
-      "rollCount": 3,
+      "rollCount": 2,
       "autoSell": true,
       "startTime": 1767258569163,
       "bestFumo": {
@@ -45,7 +45,7 @@
       },
       "bestFumoAt": "1/1/2026, 4:49:25 PM",
       "bestFumoRoll": 9,
-      "specialFumoCount": 25,
+      "specialFumoCount": 26,
       "specialFumoFirstAt": "1/1/2026, 4:11:29 PM",
       "specialFumoFirstRoll": 3
     }

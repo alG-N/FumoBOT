@@ -7,11 +7,15 @@ function getBaseFumoNameWithRarity(fumoName) {
     return fumoName
         .replace(/\[✨SHINY\]/g, '')
         .replace(/\[🌟alG\]/g, '')
+        .replace(/\[🔮GLITCHED\]/g, '')
+        .replace(/\[🌀VOID\]/g, '')
         .trim();
 }
 
 function extractTrait(fumoName) {
     if (!fumoName) return null;
+    if (fumoName.includes('[🌀VOID]')) return 'VOID';
+    if (fumoName.includes('[🔮GLITCHED]')) return 'GLITCHED';
     if (fumoName.includes('[🌟alG]')) return 'alG';
     if (fumoName.includes('[✨SHINY]')) return 'SHINY';
     return null;
@@ -27,7 +31,27 @@ async function validateUserHasFumo(userId, fumoName) {
     
     let rows;
     
-    if (requestedTrait === 'alG') {
+    if (requestedTrait === 'VOID') {
+        rows = await all(
+            `SELECT id, fumoName, COUNT(*) as count 
+             FROM userInventory 
+             WHERE userId = ? 
+             AND fumoName LIKE ?
+             AND fumoName LIKE '%[🌀VOID]%'
+             GROUP BY fumoName`,
+            [userId, `${baseWithRarity}%`]
+        );
+    } else if (requestedTrait === 'GLITCHED') {
+        rows = await all(
+            `SELECT id, fumoName, COUNT(*) as count 
+             FROM userInventory 
+             WHERE userId = ? 
+             AND fumoName LIKE ?
+             AND fumoName LIKE '%[🔮GLITCHED]%'
+             GROUP BY fumoName`,
+            [userId, `${baseWithRarity}%`]
+        );
+    } else if (requestedTrait === 'alG') {
         rows = await all(
             `SELECT id, fumoName, COUNT(*) as count 
              FROM userInventory 
@@ -48,6 +72,7 @@ async function validateUserHasFumo(userId, fumoName) {
             [userId, `${baseWithRarity}%`]
         );
     } else {
+        // Base variant - get all variants
         rows = await all(
             `SELECT id, fumoName, COUNT(*) as count 
              FROM userInventory 
@@ -55,10 +80,12 @@ async function validateUserHasFumo(userId, fumoName) {
              AND (
                  fumoName = ? OR
                  fumoName = ? OR
+                 fumoName = ? OR
+                 fumoName = ? OR
                  fumoName = ?
              )
              GROUP BY fumoName`,
-            [userId, baseWithRarity, `${baseWithRarity}[✨SHINY]`, `${baseWithRarity}[🌟alG]`]
+            [userId, baseWithRarity, `${baseWithRarity}[✨SHINY]`, `${baseWithRarity}[🌟alG]`, `${baseWithRarity}[🔮GLITCHED]`, `${baseWithRarity}[🌀VOID]`]
         );
     }
     
@@ -97,7 +124,25 @@ async function getFumoIdForRemoval(userId, fumoName) {
     
     let exactMatch;
     
-    if (requestedTrait === 'alG') {
+    if (requestedTrait === 'VOID') {
+        exactMatch = await all(
+            `SELECT id, fumoName FROM userInventory 
+             WHERE userId = ? 
+             AND fumoName LIKE ?
+             AND fumoName LIKE '%[🌀VOID]%'
+             LIMIT 1`,
+            [userId, `${baseWithRarity}%`]
+        );
+    } else if (requestedTrait === 'GLITCHED') {
+        exactMatch = await all(
+            `SELECT id, fumoName FROM userInventory 
+             WHERE userId = ? 
+             AND fumoName LIKE ?
+             AND fumoName LIKE '%[🔮GLITCHED]%'
+             LIMIT 1`,
+            [userId, `${baseWithRarity}%`]
+        );
+    } else if (requestedTrait === 'alG') {
         exactMatch = await all(
             `SELECT id, fumoName FROM userInventory 
              WHERE userId = ? 
@@ -129,16 +174,19 @@ async function getFumoIdForRemoval(userId, fumoName) {
         return exactMatch[0].id;
     }
     
+    // Fallback: find any variant
     const anyVariant = await all(
         `SELECT id, fumoName FROM userInventory 
          WHERE userId = ? 
          AND (
              fumoName = ? OR
              fumoName = ? OR
+             fumoName = ? OR
+             fumoName = ? OR
              fumoName = ?
          )
          LIMIT 1`,
-        [userId, baseWithRarity, `${baseWithRarity}[✨SHINY]`, `${baseWithRarity}[🌟alG]`]
+        [userId, baseWithRarity, `${baseWithRarity}[✨SHINY]`, `${baseWithRarity}[🌟alG]`, `${baseWithRarity}[🔮GLITCHED]`, `${baseWithRarity}[🌀VOID]`]
     );
     
     if (anyVariant && anyVariant.length > 0) {
@@ -160,16 +208,20 @@ async function getAvailableVariants(userId, baseFumoName) {
          AND (
              fumoName = ? OR
              fumoName = ? OR
+             fumoName = ? OR
+             fumoName = ? OR
              fumoName = ?
          )
          GROUP BY fumoName
          ORDER BY 
              CASE 
-                 WHEN fumoName LIKE '%[🌟alG]%' THEN 1
-                 WHEN fumoName LIKE '%[✨SHINY]%' THEN 2
-                 ELSE 3
+                 WHEN fumoName LIKE '%[🌀VOID]%' THEN 1
+                 WHEN fumoName LIKE '%[🔮GLITCHED]%' THEN 2
+                 WHEN fumoName LIKE '%[🌟alG]%' THEN 3
+                 WHEN fumoName LIKE '%[✨SHINY]%' THEN 4
+                 ELSE 5
              END`,
-        [userId, baseWithRarity, `${baseWithRarity}[✨SHINY]`, `${baseWithRarity}[🌟alG]`]
+        [userId, baseWithRarity, `${baseWithRarity}[✨SHINY]`, `${baseWithRarity}[🌟alG]`, `${baseWithRarity}[🔮GLITCHED]`, `${baseWithRarity}[🌀VOID]`]
     );
     
     debugLog('MARKET_VALIDATOR', `[getAvailableVariants] Found variants for ${baseWithRarity}:`);
@@ -198,9 +250,20 @@ function validateFumoNameFormat(fumoName) {
     
     const hasShiny = fumoName.includes('[✨SHINY]');
     const hasAlG = fumoName.includes('[🌟alG]');
+    const hasGlitched = fumoName.includes('[🔮GLITCHED]');
+    const hasVoid = fumoName.includes('[🌀VOID]');
     
-    if (hasShiny && hasAlG) {
-        return { valid: false, error: 'MULTIPLE_TRAITS' };
+    // Count base variants (SHINY/alG are mutually exclusive)
+    const baseVariantCount = (hasShiny ? 1 : 0) + (hasAlG ? 1 : 0);
+    // Count special variants (GLITCHED/VOID are mutually exclusive)
+    const specialVariantCount = (hasGlitched ? 1 : 0) + (hasVoid ? 1 : 0);
+    
+    if (baseVariantCount > 1) {
+        return { valid: false, error: 'MULTIPLE_BASE_TRAITS' };
+    }
+    
+    if (specialVariantCount > 1) {
+        return { valid: false, error: 'MULTIPLE_SPECIAL_TRAITS' };
     }
     
     return { valid: true };
