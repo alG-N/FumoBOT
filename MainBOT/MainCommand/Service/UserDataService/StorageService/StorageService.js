@@ -47,41 +47,60 @@ class StorageService {
         return fumoName.includes('[✨SHINY]') || fumoName.includes('[🌟alG]');
     }
 
+    /**
+     * Check if fumo has VOID or GLITCHED variant (VOID+)
+     */
+    static isVoidPlus(fumoName) {
+        return fumoName.includes('[🌀VOID]') || fumoName.includes('[🔮GLITCHED]');
+    }
+
     static isHighTier(rarity) {
         return ['ASTRAL', 'CELESTIAL', 'INFINITE', 'ETERNAL', 'TRANSCENDENT', 'OTHERWORLDLY'].includes(rarity);
     }
 
     static buildInventoryData(inventoryRows, options = {}) {
-        const { showShinyPlus = false, hasFantasyBook = false, sortBy = 'rarity' } = options;
+        const { showShinyPlus = false, showVoidPlus = false, hasFantasyBook = false, sortBy = 'rarity' } = options;
         
         const categories = {};
         RARITY_ORDER.forEach(r => categories[r] = []);
         
         let totalFumos = 0;
         let totalShinyPlus = 0;
+        let totalVoidPlus = 0;
 
         for (const row of inventoryRows) {
             if (!row.fumoName) continue;
 
             const rarity = this.getRarity(row.fumoName);
             const isShiny = this.isShinyPlus(row.fumoName);
+            const isVoid = this.isVoidPlus(row.fumoName);
             const isHigh = this.isHighTier(rarity);
 
             // Count total fumos
             totalFumos += row.count;
             
-            // Count shiny separately
+            // Count shiny and void separately
             if (isShiny) {
                 totalShinyPlus += row.count;
             }
+            if (isVoid) {
+                totalVoidPlus += row.count;
+            }
 
             // Filter for display based on mode
-            // If showing shiny+, only show shiny fumos
-            // If showing normal, only show non-shiny fumos
-            if (showShinyPlus !== isShiny) continue;
+            // If showing VOID+, only show VOID/GLITCHED fumos
+            // If showing SHINY+, only show SHINY/alG fumos (but NOT void variants)
+            // If showing normal, only show non-variant fumos
+            if (showVoidPlus) {
+                if (!isVoid) continue;
+            } else if (showShinyPlus) {
+                if (!isShiny || isVoid) continue; // SHINY+ excludes VOID variants
+            } else {
+                if (isShiny || isVoid) continue; // Normal excludes all variants
+            }
             
             // If showing normal fumos and it's high tier without fantasy book, skip
-            if (!showShinyPlus && isHigh && !hasFantasyBook) continue;
+            if (!showShinyPlus && !showVoidPlus && isHigh && !hasFantasyBook) continue;
 
             const cleanName = this.cleanFumoName(row.fumoName);
             categories[rarity].push({ 
@@ -105,7 +124,7 @@ class StorageService {
             });
         }
 
-        return { categories, visibleRarities, totalFumos, totalShinyPlus };
+        return { categories, visibleRarities, totalFumos, totalShinyPlus, totalVoidPlus };
     }
 
     static getStatsForRarity(categories, rarity) {
@@ -117,11 +136,12 @@ class StorageService {
     }
 
     static getInventorySummary(inventoryData) {
-        const { categories, totalFumos, totalShinyPlus } = inventoryData;
+        const { categories, totalFumos, totalShinyPlus, totalVoidPlus } = inventoryData;
         
         const summary = {
             totalFumos,
             totalShinyPlus,
+            totalVoidPlus,
             byRarity: {}
         };
 

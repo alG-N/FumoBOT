@@ -26,7 +26,7 @@ function formatBoostPercentage(multiplier) {
 }
 
 function formatBoostLabel(boost, timeLeft) {
-    const { type, source, multiplier, uses, isDynamic, displayValue } = boost;
+    const { type, source, multiplier, uses, isDynamic, displayValue, extra } = boost;
 
     // Sanae blessing types with custom display
     if (displayValue) {
@@ -104,6 +104,55 @@ function formatBoostLabel(boost, timeLeft) {
 
     if (type === 'boostMultiplier') {
         return `• 👑 **Divine Amplification** (×${multiplier} all boosts): ${timeLeft}`;
+    }
+
+    // === TIER 6 SPECIAL EFFECTS ===
+    if (type === 'voidTrait') {
+        const chance = (multiplier * 100).toFixed(2);
+        return `• 🌀 **${source}** ([VOID Trait]: ${chance}% chance): ${timeLeft}`;
+    }
+
+    if (type === 'glitchedTrait') {
+        const chance = multiplier > 0 ? `1 in ${Math.round(1/multiplier).toLocaleString()}` : 'Enabled';
+        return `• 🔮 **${source}** ([GLITCHED Trait]: ${chance}): ${timeLeft}`;
+    }
+
+    if (type === 'traitLuck') {
+        return `• ✨ **${source}** ([Trait Luck]: x${multiplier.toFixed(2)}): ${timeLeft}`;
+    }
+
+    if (type === 'rollSpeed') {
+        return `• ⚡ **${source}** ([Roll Speed]: x${multiplier.toFixed(2)}): ${timeLeft}`;
+    }
+
+    // === S!GIL SPECIAL EFFECTS ===
+    if (type === 'sell' || type === 'sellvalue') {
+        const percent = Math.round(multiplier * 100);
+        return `• 📈 **${source}** ([Sell Value]: +${percent}%): ${timeLeft}`;
+    }
+
+    if (type === 'reimuLuck' || type === 'reimuluck') {
+        // multiplier is 5.0 for +500%, display as percentage
+        const percent = Math.round((multiplier - 1) * 100);
+        return `• 🙏 **${source}** ([Reimu Luck]: +${percent}%): ${timeLeft}`;
+    }
+
+    if (type === 'astralBlock' || type === 'astralblock') {
+        return `• 🚫 **${source}** ([ASTRAL+ Block]: Active): ${timeLeft}`;
+    }
+
+    if (type === 'nullifiedRolls' || type === 'nullifiedrolls') {
+        // Parse extra to get remaining/total
+        let remaining = 'Active';
+        if (extra) {
+            try {
+                const extraData = typeof extra === 'string' ? JSON.parse(extra) : extra;
+                if (extraData.remaining !== undefined) {
+                    remaining = `${extraData.remaining}/${extraData.total || 10}`;
+                }
+            } catch {}
+        }
+        return `• 🎰 **${source}** ([Nullified Rolls]: ${remaining}): ${timeLeft}`;
     }
 
     // Generic format: Source (effect): timer

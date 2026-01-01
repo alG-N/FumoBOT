@@ -1,9 +1,9 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Colors } = require('discord.js');
 const { SPECIAL_RARITIES, RARITY_PRIORITY, isRarer } = require('../../../Configuration/rarity');
 const { formatNumber } = require('../../../Ultility/formatting');
-const { getSanaeBoostDisplay } = require('./BoostService');
+const { getSanaeBoostDisplay, getTraitBoostDisplay } = require('./BoostService');
 
-function createShopEmbed(userData, boosts, hasFantasyBook, isAutoRollActive) {
+async function createShopEmbed(userData, boosts, hasFantasyBook, isAutoRollActive, userId) {
     const { coins, boostCharge, boostActive, boostRollsRemaining, rollsLeft, totalRolls, luck } = userData;
     const { pityTranscendent, pityEternal, pityInfinite, pityCelestial, pityAstral } = userData;
 
@@ -92,13 +92,13 @@ function createShopEmbed(userData, boosts, hasFantasyBook, isAutoRollActive) {
     if (rollsLeft > 0 && !isBoostActive) {
         ancientNoteLines.push(`✨ Bonus Roll active! Luck boosted by 2×`);
     }
-    if (boosts.mysteriousLuckMultiplier > 1) {
+    if (boosts.mysteriousLuckMultiplier && boosts.mysteriousLuckMultiplier > 1) {
         ancientNoteLines.push(`🧊 MysteriousCube active! Luck boosted by ${boosts.mysteriousLuckMultiplier.toFixed(2)}×`);
     }
-    if (boosts.mysteriousDiceMultiplier !== 1) {
+    if (boosts.mysteriousDiceMultiplier && boosts.mysteriousDiceMultiplier !== 1) {
         ancientNoteLines.push(`🎲 MysteriousDice active! Luck boosted by ${boosts.mysteriousDiceMultiplier.toFixed(4)}× (random per hour)`);
     }
-    if (boosts.petBoost > 1) {
+    if (boosts.petBoost && boosts.petBoost > 1) {
         ancientNoteLines.push(`🐰 Pet boost active! Luck boosted by ${boosts.petBoost.toFixed(4)}×`);
     }
     if (luck > 0) {
@@ -119,6 +119,14 @@ function createShopEmbed(userData, boosts, hasFantasyBook, isAutoRollActive) {
         ancientNoteLines.push(''); // Empty line separator
         ancientNoteLines.push('⛩️ Sanae Blessings Active:');
         sanaeBoosts.forEach(boost => ancientNoteLines.push(`  ${boost}`));
+    }
+
+    // Build VOID/GLITCHED trait boosts for footer
+    const traitBoosts = userId ? await getTraitBoostDisplay(userId) : [];
+    if (traitBoosts.length > 0) {
+        ancientNoteLines.push(''); // Empty line separator
+        ancientNoteLines.push('🌌 Special Traits Active:');
+        traitBoosts.forEach(trait => ancientNoteLines.push(`  ${trait}`));
     }
 
     const ancientNote = ancientNoteLines.length > 0 ? ancientNoteLines.join('\n') : 'No luck boost applied...';
@@ -182,13 +190,13 @@ async function displaySingleRollAnimation(interaction, fumo, rarity) {
     
     const embed = new EmbedBuilder()
         .setTitle('🎁 Unleashing an extraordinary surprise box just for you... ✨-golden-✨')
-        .setImage('https://img.freepik.com/premium-photo/gift-box-present-isolated_63260-45.jpg')
+        .setImage('https://media1.tenor.com/m/61n1xggC5tEAAAAd/gift-present.gif')
         .setColor(hasRareFumo ? Colors.Gold : Colors.White);
 
     await interaction.reply({ embeds: [embed], ephemeral: true });
 
     setTimeout(async () => {
-        embed.setImage('https://www.shutterstock.com/image-illustration/open-gift-box-3d-illustration-260nw-275157815.jpg');
+        embed.setImage('https://media1.tenor.com/m/K6j0cFLkHhcAAAAC/gift-surprise.gif');
         await interaction.editReply({ embeds: [embed] });
 
         setTimeout(async () => {
@@ -206,22 +214,36 @@ async function displaySingleRollAnimation(interaction, fumo, rarity) {
 }
 
 async function displayMultiRollResults(interaction, fumosBought, bestFumo, rollCount) {
+    // Safety check for empty results
+    if (!fumosBought || fumosBought.length === 0 || !bestFumo) {
+        const errorMsg = '❌ No fumos were obtained. This might be a storage or pool issue.';
+        if (interaction.deferred) {
+            return await interaction.editReply({ content: errorMsg });
+        }
+        return await interaction.reply({ content: errorMsg, ephemeral: true });
+    }
+    
     const isRareCutscene = isRarer(bestFumo.rarity, 'LEGENDARY');
     const embedColor = rollCount === 10 ? Colors.Yellow : Colors.Gold;
 
     const embed = new EmbedBuilder()
         .setTitle(`🌟💫 Opening the ${rollCount === 10 ? 'Golden' : 'Legendary'} Fumo Box... 💫🌟`)
         .setImage(rollCount === 10
-            ? 'https://5.imimg.com/data5/HH/SX/MY-6137980/golden-gift-box-500x500.jpg'
-            : 'https://media.istockphoto.com/id/610990634/photo/businessman-looking-at-huge-present.jpg?s=612x612&w=0&k=20&c=blc7bjEGc8pbmfYKnmqw7g5jp32rMTDAI5y5W9Z4ZOo=')
+            ? 'https://media1.tenor.com/m/61n1xggC5tEAAAAd/gift-present.gif'
+            : 'https://media1.tenor.com/m/xFfpMgC0lswAAAAC/treasure-chest-minecraft.gif')
         .setColor(embedColor);
 
-    await interaction.reply({ embeds: [embed], ephemeral: true });
+    // Handle deferred vs non-deferred interactions
+    if (interaction.deferred) {
+        await interaction.editReply({ embeds: [embed] });
+    } else {
+        await interaction.reply({ embeds: [embed], ephemeral: true });
+    }
 
     setTimeout(async () => {
         embed.setImage(rollCount === 10
-            ? 'https://img.freepik.com/premium-vector/open-golden-gift-box-gold-confetti_302982-1365.jpg'
-            : 'https://media.istockphoto.com/id/494384016/photo/young-men-coming-up-from-a-big-box.jpg?s=612x612&w=0&k=20&c=LkQMIrS-CNqNARtscgK-lmijIt8ZyT4UFB9fqigSM1I=');
+            ? 'https://media1.tenor.com/m/K6j0cFLkHhcAAAAC/gift-surprise.gif'
+            : 'https://media1.tenor.com/m/xFfpMgC0lswAAAAC/treasure-chest-minecraft.gif');
         await interaction.editReply({ embeds: [embed] });
 
         setTimeout(async () => {
@@ -229,12 +251,8 @@ async function displayMultiRollResults(interaction, fumosBought, bestFumo, rollC
                 ? "✨ A sudden burst of radiance... An extraordinary spectacle indeed! ✨"
                 : `🎁 The ${rollCount === 10 ? 'golden box' : 'treasure chest'} reveals...`)
                 .setImage(isRareCutscene
-                    ? (rollCount === 10
-                        ? 'https://previews.123rf.com/images/baks/baks1412/baks141200006/34220442-christmas-background-with-open-golden-box-with-stars-and-confetti.jpg'
-                        : 'https://media.istockphoto.com/id/579738794/vector/open-gift-box-with-shiny-light.jpg?s=1024x1024&w=is&k=20&c=573dQ-4CGCMwQcKaha-zbqCBJrgj7cAf_cwNeBSHyoI=')
-                    : (rollCount === 10
-                        ? 'https://media.istockphoto.com/id/865744872/photo/golden-glowing-box-of-light.jpg?s=612x612&w=0&k=20&c=14_RsYdmgE8OLV70elc3sLQRuuK3i_IYA0M5aGPiTtA='
-                        : 'https://boxfox.com.au/cdn/shop/products/Large_gift_box_-_Red_lid_open_2DC_2623_800x.jpg?v=1556515906'));
+                    ? 'https://media1.tenor.com/m/nIB3IJ8n6qYAAAAC/light-anime.gif'
+                    : 'https://media1.tenor.com/m/K6j0cFLkHhcAAAAC/gift-surprise.gif');
             await interaction.editReply({ embeds: [embed] });
 
             setTimeout(async () => {

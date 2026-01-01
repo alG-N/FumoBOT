@@ -1,28 +1,60 @@
 const { get, all } = require('../../../Core/database');
 const { BOOST_TYPES, SPECIAL_SOURCES } = require('../../../Configuration/boostConfig');
 
+/**
+ * Check if S!gil is currently active for a user
+ */
+async function isSigilActive(userId) {
+    const now = Date.now();
+    const sigil = await get(
+        `SELECT * FROM activeBoosts 
+         WHERE userId = ? AND source = 'S!gil' AND type = 'coin'
+         AND (expiresAt IS NULL OR expiresAt > ?)`,
+        [userId, now]
+    );
+    return !!sigil;
+}
+
 async function getActiveBoosts(userId) {
     const now = Date.now();
 
     try {
-        const [boosts, userData, mysteriousDice, timeClock, sanaeBoosts] = await Promise.all([
-            all(
-                `SELECT type, source, multiplier, expiresAt, uses
+        // Check if S!gil is active first
+        const sigilActive = await isSigilActive(userId);
+        
+        let boostQuery;
+        if (sigilActive) {
+            // Only get S!gil boosts when S!gil is active
+            boostQuery = all(
+                `SELECT type, source, multiplier, expiresAt, uses, stack, extra
                  FROM activeBoosts
-                 WHERE userId = ? AND (expiresAt IS NULL OR expiresAt > ?)`,
+                 WHERE userId = ? AND source = 'S!gil' AND (expiresAt IS NULL OR expiresAt > ?)`,
                 [userId, now]
-            ),
+            );
+        } else {
+            // Get all non-sigilDisabled boosts
+            boostQuery = all(
+                `SELECT type, source, multiplier, expiresAt, uses, stack, extra
+                 FROM activeBoosts
+                 WHERE userId = ? AND (expiresAt IS NULL OR expiresAt > ?)
+                 AND (extra IS NULL OR json_extract(extra, '$.sigilDisabled') IS NOT true)`,
+                [userId, now]
+            );
+        }
+        
+        const [boosts, userData, mysteriousDice, timeClock, sanaeBoosts] = await Promise.all([
+            boostQuery,
             get(`SELECT rollsLeft, luck FROM userCoins WHERE userId = ?`, [userId]),
-            getMysteriousDiceBoost(userId, now),
-            getTimeClockBoost(userId, now),
-            getSanaeBoosts(userId, now)
+            sigilActive ? null : getMysteriousDiceBoost(userId, now),
+            sigilActive ? null : getTimeClockBoost(userId, now),
+            sigilActive ? [] : getSanaeBoosts(userId, now)
         ]);
 
         const categorized = categorizeBoosts(boosts || []);
 
-        // Add permanent luck as a luck boost if > 0
+        // Add permanent luck as a luck boost if > 0 (only if S!gil not active)
         // Cap display at 500% (5.0)
-        if (userData?.luck > 0) {
+        if (!sigilActive && userData?.luck > 0) {
             const cappedLuck = Math.min(userData.luck, 5.0); // Cap at 500%
             categorized.luck.push({
                 type: 'luck',
@@ -41,8 +73,8 @@ async function getActiveBoosts(userId) {
             categorized.cooldown.push(timeClock);
         }
 
-        // Add Sanae boosts
-        if (sanaeBoosts && sanaeBoosts.length > 0) {
+        // Add Sanae boosts (only if S!gil not active)
+        if (!sigilActive && sanaeBoosts && sanaeBoosts.length > 0) {
             categorized.sanae = sanaeBoosts;
         } else {
             categorized.sanae = [];
@@ -257,14 +289,15 @@ function categorizeBoosts(boosts) {
         cooldown: [],
         debuff: [],
         yuyukoRolls: [],
-        sanae: []
+        sanae: [],
+        special: [] // For Tier 6 special effects
     };
 
     for (const boost of boosts) {
         const type = boost.type.toLowerCase();
 
         if (boost.source === SPECIAL_SOURCES.MYSTERIOUS_DICE) continue;
-        if (type === 'summonSpeed' && boost.source === SPECIAL_SOURCES.TIME_CLOCK) continue;
+        if (type === 'summonspeed' && boost.source === SPECIAL_SOURCES.TIME_CLOCK) continue;
 
         if (type === 'coin') {
             categorized.coin.push(boost);
@@ -276,8 +309,16 @@ function categorizeBoosts(boosts) {
             categorized.debuff.push(boost);
         } else if (type === 'rarityoverride') {
             categorized.luck.push(boost);
-        } else if (type === 'summoncooldown') {
+        } else if (type === 'summoncooldown' || type === 'summonspeed') {
             categorized.cooldown.push(boost);
+        } else if (type === 'rollspeed') {
+            categorized.cooldown.push(boost);
+        } else if (type === 'voidtrait' || type === 'glitchedtrait' || type === 'traitluck' || type === 'variantluck') {
+            // Tier 6 special effects
+            categorized.special.push(boost);
+        } else if (type === 'sell' || type === 'sellvalue' || type === 'reimuluck' || type === 'astralblock' || type === 'nullifiedrolls') {
+            // S!gil special effects
+            categorized.special.push(boost);
         }
     }
 
@@ -285,9 +326,25 @@ function categorizeBoosts(boosts) {
 }
 
 function calculateTotals(categorized) {
+    // Boosts stack ADDITIVELY, not multiplicatively
+    // Each boost's multiplier is like: 1.5 = +50%, 16 = +1500%, etc.
+    // We sum up the bonus portions: (multiplier - 1) for each
+    
+    let coinTotal = 1;
+    let gemTotal = 1;
+    
+    for (const boost of categorized.coin) {
+        // Add the bonus portion (multiplier - 1) means +X%
+        coinTotal += (boost.multiplier - 1);
+    }
+    
+    for (const boost of categorized.gem) {
+        gemTotal += (boost.multiplier - 1);
+    }
+    
     return {
-        coin: categorized.coin.reduce((acc, b) => acc * b.multiplier, 1),
-        gem: categorized.gem.reduce((acc, b) => acc * b.multiplier, 1),
+        coin: coinTotal,
+        gem: gemTotal,
         luck: Math.max(...categorized.luck.map(b => b.multiplier), 1)
     };
 }

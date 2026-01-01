@@ -1,321 +1,511 @@
 const { run, get, all, transaction } = require('../../../Core/database');
-const { SHINY_CONFIG, SELL_REWARDS } = require('../../../Configuration/rarity');
+const { SHINY_CONFIG, SELL_REWARDS, VARIANT_CONFIG, ASTRAL_PLUS_RARITIES } = require('../../../Configuration/rarity');
 const { incrementWeeklyShiny } = require('../../../Ultility/weekly');
 const { debugLog } = require('../../../Core/logger');
 const { STORAGE_CONFIG } = require('../../../Configuration/storageConfig');
 const StorageLimitService = require('../../UserDataService/StorageService/StorageLimitService');
 
-async function selectAndAddFumo(userId, rarity, fumos, luck = 0) {
-    debugLog('INVENTORY', `Selecting fumo for user ${userId}, rarity: ${rarity}`);
-    
-    const matchingFumos = fumos.filter(f => f.name.includes(rarity));
-    if (matchingFumos.length === 0) {
-        debugLog('INVENTORY', `No fumos found for rarity: ${rarity}`);
-        return null;
+// Define ASTRAL+ rarities for duplicate blocking (if not in rarity config)
+const ASTRAL_PLUS = ASTRAL_PLUS_RARITIES || ['ASTRAL', 'CELESTIAL', 'INFINITE', 'ETERNAL', 'TRANSCENDENT'];
+
+/**
+ * Special variant configurations
+ * GLITCHED and VOID are separate traits like SHINY and alG
+ */
+const SPECIAL_VARIANTS = {
+    GLITCHED: {
+        tag: '[🔮GLITCHED]',
+        emoji: '🔮',
+        sources: ['S!gil', 'CosmicCore'],
+        priority: 1 // Highest priority
+    },
+    VOID: {
+        tag: '[🌀VOID]',
+        emoji: '🌀',
+        sources: ['VoidCrystal'],
+        priority: 2
     }
+};
 
-    const fumo = matchingFumos[Math.floor(Math.random() * matchingFumos.length)];
+/**
+ * Get active special variant boost for a user
+ * GLITCHED and VOID can both exist and are rolled independently
+ * Returns all active variant chances
+ */
+async function getActiveSpecialVariants(userId) {
+    const now = Date.now();
+    const variants = {
+        glitched: null,
+        void: null
+    };
     
-    const shinyChance = SHINY_CONFIG.BASE_CHANCE + (Math.min(1, luck || 0) * SHINY_CONFIG.LUCK_BONUS);
-    const alGChance = SHINY_CONFIG.ALG_BASE_CHANCE + (Math.min(1, luck || 0) * SHINY_CONFIG.ALG_LUCK_BONUS);
-
-    const isAlterGolden = Math.random() < alGChance;
-    const isShiny = !isAlterGolden && Math.random() < shinyChance;
-
-    let fumoName = fumo.name;
-    if (isAlterGolden) {
-        fumoName += '[🌟alG]';
-        await incrementWeeklyShiny(userId);
-        debugLog('INVENTORY', `alterGolden variant rolled for ${fumoName}`);
-    } else if (isShiny) {
-        fumoName += '[✨SHINY]';
-        await incrementWeeklyShiny(userId);
-        debugLog('INVENTORY', `Shiny variant rolled for ${fumoName}`);
-    }
-
-    await run(`INSERT INTO userInventory (userId, fumoName) VALUES (?, ?)`, [userId, fumoName]);
-
-    debugLog('INVENTORY', `Added ${fumoName} to user ${userId}'s inventory`);
-    return { ...fumo, rarity, name: fumoName };
-}
-
-async function selectAndAddMultipleFumos(userId, rarities, fumos, luck = 0) {
-    debugLog('INVENTORY', `Batch selecting ${rarities.length} fumos for user ${userId}`);
+    // Check if S!gil is active (has priority for glitched)
+    const sigilActive = await get(
+        `SELECT * FROM activeBoosts 
+         WHERE userId = ? AND source = 'S!gil' AND type = 'coin'
+         AND (expiresAt IS NULL OR expiresAt > ?)`,
+        [userId, now]
+    );
     
-    const fumosToAdd = [];
-    const fumoResults = [];
-    let shinyCount = 0;  // Add debug counter
-    let alGCount = 0;    // Add debug counter
-    
-    for (const rarity of rarities) {
-        const matchingFumos = fumos.filter(f => f.name.includes(rarity));
-        if (matchingFumos.length === 0) continue;
-
-        const fumo = matchingFumos[Math.floor(Math.random() * matchingFumos.length)];
+    if (sigilActive) {
+        // Get S!gil glitched chance (S!gil has priority for GLITCHED)
+        const sigilGlitched = await get(
+            `SELECT multiplier, extra FROM activeBoosts 
+             WHERE userId = ? AND source = 'S!gil' AND type = 'glitchedTrait'
+             AND (expiresAt IS NULL OR expiresAt > ?)`,
+            [userId, now]
+        );
         
-        const shinyChance = SHINY_CONFIG.BASE_CHANCE + (Math.min(1, luck || 0) * SHINY_CONFIG.LUCK_BONUS);
-        const alGChance = SHINY_CONFIG.ALG_BASE_CHANCE + (Math.min(1, luck || 0) * SHINY_CONFIG.ALG_LUCK_BONUS);
-
-        const isAlterGolden = Math.random() < alGChance;
-        const isShiny = !isAlterGolden && Math.random() < shinyChance;
-
-        let fumoName = fumo.name;
-        if (isAlterGolden) {
-            fumoName += '[🌟alG]';
-            alGCount++;
-            await incrementWeeklyShiny(userId);
-        } else if (isShiny) {
-            fumoName += '[✨SHINY]';
-            shinyCount++;
-            await incrementWeeklyShiny(userId);
+        if (sigilGlitched) {
+            try {
+                const extra = JSON.parse(sigilGlitched.extra || '{}');
+                variants.glitched = {
+                    chance: extra.chance || sigilGlitched.multiplier,
+                    tag: extra.tag || SPECIAL_VARIANTS.GLITCHED.tag,
+                    source: 'S!gil'
+                };
+            } catch {}
         }
-
-        fumosToAdd.push([userId, fumoName]);
-        fumoResults.push({ ...fumo, rarity, name: fumoName });
+    } else {
+        // Check CosmicCore glitched (only when S!gil not active)
+        const cosmicGlitched = await get(
+            `SELECT multiplier, extra FROM activeBoosts 
+             WHERE userId = ? AND source = 'CosmicCore' AND type = 'glitchedTrait'
+             AND expiresAt > ?`,
+            [userId, now]
+        );
+        
+        if (cosmicGlitched) {
+            try {
+                const extra = JSON.parse(cosmicGlitched.extra || '{}');
+                variants.glitched = {
+                    chance: extra.chance || cosmicGlitched.multiplier,
+                    tag: extra.tag || SPECIAL_VARIANTS.GLITCHED.tag,
+                    source: 'CosmicCore'
+                };
+            } catch {}
+        }
     }
-
-    // Debug log the actual counts
-    if (shinyCount > 0 || alGCount > 0) {
-        // console.log(`🌟 Roll results for ${userId}: ${shinyCount} SHINY, ${alGCount} alG`);
+    
+    // Check VoidCrystal void (VOID is independent of S!gil, always active)
+    const voidCrystal = await get(
+        `SELECT multiplier, extra FROM activeBoosts 
+         WHERE userId = ? AND source = 'VoidCrystal' AND type = 'voidTrait'
+         AND expiresAt > ?`,
+        [userId, now]
+    );
+    
+    if (voidCrystal) {
+        try {
+            const extra = JSON.parse(voidCrystal.extra || '{}');
+            variants.void = {
+                chance: extra.chance || voidCrystal.multiplier,
+                tag: extra.tag || SPECIAL_VARIANTS.VOID.tag,
+                source: 'VoidCrystal'
+            };
+        } catch {}
     }
-
-    if (fumosToAdd.length === 0) return fumoResults;
-
-    const placeholders = fumosToAdd.map(() => '(?, ?)').join(', ');
-    const flatParams = fumosToAdd.flat();
     
-    await run(
-        `INSERT INTO userInventory (userId, fumoName) VALUES ${placeholders}`,
-        flatParams
-    );
+    return variants;
+}
 
-    debugLog('INVENTORY', `Batch inserted ${fumosToAdd.length} fumos for user ${userId}`);
+/**
+ * Get variant luck multiplier (affects SHINY/alG chances)
+ * From EternalEssence or S!gil - changed from 'traitLuck' to 'variantLuck'
+ */
+async function getVariantLuckMultiplier(userId) {
+    const now = Date.now();
     
-    return fumoResults;
-}
-
-async function deductCoins(userId, amount) {
-    debugLog('INVENTORY', `Deducting ${amount} coins from user ${userId}`);
-    await run(`UPDATE userCoins SET coins = coins - ? WHERE userId = ?`, [amount, userId]);
-}
-
-async function addCoins(userId, amount) {
-    debugLog('INVENTORY', `Adding ${amount} coins to user ${userId}`);
-    await run(`UPDATE userCoins SET coins = coins + ? WHERE userId = ?`, [amount, userId]);
-}
-
-async function addGems(userId, amount) {
-    debugLog('INVENTORY', `Adding ${amount} gems to user ${userId}`);
-    await run(`UPDATE userCoins SET gems = gems + ? WHERE userId = ?`, [amount, userId]);
-}
-
-async function getUserBalance(userId) {
-    const result = await get(
-        `SELECT coins, gems FROM userCoins WHERE userId = ?`,
-        [userId]
+    // Check if S!gil is active
+    const sigilActive = await get(
+        `SELECT * FROM activeBoosts 
+         WHERE userId = ? AND source = 'S!gil' AND type = 'coin'
+         AND (expiresAt IS NULL OR expiresAt > ?)`,
+        [userId, now]
     );
-    return result || { coins: 0, gems: 0 };
-}
-
-async function getUserInventory(userId) {
-    return await all(
-        `SELECT id, fumoName, quantity, rarity, dateObtained FROM userInventory WHERE userId = ? ORDER BY id DESC`,
-        [userId]
+    
+    if (sigilActive) {
+        // Only use S!gil variant luck when active
+        const sigilVariantLuck = await get(
+            `SELECT multiplier FROM activeBoosts 
+             WHERE userId = ? AND source = 'S!gil' AND type = 'variantLuck'
+             AND (expiresAt IS NULL OR expiresAt > ?)`,
+            [userId, now]
+        );
+        
+        return sigilVariantLuck?.multiplier || 1.0;
+    }
+    
+    // Check EternalEssence variant luck (24h duration now)
+    const eternalVariantLuck = await get(
+        `SELECT multiplier FROM activeBoosts 
+         WHERE userId = ? AND source = 'EternalEssence' AND type = 'variantLuck'
+         AND expiresAt > ?`,
+        [userId, now]
     );
+    
+    return eternalVariantLuck?.multiplier || 1.0;
 }
 
-async function getFumoByName(userId, fumoName) {
-    return await get(
-        `SELECT id, fumoName, quantity, rarity FROM userInventory WHERE userId = ? AND fumoName = ?`,
-        [userId, fumoName]
+/**
+ * Check if S!gil ASTRAL+ duplicate blocking is active
+ */
+async function shouldBlockAstralDuplicate(userId) {
+    const now = Date.now();
+    
+    const astralBlock = await get(
+        `SELECT extra FROM activeBoosts 
+         WHERE userId = ? AND source = 'S!gil' AND type = 'astralBlock'
+         AND (expiresAt IS NULL OR expiresAt > ?)`,
+        [userId, now]
     );
+    
+    if (astralBlock) {
+        try {
+            const extra = JSON.parse(astralBlock.extra || '{}');
+            return extra.blocksAstralDuplicates === true;
+        } catch {}
+    }
+    
+    return false;
 }
 
-async function removeFumo(userId, fumoName, quantity = 1) {
-    const fumo = await getFumoByName(userId, fumoName);
-    if (!fumo) return false;
+/**
+ * Check if a fumo should be blocked due to S!gil ASTRAL+ duplicate blocking
+ * Returns true if user already owns this base fumo and S!gil blocking is active
+ */
+async function checkAstralDuplicateBlock(userId, baseFumoName, rarity) {
+    // Only check for ASTRAL+ rarities
+    if (!ASTRAL_PLUS.includes(rarity?.toUpperCase())) {
+        return false;
+    }
+    
+    // Check if S!gil blocking is active
+    const shouldBlock = await shouldBlockAstralDuplicate(userId);
+    if (!shouldBlock) {
+        return false;
+    }
+    
+    // Extract base name without variants for matching
+    const cleanName = baseFumoName.replace(/\[.*?\]/g, '').trim();
+    
+    // Check if user already owns any variant of this fumo
+    const existing = await get(
+        `SELECT * FROM userInventory 
+         WHERE userId = ? AND fumoName LIKE ? AND quantity > 0`,
+        [userId, `%${cleanName}%`]
+    );
+    
+    if (existing) {
+        debugLog(`[SIGIL] Blocking ASTRAL+ duplicate: ${cleanName} for user ${userId}`);
+        return true;
+    }
+    
+    return false;
+}
 
-    if (fumo.quantity > quantity) {
+/**
+ * Roll for special variant (GLITCHED or VOID)
+ * These are separate from SHINY/alG and can be rolled independently
+ * A fumo can only have ONE special variant (GLITCHED or VOID, not both)
+ */
+async function rollSpecialVariant(userId, fumoName) {
+    const variants = await getActiveSpecialVariants(userId);
+    
+    // Roll for GLITCHED first (higher priority)
+    if (variants.glitched) {
+        if (Math.random() < variants.glitched.chance) {
+            return {
+                type: 'GLITCHED',
+                tag: variants.glitched.tag,
+                source: variants.glitched.source
+            };
+        }
+    }
+    
+    // Roll for VOID if GLITCHED didn't hit
+    if (variants.void) {
+        if (Math.random() < variants.void.chance) {
+            return {
+                type: 'VOID',
+                tag: variants.void.tag,
+                source: variants.void.source
+            };
+        }
+    }
+    
+    return null;
+}
+
+/**
+ * Roll for SHINY or alG variant
+ * Affected by variant luck multiplier
+ */
+async function rollBaseVariant(userId) {
+    const variantLuck = await getVariantLuckMultiplier(userId);
+    
+    // Roll for alG first (rarer)
+    const algChance = (VARIANT_CONFIG?.ALG?.multiplier || 1/1000) * variantLuck;
+    if (Math.random() < algChance) {
+        return {
+            type: 'alG',
+            tag: '[🌟alG]'
+        };
+    }
+    
+    // Roll for SHINY
+    const shinyChance = (SHINY_CONFIG?.CHANCE || 1/100) * variantLuck;
+    if (Math.random() < shinyChance) {
+        return {
+            type: 'SHINY',
+            tag: '[✨SHINY]'
+        };
+    }
+    
+    return null;
+}
+
+/**
+ * Apply variant to fumo name
+ * Order: FumoName(RARITY)[BASE_VARIANT][SPECIAL_VARIANT]
+ * Example: Reimu(TRANSCENDENT)[✨SHINY][🔮GLITCHED]
+ */
+function applyVariantToName(fumoName, baseVariant, specialVariant) {
+    let suffix = '';
+    
+    // Add base variant first (SHINY or alG)
+    if (baseVariant) {
+        suffix += baseVariant.tag;
+    }
+    
+    // Add special variant second (GLITCHED or VOID)
+    if (specialVariant) {
+        suffix += specialVariant.tag;
+    }
+    
+    if (suffix) {
+        return `${fumoName}${suffix}`;
+    }
+    
+    return fumoName;
+}
+
+/**
+ * Select and add a fumo to user's inventory with variant rolls
+ */
+async function selectAndAddFumo(userId, rarity, fumoPool) {
+    // Check storage
+    const storageCheck = await StorageLimitService.canAddFumos(userId, 1);
+    if (!storageCheck.canAdd) {
+        return { success: false, reason: 'storage_full', storageCheck };
+    }
+    
+    // Handle both flat array and organized by rarity formats
+    let rarityPool;
+    if (Array.isArray(fumoPool)) {
+        // Flat array - filter by rarity
+        rarityPool = fumoPool.filter(f => f.rarity === rarity);
+    } else {
+        // Object organized by rarity
+        rarityPool = fumoPool[rarity];
+    }
+    
+    if (!rarityPool || rarityPool.length === 0) {
+        debugLog(`[INVENTORY] No fumos found for rarity: ${rarity}`);
+        return { success: false, reason: 'no_fumos' };
+    }
+    
+    // Select fumo with ASTRAL+ duplicate blocking (S!gil feature)
+    let baseFumo;
+    let attempts = 0;
+    const maxAttempts = Math.min(rarityPool.length, 10); // Try up to 10 times or pool size
+    
+    do {
+        baseFumo = rarityPool[Math.floor(Math.random() * rarityPool.length)];
+        attempts++;
+        
+        // Check if this fumo should be blocked (ASTRAL+ duplicate)
+        const shouldReroll = await checkAstralDuplicateBlock(userId, baseFumo.name, rarity);
+        
+        if (!shouldReroll) {
+            break; // Found a non-duplicate, use it
+        }
+        
+        debugLog(`[SIGIL] Re-rolling ASTRAL+ duplicate (attempt ${attempts}/${maxAttempts})`);
+    } while (attempts < maxAttempts);
+    let finalName = baseFumo.name;
+    
+    // Roll for base variant (SHINY or alG)
+    const baseVariant = await rollBaseVariant(userId);
+    
+    // Roll for special variant (GLITCHED or VOID)
+    const specialVariant = await rollSpecialVariant(userId, finalName);
+    
+    // Apply variants to name
+    finalName = applyVariantToName(finalName, baseVariant, specialVariant);
+    
+    // Add to inventory - use check-then-insert pattern for compatibility
+    const existingFumo = await get(
+        `SELECT id, quantity FROM userInventory WHERE userId = ? AND fumoName = ?`,
+        [userId, finalName]
+    );
+    
+    if (existingFumo) {
         await run(
-            `UPDATE userInventory SET quantity = quantity - ? WHERE userId = ? AND fumoName = ?`,
-            [quantity, userId, fumoName]
+            `UPDATE userInventory SET quantity = quantity + 1 WHERE id = ?`,
+            [existingFumo.id]
         );
     } else {
         await run(
-            `DELETE FROM userInventory WHERE userId = ? AND fumoName = ?`,
-            [userId, fumoName]
+            `INSERT INTO userInventory (userId, fumoName, quantity, rarity) VALUES (?, ?, 1, ?)`,
+            [userId, finalName, rarity]
         );
     }
-
-    debugLog('INVENTORY', `Removed ${quantity}x ${fumoName} from user ${userId}`);
-    return true;
+    
+    // Track shiny for weekly stats
+    if (baseVariant?.type === 'SHINY') {
+        await incrementWeeklyShiny(userId);
+    }
+    
+    return {
+        success: true,
+        fumo: {
+            name: finalName,
+            baseName: baseFumo.name,
+            rarity,
+            picture: baseFumo.picture,
+            baseVariant: baseVariant?.type || null,
+            specialVariant: specialVariant?.type || null,
+            isShiny: baseVariant?.type === 'SHINY',
+            isAlG: baseVariant?.type === 'alG',
+            isGlitched: specialVariant?.type === 'GLITCHED',
+            isVoid: specialVariant?.type === 'VOID'
+        }
+    };
 }
 
-async function sellMultipleFumos(userId, fumoList) {
-    let totalCoins = 0;
-    const operations = [];
-
-    for (const { fumoName, quantity } of fumoList) {
-        const fumo = await getFumoByName(userId, fumoName);
-        if (!fumo || fumo.quantity < quantity) continue;
-
-        let rarity = null;
-        for (const r of Object.keys(SELL_REWARDS)) {
-            const regex = new RegExp(`\\b${r}\\b`, 'i');
-            if (regex.test(fumoName)) {
-                rarity = r;
-                break;
+/**
+ * Select and add multiple fumos - OPTIMIZED for batch operations
+ */
+async function selectAndAddMultipleFumos(userId, rarities, fumoPool) {
+    // Check storage once at the start
+    const storageCheck = await StorageLimitService.canAddFumos(userId, rarities.length);
+    if (!storageCheck.canAdd) {
+        return [{ success: false, reason: 'storage_full', storageCheck }];
+    }
+    
+    const results = [];
+    const fumoUpdates = new Map(); // Track fumo name -> {count, rarity, fumoData}
+    let shinyCount = 0;
+    
+    // First pass: determine all fumos and variants without DB writes
+    for (const rarity of rarities) {
+        // Handle both flat array and organized by rarity formats
+        let rarityPool;
+        if (Array.isArray(fumoPool)) {
+            rarityPool = fumoPool.filter(f => f.rarity === rarity);
+        } else {
+            rarityPool = fumoPool[rarity];
+        }
+        
+        if (!rarityPool || rarityPool.length === 0) {
+            results.push({ success: false, reason: 'no_fumos' });
+            continue;
+        }
+        
+        // Select base fumo
+        const baseFumo = rarityPool[Math.floor(Math.random() * rarityPool.length)];
+        let finalName = baseFumo.name;
+        
+        // Roll for variants
+        const baseVariant = await rollBaseVariant(userId);
+        const specialVariant = await rollSpecialVariant(userId, finalName);
+        
+        // Apply variants to name
+        finalName = applyVariantToName(finalName, baseVariant, specialVariant);
+        
+        // Track for batch update
+        if (fumoUpdates.has(finalName)) {
+            const existing = fumoUpdates.get(finalName);
+            existing.count++;
+        } else {
+            fumoUpdates.set(finalName, { count: 1, rarity, baseFumo });
+        }
+        
+        // Track shiny count
+        if (baseVariant?.type === 'SHINY') {
+            shinyCount++;
+        }
+        
+        results.push({
+            success: true,
+            fumo: {
+                name: finalName,
+                baseName: baseFumo.name,
+                rarity,
+                picture: baseFumo.picture,
+                baseVariant: baseVariant?.type || null,
+                specialVariant: specialVariant?.type || null,
+                isShiny: baseVariant?.type === 'SHINY',
+                isAlG: baseVariant?.type === 'alG',
+                isGlitched: specialVariant?.type === 'GLITCHED',
+                isVoid: specialVariant?.type === 'VOID'
+            }
+        });
+    }
+    
+    // Second pass: batch update database
+    // Get all existing fumos for this user in one query
+    const fumoNames = Array.from(fumoUpdates.keys());
+    if (fumoNames.length > 0) {
+        const placeholders = fumoNames.map(() => '?').join(',');
+        const existingFumos = await all(
+            `SELECT id, fumoName, quantity FROM userInventory WHERE userId = ? AND fumoName IN (${placeholders})`,
+            [userId, ...fumoNames]
+        );
+        
+        const existingMap = new Map();
+        for (const row of existingFumos) {
+            existingMap.set(row.fumoName, row);
+        }
+        
+        // Batch updates and inserts
+        for (const [fumoName, data] of fumoUpdates) {
+            const existing = existingMap.get(fumoName);
+            if (existing) {
+                await run(
+                    `UPDATE userInventory SET quantity = quantity + ? WHERE id = ?`,
+                    [data.count, existing.id]
+                );
+            } else {
+                await run(
+                    `INSERT INTO userInventory (userId, fumoName, quantity, rarity) VALUES (?, ?, ?, ?)`,
+                    [userId, fumoName, data.count, data.rarity]
+                );
             }
         }
-
-        if (!rarity || !SELL_REWARDS[rarity]) continue;
-
-        let value = SELL_REWARDS[rarity];
-        if (fumoName.includes('[🌟alG]')) {
-            value *= SHINY_CONFIG.ALG_MULTIPLIER;
-        } else if (fumoName.includes('[✨SHINY]')) {
-            value *= SHINY_CONFIG.SHINY_MULTIPLIER;
-        }
-
-        totalCoins += value * quantity;
-
-        if (fumo.quantity > quantity) {
-            operations.push({
-                sql: `UPDATE userInventory SET quantity = quantity - ? WHERE userId = ? AND fumoName = ?`,
-                params: [quantity, userId, fumoName]
-            });
-        } else {
-            operations.push({
-                sql: `DELETE FROM userInventory WHERE userId = ? AND fumoName = ?`,
-                params: [userId, fumoName]
-            });
+    }
+    
+    // Update shiny count once (fire and forget - these are async DB writes)
+    if (shinyCount > 0) {
+        // Call incrementWeeklyShiny multiple times - it's async callback based
+        for (let i = 0; i < shinyCount; i++) {
+            incrementWeeklyShiny(userId);
         }
     }
-
-    if (operations.length === 0) {
-        return { success: false, totalCoinsEarned: 0 };
-    }
-
-    operations.push({
-        sql: `UPDATE userCoins SET coins = coins + ? WHERE userId = ?`,
-        params: [totalCoins, userId]
-    });
-
-    try {
-        await transaction(operations);
-        debugLog('INVENTORY', `User ${userId} sold ${fumoList.length} fumos for ${totalCoins} coins`);
-        return { success: true, totalCoinsEarned: totalCoins };
-    } catch (error) {
-        console.error('Batch sell failed:', error);
-        return { success: false, totalCoinsEarned: 0 };
-    }
-}
-
-async function sellFumo(userId, fumoName, quantity = 1) {
-    return await sellMultipleFumos(userId, [{ fumoName, quantity }]);
-}
-
-async function getTotalFumoCount(userId) {
-    const result = await get(
-        `SELECT SUM(quantity) as total FROM userInventory WHERE userId = ?`,
-        [userId]
-    );
-    return result?.total || 0;
-}
-
-async function getFumosByRarity(userId, rarity) {
-    return await all(
-        `SELECT id, fumoName, quantity FROM userInventory WHERE userId = ? AND fumoName LIKE ?`,
-        [userId, `%${rarity}%`]
-    );
-}
-
-async function hasFumo(userId, fumoName) {
-    const fumo = await getFumoByName(userId, fumoName);
-    return fumo !== null;
-}
-
-async function addItem(userId, itemName, quantity = 1, itemType = 'item') {
-    debugLog('INVENTORY', `Adding ${quantity}x ${itemName} to user ${userId}`);
     
-    await run(
-        `INSERT INTO userInventory (userId, itemName, quantity, type) 
-         VALUES (?, ?, ?, ?)
-         ON CONFLICT(userId, itemName) DO UPDATE SET quantity = quantity + ?`,
-        [userId, itemName, quantity, itemType, quantity]
-    );
-}
-
-async function removeItem(userId, itemName, quantity = 1) {
-    const item = await get(
-        `SELECT quantity FROM userInventory WHERE userId = ? AND itemName = ?`,
-        [userId, itemName]
-    );
-
-    if (!item || item.quantity < quantity) return false;
-
-    if (item.quantity > quantity) {
-        await run(
-            `UPDATE userInventory SET quantity = quantity - ? WHERE userId = ? AND itemName = ?`,
-            [quantity, userId, itemName]
-        );
-    } else {
-        await run(
-            `DELETE FROM userInventory WHERE userId = ? AND itemName = ?`,
-            [userId, itemName]
-        );
-    }
-
-    debugLog('INVENTORY', `Removed ${quantity}x ${itemName} from user ${userId}`);
-    return true;
-}
-
-async function getItemQuantity(userId, itemName) {
-    const item = await get(
-        `SELECT quantity FROM userInventory WHERE userId = ? AND itemName = ?`,
-        [userId, itemName]
-    );
-    return item?.quantity || 0;
-}
-
-async function transferFumo(fromUserId, toUserId, fumoName, quantity = 1) {
-    const fumo = await getFumoByName(fromUserId, fumoName);
-    
-    if (!fumo || fumo.quantity < quantity) {
-        return { success: false, error: 'INSUFFICIENT_QUANTITY' };
-    }
-
-    await removeFumo(fromUserId, fumoName, quantity);
-
-    await run(
-        `INSERT INTO userInventory (userId, fumoName, quantity) 
-         VALUES (?, ?, ?)
-         ON CONFLICT(userId, fumoName) DO UPDATE SET quantity = quantity + ?`,
-        [toUserId, fumoName, quantity, quantity]
-    );
-
-    debugLog('INVENTORY', `Transferred ${quantity}x ${fumoName} from ${fromUserId} to ${toUserId}`);
-    
-    return { success: true };
+    return results;
 }
 
 module.exports = {
     selectAndAddFumo,
     selectAndAddMultipleFumos,
-    removeFumo,
-    sellFumo,
-    sellMultipleFumos,
-    transferFumo,
-    deductCoins,
-    addCoins,
-    addGems,
-    getUserBalance,
-    getUserInventory,
-    getFumoByName,
-    getFumosByRarity,
-    getTotalFumoCount,
-    hasFumo,
-    addItem,
-    removeItem,
-    getItemQuantity
+    getActiveSpecialVariants,
+    getVariantLuckMultiplier,
+    rollBaseVariant,
+    rollSpecialVariant,
+    applyVariantToName,
+    shouldBlockAstralDuplicate,
+    checkAstralDuplicateBlock,
+    SPECIAL_VARIANTS
 };

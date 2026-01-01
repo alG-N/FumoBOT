@@ -139,10 +139,11 @@ async function performSingleRoll(userId, fumos) {
             hasFantasyBook
         );
 
-        const fumo = await selectAndAddFumo(userId, rarity, fumos, row.luck);
-        if (!fumo) {
-            return { success: false, error: 'NO_FUMO_FOUND' };
+        const fumoResult = await selectAndAddFumo(userId, rarity, fumos);
+        if (!fumoResult || !fumoResult.success) {
+            return { success: false, error: fumoResult?.reason || 'NO_FUMO_FOUND' };
         }
+        const fumo = fumoResult.fumo;
 
         await updateUserAfterRoll(userId, {
             cost: 100,
@@ -234,17 +235,20 @@ async function performMultiRoll(userId, fumos, rollCount, isAutoRoll = false) {
             boostRollsRemaining = boostUpdate.boostRollsRemaining;
         }
 
-        const fumosBought = await selectAndAddMultipleFumos(userId, rarities, fumos, row.luck);
+        const fumoResults = await selectAndAddMultipleFumos(userId, rarities, fumos);
         
-        if (fumosBought && fumosBought.error === 'STORAGE_FULL') {
+        // Check if we hit storage limit
+        const storageError = fumoResults.find(r => !r.success && r.reason === 'storage_full');
+        if (storageError) {
             return {
                 success: false,
                 error: 'STORAGE_FULL',
-                storageStatus: fumosBought.storageStatus
+                storageStatus: storageError.storageCheck
             };
         }
         
-        const fumoArray = Array.isArray(fumosBought) ? fumosBought : [];
+        // Extract successful fumos
+        const fumoArray = fumoResults.filter(r => r.success).map(r => r.fumo);
         
         let bestFumo = null;
         if (fumoArray.length > 0) {

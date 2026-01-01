@@ -2,26 +2,41 @@ const { get, all, run } = require('../../../Core/database');
 const { debugLog } = require('../../../Core/logger');
 
 /**
+ * Check if S!gil is currently active for a user
+ * When active, only S!gil boosts apply
+ */
+async function isSigilActive(userId) {
+    const now = Date.now();
+    const sigil = await get(
+        `SELECT * FROM activeBoosts 
+         WHERE userId = ? AND source = 'S!gil' AND type = 'coin'
+         AND (expiresAt IS NULL OR expiresAt > ?)`,
+        [userId, now]
+    );
+    return !!sigil;
+}
+
+/**
  * Get Sanae boost multiplier (x2, x5, etc.) that applies to all other boosts
  */
 async function getSanaeBoostMultiplier(userId) {
-    try {
-        const now = Date.now();
-        const sanaeMultiplier = await get(
-            `SELECT multiplier, expiresAt FROM activeBoosts 
-             WHERE userId = ? AND type = 'boostMultiplier' AND source = 'SanaeBlessing' AND expiresAt > ?`,
-            [userId, now]
-        );
-        
-        return sanaeMultiplier?.multiplier || 1;
-    } catch (error) {
-        console.error('[BOOST] Sanae multiplier fetch error:', error);
+    // If S!gil is active, Sanae boosts don't apply
+    if (await isSigilActive(userId)) {
         return 1;
     }
+    
+    const now = Date.now();
+    const sanaeBoost = await get(
+        `SELECT boostMultiplier FROM sanaeBlessings 
+         WHERE userId = ? AND boostMultiplierExpiry > ?`,
+        [userId, now]
+    );
+    return sanaeBoost?.boostMultiplier || 1;
 }
 
 /**
  * Get all active boosts for a user including Sanae blessings
+ * Returns formatted object for UI display
  */
 async function getUserBoosts(userId) {
     debugLog('BOOST', `Fetching boosts for user ${userId}`);
@@ -29,7 +44,7 @@ async function getUserBoosts(userId) {
 
     const now = Date.now();
     
-    const [ancientRelic, mysteriousCube, mysteriousDice, lumina, timeBlessing, timeClock, petBoosts, nullified, sanaeBoosts, sanaeBoostMultiplier] = await Promise.all([
+    const [ancientRelic, mysteriousCube, mysteriousDice, lumina, timeBlessing, timeClock, petBoosts, nullified, sanaeBoostMultiplier, sanaeData] = await Promise.all([
         get(`SELECT multiplier, expiresAt FROM activeBoosts WHERE userId = ? AND type = 'luck' AND source = 'AncientRelic'`, [userId]),
         get(`SELECT multiplier, expiresAt FROM activeBoosts WHERE userId = ? AND type = 'luck' AND source = 'MysteriousCube'`, [userId]),
         get(`SELECT multiplier, expiresAt, extra FROM activeBoosts WHERE userId = ? AND type = 'luck' AND source = 'MysteriousDice'`, [userId]),
@@ -38,8 +53,8 @@ async function getUserBoosts(userId) {
         get(`SELECT multiplier FROM activeBoosts WHERE userId = ? AND type = 'summonSpeed' AND source = 'TimeClock' AND expiresAt > ?`, [userId, now]),
         all(`SELECT multiplier, source FROM activeBoosts WHERE userId = ? AND type = 'luck' AND source NOT IN ('SanaeBlessing') AND expiresAt > ?`, [userId, now]),
         get(`SELECT uses FROM activeBoosts WHERE userId = ? AND type = 'rarityOverride' AND source = 'Nullified'`, [userId]),
-        getSanaeLuckBoosts(userId, now),
-        getSanaeBoostMultiplier(userId)
+        getSanaeBoostMultiplier(userId),
+        get(`SELECT luckForRolls, luckForRollsAmount, guaranteedRarityRolls, guaranteedMinRarity FROM sanaeBlessings WHERE userId = ?`, [userId])
     ]);
 
     // Get Sanae temporary luck boost from activeBoosts (this is different from the roll-based luck)
@@ -58,7 +73,7 @@ async function getUserBoosts(userId) {
 
     let baseDice = 1;
     if (mysteriousDice && mysteriousDice.expiresAt > now) {
-        baseDice = await calculateDiceMultiplier(userId, mysteriousDice);
+        baseDice = await getMysteriousDiceMultiplier(userId);
     }
 
     // Calculate pet boost (excluding Sanae from pet boosts)
@@ -78,27 +93,28 @@ async function getUserBoosts(userId) {
     let petBoost = basePet;
 
     if (globalMultiplier > 1) {
-        // For multipliers > 1, multiply by globalMultiplier
-        // For multipliers = 1 (inactive), keep as 1
+        // Only multiply the boost effect of OTHER boosts, not the base
+        // The global multiplier does NOT affect the Sanae direct luck itself
         if (baseAncient > 1) {
-            ancientLuckMultiplier = baseAncient * globalMultiplier;
+            ancientLuckMultiplier = 1 + ((baseAncient - 1) * globalMultiplier);
         }
         if (baseMysterious > 1) {
-            mysteriousLuckMultiplier = baseMysterious * globalMultiplier;
+            mysteriousLuckMultiplier = 1 + ((baseMysterious - 1) * globalMultiplier);
         }
         if (baseDice > 1) {
-            mysteriousDiceMultiplier = baseDice * globalMultiplier;
+            mysteriousDiceMultiplier = 1 + ((baseDice - 1) * globalMultiplier);
+        } else if (baseDice < 1) {
+            // For negative multipliers, also scale the effect
+            mysteriousDiceMultiplier = 1 + ((baseDice - 1) * globalMultiplier);
         }
         if (basePet > 1) {
-            petBoost = basePet * globalMultiplier;
+            petBoost = 1 + ((basePet - 1) * globalMultiplier);
         }
     }
 
-    // Sanae direct luck multiplier (x10 luck from SanaeBlessing) - also affected by global multiplier
+    // Sanae direct luck multiplier (x50 luck from SanaeBlessing)
+    // This is NOT affected by the global multiplier (it IS a Sanae blessing itself)
     let sanaeLuckMultiplier = sanaeTempLuck?.multiplier || 1;
-    if (globalMultiplier > 1 && sanaeLuckMultiplier > 1) {
-        sanaeLuckMultiplier = sanaeLuckMultiplier * globalMultiplier;
-    }
 
     const elapsed = Date.now() - startTime;
     debugLog('BOOST', `Boosts fetched in ${elapsed}ms`, {
@@ -106,10 +122,15 @@ async function getUserBoosts(userId) {
         cube: mysteriousLuckMultiplier,
         dice: mysteriousDiceMultiplier,
         pet: petBoost,
-        sanae: sanaeBoosts,
         sanaeTempLuck: sanaeLuckMultiplier,
         globalMultiplier
     });
+
+    // Sanae roll-based boosts
+    const sanaeGuaranteedRolls = sanaeData?.guaranteedRarityRolls || 0;
+    const sanaeGuaranteedRarity = sanaeData?.guaranteedMinRarity || null;
+    const sanaeLuckRollsRemaining = sanaeData?.luckForRolls || 0;
+    const sanaeLuckBoost = sanaeData?.luckForRollsAmount || 0;
 
     return {
         ancientLuckMultiplier,
@@ -117,16 +138,15 @@ async function getUserBoosts(userId) {
         mysteriousDiceMultiplier,
         petBoost,
         luminaActive: !!lumina,
-        timeBlessingMultiplier: timeBlessing?.multiplier || 1,
-        timeClockMultiplier: timeClock?.multiplier || 1,
         nullifiedUses: nullified?.uses || 0,
-        // Sanae-specific boosts
-        sanaeLuckBoost: sanaeBoosts.luckBoost,
-        sanaeLuckRollsRemaining: sanaeBoosts.luckRollsRemaining,
-        sanaeGuaranteedRarity: sanaeBoosts.guaranteedRarity,
-        sanaeGuaranteedRolls: sanaeBoosts.guaranteedRolls,
         sanaeTempLuckMultiplier: sanaeLuckMultiplier,
-        sanaeGlobalMultiplier: globalMultiplier
+        sanaeGlobalMultiplier: globalMultiplier,
+        sanaeGuaranteedRolls,
+        sanaeGuaranteedRarity,
+        sanaeLuckRollsRemaining,
+        sanaeLuckBoost,
+        timeBlessing: timeBlessing?.multiplier || 1,
+        timeClock: timeClock?.multiplier || 1
     };
 }
 
@@ -134,273 +154,483 @@ async function getUserBoosts(userId) {
  * Get Sanae-specific luck boosts from sanaeBlessings table
  */
 async function getSanaeLuckBoosts(userId, now) {
-    try {
-        const sanaeData = await get(
-            `SELECT luckForRolls, luckForRollsAmount, guaranteedRarityRolls, guaranteedMinRarity
-             FROM sanaeBlessings WHERE userId = ?`,
-            [userId]
-        );
-
-        if (!sanaeData) {
-            return { 
-                luckBoost: 0, 
-                luckRollsRemaining: 0,
-                guaranteedRarity: null, 
-                guaranteedRolls: 0,
-                permanentLuck: 0
-            };
-        }
-
-        return {
-            luckBoost: sanaeData.luckForRolls > 0 ? (sanaeData.luckForRollsAmount || 0) : 0,
-            luckRollsRemaining: sanaeData.luckForRolls || 0,
-            guaranteedRarity: sanaeData.guaranteedRarityRolls > 0 ? sanaeData.guaranteedMinRarity : null,
-            guaranteedRolls: sanaeData.guaranteedRarityRolls || 0,
-            permanentLuck: 0
-        };
-    } catch (error) {
-        console.error('[BOOST] Sanae luck fetch error:', error);
-        return { 
-            luckBoost: 0, 
-            luckRollsRemaining: 0,
-            guaranteedRarity: null, 
-            guaranteedRolls: 0,
-            permanentLuck: 0
-        };
+    const sanaeBoosts = [];
+    
+    const blessing = await get(
+        `SELECT luckForRollsAmount, luckForRolls,
+                guaranteedRarityRolls, guaranteedMinRarity
+         FROM sanaeBlessings WHERE userId = ?`,
+        [userId]
+    );
+    
+    if (!blessing) return sanaeBoosts;
+    
+    // Per-roll luck boost
+    if (blessing.luckForRolls > 0 && blessing.luckForRollsAmount) {
+        sanaeBoosts.push({
+            type: 'luckPerRoll',
+            source: 'SanaeLuckRolls',
+            multiplier: 1 + blessing.luckForRollsAmount,
+            uses: blessing.luckForRolls
+        });
     }
+    
+    // Guaranteed rarity rolls
+    if (blessing.guaranteedRarityRolls > 0 && blessing.guaranteedMinRarity) {
+        sanaeBoosts.push({
+            type: 'guaranteedRarity',
+            source: 'SanaeGuaranteed',
+            minRarity: blessing.guaranteedMinRarity,
+            uses: blessing.guaranteedRarityRolls
+        });
+    }
+    
+    return sanaeBoosts;
 }
 
 /**
  * Consume one Sanae luck roll and return the bonus
  */
 async function consumeSanaeLuckRoll(userId) {
-    try {
-        const sanaeData = await get(
-            `SELECT luckForRolls, luckForRollsAmount FROM sanaeBlessings WHERE userId = ?`,
-            [userId]
-        );
-
-        if (!sanaeData || sanaeData.luckForRolls <= 0) {
-            return { consumed: false, luckBonus: 0, remaining: 0 };
-        }
-
-        await run(
-            `UPDATE sanaeBlessings SET luckForRolls = luckForRolls - 1, lastUpdated = ? WHERE userId = ?`,
-            [Date.now(), userId]
-        );
-
-        return {
-            consumed: true,
-            luckBonus: sanaeData.luckForRollsAmount || 0,
-            remaining: sanaeData.luckForRolls - 1
-        };
-    } catch (error) {
-        console.error('[BOOST] Sanae luck consume error:', error);
-        return { consumed: false, luckBonus: 0, remaining: 0 };
+    // Don't consume if S!gil is active
+    if (await isSigilActive(userId)) {
+        return { consumed: false, bonus: 0 };
     }
+    
+    const blessing = await get(
+        `SELECT luckForRollsAmount, luckForRolls 
+         FROM sanaeBlessings WHERE userId = ?`,
+        [userId]
+    );
+    
+    if (!blessing || blessing.luckForRolls <= 0) {
+        return { consumed: false, bonus: 0 };
+    }
+    
+    await run(
+        `UPDATE sanaeBlessings SET luckForRolls = luckForRolls - 1 WHERE userId = ?`,
+        [userId]
+    );
+    
+    return { consumed: true, bonus: blessing.luckForRollsAmount };
 }
 
 /**
  * Consume one Sanae guaranteed rarity roll
  */
 async function consumeSanaeGuaranteedRoll(userId) {
-    try {
-        const sanaeData = await get(
-            `SELECT guaranteedRarityRolls, guaranteedMinRarity FROM sanaeBlessings WHERE userId = ?`,
-            [userId]
-        );
-
-        if (!sanaeData || sanaeData.guaranteedRarityRolls <= 0) {
-            return { consumed: false, minRarity: null, remaining: 0 };
-        }
-
-        await run(
-            `UPDATE sanaeBlessings SET guaranteedRarityRolls = guaranteedRarityRolls - 1, lastUpdated = ? WHERE userId = ?`,
-            [Date.now(), userId]
-        );
-
-        return {
-            consumed: true,
-            minRarity: sanaeData.guaranteedMinRarity,
-            remaining: sanaeData.guaranteedRarityRolls - 1
-        };
-    } catch (error) {
-        console.error('[BOOST] Sanae guaranteed consume error:', error);
-        return { consumed: false, minRarity: null, remaining: 0 };
+    // Don't consume if S!gil is active
+    if (await isSigilActive(userId)) {
+        return { consumed: false, guaranteedRarity: null };
     }
+    
+    const blessing = await get(
+        `SELECT guaranteedMinRarity, guaranteedRarityRolls 
+         FROM sanaeBlessings WHERE userId = ?`,
+        [userId]
+    );
+    
+    if (!blessing || blessing.guaranteedRarityRolls <= 0) {
+        return { consumed: false, guaranteedRarity: null };
+    }
+    
+    await run(
+        `UPDATE sanaeBlessings SET guaranteedRarityRolls = guaranteedRarityRolls - 1 WHERE userId = ?`,
+        [userId]
+    );
+    
+    return { consumed: true, guaranteedRarity: blessing.guaranteedMinRarity };
 }
 
 /**
  * Calculate the mysterious dice multiplier for current hour
  */
-async function calculateDiceMultiplier(userId, diceBoost) {
-    let perHourArr = [];
-    try {
-        perHourArr = JSON.parse(diceBoost.extra || '[]');
-    } catch {
-        perHourArr = [];
+async function getMysteriousDiceMultiplier(userId) {
+    // Mysterious dice doesn't work during S!gil
+    if (await isSigilActive(userId)) {
+        return 1;
     }
-
+    
     const now = Date.now();
-    const currentHourTimestamp = now - (now % (60 * 60 * 1000));
-    let currentHour = perHourArr.find(e => e.at === currentHourTimestamp);
-
-    if (!currentHour) {
+    const diceBoost = await get(
+        `SELECT multiplier, extra FROM activeBoosts 
+         WHERE userId = ? AND source = 'MysteriousDice' AND type = 'luck'
+         AND expiresAt > ?`,
+        [userId, now]
+    );
+    
+    if (!diceBoost) return 1;
+    
+    // Dice re-rolls multiplier every hour
+    const currentHour = Math.floor(now / (60 * 60 * 1000));
+    let extra = {};
+    try {
+        extra = JSON.parse(diceBoost.extra || '{}');
+    } catch {}
+    
+    if (extra.lastHour !== currentHour) {
+        // Generate new multiplier
         const newMultiplier = parseFloat((0.0001 + Math.random() * 10.9999).toFixed(4));
-        const newEntry = { at: currentHourTimestamp, multiplier: newMultiplier };
-
-        perHourArr.push(newEntry);
-        if (perHourArr.length > 12) perHourArr = perHourArr.slice(-12);
-
         await run(
-            `UPDATE activeBoosts SET multiplier = ?, extra = ? WHERE userId = ? AND type = 'luck' AND source = 'MysteriousDice'`,
-            [newMultiplier, JSON.stringify(perHourArr), userId]
+            `UPDATE activeBoosts SET multiplier = ?, extra = ? 
+             WHERE userId = ? AND source = 'MysteriousDice' AND type = 'luck'`,
+            [newMultiplier, JSON.stringify({ lastHour: currentHour }), userId]
         );
-
         return newMultiplier;
     }
-
-    return currentHour.multiplier;
+    
+    return diceBoost.multiplier;
 }
 
 /**
- * Build boost display lines for UI
+ * Get roll speed multiplier (from CrystalSigil or S!gil)
  */
-function buildBoostLines(ancient, mysterious, dice, pet, lumina, sanaeBoosts = {}, sanaeLuckMultiplier = 1, globalMultiplier = 1) {
+async function getRollSpeedMultiplier(userId) {
+    const now = Date.now();
+    
+    // Check S!gil first
+    const sigilSpeed = await get(
+        `SELECT multiplier FROM activeBoosts 
+         WHERE userId = ? AND source = 'S!gil' AND type = 'rollSpeed'
+         AND (expiresAt IS NULL OR expiresAt > ?)`,
+        [userId, now]
+    );
+    
+    if (sigilSpeed) {
+        return sigilSpeed.multiplier;
+    }
+    
+    // Check CrystalSigil
+    const crystalSpeed = await get(
+        `SELECT multiplier FROM activeBoosts 
+         WHERE userId = ? AND source = 'CrystalSigil' AND type = 'rollSpeed'
+         AND expiresAt > ?`,
+        [userId, now]
+    );
+    
+    return crystalSpeed?.multiplier || 1;
+}
+
+/**
+ * Calculate total luck multiplier from boosts object (for RarityService)
+ */
+function calculateTotalLuckMultiplier(boosts, isBoostActive, rollsLeft, totalRolls, baseLuck = 0) {
+    // boosts is the object returned by getUserBoosts
+    let total = 1;
+    
+    // Base luck from permanent stats
+    if (baseLuck > 0) {
+        total *= (1 + baseLuck);
+    }
+    
+    // Ancient Relic
+    if (boosts.ancientLuckMultiplier && boosts.ancientLuckMultiplier > 1) {
+        total *= boosts.ancientLuckMultiplier;
+    }
+    
+    // Mysterious Cube
+    if (boosts.mysteriousLuckMultiplier && boosts.mysteriousLuckMultiplier > 1) {
+        total *= boosts.mysteriousLuckMultiplier;
+    }
+    
+    // Mysterious Dice
+    if (boosts.mysteriousDiceMultiplier && boosts.mysteriousDiceMultiplier !== 1) {
+        total *= boosts.mysteriousDiceMultiplier;
+    }
+    
+    // Pet boost
+    if (boosts.petBoost && boosts.petBoost > 1) {
+        total *= boosts.petBoost;
+    }
+    
+    // Sanae direct luck multiplier (x50, etc.)
+    if (boosts.sanaeTempLuckMultiplier && boosts.sanaeTempLuckMultiplier > 1) {
+        total *= boosts.sanaeTempLuckMultiplier;
+    }
+    
+    // Sanae per-roll luck boost
+    if (boosts.sanaeLuckRollsRemaining > 0 && boosts.sanaeLuckBoost > 0) {
+        total *= (1 + boosts.sanaeLuckBoost);
+    }
+    
+    // Boost mode active (25x luck)
+    if (isBoostActive) {
+        total *= 25;
+    } else if (rollsLeft > 0) {
+        // Bonus rolls (2x luck)
+        total *= 2;
+    }
+    
+    // Lumina (every 10th roll)
+    if (boosts.luminaActive && totalRolls % 10 === 0) {
+        total *= 5;
+    }
+    
+    return total;
+}
+
+/**
+ * Calculate auto-roll cooldown based on roll speed boost
+ */
+async function calculateCooldown(userId, baseCooldown = 3000) {
+    const rollSpeed = await getRollSpeedMultiplier(userId);
+    return Math.max(1000, Math.floor(baseCooldown / rollSpeed));
+}
+
+/**
+ * Get Sanae boost display lines for UI (takes boosts object from getUserBoosts)
+ */
+function getSanaeBoostDisplay(boosts) {
     const lines = [];
     
-    if (ancient > 1) lines.push(`🎇 AncientRelic x${ancient.toFixed(2)}`);
-    if (mysterious > 1) lines.push(`🧊 MysteriousCube x${mysterious.toFixed(2)}`);
-    if (dice !== 1) lines.push(`🎲 MysteriousDice x${dice.toFixed(4)}`);
-    if (pet > 1) lines.push(`🐰 Pet x${pet.toFixed(4)}`);
-    if (lumina) lines.push('🌟 Lumina (Every 10th roll x5)');
-    
-    // Sanae direct luck multiplier (x10 from blessing)
-    if (sanaeLuckMultiplier > 1) {
-        lines.push(`⛩️ SanaeBlessing x${sanaeLuckMultiplier} Luck`);
+    // Roll-based luck boost
+    if (boosts.sanaeLuckRollsRemaining > 0 && boosts.sanaeLuckBoost > 0) {
+        lines.push(`🍀 +${(boosts.sanaeLuckBoost * 100).toFixed(0)}% luck (${boosts.sanaeLuckRollsRemaining} rolls remaining)`);
     }
     
-    // Sanae roll-based luck boosts
-    if (sanaeBoosts.luckRolls > 0 && sanaeBoosts.luckBoost > 0) {
-        lines.push(`⛩️ Sanae Luck +${(sanaeBoosts.luckBoost * 100).toFixed(0)}% (${sanaeBoosts.luckRolls} rolls)`);
-    }
-    if (sanaeBoosts.guaranteedRolls > 0 && sanaeBoosts.guaranteedRarity) {
-        lines.push(`🎲 Guaranteed ${sanaeBoosts.guaranteedRarity}+ (${sanaeBoosts.guaranteedRolls} rolls)`);
-    }
-    
-    // Global boost multiplier
-    if (globalMultiplier > 1) {
-        lines.push(`✨ All Boosts x${globalMultiplier} (Sanae Blessing)`);
+    // Guaranteed rarity rolls
+    if (boosts.sanaeGuaranteedRolls > 0 && boosts.sanaeGuaranteedRarity) {
+        lines.push(`✨ Guaranteed ${boosts.sanaeGuaranteedRarity}+ (${boosts.sanaeGuaranteedRolls} rolls remaining)`);
     }
     
     return lines;
 }
 
 /**
- * Get Sanae boost display lines for gacha UI
+ * Get VOID and GLITCHED trait boost display lines with timer for gacha UI
+ * S!gil has priority over CosmicCore for GLITCHED trait
  */
-function getSanaeBoostDisplay(boosts) {
-    const display = [];
-    
-    if (boosts.sanaeGuaranteedRolls > 0 && boosts.sanaeGuaranteedRarity) {
-        display.push(`🎲 ${boosts.sanaeGuaranteedRolls} guaranteed ${boosts.sanaeGuaranteedRarity}+`);
-    }
-    
-    if (boosts.sanaeLuckRollsRemaining > 0 && boosts.sanaeLuckBoost > 0) {
-        display.push(`🍀 +${(boosts.sanaeLuckBoost * 100).toFixed(0)}% luck (${boosts.sanaeLuckRollsRemaining} rolls)`);
-    }
-    
-    if (boosts.sanaeTempLuckMultiplier > 1) {
-        display.push(`⛩️ x${boosts.sanaeTempLuckMultiplier} luck from Sanae`);
-    }
-    
-    if (boosts.sanaeGlobalMultiplier > 1) {
-        display.push(`✨ x${boosts.sanaeGlobalMultiplier} all boosts from Sanae`);
-    }
-    
-    return display;
-}
-
-/**
- * Calculate total luck multiplier including all sources
- */
-function calculateTotalLuckMultiplier(boosts, isBoostActive, rollsLeft, totalRolls, baseLuck = 0) {
-    const bonusRollMultiplier = (rollsLeft > 0 && !isBoostActive) ? 2 : 1;
-    
-    // Start with base luck (permanent luck from Sanae, etc.) - minimum of 1 for multiplication
-    const baseLuckMultiplier = Math.max(1, 1 + baseLuck);
-    
-    let totalLuck = baseLuckMultiplier * boosts.ancientLuckMultiplier * 
-                    boosts.mysteriousLuckMultiplier * boosts.mysteriousDiceMultiplier * 
-                    boosts.petBoost * bonusRollMultiplier;
-    
-    // Apply Sanae direct luck multiplier (x10, etc.)
-    if (boosts.sanaeTempLuckMultiplier > 1) {
-        totalLuck *= boosts.sanaeTempLuckMultiplier;
-    }
-    
-    // Add Sanae luck boost (percentage based, for rolls)
-    if (boosts.sanaeLuckBoost > 0 && boosts.sanaeLuckRollsRemaining > 0) {
-        totalLuck *= (1 + boosts.sanaeLuckBoost);
-    }
-    
-    // Lumina boost every 10th roll
-    if (boosts.luminaActive && totalRolls % 10 === 0) {
-        totalLuck *= 5;
-    }
-    
-    return totalLuck;
-}
-
-/**
- * Calculate summon cooldown with boosts
- */
-async function calculateCooldown(userId) {
-    const COOLDOWN_DURATION = 4000;
+async function getTraitBoostDisplay(userId) {
     const now = Date.now();
-    let cooldown = COOLDOWN_DURATION;
-
-    const [timeBlessing, timeClock] = await Promise.all([
-        get(`SELECT multiplier FROM activeBoosts WHERE userId = ? AND type = 'summonCooldown' AND source = 'TimeBlessing' AND expiresAt > ?`, [userId, now]),
-        get(`SELECT multiplier FROM activeBoosts WHERE userId = ? AND type = 'summonSpeed' AND source = 'TimeClock' AND expiresAt > ?`, [userId, now])
-    ]);
-
-    if (timeBlessing?.multiplier) cooldown *= timeBlessing.multiplier;
-    if (timeClock?.multiplier === 2) cooldown = Math.floor(cooldown / 2);
-
-    return cooldown;
+    const lines = [];
+    
+    // Check if S!gil is active (determines GLITCHED priority)
+    const sigilActive = await get(
+        `SELECT * FROM activeBoosts 
+         WHERE userId = ? AND source = 'S!gil' AND type = 'coin'
+         AND (expiresAt IS NULL OR expiresAt > ?)`,
+        [userId, now]
+    );
+    
+    // Get GLITCHED trait from S!gil
+    const sigilGlitched = await get(
+        `SELECT multiplier, expiresAt FROM activeBoosts 
+         WHERE userId = ? AND type = 'glitchedTrait' AND source = 'S!gil' AND expiresAt > ?`,
+        [userId, now]
+    );
+    
+    // Get GLITCHED trait from CosmicCore
+    const cosmicGlitched = await get(
+        `SELECT multiplier, expiresAt, stack FROM activeBoosts 
+         WHERE userId = ? AND type = 'glitchedTrait' AND source = 'CosmicCore' AND expiresAt > ?`,
+        [userId, now]
+    );
+    
+    // Display GLITCHED traits with active/deactivated status
+    if (sigilGlitched && cosmicGlitched) {
+        // Both exist - S!gil takes priority when active
+        if (sigilActive) {
+            const timeLeft = formatTimeRemaining(sigilGlitched.expiresAt - now);
+            const oneInX = Math.round(1 / sigilGlitched.multiplier).toLocaleString();
+            lines.push(`🔮 GLITCHED Trait (S!gil) — 1 in ${oneInX} (${timeLeft}) ✅`);
+            
+            const cosmicTime = formatTimeRemaining(cosmicGlitched.expiresAt - now);
+            const cosmicChance = (cosmicGlitched.multiplier * 100).toFixed(4);
+            lines.push(`🔮 GLITCHED Trait (CosmicCore) — ${cosmicChance}% (${cosmicTime}) ⏸️`);
+        } else {
+            // S!gil not active, CosmicCore takes effect
+            const cosmicTime = formatTimeRemaining(cosmicGlitched.expiresAt - now);
+            const cosmicChance = (cosmicGlitched.multiplier * 100).toFixed(4);
+            lines.push(`🔮 GLITCHED Trait (CosmicCore) — ${cosmicChance}% (${cosmicTime}) ✅`);
+            
+            const timeLeft = formatTimeRemaining(sigilGlitched.expiresAt - now);
+            const oneInX = Math.round(1 / sigilGlitched.multiplier).toLocaleString();
+            lines.push(`🔮 GLITCHED Trait (S!gil) — 1 in ${oneInX} (${timeLeft}) ⏸️`);
+        }
+    } else if (sigilGlitched) {
+        // Only S!gil GLITCHED
+        const timeLeft = formatTimeRemaining(sigilGlitched.expiresAt - now);
+        const oneInX = Math.round(1 / sigilGlitched.multiplier).toLocaleString();
+        lines.push(`🔮 GLITCHED Trait (S!gil) — 1 in ${oneInX} (${timeLeft})`);
+    } else if (cosmicGlitched) {
+        // Only CosmicCore GLITCHED
+        const timeLeft = formatTimeRemaining(cosmicGlitched.expiresAt - now);
+        const chance = (cosmicGlitched.multiplier * 100).toFixed(4);
+        lines.push(`🔮 GLITCHED Trait (CosmicCore) — ${chance}% (${timeLeft})`);
+    }
+    
+    // Get VOID trait from VoidCrystal (VOID is independent of S!gil, always active)
+    const voidBoost = await get(
+        `SELECT multiplier, expiresAt, stack FROM activeBoosts 
+         WHERE userId = ? AND type = 'voidTrait' AND source = 'VoidCrystal' AND expiresAt > ?`,
+        [userId, now]
+    );
+    
+    if (voidBoost) {
+        const timeLeft = formatTimeRemaining(voidBoost.expiresAt - now);
+        const chance = (voidBoost.multiplier * 100).toFixed(2);
+        lines.push(`🌀 VOID Trait (VoidCrystal) — ${chance}% (${timeLeft})`);
+    }
+    
+    return lines;
 }
 
 /**
- * Check if user should get guaranteed rarity from Sanae blessing
+ * Format milliseconds into a human-readable time string
  */
-async function checkSanaeGuaranteedRarity(userId) {
-    const sanaeData = await get(
-        `SELECT guaranteedRarityRolls, guaranteedMinRarity FROM sanaeBlessings WHERE userId = ?`,
+function formatTimeRemaining(ms) {
+    if (ms <= 0) return 'Expired';
+    
+    const seconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    
+    if (days > 0) {
+        const remainingHours = hours % 24;
+        return `${days}d ${remainingHours}h`;
+    }
+    if (hours > 0) {
+        const remainingMinutes = minutes % 60;
+        return `${hours}h ${remainingMinutes}m`;
+    }
+    if (minutes > 0) {
+        return `${minutes}m`;
+    }
+    return `${seconds}s`;
+}
+
+/**
+ * Check and consume a nullified roll (from S!gil or Nullified item)
+ */
+async function checkAndConsumeNullifiedRoll(userId) {
+    const now = Date.now();
+    
+    // Check S!gil nullified rolls first
+    const sigilNullified = await get(
+        `SELECT extra FROM activeBoosts 
+         WHERE userId = ? AND source = 'S!gil' AND type = 'nullifiedRolls'
+         AND (expiresAt IS NULL OR expiresAt > ?)`,
+        [userId, now]
+    );
+    
+    if (sigilNullified) {
+        try {
+            const extra = JSON.parse(sigilNullified.extra || '{}');
+            if (extra.remaining > 0) {
+                extra.remaining--;
+                await run(
+                    `UPDATE activeBoosts SET extra = ? 
+                     WHERE userId = ? AND source = 'S!gil' AND type = 'nullifiedRolls'`,
+                    [JSON.stringify(extra), userId]
+                );
+                return { nullified: true, source: 'S!gil', remaining: extra.remaining };
+            }
+        } catch {}
+    }
+    
+    // Check regular Nullified item uses
+    const nullifiedUses = await get(
+        `SELECT uses FROM activeBoosts 
+         WHERE userId = ? AND source = 'Nullified' AND type = 'rarityOverride'`,
         [userId]
     );
     
-    if (!sanaeData || sanaeData.guaranteedRarityRolls <= 0) {
-        return { active: false, minRarity: null };
+    if (nullifiedUses && nullifiedUses.uses > 0) {
+        await run(
+            `UPDATE activeBoosts SET uses = uses - 1 
+             WHERE userId = ? AND source = 'Nullified' AND type = 'rarityOverride'`,
+            [userId]
+        );
+        
+        // Clean up if no uses left
+        if (nullifiedUses.uses - 1 <= 0) {
+            await run(
+                `DELETE FROM activeBoosts 
+                 WHERE userId = ? AND source = 'Nullified' AND type = 'rarityOverride'`,
+                [userId]
+            );
+        }
+        
+        return { nullified: true, source: 'Nullified', remaining: nullifiedUses.uses - 1 };
     }
     
-    return {
-        active: true,
-        minRarity: sanaeData.guaranteedMinRarity,
-        remaining: sanaeData.guaranteedRarityRolls
-    };
+    return { nullified: false };
+}
+
+/**
+ * Check if ASTRAL+ duplicates should be blocked (from S!gil)
+ */
+async function shouldBlockAstralDuplicate(userId) {
+    const now = Date.now();
+    
+    const astralBlock = await get(
+        `SELECT extra FROM activeBoosts 
+         WHERE userId = ? AND source = 'S!gil' AND type = 'astralBlock'
+         AND (expiresAt IS NULL OR expiresAt > ?)`,
+        [userId, now]
+    );
+    
+    if (astralBlock) {
+        try {
+            const extra = JSON.parse(astralBlock.extra || '{}');
+            return extra.blocksAstralDuplicates === true;
+        } catch {}
+    }
+    
+    return false;
+}
+
+/**
+ * Clean up expired S!gil and re-enable disabled boosts
+ */
+async function cleanupExpiredSigil(userId) {
+    const now = Date.now();
+    
+    // Check if S!gil expired
+    const expiredSigil = await get(
+        `SELECT * FROM activeBoosts 
+         WHERE userId = ? AND source = 'S!gil' AND type = 'coin'
+         AND expiresAt IS NOT NULL AND expiresAt <= ?`,
+        [userId, now]
+    );
+    
+    if (expiredSigil) {
+        // Delete all S!gil boosts
+        await run(
+            `DELETE FROM activeBoosts WHERE userId = ? AND source = 'S!gil'`,
+            [userId]
+        );
+        
+        // Re-enable disabled boosts
+        await run(
+            `UPDATE activeBoosts 
+             SET extra = json_remove(extra, '$.sigilDisabled')
+             WHERE userId = ? AND json_extract(extra, '$.sigilDisabled') = true`,
+            [userId]
+        );
+        
+        debugLog(`[SIGIL] Cleaned up expired S!gil for user ${userId}`);
+        return true;
+    }
+    
+    return false;
 }
 
 module.exports = {
     getUserBoosts,
-    getSanaeLuckBoosts,
-    getSanaeBoostMultiplier,
-    calculateDiceMultiplier,
-    buildBoostLines,
     calculateTotalLuckMultiplier,
-    consumeSanaeGuaranteedRoll,
-    consumeSanaeLuckRoll,
-    getSanaeBoostDisplay,
     calculateCooldown,
-    checkSanaeGuaranteedRarity
+    getSanaeBoostMultiplier,
+    getSanaeLuckBoosts,
+    consumeSanaeLuckRoll,
+    consumeSanaeGuaranteedRoll,
+    getMysteriousDiceMultiplier,
+    getRollSpeedMultiplier,
+    getSanaeBoostDisplay,
+    getTraitBoostDisplay,
+    isSigilActive,
+    checkAndConsumeNullifiedRoll,
+    shouldBlockAstralDuplicate,
+    cleanupExpiredSigil
 };

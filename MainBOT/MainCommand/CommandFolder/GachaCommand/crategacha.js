@@ -67,10 +67,18 @@ async function handleSingleRoll(interaction, client) {
 
 async function handleMultiRoll(interaction, rollCount, client) {
     try {
+        // Defer reply for 100 rolls to prevent timeout
+        if (rollCount >= 100) {
+            await interaction.deferReply({ ephemeral: true });
+        }
+        
         // Check storage BEFORE starting
         const storageStatus = await StorageLimitService.getStorageStatus(interaction.user.id);
         if (storageStatus.current >= STORAGE_CONFIG.MAX_STORAGE) {
             const embed = StorageLimitService.createStorageFullEmbed(storageStatus, rollCount);
+            if (rollCount >= 100) {
+                return await interaction.editReply({ embeds: [embed] });
+            }
             return await interaction.reply({ embeds: [embed], ephemeral: true });
         }
 
@@ -82,6 +90,11 @@ async function handleMultiRoll(interaction, rollCount, client) {
                 'INSUFFICIENT_COINS': `You do not have enough coins to buy ${rollCount} fumos.`,
                 'STORAGE_FULL': 'Your storage is full! Please sell some fumos first.'
             };
+            if (rollCount >= 100) {
+                return await interaction.editReply({
+                    content: errorMessages[result.error] || 'An error occurred.'
+                });
+            }
             return await interaction.reply({
                 content: errorMessages[result.error] || 'An error occurred.',
                 ephemeral: true
@@ -104,10 +117,16 @@ async function handleMultiRoll(interaction, rollCount, client) {
     } catch (err) {
         await logError(client, `${rollCount}x Roll`, err, interaction.user.id);
         try {
-            await interaction.reply({
-                content: `An error occurred while processing your ${rollCount} fumo rolls.`,
-                ephemeral: true
-            });
+            if (rollCount >= 100 && interaction.deferred) {
+                await interaction.editReply({
+                    content: `An error occurred while processing your ${rollCount} fumo rolls.`
+                });
+            } else {
+                await interaction.reply({
+                    content: `An error occurred while processing your ${rollCount} fumo rolls.`,
+                    ephemeral: true
+                });
+            }
         } catch { }
     }
 }

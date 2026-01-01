@@ -437,6 +437,42 @@ const ITEM_DATABASE = {
         usable: true,
         craftTime: 24000000
     },
+    "CosmicCore(?)": {
+        rarity: "???",
+        description: "The core of a dying universe, somehow preserved. Grants massive boosts and enables the [GLITCHED] trait (1 in 50k chance).",
+        lore: "Universes die. This is what remains. Heavy with the weight of existence.",
+        category: "Consumable",
+        craftable: true,
+        usable: true,
+        craftTime: 180000000
+    },
+    "CrystalSigil(?)": {
+        rarity: "???",
+        description: "A crystallized form of pure sigil energy. Grants +500% coin boost, +750% gem boost, and x1.1-x1.5 roll speed.",
+        lore: "When magic becomes solid, this is the result. Handle carefully.",
+        category: "Consumable",
+        craftable: true,
+        usable: true,
+        craftTime: 72000000
+    },
+    "EternalEssence(?)": {
+        rarity: "???",
+        description: "The essence of eternity itself. Grants +5000% coin boost, +7500% gem boost, and x2 variant luck for 24 hours.",
+        lore: "Time means nothing to this. It has always been, will always be.",
+        category: "Consumable",
+        craftable: true,
+        usable: true,
+        craftTime: 144000000
+    },
+    "VoidCrystal(?)": {
+        rarity: "???",
+        description: "Mysterious void energy contained in crystal. Grants +1500% coin boost, +2000% gem boost, and enables void traits.",
+        lore: "The void stares back. Always.",
+        category: "Consumable",
+        craftable: true,
+        usable: true,
+        craftTime: 108000000
+    },
     "GoldenSigil(?)": {
         rarity: "???",
         description: "Forged by an ancestor of AlterGolden, this sigil once brought immense fortune. How it was crafted remains a mystery lost to time. Provides massive coin boost, stacks up to 10 times.",

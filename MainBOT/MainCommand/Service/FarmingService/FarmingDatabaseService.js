@@ -43,12 +43,23 @@ async function getUserFarmingFumos(userId) {
 }
 
 async function addFumoToFarm(userId, fumoName, coinsPerMin, gemsPerMin, quantity = 1) {
-    await run(
-        `INSERT INTO farmingFumos (userId, fumoName, coinsPerMin, gemsPerMin, quantity)
-         VALUES (?, ?, ?, ?, ?)
-         ON CONFLICT(userId, fumoName) DO UPDATE SET quantity = quantity + ?`,
-        [userId, fumoName, coinsPerMin, gemsPerMin, quantity, quantity]
+    // Check if already farming this fumo
+    const existing = await get(
+        `SELECT id, quantity FROM farmingFumos WHERE userId = ? AND fumoName = ?`,
+        [userId, fumoName]
     );
+    
+    if (existing) {
+        await run(
+            `UPDATE farmingFumos SET quantity = quantity + ? WHERE id = ?`,
+            [quantity, existing.id]
+        );
+    } else {
+        await run(
+            `INSERT INTO farmingFumos (userId, fumoName, coinsPerMin, gemsPerMin, quantity) VALUES (?, ?, ?, ?, ?)`,
+            [userId, fumoName, coinsPerMin, gemsPerMin, quantity]
+        );
+    }
     
     debugLog('FARMING', `Added ${quantity}x ${fumoName} to farm for user ${userId}`);
 }

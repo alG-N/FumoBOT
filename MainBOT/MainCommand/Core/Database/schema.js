@@ -1,13 +1,131 @@
 const db = require('./dbSetting');
 
+/**
+ * Merge duplicate fumo entries in userInventory
+ * This must run before creating unique indexes
+ */
+async function cleanupDuplicateFumos() {
+    console.log('🧹 Checking for duplicate inventory entries...');
+    
+    const dbAllAsync = (sql, params = []) => {
+        return new Promise((resolve, reject) => {
+            db.all(sql, params, (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows);
+            });
+        });
+    };
+    
+    const dbRunAsync = (sql, params = []) => {
+        return new Promise((resolve, reject) => {
+            db.run(sql, params, function(err) {
+                if (err) reject(err);
+                else resolve(this);
+            });
+        });
+    };
+    
+    try {
+        // Find duplicates for fumoName
+        const fumoDuplicates = await dbAllAsync(`
+            SELECT userId, fumoName, COUNT(*) as cnt, SUM(quantity) as totalQty
+            FROM userInventory
+            WHERE fumoName IS NOT NULL AND fumoName != ''
+            GROUP BY userId, fumoName
+            HAVING COUNT(*) > 1
+        `);
+        
+        if (fumoDuplicates.length > 0) {
+            console.log(`🔄 Found ${fumoDuplicates.length} duplicate fumo entries to merge...`);
+            
+            for (const dup of fumoDuplicates) {
+                // Get the first entry to keep (lowest id)
+                const entries = await dbAllAsync(
+                    `SELECT id, quantity, rarity FROM userInventory 
+                     WHERE userId = ? AND fumoName = ? 
+                     ORDER BY id ASC`,
+                    [dup.userId, dup.fumoName]
+                );
+                
+                if (entries.length > 1) {
+                    const keepId = entries[0].id;
+                    const totalQuantity = entries.reduce((sum, e) => sum + (e.quantity || 1), 0);
+                    const rarity = entries[0].rarity;
+                    
+                    // Update the first entry with total quantity
+                    await dbRunAsync(
+                        `UPDATE userInventory SET quantity = ? WHERE id = ?`,
+                        [totalQuantity, keepId]
+                    );
+                    
+                    // Delete the duplicate entries
+                    const idsToDelete = entries.slice(1).map(e => e.id);
+                    await dbRunAsync(
+                        `DELETE FROM userInventory WHERE id IN (${idsToDelete.join(',')})`,
+                        []
+                    );
+                }
+            }
+            console.log(`✅ Merged ${fumoDuplicates.length} duplicate fumo entries`);
+        }
+        
+        // Find duplicates for itemName (non-fumo items)
+        const itemDuplicates = await dbAllAsync(`
+            SELECT userId, itemName, COUNT(*) as cnt, SUM(quantity) as totalQty
+            FROM userInventory
+            WHERE itemName IS NOT NULL AND itemName != '' AND (fumoName IS NULL OR fumoName = '')
+            GROUP BY userId, itemName
+            HAVING COUNT(*) > 1
+        `);
+        
+        if (itemDuplicates.length > 0) {
+            console.log(`🔄 Found ${itemDuplicates.length} duplicate item entries to merge...`);
+            
+            for (const dup of itemDuplicates) {
+                const entries = await dbAllAsync(
+                    `SELECT id, quantity FROM userInventory 
+                     WHERE userId = ? AND itemName = ? AND (fumoName IS NULL OR fumoName = '')
+                     ORDER BY id ASC`,
+                    [dup.userId, dup.itemName]
+                );
+                
+                if (entries.length > 1) {
+                    const keepId = entries[0].id;
+                    const totalQuantity = entries.reduce((sum, e) => sum + (e.quantity || 1), 0);
+                    
+                    await dbRunAsync(
+                        `UPDATE userInventory SET quantity = ? WHERE id = ?`,
+                        [totalQuantity, keepId]
+                    );
+                    
+                    const idsToDelete = entries.slice(1).map(e => e.id);
+                    await dbRunAsync(
+                        `DELETE FROM userInventory WHERE id IN (${idsToDelete.join(',')})`,
+                        []
+                    );
+                }
+            }
+            console.log(`✅ Merged ${itemDuplicates.length} duplicate item entries`);
+        }
+        
+        if (fumoDuplicates.length === 0 && itemDuplicates.length === 0) {
+            console.log('✅ No duplicate entries found');
+        }
+    } catch (err) {
+        console.error('❌ Error cleaning up duplicates:', err.message);
+    }
+}
+
 function createIndexes() {
     console.log('📊 Creating database indexes...');
 
     const indexes = [
         // User Inventory - Most queried table
         `CREATE INDEX IF NOT EXISTS idx_inventory_userId ON userInventory(userId)`,
-        `CREATE INDEX IF NOT EXISTS idx_inventory_itemName ON userInventory(userId, itemName)`,
         `CREATE INDEX IF NOT EXISTS idx_inventory_rarity ON userInventory(userId, rarity)`,
+        // CRITICAL: Unique indexes for ON CONFLICT clauses to work
+        `CREATE UNIQUE INDEX IF NOT EXISTS idx_inventory_userId_fumoName ON userInventory(userId, fumoName)`,
+        `CREATE UNIQUE INDEX IF NOT EXISTS idx_inventory_userId_itemName ON userInventory(userId, itemName)`,
 
         // Active Boosts - Checked on every roll
         `CREATE INDEX IF NOT EXISTS idx_boosts_userId ON activeBoosts(userId)`,
@@ -718,6 +836,7 @@ async function initializeDatabase() {
     console.log('🚀 Initializing database schema...');
     await createTables();
     await ensureColumnsExist();
+    await cleanupDuplicateFumos(); // Clean duplicates BEFORE creating unique indexes
     await createIndexes();
     console.log('✅ Database initialization complete');
 }
@@ -726,5 +845,6 @@ module.exports = {
     createTables,
     ensureColumnsExist,
     createIndexes,
+    cleanupDuplicateFumos,
     initializeDatabase
 };

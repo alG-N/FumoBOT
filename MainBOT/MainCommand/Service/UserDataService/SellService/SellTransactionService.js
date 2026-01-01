@@ -5,8 +5,53 @@ const SHINY_MULTIPLIER = 2;
 const ALG_MULTIPLIER = 150;
 
 class SellTransactionService {
+    /**
+     * Get S!gil sell value boost multiplier
+     * Returns the multiplier (e.g., 3.5 for +350%)
+     */
+    static async getSigilSellBoost(userId) {
+        try {
+            const now = Date.now();
+            const sigilSellBoost = await db.get(
+                `SELECT multiplier FROM activeBoosts 
+                 WHERE userId = ? AND source = 'S!gil' AND type = 'sellValue'
+                 AND (expiresAt IS NULL OR expiresAt > ?)`,
+                [userId, now]
+            );
+            if (sigilSellBoost) {
+                return 1 + sigilSellBoost.multiplier; // +350% = x4.5
+            }
+        } catch (error) {
+            console.error('[SellTransaction] Error fetching S!gil sell boost:', error);
+        }
+        return 1.0;
+    }
+
+    /**
+     * Check if S!gil is active (to disable other sell boosts)
+     */
+    static async isSigilActive(userId) {
+        const now = Date.now();
+        const sigil = await db.get(
+            `SELECT * FROM activeBoosts 
+             WHERE userId = ? AND source = 'S!gil' AND type = 'coin'
+             AND (expiresAt IS NULL OR expiresAt > ?)`,
+            [userId, now]
+        );
+        return !!sigil;
+    }
+
     static async getSellMultiplier(userId) {
         try {
+            // Check if S!gil is active - if so, only S!gil sell boost applies
+            const sigilActive = await this.isSigilActive(userId);
+            
+            if (sigilActive) {
+                // Only return S!gil sell boost when S!gil is active
+                return await this.getSigilSellBoost(userId);
+            }
+            
+            // Normal sell multiplier (AncientRelic penalty)
             const row = await db.get(
                 `SELECT multiplier, expiresAt FROM activeBoosts WHERE userId = ? AND type = ? AND source = ?`,
                 [userId, 'sellPenalty', 'AncientRelic']

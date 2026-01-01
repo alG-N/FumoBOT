@@ -102,7 +102,7 @@ const ITEM_RECIPES = {
             "alGShard(P)": 15
         },
         resources: { coins: 10000000000, gems: 100000000 },
-        effect: "Condensed eternal power.\n+5000% coins boost\n+7500% gems boost\nx2 trait luck permanently"
+        effect: "Condensed eternal power.\n+5000% coins boost\n+7500% gems boost\nx2 variant luck (24h)"
     },
     "CosmicCore(?)": {
         category: "Tier 6",
@@ -113,7 +113,7 @@ const ITEM_RECIPES = {
             "alGShard(P)": 1
         },
         resources: { coins: 500000000000, gems: 5000000000 },
-        effect: "Core of cosmic energy.\n+15000% coins boost\n+20000% gems boost\nEnables [GLITCHED] trait (1 in 25k)"
+        effect: "Core of cosmic energy.\n+7500% coins boost\n+10000% gems boost\nEnables [GLITCHED] trait (1 in 50k)"
     },
     "S!gil?(?)": {
         category: "Tier 7(MAX)",
@@ -127,7 +127,7 @@ const ITEM_RECIPES = {
             "VoidFragment(?)": 3
         },
         resources: { coins: 95000000000000, gems: 950000000000 },
-        effect: "**WONT CONSUME ITEM**\n\n+ x150 coins, x300 gems overall\n+ x1.25 to x2 luck for every GoldenSigil(?) boost applied\n+ x1.1 to x1.5 rollspeed for every CrystalSigil(?) boost applied\n+ x1.01 to x1.5 for trait luck\n+ Enabling [GLITCHED] trait, 1 in 50k\n+ 350% value when selling fumo, applied on all side\n+ 500% luck on Reimu's Praying\n\n**Downside:**\nEverytime you activate sigil, 15 Transcendent fumo[trait included] will be gone.\nEffect will apply for 12 hour"
+        effect: "**WONT CONSUME ITEM**\n\n+ x150 coins, x300 gems overall\n+ x1.25 to x2 luck for every GoldenSigil(?) boost applied\n+ x1.1 to x1.5 rollspeed for every CrystalSigil(?) boost applied\n+ x1.01 to x1.5 for variant luck\n+ Enabling [GLITCHED] trait, 1 in 50k\n+ 350% value when selling fumo, applied on all side\n+ 500% luck on Reimu's Praying\n\n**Downside:**\nEverytime you activate sigil, 15 Transcendent fumo[variant included] will be gone.\nEffect will apply for 12 hour"
     }
 };
 

@@ -7,17 +7,18 @@ class StorageUIService {
     static createInventoryEmbed(username, inventoryData, options = {}) {
         const { 
             currentPage = 0, 
-            showShinyPlus = false, 
+            showShinyPlus = false,
+            showVoidPlus = false,
             sortBy = 'rarity',
             hasFantasyBook = false 
         } = options;
 
-        const { categories, visibleRarities, totalFumos, totalShinyPlus } = inventoryData;
+        const { categories, visibleRarities, totalFumos, totalShinyPlus, totalVoidPlus } = inventoryData;
 
         const embed = new EmbedBuilder()
-            .setColor(showShinyPlus ? '#FFD700' : '#00BFFF')
-            .setTitle(showShinyPlus ? `✨ ${username}'s SHINY+ Collection` : `📦 ${username}'s Storage`)
-            .setDescription(this.buildDescription(totalFumos, totalShinyPlus, showShinyPlus))
+            .setColor(showVoidPlus ? '#8B00FF' : showShinyPlus ? '#FFD700' : '#00BFFF')
+            .setTitle(showVoidPlus ? `🔮 ${username}'s VOID+ Collection` : showShinyPlus ? `✨ ${username}'s SHINY+ Collection` : `📦 ${username}'s Storage`)
+            .setDescription(this.buildDescription(totalFumos, totalShinyPlus, totalVoidPlus, showShinyPlus, showVoidPlus))
             .setThumbnail('https://media.discordapp.net/attachments/1255538076172816415/1255887181071913010/FyrEe68WIAgN3sc.png');
 
         const start = currentPage * 3;
@@ -38,13 +39,19 @@ class StorageUIService {
         }
 
         embed.setFooter({ 
-            text: this.buildFooter(showShinyPlus, hasFantasyBook, sortBy, currentPage + 1, Math.ceil(visibleRarities.length / 3)) 
+            text: this.buildFooter(showShinyPlus, showVoidPlus, hasFantasyBook, sortBy, currentPage + 1, Math.ceil(visibleRarities.length / 3)) 
         });
 
         return embed;
     }
 
-    static buildDescription(totalFumos, totalShinyPlus, showShinyPlus) {
+    static buildDescription(totalFumos, totalShinyPlus, totalVoidPlus, showShinyPlus, showVoidPlus) {
+        if (showVoidPlus) {
+            return `🔮 **VOID+ Units:** ${(totalVoidPlus || 0).toLocaleString()}\n` +
+                   `📦 **Total Units:** ${totalFumos.toLocaleString()}\n` +
+                   `🌀 **Viewing:** VOID & GLITCHED Variants`;
+        }
+        
         if (showShinyPlus) {
             return `✨ **SHINY+ Units:** ${totalShinyPlus.toLocaleString()}\n` +
                    `📦 **Total Units:** ${totalFumos.toLocaleString()}\n` +
@@ -53,6 +60,7 @@ class StorageUIService {
         
         return `📦 **Total Units:** ${totalFumos.toLocaleString()}\n` +
                `✨ **SHINY+ Units:** ${totalShinyPlus.toLocaleString()}\n` +
+               `🔮 **VOID+ Units:** ${(totalVoidPlus || 0).toLocaleString()}\n` +
                `📊 **Storage Status:** ${((totalFumos / STORAGE_CONFIG.MAX_STORAGE) * 100).toFixed(1)}% full`;
     }
 
@@ -65,10 +73,12 @@ class StorageUIService {
             .join('\n') + (items.length > 8 ? `\n*+${items.length - 8} more...*` : '');
     }
 
-    static buildFooter(showShinyPlus, hasFantasyBook, sortBy, currentPage, totalPages) {
+    static buildFooter(showShinyPlus, showVoidPlus, hasFantasyBook, sortBy, currentPage, totalPages) {
         const parts = [];
         
-        if (showShinyPlus) {
+        if (showVoidPlus) {
+            parts.push('🔮 Viewing VOID+ variants');
+        } else if (showShinyPlus) {
             parts.push('🎯 Viewing SHINY+ variants');
         } else if (!hasFantasyBook) {
             parts.push('🔒 FantasyBook required for high-tier units');
@@ -81,7 +91,7 @@ class StorageUIService {
         return parts.join(' • ');
     }
 
-    static createButtons(userId, currentPage, maxPage, showShinyPlus, sortBy) {
+    static createButtons(userId, currentPage, maxPage, showShinyPlus, sortBy, showVoidPlus = false) {
         const navRow = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId(`storage_first_${userId}`)
@@ -111,6 +121,10 @@ class StorageUIService {
                 .setLabel(showShinyPlus ? '📦 Normal' : '✨ SHINY+')
                 .setStyle(showShinyPlus ? ButtonStyle.Success : ButtonStyle.Primary),
             new ButtonBuilder()
+                .setCustomId(`storage_void_${userId}`)
+                .setLabel(showVoidPlus ? '📦 Normal' : '🔮 VOID+')
+                .setStyle(showVoidPlus ? ButtonStyle.Success : ButtonStyle.Secondary),
+            new ButtonBuilder()
                 .setCustomId(`storage_sort_${userId}`)
                 .setLabel(sortBy === 'rarity' ? '🔢 Sort: Qty' : '🔤 Sort: Rarity')
                 .setStyle(ButtonStyle.Secondary),
@@ -134,7 +148,7 @@ class StorageUIService {
         const embed = new EmbedBuilder()
             .setColor('#9B59B6')
             .setTitle(`📊 ${username}'s Collection Statistics`)
-            .setDescription(`**Total Units:** ${summary.totalFumos.toLocaleString()}\n**SHINY+ Units:** ${summary.totalShinyPlus.toLocaleString()}`);
+            .setDescription(`**Total Units:** ${summary.totalFumos.toLocaleString()}\n**SHINY+ Units:** ${summary.totalShinyPlus.toLocaleString()}\n**VOID+ Units:** ${(summary.totalVoidPlus || 0).toLocaleString()}`);
 
         const rarityStats = [];
         for (const [rarity, stats] of Object.entries(summary.byRarity)) {

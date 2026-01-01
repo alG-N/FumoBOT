@@ -7,7 +7,17 @@ const BOOST_TYPES = {
     RARITY_OVERRIDE: 'rarityOverride',
     SUMMON_COOLDOWN: 'summonCooldown',
     SUMMON_SPEED: 'summonSpeed',
-    YUYUKO_ROLLS: 'yuyukoRolls'
+    YUYUKO_ROLLS: 'yuyukoRolls',
+    // Tier 6 special types
+    VOID_TRAIT: 'voidTrait',
+    GLITCHED_TRAIT: 'glitchedTrait',
+    TRAIT_LUCK: 'traitLuck',
+    ROLL_SPEED: 'rollSpeed',
+    // S!gil types
+    SELL_VALUE: 'sell',
+    REIMU_LUCK: 'reimuLuck',
+    ASTRAL_BLOCK: 'astralBlock',
+    NULLIFIED_ROLLS: 'nullifiedRolls'
 };
 
 const BOOST_CATEGORIES = {
@@ -19,14 +29,21 @@ const BOOST_CATEGORIES = {
     [BOOST_TYPES.SUMMON_SPEED]: { name: '⚡ Summon Speed', emoji: '⚡', order: 6 },
     [BOOST_TYPES.RARITY_OVERRIDE]: { name: '🎯 Rarity Override', emoji: '🎯', order: 7 },
     [BOOST_TYPES.SELL_PENALTY]: { name: '⚠️ Debuffs', emoji: '⚠️', order: 8 },
-    [BOOST_TYPES.YUYUKO_ROLLS]: { name: '🌸 Yuyuko Rolls', emoji: '🌸', order: 9 }
+    [BOOST_TYPES.YUYUKO_ROLLS]: { name: '🌸 Yuyuko Rolls', emoji: '🌸', order: 9 },
+    // Tier 6 & S!gil special
+    special: { name: '🔮 Special Effects', emoji: '✨', order: 10 }
 };
 
 const SPECIAL_SOURCES = {
     MYSTERIOUS_DICE: 'MysteriousDice',
     TIME_CLOCK: 'TimeClock',
     SGIL: 'S!gil',
-    GOLDEN_SIGIL: 'GoldenSigil'
+    GOLDEN_SIGIL: 'GoldenSigil',
+    // Tier 6 sources
+    VOID_CRYSTAL: 'VoidCrystal',
+    CRYSTAL_SIGIL: 'CrystalSigil',
+    ETERNAL_ESSENCE: 'EternalEssence',
+    COSMIC_CORE: 'CosmicCore'
 };
 
 const BOOST_COLORS = {

@@ -20,33 +20,16 @@
     "normal": {
       "rollCount": 2,
       "autoSell": true,
-      "startTime": 1766990191906,
+      "startTime": 1767252351086,
       "bestFumo": {
-        "name": "Rinnosuke(TRANSCENDENT)[✨SHINY]",
+        "name": "Rinnosuke(TRANSCENDENT)",
         "rarity": "TRANSCENDENT",
         "picture": "https://img1.picmix.com/output/stamp/normal/6/1/0/7/2577016_a2c58.png"
       },
-      "bestFumoAt": "12/31/2025, 9:13:18 PM",
-      "bestFumoRoll": 3054,
-      "specialFumoCount": 4084,
-      "specialFumoFirstAt": "12/29/2025, 1:37:09 PM",
-      "specialFumoFirstRoll": 1
-    }
-  },
-  "1362450043939979378": {
-    "normal": {
-      "rollCount": 2,
-      "autoSell": true,
-      "startTime": 1767003612973,
-      "bestFumo": {
-        "name": "Rinnosuke(TRANSCENDENT)[✨SHINY]",
-        "rarity": "TRANSCENDENT",
-        "picture": "https://img1.picmix.com/output/stamp/normal/6/1/0/7/2577016_a2c58.png"
-      },
-      "bestFumoAt": "12/30/2025, 7:22:19 AM",
-      "bestFumoRoll": 798,
-      "specialFumoCount": 3901,
-      "specialFumoFirstAt": "12/29/2025, 5:20:13 PM",
+      "bestFumoAt": "1/1/2026, 2:50:24 PM",
+      "bestFumoRoll": 8,
+      "specialFumoCount": 46,
+      "specialFumoFirstAt": "1/1/2026, 2:25:51 PM",
       "specialFumoFirstRoll": 1
     }
   }

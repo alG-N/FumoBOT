@@ -67,6 +67,47 @@ const SHINY_CONFIG = {
     SHINY_MULTIPLIER: 2    
 };
 
+/**
+ * Variant Configuration
+ * 
+ * Variants are mutually exclusive - only ONE variant per fumo
+ * Priority order (highest to lowest):
+ *   1. GLITCHED (requires active boost from S!gil or CosmicCore)
+ *   2. VOID (requires active boost from VoidCrystal)
+ *   3. alG (base variant, very rare)
+ *   4. SHINY (base variant, rare)
+ * 
+ * Examples:
+ *   - Reimu(Common) - no variant
+ *   - Reimu(Common)[✨SHINY] - SHINY variant
+ *   - Reimu(Common)[🌟alG] - alG variant
+ *   - Reimu(Common)[🔮GLITCHED] - GLITCHED variant
+ *   - Reimu(Common)[🌀VOID] - VOID variant
+ */
+const VARIANT_CONFIG = {
+    TAGS: {
+        SHINY: '[✨SHINY]',
+        ALG: '[🌟alG]',
+        GLITCHED: '[🔮GLITCHED]',
+        VOID: '[🌀VOID]'
+    },
+    EMOJI: {
+        SHINY: '✨',
+        ALG: '🌟',
+        GLITCHED: '🔮',
+        VOID: '🌀'
+    },
+    // Priority order for variant rolling (higher = checked first)
+    PRIORITY: ['GLITCHED', 'VOID', 'ALG', 'SHINY'],
+    // Base multipliers for sell value
+    MULTIPLIERS: {
+        SHINY: 2,
+        ALG: 150,
+        GLITCHED: 500,
+        VOID: 100
+    }
+};
+
 function isRarer(r1, r2) {
     const idx1 = RARITY_PRIORITY.indexOf(r1?.toUpperCase() ?? '');
     const idx2 = RARITY_PRIORITY.indexOf(r2?.toUpperCase() ?? '');
@@ -93,6 +134,7 @@ module.exports = {
     PITY_THRESHOLDS,
     SELL_REWARDS,
     SHINY_CONFIG,
+    VARIANT_CONFIG,
     
     isRarer,
     compareFumos,

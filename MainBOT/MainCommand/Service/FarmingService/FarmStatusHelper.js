@@ -49,12 +49,39 @@ async function getFarmStatusData(userId, username) {
     };
 }
 
-async function getActiveBoosts(userId, now) {
-    return await all(
-        `SELECT type, multiplier, source, expiresAt FROM activeBoosts 
-         WHERE userId = ? AND (expiresAt IS NULL OR expiresAt > ?)`,
+/**
+ * Check if S!gil is currently active for a user
+ */
+async function isSigilActive(userId, now) {
+    const sigil = await get(
+        `SELECT * FROM activeBoosts 
+         WHERE userId = ? AND source = 'S!gil' AND type = 'coin'
+         AND (expiresAt IS NULL OR expiresAt > ?)`,
         [userId, now]
     );
+    return !!sigil;
+}
+
+async function getActiveBoosts(userId, now) {
+    // Check if S!gil is active
+    const sigilActive = await isSigilActive(userId, now);
+    
+    if (sigilActive) {
+        // Only return S!gil boosts when S!gil is active
+        return await all(
+            `SELECT type, multiplier, source, expiresAt FROM activeBoosts 
+             WHERE userId = ? AND source = 'S!gil' AND (expiresAt IS NULL OR expiresAt > ?)`,
+            [userId, now]
+        );
+    } else {
+        // Return all non-sigilDisabled boosts
+        return await all(
+            `SELECT type, multiplier, source, expiresAt FROM activeBoosts 
+             WHERE userId = ? AND (expiresAt IS NULL OR expiresAt > ?)
+             AND (extra IS NULL OR json_extract(extra, '$.sigilDisabled') IS NOT true)`,
+            [userId, now]
+        );
+    }
 }
 
 function calculateMultipliers(boosts, seasonalMults, buildingLevels) {

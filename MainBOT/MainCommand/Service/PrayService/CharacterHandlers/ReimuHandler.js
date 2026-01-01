@@ -3,7 +3,7 @@ const { PRAY_CHARACTERS } = require('../../../Configuration/prayConfig');
 const { formatNumber } = require('../../../Ultility/formatting');
 const { incrementWeeklyShiny, incrementWeeklyAstral } = require('../../../Ultility/weekly');
 const FumoPool = require('../../../Data/FumoPool');
-const { run } = require('../../../Core/database');
+const { run, get } = require('../../../Core/database');
 const {
     getUserData,
     deductUserCurrency,
@@ -11,6 +11,27 @@ const {
     addSpiritTokens,
     incrementDailyPray
 } = require('../PrayDatabaseService');
+
+/**
+ * Get S!gil Reimu luck multiplier (+500%)
+ * Increases chances for alG and SHINY variants in Reimu gifts
+ */
+async function getSigilReimuLuckMultiplier(userId) {
+    const now = Date.now();
+    
+    const sigilReimuLuck = await get(
+        `SELECT multiplier FROM activeBoosts 
+         WHERE userId = ? AND source = 'S!gil' AND type = 'reimuLuck'
+         AND (expiresAt IS NULL OR expiresAt > ?)`,
+        [userId, now]
+    );
+    
+    if (sigilReimuLuck) {
+        return sigilReimuLuck.multiplier; // x5.0 luck
+    }
+    
+    return 1.0;
+}
 
 async function handleReimu(userId, channel, interactionUserId) {
     const config = PRAY_CHARACTERS.REIMU;
@@ -50,13 +71,28 @@ async function handleReimu(userId, channel, interactionUserId) {
 async function handleGiftPhase(userId, channel, user, config, interactionUserId) {
     const giftConfig = config.phases.gift;
     const pityCount = user.reimuPityCount || 0;
+    
+    // Get S!gil Reimu luck multiplier for RARITY chances (+500% = x5)
+    const reimuLuckMult = await getSigilReimuLuckMultiplier(userId);
 
     let pickedRarity;
 
     if (pityCount >= 10) {
         pickedRarity = giftConfig.ultraRares[Math.floor(Math.random() * giftConfig.ultraRares.length)];
     } else {
-        const adjustedProbabilities = applyPityBoost(giftConfig.rarities, pityCount, giftConfig.pityBoost);
+        // Apply S!gil luck boost to rarity probabilities
+        const baseProbabilities = giftConfig.rarities;
+        let adjustedProbabilities;
+        
+        if (reimuLuckMult > 1) {
+            // Boost higher rarities with the luck multiplier
+            adjustedProbabilities = applyReimuLuckBoost(baseProbabilities, reimuLuckMult);
+        } else {
+            adjustedProbabilities = baseProbabilities;
+        }
+        
+        // Then apply pity boost on top
+        adjustedProbabilities = applyPityBoost(adjustedProbabilities, pityCount, giftConfig.pityBoost);
         pickedRarity = pickRarity(adjustedProbabilities);
     }
 
@@ -69,6 +105,8 @@ async function handleGiftPhase(userId, channel, user, config, interactionUserId)
     }
 
     const fumo = filteredFumos[Math.floor(Math.random() * filteredFumos.length)];
+    
+    // Variant chances (SHINY/alG) use base rates - S!gil luck affects rarity, not variants here
     const isAlterGolden = Math.random() < 0.1;
     const isShiny = !isAlterGolden && Math.random() < 0.35;
 
@@ -180,6 +218,44 @@ async function handleDonationPhase(userId, channel, user, config) {
                 .setTimestamp()]
         });
     }
+}
+
+/**
+ * Apply S!gil Reimu luck boost to rarity probabilities
+ * Boosts higher rarities significantly (x5 luck = much better rare chances)
+ */
+function applyReimuLuckBoost(probabilities, luckMultiplier) {
+    if (luckMultiplier <= 1) return probabilities;
+    
+    const boosted = { ...probabilities };
+    
+    // Define rarity boost tiers - higher rarities get more boost
+    const rarityBoosts = {
+        'Common': 1,           // No boost
+        'UNCOMMON': 1,         // No boost
+        'RARE': 1.2,           // Small boost
+        'EPIC': 1.5,           // Medium boost
+        'OTHERWORLDLY': 2,     // Good boost
+        'LEGENDARY': 2.5,      // Great boost
+        'MYTHICAL': 3,         // Excellent boost
+        '???': 4,              // Amazing boost
+        'ASTRAL': 4.5,         // Incredible boost
+        'CELESTIAL': 5,        // Maximum boost
+        'INFINITE': 5,         // Maximum boost
+        'ETERNAL': 5,          // Maximum boost
+        'TRANSCENDENT': 5      // Maximum boost
+    };
+    
+    // Apply luck multiplier scaled by rarity tier
+    for (const [rarity, tierBoost] of Object.entries(rarityBoosts)) {
+        if (boosted[rarity]) {
+            // Scale the boost: higher tier rarities benefit more from luck
+            const effectiveBoost = 1 + (luckMultiplier - 1) * tierBoost;
+            boosted[rarity] *= effectiveBoost;
+        }
+    }
+    
+    return boosted;
 }
 
 function applyPityBoost(probabilities, pityCount, boostFactor) {

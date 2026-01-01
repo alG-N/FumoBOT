@@ -128,13 +128,18 @@ function getItemCategory(itemName) {
         'TimeClock(L)': '⏰ Multi',
         'S!gil?(?)': '🪄 Ultimate',
         'Nullified(?)': '🎯 Override',
-        'PetFoob(B)': '🍖 Pet Food',
+        'PetFoob(B)': '🐾 Pet',
         'ShinyShard(?)': '✨ Transform',
-        'alGShard(P)': '🌟 Transform',
-        'AncientRelic(E)': '🔮 Ancient'
+        'alGShard(P)': '👑 Prime',
+        'AncientRelic(E)': '🏛️ Ancient',
+        // Tier 6 items
+        'CrystalSigil(?)': '💎 Tier 6',
+        'VoidCrystal(?)': '🌀 Tier 6',
+        'EternalEssence(?)': '✨ Tier 6',
+        'CosmicCore(?)': '🌌 Tier 6'
     };
     
-    return categories[itemName] || '📦 Special';
+    return categories[itemName] || '📦 Item';
 }
 
 /**

@@ -169,6 +169,7 @@ async function handleConfirmation(interaction) {
 
     const messageProxy = {
         author: interaction.user,
+        client: interaction.client,
         reply: async (content) => {
             if (typeof content === 'string') {
                 return interaction.followUp({ content, ephemeral: false });

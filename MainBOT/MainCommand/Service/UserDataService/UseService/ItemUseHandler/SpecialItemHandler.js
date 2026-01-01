@@ -1,71 +1,60 @@
 const { handleCoinPotion, handleGemPotion, handleBoostPotion, isCoinPotion, isGemPotion, isBoostPotion } = require('./PotionHandler');
-const { handleWeirdGrass } = require('./WeirdGrassHandler');
 const { handleGoldenSigil } = require('./GoldenSigilHandler');
-const { handleHakureiTicket } = require('./HakureiTicketHandler');
-const { handleLumina } = require('./LuminaHandler');
-const { handleFantasyBook } = require('./FantasyBookHandler');
-const { handleMysteriousCube } = require('./MysteriousCubeHandler');
-const { handleMysteriousDice } = require('./MysteriousDiceHandler');
-const { handleTimeClock } = require('./TimeClockHandler');
-const { handleSgil } = require('./SgilHandler');
 const { handleNullified } = require('./NullifiedHandler');
 const { handlePetFoob } = require('./PetFoobHandler');
 const { handleShinyShard } = require('./ShinyShardHandler');
 const { handleAlGShard } = require('./alGShardHandler');
 const { handleAncientRelic } = require('./AncientRelicHandler');
+const { handleCrystalSigil } = require('./CrystalSigilHandler');
+const { handleVoidCrystal } = require('./VoidCrystalHandler');
+const { handleEternalEssence } = require('./EternalEssenceHandler');
+const { handleCosmicCore } = require('./CosmicCoreHandler');
+const { handleSigil } = require('./SgilHandler');
 
 const ITEM_HANDLERS = {
+    // Potions
     'CoinPotionT1(R)': handleCoinPotion,
     'CoinPotionT2(R)': handleCoinPotion,
     'CoinPotionT3(R)': handleCoinPotion,
     'CoinPotionT4(L)': handleCoinPotion,
     'CoinPotionT5(M)': handleCoinPotion,
-    
     'GemPotionT1(R)': handleGemPotion,
     'GemPotionT2(R)': handleGemPotion,
     'GemPotionT3(R)': handleGemPotion,
     'GemPotionT4(L)': handleGemPotion,
     'GemPotionT5(M)': handleGemPotion,
-    
     'BoostPotionT1(L)': handleBoostPotion,
     'BoostPotionT2(L)': handleBoostPotion,
     'BoostPotionT3(L)': handleBoostPotion,
     'BoostPotionT4(M)': handleBoostPotion,
     'BoostPotionT5(M)': handleBoostPotion,
     
-    'WeirdGrass(R)': handleWeirdGrass,
+    // Special items
     'GoldenSigil(?)': handleGoldenSigil,
-    'HakureiTicket(L)': handleHakureiTicket,
-    'Lumina(M)': handleLumina,
-    'FantasyBook(M)': handleFantasyBook,
-    'MysteriousCube(M)': handleMysteriousCube,
-    'MysteriousDice(M)': handleMysteriousDice,
-    'TimeClock(L)': handleTimeClock,
-    'S!gil?(?)': handleSgil,
+    'S!gil?(?)': handleSigil,
     'Nullified(?)': handleNullified,
     'PetFoob(B)': handlePetFoob,
     'ShinyShard(?)': handleShinyShard,
     'alGShard(P)': handleAlGShard,
-    'AncientRelic(E)': handleAncientRelic
+    'AncientRelic(E)': handleAncientRelic,
+    
+    // Tier 6 items
+    'CrystalSigil(?)': handleCrystalSigil,
+    'VoidCrystal(?)': handleVoidCrystal,
+    'EternalEssence(?)': handleEternalEssence,
+    'CosmicCore(?)': handleCosmicCore
 };
 
 async function handleItem(message, itemName, quantity) {
     const handler = ITEM_HANDLERS[itemName];
-    
     if (!handler) {
-        return message.reply(`❌ **${itemName}** cannot be used or has no implemented handler yet.`);
+        return null;
     }
-    
-    try {
-        await handler(message, itemName, quantity, message.author.id);
-    } catch (error) {
-        console.error(`[ITEM_HANDLER] Error handling ${itemName}:`, error);
-        throw error;
-    }
+    return handler(message, itemName, quantity, message.author.id);
 }
 
 function isUsableItem(itemName) {
-    return !!ITEM_HANDLERS[itemName];
+    return ITEM_HANDLERS.hasOwnProperty(itemName);
 }
 
 function getItemHandler(itemName) {
@@ -79,21 +68,19 @@ module.exports = {
     handleCoinPotion,
     handleGemPotion,
     handleBoostPotion,
-    handleWeirdGrass,
+    isCoinPotion,
+    isGemPotion,
+    isBoostPotion,
     handleGoldenSigil,
-    handleHakureiTicket,
-    handleLumina,
-    handleFantasyBook,
-    handleMysteriousCube,
-    handleMysteriousDice,
-    handleTimeClock,
-    handleSgil,
+    handleSigil,
     handleNullified,
     handlePetFoob,
     handleShinyShard,
     handleAlGShard,
     handleAncientRelic,
-    isCoinPotion,
-    isGemPotion,
-    isBoostPotion
+    handleCrystalSigil,
+    handleVoidCrystal,
+    handleEternalEssence,
+    handleCosmicCore,
+    ITEM_HANDLERS
 };

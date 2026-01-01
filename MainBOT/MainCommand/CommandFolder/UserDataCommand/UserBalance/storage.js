@@ -36,6 +36,7 @@ module.exports = (client) => {
 
         const state = {
             showShinyPlus: false,
+            showVoidPlus: false,
             sortBy: 'rarity',
             currentPage: 0,
             hasFantasyBook: userData?.hasFantasyBook === 1
@@ -44,6 +45,7 @@ module.exports = (client) => {
         function buildView() {
             const inventoryData = StorageService.buildInventoryData(inventoryRows, {
                 showShinyPlus: state.showShinyPlus,
+                showVoidPlus: state.showVoidPlus,
                 hasFantasyBook: state.hasFantasyBook,
                 sortBy: state.sortBy
             });
@@ -62,7 +64,8 @@ module.exports = (client) => {
                     state.currentPage,
                     maxPage,
                     state.showShinyPlus,
-                    state.sortBy
+                    state.sortBy,
+                    state.showVoidPlus
                 ),
                 inventoryData,
                 maxPage
@@ -111,6 +114,12 @@ module.exports = (client) => {
                     break;
                 case 'shiny':
                     state.showShinyPlus = !state.showShinyPlus;
+                    if (state.showShinyPlus) state.showVoidPlus = false; // Only one mode at a time
+                    state.currentPage = 0;
+                    break;
+                case 'void':
+                    state.showVoidPlus = !state.showVoidPlus;
+                    if (state.showVoidPlus) state.showShinyPlus = false; // Only one mode at a time
                     state.currentPage = 0;
                     break;
                 case 'sort':

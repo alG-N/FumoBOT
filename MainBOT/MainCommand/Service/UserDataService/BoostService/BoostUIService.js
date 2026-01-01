@@ -1,357 +1,305 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { BOOST_CATEGORIES, BOOST_COLORS } = require('../../../Configuration/boostConfig');
-const { formatTime, formatBoostLabel } = require('./BoostFormatterService');
+const { formatTime } = require('./BoostFormatterService');
 
 /**
- * Creates a modern, visually appealing boost overview embed
+ * Creates the main boost overview embed with summary stats
  */
-function createBoostEmbed(boostData, detailsType = null) {
+function createBoostEmbed(boostData, category = null) {
     const { boosts, totals } = boostData;
     const now = Date.now();
 
-    if (detailsType) {
-        return createDetailsEmbed(boosts, detailsType, now);
+    // If a category is selected, show that category's details
+    if (category) {
+        return createCategoryEmbed(boosts, category, now);
     }
 
-    // Modern gradient color scheme
+    // Main overview embed
     const embed = new EmbedBuilder()
-        .setTitle("⚡ Active Boost Dashboard")
-        .setDescription("*Your current performance multipliers and enhancements*")
-        .setColor(0x5865F2) // Discord blurple
+        .setTitle("⚡ Active Boosts Overview")
+        .setColor(0x5865F2)
         .setTimestamp();
 
-    // Summary stats section with modern formatting
-    const summarySection = buildSummarySection(totals, boosts);
-    if (summarySection) {
-        embed.addFields({
-            name: '📊 Performance Overview',
-            value: summarySection,
-            inline: false
-        });
+    // Build summary
+    const summaryLines = [];
+    
+    if (totals.coin > 1) {
+        const percent = ((totals.coin - 1) * 100).toFixed(1);
+        summaryLines.push(`💰 **Coin:** +${percent}% (×${totals.coin.toFixed(2)})`);
+    }
+    if (totals.gem > 1) {
+        const percent = ((totals.gem - 1) * 100).toFixed(1);
+        summaryLines.push(`💎 **Gem:** +${percent}% (×${totals.gem.toFixed(2)})`);
+    }
+    if (totals.luck > 1) {
+        summaryLines.push(`🍀 **Luck:** ×${totals.luck.toFixed(2)}`);
     }
 
-    // Active boosts grouped by category
-    const categoryFields = buildModernBoostFields(boosts, now);
-    
-    if (categoryFields.length > 0) {
-        embed.addFields(categoryFields);
-        
-        // Add visual separator
-        embed.addFields({
-            name: '\u200B',
-            value: '━━━━━━━━━━━━━━━━━━━━',
-            inline: false
-        });
+    // Count boosts per category
+    const counts = {
+        coin: boosts.coin?.length || 0,
+        gem: boosts.gem?.length || 0,
+        luck: boosts.luck?.length || 0,
+        special: boosts.special?.length || 0,
+        sanae: boosts.sanae?.length || 0,
+        cooldown: boosts.cooldown?.length || 0,
+        debuff: boosts.debuff?.length || 0,
+        yuyuko: boosts.yuyukoRolls?.length || 0
+    };
+
+    const totalBoosts = Object.values(counts).reduce((a, b) => a + b, 0);
+
+    if (summaryLines.length > 0) {
+        embed.setDescription(
+            `*Click a button below to view category details*\n\n` +
+            `**📊 Totals:**\n${summaryLines.join('\n')}`
+        );
     } else {
         embed.setDescription(
-            "```diff\n" +
-            "- No active boosts\n" +
-            "```\n" +
-            "*Use boost items or complete prayers to gain multipliers!*"
+            `*You have no active boosts.*\n\n` +
+            `Use items, prayers, or other features to gain boosts!`
         );
     }
 
-    // Modern footer with tips
-    const boostCount = Object.values(boosts).reduce((sum, arr) => sum + arr.length, 0);
-    embed.setFooter({ 
-        text: `${boostCount} active • Use .boost details <type> for more info • Boosts stack multiplicatively` 
-    });
+    // Quick category overview
+    const categoryOverview = [];
+    if (counts.coin > 0) categoryOverview.push(`💰 Coin: ${counts.coin}`);
+    if (counts.gem > 0) categoryOverview.push(`💎 Gem: ${counts.gem}`);
+    if (counts.luck > 0) categoryOverview.push(`🍀 Luck: ${counts.luck}`);
+    if (counts.special > 0) categoryOverview.push(`🔮 Special: ${counts.special}`);
+    if (counts.sanae > 0) categoryOverview.push(`⛩️ Divine: ${counts.sanae}`);
+    if (counts.cooldown > 0) categoryOverview.push(`⚡ Speed: ${counts.cooldown}`);
+    if (counts.yuyuko > 0) categoryOverview.push(`🌸 Yuyuko: ${counts.yuyuko}`);
+    if (counts.debuff > 0) categoryOverview.push(`⚠️ Debuff: ${counts.debuff}`);
+
+    if (categoryOverview.length > 0) {
+        embed.addFields({
+            name: '📋 Active Categories',
+            value: categoryOverview.join(' • '),
+            inline: false
+        });
+    }
+
+    embed.setFooter({ text: `${totalBoosts} total boosts active` });
 
     return embed;
 }
 
 /**
- * Creates a detailed view for a specific boost category
+ * Creates a detailed embed for a specific category
  */
-function createDetailsEmbed(boosts, detailsType, now) {
-    const categoryMap = {
-        coin: { name: "🪙 Coin Boosts", color: 0xFFD700, emoji: "💰" },
-        gem: { name: "💎 Gem Boosts", color: 0x00FFFF, emoji: "💎" },
-        luck: { name: "🍀 Luck Boosts", color: 0x57F287, emoji: "✨" },
-        cooldown: { name: "⏱️ Cooldown Reductions", color: 0x5865F2, emoji: "⚡" },
-        debuff: { name: "⚠️ Active Debuffs", color: 0xED4245, emoji: "🔻" },
-        yuyuko: { name: "🌸 Yuyuko Rolls", color: 0xFF69B4, emoji: "🎲" },
-        sanae: { name: "⛩️ Sanae Blessings", color: 0x9B59B6, emoji: "🌊" }
+function createCategoryEmbed(boosts, category, now) {
+    const categoryConfig = {
+        coin: { name: '💰 Coin Boosts', color: 0xFFD700, key: 'coin' },
+        gem: { name: '💎 Gem Boosts', color: 0x00FFFF, key: 'gem' },
+        luck: { name: '🍀 Luck Boosts', color: 0x57F287, key: 'luck' },
+        special: { name: '🔮 Special Effects', color: 0x8B00FF, key: 'special' },
+        sanae: { name: '⛩️ Divine Blessings', color: 0x9B59B6, key: 'sanae' },
+        cooldown: { name: '⚡ Speed Boosts', color: 0x5865F2, key: 'cooldown' },
+        yuyuko: { name: '🌸 Yuyuko Rolls', color: 0xFF69B4, key: 'yuyukoRolls' },
+        debuff: { name: '⚠️ Active Penalties', color: 0xED4245, key: 'debuff' }
     };
 
-    const categoryKey = detailsType === 'yuyuko' ? 'yuyukoRolls' : detailsType;
-    const category = categoryMap[detailsType];
-
-    if (!category) {
+    const config = categoryConfig[category];
+    if (!config) {
         return new EmbedBuilder()
             .setTitle("❓ Unknown Category")
-            .setDescription(
-                "**Valid categories:**\n" +
-                Object.keys(categoryMap).map(k => `\`${k}\``).join(' • ')
-            )
-            .setColor(0x5865F2)
-            .setTimestamp();
+            .setDescription("Invalid category selected.")
+            .setColor(0xFF0000);
     }
 
-    const categoryBoosts = boosts[categoryKey] || [];
+    const categoryBoosts = boosts[config.key] || [];
+    
     const embed = new EmbedBuilder()
-        .setTitle(`${category.name} Details`)
-        .setColor(category.color)
+        .setTitle(config.name)
+        .setColor(config.color)
         .setTimestamp();
 
     if (categoryBoosts.length === 0) {
-        embed.setDescription(
-            "```diff\n" +
-            `- No active ${detailsType} boosts\n` +
-            "```\n" +
-            `*${getBoostTip(detailsType)}*`
-        );
-    } else {
-        // Group boosts by source for better organization
-        const groupedBoosts = groupBoostsBySource(categoryBoosts);
-        
-        let description = "";
-        for (const [source, boostList] of Object.entries(groupedBoosts)) {
-            description += `\n**${category.emoji} ${source}**\n`;
-            
-            boostList.forEach(boost => {
-                const timeLeft = boost.expiresAt 
-                    ? formatTime(boost.expiresAt - now) 
-                    : "∞ Permanent";
-                const label = formatBoostLabel(boost, timeLeft);
-                description += `${label}\n`;
-            });
-        }
-
-        embed.setDescription(description.trim());
-
-        // Add helpful stats
-        const stats = calculateCategoryStats(categoryBoosts, now);
-        if (stats) {
-            embed.addFields({
-                name: '📈 Category Stats',
-                value: stats,
-                inline: false
-            });
-        }
+        embed.setDescription(`*No active ${category} boosts*`);
+        return embed;
     }
 
-    embed.setFooter({ 
-        text: 'Use .boost to return to overview' 
-    });
+    // Format each boost in a clean way
+    const boostLines = categoryBoosts.map(boost => formatBoostLine(boost, now));
+    embed.setDescription(boostLines.join('\n'));
+
+    // Count temporary vs permanent
+    const temporary = categoryBoosts.filter(b => b.expiresAt).length;
+    const permanent = categoryBoosts.filter(b => !b.expiresAt).length;
+
+    const stats = [];
+    if (temporary > 0) stats.push(`⏱️ Temporary: ${temporary}`);
+    if (permanent > 0) stats.push(`♾️ Permanent: ${permanent}`);
+
+    if (stats.length > 0) {
+        embed.setFooter({ text: stats.join(' • ') });
+    }
 
     return embed;
 }
 
 /**
- * Builds a modern summary section showing total multipliers
+ * Format a single boost line in the old clean format
  */
-function buildSummarySection(totals, boosts) {
-    const sections = [];
+function formatBoostLine(boost, now) {
+    const { type, source, multiplier, expiresAt, uses, displayValue } = boost;
+    const timeLeft = expiresAt ? formatTime(expiresAt - now) : '∞';
 
-    if (totals.coin > 1) {
-        const percent = ((totals.coin - 1) * 100).toFixed(1);
-        sections.push(`💰 **Coin:** \`+${percent}%\` (×${totals.coin.toFixed(2)})`);
-    }
-
-    if (totals.gem > 1) {
-        const percent = ((totals.gem - 1) * 100).toFixed(1);
-        sections.push(`💎 **Gem:** \`+${percent}%\` (×${totals.gem.toFixed(2)})`);
-    }
-
-    if (totals.luck > 1) {
-        sections.push(`🍀 **Luck:** \`×${totals.luck.toFixed(2)}\``);
-    }
-
-    // Check for special boosts
-    if (boosts.yuyukoRolls?.length > 0) {
-        const rolls = boosts.yuyukoRolls[0].uses;
-        sections.push(`🌸 **Yuyuko:** \`${rolls} rolls left\``);
-    }
-
-    if (boosts.sanae?.length > 0) {
-        const faithBoost = boosts.sanae.find(b => b.type === 'faithPoints');
-        if (faithBoost) {
-            sections.push(`⛩️ **Faith:** \`${faithBoost.uses}/20 points\``);
-        }
-    }
-
-    return sections.length > 0 
-        ? sections.join('\n')
-        : "*No active multipliers*";
-}
-
-/**
- * Builds modern boost field entries with better visual hierarchy
- */
-function buildModernBoostFields(boosts, now) {
-    const fields = [];
-    
-    const categories = [
-        { key: 'coin', name: '💰 Coin Multipliers', icon: '🪙' },
-        { key: 'gem', name: '💎 Gem Multipliers', icon: '💎' },
-        { key: 'luck', name: '✨ Luck Enhancements', icon: '🍀' },
-        { key: 'cooldown', name: '⚡ Speed Boosts', icon: '⏱️' },
-        { key: 'sanae', name: '🌊 Divine Blessings', icon: '⛩️' },
-        { key: 'yuyukoRolls', name: '🎲 Special Rolls', icon: '🌸' },
-        { key: 'debuff', name: '🔻 Active Penalties', icon: '⚠️' }
-    ];
-
-    for (const { key, name, icon } of categories) {
-        const categoryBoosts = boosts[key];
-        if (!categoryBoosts || categoryBoosts.length === 0) continue;
-
-        // Build compact list with modern formatting
-        const boostList = categoryBoosts.map(boost => {
-            const timeLeft = boost.expiresAt 
-                ? formatTime(boost.expiresAt - now) 
-                : "∞";
-            return formatModernBoostLine(boost, timeLeft);
-        }).join('\n');
-
-        fields.push({
-            name: `${name} (${categoryBoosts.length})`,
-            value: boostList,
-            inline: false
-        });
-    }
-
-    return fields;
-}
-
-/**
- * Formats a single boost line with modern styling
- */
-function formatModernBoostLine(boost, timeLeft) {
-    const { type, source, multiplier, uses, displayValue } = boost;
-
-    // Use custom display if available (Sanae blessings)
+    // Use custom displayValue if available (Sanae blessings)
     if (displayValue) {
-        if (uses !== undefined && uses !== null && type !== 'faithPoints') {
-            return `└─ **${displayValue}**`;
-        }
-        return `└─ **${displayValue}** \`${timeLeft}\``;
+        return `• **${source}** — ${displayValue}${expiresAt ? ` (${timeLeft})` : ''}`;
     }
 
-    // Special formatting for different boost types
+    // Yuyuko Rolls
     if (type === 'yuyukoRolls') {
-        return `└─ **${uses} Rolls Available** • Yuyuko's Gift`;
+        return `• **Yuyuko** — ${uses} bonus rolls remaining`;
     }
 
+    // Rarity Override (Nullified)
     if (type === 'rarityOverride') {
-        return `└─ **Equal Odds Mode** \`${uses} rolls\` • ${source}`;
+        return `• **${source}** — Equal odds for ${uses} rolls`;
     }
 
+    // Lumina
     if (type === 'luckEvery10') {
-        return `└─ **×${multiplier} Every 10th Roll** \`${timeLeft}\` • ${source}`;
+        return `• **${source}** — ×${multiplier} luck every 10th roll (${timeLeft})`;
     }
 
-    if (type === 'summonCooldown') {
-        const reduction = Math.round((1 - multiplier) * 100);
-        return `└─ **-${reduction}% Cooldown** \`${timeLeft}\` • ${source}`;
+    // Speed boosts
+    if (type === 'summonCooldown' || type === 'summonSpeed') {
+        const speedPercent = Math.round(multiplier * 100);
+        return `• **${source}** — ${speedPercent}% faster (${timeLeft})`;
     }
 
+    if (type === 'rollSpeed') {
+        return `• **${source}** — ×${multiplier.toFixed(2)} roll speed (${timeLeft})`;
+    }
+
+    // Debuffs
     if (type === 'sellPenalty') {
         const penalty = Math.round((1 - multiplier) * 100);
-        return `└─ **-${penalty}% Sell Value** \`${timeLeft}\` • ${source}`;
+        return `• **${source}** — -${penalty}% sell value (${timeLeft})`;
     }
 
+    // === SPECIAL EFFECTS ===
+    
+    // VOID Trait
+    if (type === 'voidTrait') {
+        const chance = (multiplier * 100).toFixed(2);
+        return `• **${source}** — 🌀 VOID Trait: ${chance}% chance (${timeLeft})`;
+    }
+
+    // GLITCHED Trait  
+    if (type === 'glitchedTrait') {
+        const chance = multiplier > 0 ? `1 in ${Math.round(1/multiplier).toLocaleString()}` : 'Enabled';
+        return `• **${source}** — 🔮 GLITCHED Trait: ${chance} (${timeLeft})`;
+    }
+
+    // Variant/Trait Luck
+    if (type === 'traitLuck' || type === 'variantLuck') {
+        return `• **${source}** — ×${multiplier.toFixed(2)} variant luck (${timeLeft})`;
+    }
+
+    // Sell Value
+    if (type === 'sell' || type === 'sellValue' || type === 'sellvalue') {
+        const percent = Math.round(multiplier * 100);
+        return `• **${source}** — +${percent}% sell value (${timeLeft})`;
+    }
+
+    // Reimu Luck
+    if (type === 'reimuLuck' || type === 'reimuluck') {
+        const percent = Math.round((multiplier - 1) * 100);
+        return `• **${source}** — +${percent}% luck (${timeLeft})`;
+    }
+
+    // Astral Block
+    if (type === 'astralBlock' || type === 'astralblock') {
+        return `• **${source}** — No ASTRAL+ duplicates (${timeLeft})`;
+    }
+
+    // Nullified Rolls
+    if (type === 'nullifiedRolls' || type === 'nullifiedrolls') {
+        let info = 'Active';
+        try {
+            const extra = JSON.parse(boost.extra || '{}');
+            if (extra.remaining !== undefined) {
+                info = `${extra.remaining}/${extra.total || 10} left`;
+            }
+        } catch {}
+        return `• **${source}** — Nullified rolls: ${info} (${timeLeft})`;
+    }
+
+    // === LUCK BOOSTS ===
     if (type === 'luck') {
-        const isDynamic = boost.isDynamic;
-        const prefix = isDynamic ? 'this hour' : 'active';
-        return `└─ **×${multiplier.toFixed(2)} Luck** \`${prefix}\` \`${timeLeft}\` • ${source}`;
+        if (boost.isDynamic) {
+            return `• **${source}** — ×${multiplier.toFixed(4)} this hour (${timeLeft})`;
+        }
+        return `• **${source}** — ×${multiplier.toFixed(2)} luck (${timeLeft})`;
     }
 
-    // Generic boost format
+    // === DEFAULT: Coin/Gem ===
     const percent = Math.round((multiplier - 1) * 100);
     const sign = percent >= 0 ? '+' : '';
-    return `└─ **${sign}${percent}%** \`${timeLeft}\` • ${source}`;
+    const stack = boost.stack ? ` [${boost.stack}x]` : '';
+    return `• **${source}**${stack} — ${sign}${percent}% (${timeLeft})`;
 }
 
 /**
- * Groups boosts by their source for better organization
+ * Creates navigation buttons for boost categories
  */
-function groupBoostsBySource(boosts) {
-    const grouped = {};
-    
-    for (const boost of boosts) {
-        const source = boost.source || 'Unknown';
-        if (!grouped[source]) {
-            grouped[source] = [];
-        }
-        grouped[source].push(boost);
-    }
-    
-    return grouped;
-}
+function createBoostButtons(userId, currentCategory = null) {
+    const row1 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId(`boost_overview_${userId}`)
+            .setLabel('Overview')
+            .setEmoji('📊')
+            .setStyle(currentCategory === null ? ButtonStyle.Primary : ButtonStyle.Secondary),
+        new ButtonBuilder()
+            .setCustomId(`boost_coin_${userId}`)
+            .setLabel('Coin')
+            .setEmoji('💰')
+            .setStyle(currentCategory === 'coin' ? ButtonStyle.Primary : ButtonStyle.Secondary),
+        new ButtonBuilder()
+            .setCustomId(`boost_gem_${userId}`)
+            .setLabel('Gem')
+            .setEmoji('💎')
+            .setStyle(currentCategory === 'gem' ? ButtonStyle.Primary : ButtonStyle.Secondary),
+        new ButtonBuilder()
+            .setCustomId(`boost_luck_${userId}`)
+            .setLabel('Luck')
+            .setEmoji('🍀')
+            .setStyle(currentCategory === 'luck' ? ButtonStyle.Primary : ButtonStyle.Secondary)
+    );
 
-/**
- * Calculates statistics for a boost category
- */
-function calculateCategoryStats(boosts, now) {
-    const stats = [];
-    
-    // Count temporary vs permanent
-    const temporary = boosts.filter(b => b.expiresAt && b.expiresAt > now).length;
-    const permanent = boosts.filter(b => !b.expiresAt).length;
-    
-    if (temporary > 0) {
-        stats.push(`⏱️ Temporary: **${temporary}**`);
-    }
-    if (permanent > 0) {
-        stats.push(`♾️ Permanent: **${permanent}**`);
-    }
+    const row2 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId(`boost_special_${userId}`)
+            .setLabel('Special')
+            .setEmoji('🔮')
+            .setStyle(currentCategory === 'special' ? ButtonStyle.Primary : ButtonStyle.Secondary),
+        new ButtonBuilder()
+            .setCustomId(`boost_sanae_${userId}`)
+            .setLabel('Divine')
+            .setEmoji('⛩️')
+            .setStyle(currentCategory === 'sanae' ? ButtonStyle.Primary : ButtonStyle.Secondary),
+        new ButtonBuilder()
+            .setCustomId(`boost_cooldown_${userId}`)
+            .setLabel('Speed')
+            .setEmoji('⚡')
+            .setStyle(currentCategory === 'cooldown' ? ButtonStyle.Primary : ButtonStyle.Secondary),
+        new ButtonBuilder()
+            .setCustomId(`boost_refresh_${userId}`)
+            .setLabel('Refresh')
+            .setEmoji('🔄')
+            .setStyle(ButtonStyle.Success)
+    );
 
-    // Find soonest expiring boost
-    const soonestExpiry = boosts
-        .filter(b => b.expiresAt)
-        .sort((a, b) => a.expiresAt - b.expiresAt)[0];
-    
-    if (soonestExpiry) {
-        const timeLeft = formatTime(soonestExpiry.expiresAt - now);
-        stats.push(`⏰ Next Expiry: **${timeLeft}**`);
-    }
-
-    return stats.length > 0 ? stats.join(' • ') : null;
-}
-
-/**
- * Provides helpful tips based on boost type
- */
-function getBoostTip(boostType) {
-    const tips = {
-        coin: "Use coin potions or farm with high-rarity fumos to increase coin gains!",
-        gem: "Gem potions and certain prayers can boost your gem income.",
-        luck: "Mysterious Dice and Sanae blessings provide powerful luck multipliers.",
-        cooldown: "Time Clock items reduce your summon cooldowns significantly.",
-        debuff: "Some items or prayers may temporarily reduce your rewards.",
-        yuyuko: "Pray to Yuyuko to receive bonus rolls with luck multipliers.",
-        sanae: "Build faith points with Sanae to unlock powerful divine blessings!"
-    };
-    
-    return tips[boostType] || "Use various items and prayers to gain boosts!";
-}
-
-/**
- * Creates interactive buttons for boost management (optional enhancement)
- */
-function createBoostButtons(userId) {
-    const row = new ActionRowBuilder()
-        .addComponents(
-            new ButtonBuilder()
-                .setCustomId(`boost_refresh_${userId}`)
-                .setLabel('Refresh')
-                .setEmoji('🔄')
-                .setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder()
-                .setCustomId(`boost_details_${userId}`)
-                .setLabel('View All Categories')
-                .setEmoji('📋')
-                .setStyle(ButtonStyle.Primary)
-        );
-    
-    return row;
+    return [row1, row2];
 }
 
 module.exports = {
     createBoostEmbed,
-    createDetailsEmbed,
+    createCategoryEmbed,
     createBoostButtons,
-    buildSummarySection,
-    formatModernBoostLine
+    formatBoostLine
 };

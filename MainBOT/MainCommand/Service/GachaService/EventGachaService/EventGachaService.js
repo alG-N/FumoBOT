@@ -5,7 +5,7 @@ const { updateQuestsAndAchievements } = require('../NormalGachaService/CrateGach
 const { incrementWeeklyShiny } = require('../../../Ultility/weekly');
 const FumoPool = require('../../../Data/FumoPool');
 const StorageLimitService = require('../../UserDataService/StorageService/StorageLimitService');
-const { getUserBoosts, consumeSanaeLuckRoll, consumeSanaeGuaranteedRoll, getSanaeBoostMultiplier } = require('../NormalGachaService/BoostService');
+const { getUserBoosts, consumeSanaeLuckRoll, consumeSanaeGuaranteedRoll, getSanaeBoostMultiplier, getTraitBoostDisplay } = require('../NormalGachaService/BoostService');
 const { meetsMinimumRarity, getRaritiesAbove } = require('../NormalGachaService/RarityService');
 
 async function getEventUserBoosts(userId) {
@@ -58,6 +58,17 @@ async function getEventUserBoosts(userId) {
     const sanaeLuckRollsRemaining = sanaeData?.luckForRolls || 0;
     const sanaeLuckBoost = sanaeData?.luckForRollsAmount || 0;
 
+    // Build base boost lines
+    const baseLines = buildBoostLines(ancientLuckMultiplier, mysteriousLuckMultiplier, mysteriousDiceMultiplier, petBoost, !!lumina, sanaeTempLuckMultiplier, globalMultiplier, sanaeGuaranteedRolls, sanaeGuaranteedRarity, sanaeLuckRollsRemaining, sanaeLuckBoost);
+    
+    // Fetch and add trait boost lines (VOID/GLITCHED)
+    const traitLines = await getTraitBoostDisplay(userId);
+    if (traitLines.length > 0) {
+        baseLines.push(''); // Empty line separator
+        baseLines.push('🌌 Special Traits:');
+        traitLines.forEach(line => baseLines.push(`  ${line}`));
+    }
+
     return {
         ancient: ancientLuckMultiplier,
         mysterious: mysteriousLuckMultiplier,
@@ -71,7 +82,7 @@ async function getEventUserBoosts(userId) {
         sanaeGuaranteedRarity,
         sanaeLuckRollsRemaining,
         sanaeLuckBoost,
-        lines: buildBoostLines(ancientLuckMultiplier, mysteriousLuckMultiplier, mysteriousDiceMultiplier, petBoost, !!lumina, sanaeTempLuckMultiplier, globalMultiplier, sanaeGuaranteedRolls, sanaeGuaranteedRarity, sanaeLuckRollsRemaining, sanaeLuckBoost)
+        lines: baseLines
     };
 }
 
@@ -319,6 +330,85 @@ function getEventSanaeBoostDisplay(boosts) {
     return display;
 }
 
+/**
+ * Select and add multiple event fumos - OPTIMIZED for batch operations
+ */
+async function selectAndAddMultipleEventFumos(userId, rarities, fumoPool) {
+    const { all, run, get } = require('../../../Core/database');
+    
+    const results = [];
+    const fumoUpdates = new Map(); // Track fumo name -> {count, rarity, fumoData}
+    
+    // First pass: determine all fumos without DB writes
+    for (const rarity of rarities) {
+        let rarityPool;
+        if (Array.isArray(fumoPool)) {
+            rarityPool = fumoPool.filter(f => f.rarity === rarity);
+        } else {
+            rarityPool = fumoPool[rarity];
+        }
+        
+        if (!rarityPool || rarityPool.length === 0) {
+            results.push({ success: false, reason: 'no_fumos' });
+            continue;
+        }
+        
+        // Select base fumo
+        const baseFumo = rarityPool[Math.floor(Math.random() * rarityPool.length)];
+        const finalName = baseFumo.name;
+        
+        // Track for batch update
+        if (fumoUpdates.has(finalName)) {
+            const existing = fumoUpdates.get(finalName);
+            existing.count++;
+        } else {
+            fumoUpdates.set(finalName, { count: 1, rarity, baseFumo });
+        }
+        
+        results.push({
+            success: true,
+            fumo: {
+                name: finalName,
+                rarity,
+                picture: baseFumo.picture
+            }
+        });
+    }
+    
+    // Second pass: batch update database
+    const fumoNames = Array.from(fumoUpdates.keys());
+    if (fumoNames.length > 0) {
+        const placeholders = fumoNames.map(() => '?').join(',');
+        const existingFumos = await all(
+            `SELECT id, fumoName, quantity FROM userInventory WHERE userId = ? AND fumoName IN (${placeholders})`,
+            [userId, ...fumoNames]
+        );
+        
+        const existingMap = new Map();
+        for (const row of existingFumos) {
+            existingMap.set(row.fumoName, row);
+        }
+        
+        // Batch updates and inserts
+        for (const [fumoName, data] of fumoUpdates) {
+            const existing = existingMap.get(fumoName);
+            if (existing) {
+                await run(
+                    `UPDATE userInventory SET quantity = quantity + ? WHERE id = ?`,
+                    [data.count, existing.id]
+                );
+            } else {
+                await run(
+                    `INSERT INTO userInventory (userId, fumoName, quantity, rarity) VALUES (?, ?, ?, ?)`,
+                    [userId, fumoName, data.count, data.rarity]
+                );
+            }
+        }
+    }
+    
+    return results;
+}
+
 async function performEventSummon(userId, numSummons) {
     const eventFumos = FumoPool.getForEvent();
 
@@ -358,6 +448,9 @@ async function performEventSummon(userId, numSummons) {
         let sanaeGuaranteedRemaining = boosts.sanaeGuaranteedRolls || 0;
         let totalSanaeUsed = 0;
 
+        // OPTIMIZED: Pre-calculate all rarities first, then batch add to inventory
+        const selectedRarities = [];
+        
         for (let i = 0; i < actualSummons; i++) {
             currentTotalRolls++;
 
@@ -391,9 +484,23 @@ async function performEventSummon(userId, numSummons) {
                 currentRollsLeft--;
             }
 
-            const fumo = await selectAndAddFumo(userId, rarity, eventFumos, userData.luck);
-            if (fumo) {
-                fumoList.push({ name: fumo.name, rarity, picture: fumo.picture });
+            selectedRarities.push(rarity);
+        }
+
+        // OPTIMIZED: Batch add all fumos at once
+        if (actualSummons === 1) {
+            // Single roll - use original method for animation compatibility
+            const fumoResult = await selectAndAddFumo(userId, selectedRarities[0], eventFumos);
+            if (fumoResult && fumoResult.success && fumoResult.fumo) {
+                fumoList.push({ name: fumoResult.fumo.name, rarity: selectedRarities[0], picture: fumoResult.fumo.picture });
+            }
+        } else {
+            // Multi-roll - use batch optimized method
+            const results = await selectAndAddMultipleEventFumos(userId, selectedRarities, eventFumos);
+            for (const result of results) {
+                if (result.success && result.fumo) {
+                    fumoList.push({ name: result.fumo.name, rarity: result.fumo.rarity, picture: result.fumo.picture });
+                }
             }
         }
 
@@ -433,5 +540,6 @@ module.exports = {
     updateEventUserAfterRoll,
     selectEventRarity,
     performEventRollWithSanae,
-    getEventSanaeBoostDisplay
+    getEventSanaeBoostDisplay,
+    selectAndAddMultipleEventFumos
 };

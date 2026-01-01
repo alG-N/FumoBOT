@@ -28,6 +28,7 @@ const { initializeShop } = require('./MainCommand/Service/MarketService/EggShopS
 const { initializeSeasonSystem } = require('./MainCommand/Service/FarmingService/SeasonService/SeasonManagerService');
 const { shutdownAutoRolls } = require('./MainCommand/Service/GachaService/NormalGachaService/CrateAutoRollService');
 const initializeShardHandler = require('./MainCommand/Service/UserDataService/UseService/ShardInteractionHandler');
+const { registerSigilInteractionHandler } = require('./MainCommand/Service/UserDataService/UseService/SigilInteractionHandler');
 const PetIntervalManager = require('./MainCommand/Service/PetService/PetIntervalManager');
 
 // ═══════════════════════════════════════════════════════════════
@@ -284,6 +285,7 @@ client.once('ready', async () => {
     // Parallel initialization for faster startup
     await Promise.all([
         Promise.resolve(initializeShardHandler(client)),
+        Promise.resolve(registerSigilInteractionHandler(client)),
         Promise.resolve(initializeGuildTracking(client)),
         Promise.resolve(PetIntervalManager.startAllPetIntervals())
     ]);
