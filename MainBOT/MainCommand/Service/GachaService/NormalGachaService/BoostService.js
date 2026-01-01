@@ -415,14 +415,11 @@ async function migrateFrozenBoosts(userId) {
     );
     
     if (boostsToMigrate.length > 0) {
-        console.log(`[migrateFrozenBoosts] Migrating ${boostsToMigrate.length} boosts for user ${userId}`);
-        
         for (const boost of boostsToMigrate) {
             try {
                 let extra = JSON.parse(boost.extra || '{}');
                 // Calculate frozenTimeRemaining from current expiresAt
                 extra.frozenTimeRemaining = boost.expiresAt - now;
-                console.log(`[migrateFrozenBoosts] Adding frozenTimeRemaining=${extra.frozenTimeRemaining} to ${boost.type}/${boost.source}`);
                 
                 // Update using composite primary key
                 await run(
@@ -430,7 +427,7 @@ async function migrateFrozenBoosts(userId) {
                     [JSON.stringify(extra), boost.userId, boost.type, boost.source]
                 );
             } catch (e) {
-                console.log(`[migrateFrozenBoosts] Error migrating boost ${boost.type}/${boost.source}:`, e.message);
+                // Silently ignore migration errors
             }
         }
     }
@@ -479,32 +476,26 @@ async function getTraitBoostDisplay(userId) {
     // Helper to get display time - uses frozenTimeRemaining when frozen
     // If frozenTimeRemaining not stored (old boosts), we need to calculate and store it
     const getDisplayTime = (boost, isFrozen) => {
-        console.log(`[getDisplayTime] isFrozen=${isFrozen}, extra=${boost.extra}`);
         if (isFrozen) {
             // Try to get frozenTimeRemaining from extra
             if (boost.extra) {
                 try {
                     const extra = typeof boost.extra === 'string' ? JSON.parse(boost.extra) : boost.extra;
-                    console.log(`[getDisplayTime] Parsed extra:`, extra);
                     // If we have frozenTimeRemaining stored, use it (this is the FROZEN time that shouldn't decrease)
                     if (extra.frozenTimeRemaining && extra.frozenTimeRemaining > 0) {
-                        console.log(`[getDisplayTime] Using frozenTimeRemaining: ${extra.frozenTimeRemaining}`);
                         return formatTimeRemaining(extra.frozenTimeRemaining);
                     }
                 } catch (e) {
-                    console.log(`[getDisplayTime] Error parsing extra:`, e.message);
+                    // Silently ignore parse errors
                 }
             }
             // If frozen but no frozenTimeRemaining stored (old boosts before fix),
             // show remaining time but mark it needs migration
-            // For now, just show the current remaining time (will decrease until S!gil ends)
             const remaining = boost.expiresAt - now;
-            console.log(`[getDisplayTime] Frozen but no frozenTimeRemaining - showing current remaining: ${remaining}`);
             return formatTimeRemaining(remaining > 0 ? remaining : 0);
         }
         // For non-frozen, calculate from expiresAt
         const calcTime = boost.expiresAt - now;
-        console.log(`[getDisplayTime] Not frozen, using expiresAt-now: ${calcTime}`);
         return formatTimeRemaining(calcTime);
     };
     
@@ -565,10 +556,8 @@ async function getTraitBoostDisplay(userId) {
     );
     
     if (voidBoost) {
-        console.log(`[TraitBoostDisplay] voidBoost found:`, { multiplier: voidBoost.multiplier, expiresAt: voidBoost.expiresAt, extra: voidBoost.extra });
         // Check if VOID is frozen - by flag OR if S!gil is currently active
         const isFrozen = hasSigilDisabledFlag(voidBoost) || sigilActive;
-        console.log(`[TraitBoostDisplay] VOID isFrozen=${isFrozen}`);
         
         const timeLeft = getDisplayTime(voidBoost, isFrozen);
         const oneInX = Math.round(1 / voidBoost.multiplier).toLocaleString();

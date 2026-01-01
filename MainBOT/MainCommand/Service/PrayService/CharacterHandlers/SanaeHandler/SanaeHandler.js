@@ -914,8 +914,126 @@ async function applyBlessingRewards(userId, rewards, config, rewardMult = 1) {
     }
 
     if (rewards.gambit) {
+        // Yasaka's Gambit: Do X pulls, keep the top Y, convert rest to coins
+        const pulls = rewards.gambit.pulls || 50;
+        const keepTop = rewards.gambit.keepTop || 10;
+        const scaledPulls = Math.floor(pulls * rewardMult);
+        const scaledKeep = Math.min(keepTop, scaledPulls);
+        
+        const prayFumos = FumoPool.getForPray();
+        const pulledFumos = [];
+        
+        // Define rarity order for sorting (highest first)
+        const rarityOrder = {
+            'TRANSCENDENT': 100,
+            'ETERNAL': 90,
+            'INFINITE': 80,
+            'CELESTIAL': 70,
+            'ASTRAL': 60,
+            '???': 50,
+            'EXCLUSIVE': 40,
+            'MYTHICAL': 30,
+            'LEGENDARY': 20,
+            'OTHERWORLDLY': 15,
+            'EPIC': 10,
+            'RARE': 5,
+            'UNCOMMON': 3,
+            'Common': 1
+        };
+        
+        // Rarity weights for gambit pulls (slightly boosted compared to normal)
+        const rarityWeights = {
+            'Common': 35,
+            'UNCOMMON': 25,
+            'RARE': 15,
+            'EPIC': 10,
+            'OTHERWORLDLY': 5,
+            'LEGENDARY': 5,
+            'MYTHICAL': 3,
+            'EXCLUSIVE': 1.5,
+            '???': 0.5
+        };
+        
+        // Do the pulls
+        for (let i = 0; i < scaledPulls; i++) {
+            // Pick rarity based on weights
+            const totalWeight = Object.values(rarityWeights).reduce((a, b) => a + b, 0);
+            let roll = Math.random() * totalWeight;
+            let selectedRarity = 'Common';
+            
+            for (const [rarity, weight] of Object.entries(rarityWeights)) {
+                roll -= weight;
+                if (roll <= 0) {
+                    selectedRarity = rarity;
+                    break;
+                }
+            }
+            
+            const possibleFumos = prayFumos.filter(f => f.rarity === selectedRarity);
+            if (possibleFumos.length > 0) {
+                const fumo = possibleFumos[Math.floor(Math.random() * possibleFumos.length)];
+                pulledFumos.push({
+                    name: fumo.name,
+                    rarity: fumo.rarity,
+                    rarityValue: rarityOrder[fumo.rarity] || 0
+                });
+            }
+        }
+        
+        // Sort by rarity (best first)
+        pulledFumos.sort((a, b) => b.rarityValue - a.rarityValue);
+        
+        // Keep top X fumos
+        const keptFumos = pulledFumos.slice(0, scaledKeep);
+        const convertedFumos = pulledFumos.slice(scaledKeep);
+        
+        // Add kept fumos to inventory
+        for (const fumo of keptFumos) {
+            await run(
+                `INSERT INTO userInventory (userId, fumoName, rarity, quantity) VALUES (?, ?, ?, 1)`,
+                [userId, fumo.name, fumo.rarity]
+            );
+        }
+        
+        // Convert rest to coins (based on rarity value)
+        const conversionRates = {
+            'Common': 100,
+            'UNCOMMON': 250,
+            'RARE': 500,
+            'EPIC': 1000,
+            'OTHERWORLDLY': 2500,
+            'LEGENDARY': 15000,
+            'MYTHICAL': 100000,
+            'EXCLUSIVE': 500000,
+            '???': 2500000
+        };
+        
+        let totalCoins = 0;
+        for (const fumo of convertedFumos) {
+            totalCoins += conversionRates[fumo.rarity] || 100;
+        }
+        
+        // Award conversion coins
+        if (totalCoins > 0) {
+            await updateUserCoins(userId, totalCoins, 0);
+        }
+        
+        // Build summary
+        const keptRarities = {};
+        for (const fumo of keptFumos) {
+            keptRarities[fumo.rarity] = (keptRarities[fumo.rarity] || 0) + 1;
+        }
+        const keptSummary = Object.entries(keptRarities)
+            .sort((a, b) => (rarityOrder[b[0]] || 0) - (rarityOrder[a[0]] || 0))
+            .map(([r, c]) => `${c}x ${r}`)
+            .join(', ');
+        
         summary.push(`🎰 **Yasaka's Gambit activated!**`);
-        summary.push(`→ (Feature coming soon)`);
+        summary.push(`→ Pulled ${scaledPulls} fumos, kept top ${scaledKeep}:`);
+        summary.push(`→ Kept: ${keptSummary}`);
+        if (convertedFumos.length > 0) {
+            summary.push(`→ Converted ${convertedFumos.length} fumos → 💰 ${formatNumber(totalCoins)} coins`);
+        }
     }
 
     return summary.length > 0 ? summary.join('\n') : 'No rewards specified';

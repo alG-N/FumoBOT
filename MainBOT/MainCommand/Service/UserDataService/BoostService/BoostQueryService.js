@@ -100,13 +100,15 @@ async function getActiveBoosts(userId) {
             categorized.sanae = [];
         }
 
+        // Add Yuyuko rolls to Divine (sanae) category - pray boost
         if (userData?.rollsLeft > 0) {
-            categorized.yuyukoRolls.push({
+            categorized.sanae.push({
                 type: BOOST_TYPES.YUYUKO_ROLLS,
-                source: 'Yuyuko',
+                source: 'Yuyuko Prayer',
                 multiplier: 1,
                 expiresAt: null,
-                uses: userData.rollsLeft
+                uses: userData.rollsLeft,
+                displayValue: `${userData.rollsLeft.toLocaleString()} bonus rolls (2× luck)`
             });
         }
 

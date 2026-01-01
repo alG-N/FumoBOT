@@ -106,9 +106,18 @@ async function handleGiftPhase(userId, channel, user, config, interactionUserId)
 
     const fumo = filteredFumos[Math.floor(Math.random() * filteredFumos.length)];
     
-    // Variant chances (SHINY/alG) use base rates - S!gil luck affects rarity, not variants here
-    const isAlterGolden = Math.random() < 0.1;
-    const isShiny = !isAlterGolden && Math.random() < 0.35;
+    // Variant chances (SHINY/alG) - boosted by S!gil Reimu luck
+    // Base rates: alG 10%, SHINY 35%
+    // With S!gil luck boost: multiply chances (capped at reasonable values)
+    const baseAlgChance = 0.1;
+    const baseShinyChance = 0.35;
+    
+    // Apply Reimu luck multiplier to variant chances (capped)
+    const algChance = Math.min(baseAlgChance * reimuLuckMult, 0.5); // Max 50% alG chance
+    const shinyChance = Math.min(baseShinyChance * reimuLuckMult, 0.8); // Max 80% SHINY chance
+    
+    const isAlterGolden = Math.random() < algChance;
+    const isShiny = !isAlterGolden && Math.random() < shinyChance;
 
     let fumoName = fumo.name;
     if (isAlterGolden) {

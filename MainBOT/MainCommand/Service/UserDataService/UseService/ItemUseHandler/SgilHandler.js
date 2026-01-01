@@ -364,8 +364,6 @@ async function confirmSigilActivation(interaction, client) {
             [userId, SIGIL_CONFIG.source]
         );
         
-        console.log(`[S!gil] Freezing ${otherBoosts.length} boosts for user ${userId}`);
-        
         for (const boost of otherBoosts) {
             let extra = {};
             try {
@@ -376,9 +374,6 @@ async function confirmSigilActivation(interaction, client) {
             // Store remaining time so we can restore it when S!gil expires
             if (boost.expiresAt && boost.expiresAt > now) {
                 extra.frozenTimeRemaining = boost.expiresAt - now;
-                console.log(`[S!gil] Freezing boost ${boost.type}/${boost.source}: expiresAt=${boost.expiresAt}, now=${now}, frozenTimeRemaining=${extra.frozenTimeRemaining}`);
-            } else {
-                console.log(`[S!gil] Boost ${boost.type}/${boost.source} has no valid expiresAt (${boost.expiresAt})`);
             }
             
             await run(

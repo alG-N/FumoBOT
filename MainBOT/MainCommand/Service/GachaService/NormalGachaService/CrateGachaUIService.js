@@ -89,8 +89,9 @@ async function createShopEmbed(userData, boosts, hasFantasyBook, isAutoRollActiv
     if (boosts.luminaActive) {
         ancientNoteLines.push(`🌟 Lumina active! Every 10th roll grants 5× Luck`);
     }
+    // Show Yuyuko bonus rolls with count (Divine Blessing from Pray)
     if (rollsLeft > 0 && !isBoostActive) {
-        ancientNoteLines.push(`✨ Bonus Roll active! Luck boosted by 2×`);
+        ancientNoteLines.push(`🌸 Yuyuko's Blessing: ${formatNumber(rollsLeft)} bonus rolls (2× luck)`);
     }
     if (boosts.mysteriousLuckMultiplier && boosts.mysteriousLuckMultiplier > 1) {
         ancientNoteLines.push(`🧊 MysteriousCube active! Luck boosted by ${boosts.mysteriousLuckMultiplier.toFixed(2)}×`);

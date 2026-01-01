@@ -28,7 +28,7 @@
       },
       "bestFumoAt": "1/1/2026, 2:50:24 PM",
       "bestFumoRoll": 8,
-      "specialFumoCount": 131,
+      "specialFumoCount": 175,
       "specialFumoFirstAt": "1/1/2026, 2:25:51 PM",
       "specialFumoFirstRoll": 1
     }
@@ -39,13 +39,13 @@
       "autoSell": true,
       "startTime": 1767258569163,
       "bestFumo": {
-        "name": "Cheshire(ASTRAL)",
-        "rarity": "ASTRAL",
-        "picture": "https://images.tokopedia.net/img/cache/500-square/VqbcmM/2024/2/25/932b310d-4256-42bc-abf7-c7d83869ee0c.jpg"
+        "name": "Mima(INFINITE)",
+        "rarity": "INFINITE",
+        "picture": "https://media.discordapp.net/attachments/1372426801472737280/1372428382263967824/svru2t354ix81.png?ex=6826bd08&is=68256b88&hm=9ff0e6a614af9fee9626a549a57b331e4940ade36f9de38472dbcb452d965d97&=&format=webp&quality=lossless&width=698&height=930"
       },
-      "bestFumoAt": "1/1/2026, 4:38:54 PM",
-      "bestFumoRoll": 1,
-      "specialFumoCount": 11,
+      "bestFumoAt": "1/1/2026, 4:49:25 PM",
+      "bestFumoRoll": 9,
+      "specialFumoCount": 25,
       "specialFumoFirstAt": "1/1/2026, 4:11:29 PM",
       "specialFumoFirstRoll": 3
     }

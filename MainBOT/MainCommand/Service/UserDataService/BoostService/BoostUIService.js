@@ -34,7 +34,7 @@ function createBoostEmbed(boostData, category = null) {
         summaryLines.push(`🍀 **Luck:** ×${totals.luck.toFixed(2)}`);
     }
 
-    // Count boosts per category
+    // Count boosts per category (Yuyuko is now part of Divine/sanae)
     const counts = {
         coin: boosts.coin?.length || 0,
         gem: boosts.gem?.length || 0,
@@ -42,8 +42,7 @@ function createBoostEmbed(boostData, category = null) {
         special: boosts.special?.length || 0,
         sanae: boosts.sanae?.length || 0,
         cooldown: boosts.cooldown?.length || 0,
-        debuff: boosts.debuff?.length || 0,
-        yuyuko: boosts.yuyukoRolls?.length || 0
+        debuff: boosts.debuff?.length || 0
     };
 
     // Count disabled boosts if S!gil is active
@@ -54,8 +53,7 @@ function createBoostEmbed(boostData, category = null) {
         special: disabledBoosts?.special?.length || 0,
         sanae: disabledBoosts?.sanae?.length || 0,
         cooldown: disabledBoosts?.cooldown?.length || 0,
-        debuff: disabledBoosts?.debuff?.length || 0,
-        yuyuko: disabledBoosts?.yuyukoRolls?.length || 0
+        debuff: disabledBoosts?.debuff?.length || 0
     };
 
     const totalBoosts = Object.values(counts).reduce((a, b) => a + b, 0);
@@ -85,7 +83,6 @@ function createBoostEmbed(boostData, category = null) {
     if (counts.special > 0 || disabledCounts.special > 0) categoryOverview.push(`🔮 Special: ${counts.special}${disabledCounts.special > 0 ? ` (+${disabledCounts.special} ⏸️)` : ''}`);
     if (counts.sanae > 0 || disabledCounts.sanae > 0) categoryOverview.push(`⛩️ Divine: ${counts.sanae}${disabledCounts.sanae > 0 ? ` (+${disabledCounts.sanae} ⏸️)` : ''}`);
     if (counts.cooldown > 0 || disabledCounts.cooldown > 0) categoryOverview.push(`⚡ Speed: ${counts.cooldown}${disabledCounts.cooldown > 0 ? ` (+${disabledCounts.cooldown} ⏸️)` : ''}`);
-    if (counts.yuyuko > 0) categoryOverview.push(`🌸 Yuyuko: ${counts.yuyuko}`);
     if (counts.debuff > 0) categoryOverview.push(`⚠️ Debuff: ${counts.debuff}`);
 
     if (categoryOverview.length > 0) {
@@ -110,9 +107,8 @@ function createCategoryEmbed(boosts, category, now, disabledBoosts = null, sigil
         gem: { name: '💎 Gem Boosts', color: 0x00FFFF, key: 'gem' },
         luck: { name: '🍀 Luck Boosts', color: 0x57F287, key: 'luck' },
         special: { name: '🔮 Special Effects', color: 0x8B00FF, key: 'special' },
-        sanae: { name: '⛩️ Divine Blessings', color: 0x9B59B6, key: 'sanae' },
+        sanae: { name: '⛩️ Divine Blessings (Pray)', color: 0x9B59B6, key: 'sanae' },
         cooldown: { name: '⚡ Speed Boosts', color: 0x5865F2, key: 'cooldown' },
-        yuyuko: { name: '🌸 Yuyuko Rolls', color: 0xFF69B4, key: 'yuyukoRolls' },
         debuff: { name: '⚠️ Active Penalties', color: 0xED4245, key: 'debuff' }
     };
 
@@ -178,18 +174,12 @@ function formatDisabledBoostLine(boost) {
     if (extra) {
         try {
             const extraData = typeof extra === 'string' ? JSON.parse(extra) : extra;
-            console.log(`[formatDisabledBoostLine] ${type}/${source} extraData:`, extraData);
             if (extraData.frozenTimeRemaining && extraData.frozenTimeRemaining > 0) {
                 frozenTimer = ` (${formatTime(extraData.frozenTimeRemaining)})`;
-                console.log(`[formatDisabledBoostLine] Using frozenTimeRemaining: ${extraData.frozenTimeRemaining}`);
-            } else {
-                console.log(`[formatDisabledBoostLine] No frozenTimeRemaining found in extra`);
             }
         } catch (e) {
-            console.log(`[formatDisabledBoostLine] Error parsing extra:`, e.message);
+            // Silently ignore parse errors
         }
-    } else {
-        console.log(`[formatDisabledBoostLine] ${type}/${source} has no extra field`);
     }
 
     // Use custom displayValue if available

@@ -4,10 +4,15 @@ const { PITY_THRESHOLDS } = require('../../../Configuration/rarity');
 const { EVENT_ROLL_LIMIT } = require('../../../Configuration/eventConfig');
 
 function createEventShopEmbed(userData, boosts, chances, eventTimeRemaining) {
-    const { gems, rollsInCurrentWindow, rollsSinceLastQuestionMark } = userData;
+    const { gems, rollsInCurrentWindow, rollsSinceLastQuestionMark, rollsLeft } = userData;
 
     // Build boost lines with Sanae information
     const boostLines = [...(boosts.lines || [])];
+    
+    // Add Yuyuko rolls if present (Divine Blessing from Pray)
+    if (rollsLeft > 0) {
+        boostLines.unshift(`🌸 Yuyuko's Blessing: ${formatNumber(rollsLeft)} bonus rolls (2× luck)`);
+    }
     
     const embed = new EmbedBuilder()
         .setTitle('🎍 New Year 2026 Fumo Banner! 🎍')
