@@ -229,8 +229,8 @@ async function displayMultiRollResults(interaction, fumosBought, bestFumo, rollC
     const embed = new EmbedBuilder()
         .setTitle(`🌟💫 Opening the ${rollCount === 10 ? 'Golden' : 'Legendary'} Fumo Box... 💫🌟`)
         .setImage(rollCount === 10
-            ? 'https://media1.tenor.com/m/61n1xggC5tEAAAAd/gift-present.gif'
-            : 'https://media1.tenor.com/m/xFfpMgC0lswAAAAC/treasure-chest-minecraft.gif')
+            ? 'https://png.pngtree.com/png-vector/20231102/ourmid/pngtree-beautiful-golden-box-christmas-gift-with-golden-ribbon-on-dark-png-image_10359902.png'
+            : 'https://media.sketchfab.com/models/5a78675f36934f67a3cf55f49c7d56ad/thumbnails/358aef2210684655bf67f05a1619a56b/d4f173afe2874179824dd92709f3e36d.jpeg')
         .setColor(embedColor);
 
     // Handle deferred vs non-deferred interactions
@@ -242,8 +242,8 @@ async function displayMultiRollResults(interaction, fumosBought, bestFumo, rollC
 
     setTimeout(async () => {
         embed.setImage(rollCount === 10
-            ? 'https://media1.tenor.com/m/K6j0cFLkHhcAAAAC/gift-surprise.gif'
-            : 'https://media1.tenor.com/m/xFfpMgC0lswAAAAC/treasure-chest-minecraft.gif');
+            ? 'https://img.freepik.com/premium-vector/open-golden-gift-box-gold-confetti_302982-1365.jpg'
+            : 'https://slm-assets.secondlife.com/assets/13000381/view_large/xmas_box_open.jpg?1450370805');
         await interaction.editReply({ embeds: [embed] });
 
         setTimeout(async () => {
@@ -251,8 +251,8 @@ async function displayMultiRollResults(interaction, fumosBought, bestFumo, rollC
                 ? "✨ A sudden burst of radiance... An extraordinary spectacle indeed! ✨"
                 : `🎁 The ${rollCount === 10 ? 'golden box' : 'treasure chest'} reveals...`)
                 .setImage(isRareCutscene
-                    ? 'https://media1.tenor.com/m/nIB3IJ8n6qYAAAAC/light-anime.gif'
-                    : 'https://media1.tenor.com/m/K6j0cFLkHhcAAAAC/gift-surprise.gif');
+                    ? 'https://img.freepik.com/premium-vector/christmas-background-with-open-golden-box-with-confetti_272787-610.jpg?w=740'
+                    : 'https://progameguides.com/wp-content/uploads/2022/01/featured-pokemon-legends-arceus-mystery-gift.jpg?w=900');
             await interaction.editReply({ embeds: [embed] });
 
             setTimeout(async () => {

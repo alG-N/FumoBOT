@@ -56,11 +56,19 @@ async function handleVoidCrystal(message, itemName, quantity, userId) {
         const expiresAt = now + VOID_CRYSTAL_CONFIG.duration;
         const totalStacks = currentStacks + stacksToAdd;
         
+        // Check if S!gil is active - if so, mark new boosts as frozen
+        const sigilActive = await get(
+            `SELECT * FROM activeBoosts 
+             WHERE userId = ? AND source = 'S!gil' AND type = 'coin'
+             AND (expiresAt IS NULL OR expiresAt > ?)`,
+            [userId, now]
+        );
+        
         const coinMultiplier = 1 + (VOID_CRYSTAL_CONFIG.coinBoost * totalStacks);
         const gemMultiplier = 1 + (VOID_CRYSTAL_CONFIG.gemBoost * totalStacks);
         const voidVariantChance = VOID_CRYSTAL_CONFIG.voidVariantChance * totalStacks;
 
-        // Upsert boosts
+        // Upsert boosts - mark as frozen if S!gil is active
         const boostTypes = [
             { type: 'coin', multiplier: coinMultiplier },
             { type: 'gem', multiplier: gemMultiplier },
@@ -70,10 +78,21 @@ async function handleVoidCrystal(message, itemName, quantity, userId) {
                 extra: JSON.stringify({ 
                     enabled: true,
                     chance: voidVariantChance,
-                    tag: VOID_CRYSTAL_CONFIG.voidTag
+                    tag: VOID_CRYSTAL_CONFIG.voidTag,
+                    // If S!gil is active, mark as frozen with remaining time
+                    ...(sigilActive ? {
+                        sigilDisabled: true,
+                        frozenTimeRemaining: VOID_CRYSTAL_CONFIG.duration
+                    } : {})
                 }) 
             }
         ];
+
+        // For coin/gem boosts, add frozen flag if S!gil is active
+        if (sigilActive) {
+            boostTypes[0].extra = JSON.stringify({ sigilDisabled: true, frozenTimeRemaining: VOID_CRYSTAL_CONFIG.duration });
+            boostTypes[1].extra = JSON.stringify({ sigilDisabled: true, frozenTimeRemaining: VOID_CRYSTAL_CONFIG.duration });
+        }
 
         for (const boost of boostTypes) {
             await run(

@@ -10,6 +10,7 @@ const { handleVoidCrystal } = require('./VoidCrystalHandler');
 const { handleEternalEssence } = require('./EternalEssenceHandler');
 const { handleCosmicCore } = require('./CosmicCoreHandler');
 const { handleSigil } = require('./SgilHandler');
+const { handleFantasyBook } = require('./FantasyBookHandler');
 
 const ITEM_HANDLERS = {
     // Potions
@@ -37,6 +38,7 @@ const ITEM_HANDLERS = {
     'ShinyShard(?)': handleShinyShard,
     'alGShard(P)': handleAlGShard,
     'AncientRelic(E)': handleAncientRelic,
+    'FantasyBook(M)' : handleFantasyBook,
     
     // Tier 6 items
     'CrystalSigil(?)': handleCrystalSigil,
@@ -82,5 +84,6 @@ module.exports = {
     handleVoidCrystal,
     handleEternalEssence,
     handleCosmicCore,
+    handleFantasyBook,
     ITEM_HANDLERS
 };

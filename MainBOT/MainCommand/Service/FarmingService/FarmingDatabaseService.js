@@ -7,6 +7,8 @@ function getBaseFumoNameWithRarity(fumoName) {
     return fumoName
         .replace(/\[✨SHINY\]/g, '')
         .replace(/\[🌟alG\]/g, '')
+        .replace(/\[🔮GLITCHED\]/g, '')
+        .replace(/\[🌀VOID\]/g, '')
         .trim();
 }
 
@@ -16,6 +18,8 @@ function getBaseFumoNameOnly(fumoName) {
     return fumoName
         .replace(/\[✨SHINY\]/g, '')
         .replace(/\[🌟alG\]/g, '')
+        .replace(/\[🔮GLITCHED\]/g, '')
+        .replace(/\[🌀VOID\]/g, '')
         .replace(/\(.*?\)/g, '')
         .trim();
 }
@@ -24,6 +28,8 @@ function extractTrait(fumoName) {
     if (!fumoName) return 'Base';
     if (fumoName.includes('[🌟alG]')) return 'alG';
     if (fumoName.includes('[✨SHINY]')) return 'SHINY';
+    if (fumoName.includes('[🔮GLITCHED]')) return 'GLITCHED';
+    if (fumoName.includes('[🌀VOID]')) return 'VOID';
     return 'Base';
 }
 
@@ -43,6 +49,27 @@ async function getUserFarmingFumos(userId) {
 }
 
 async function addFumoToFarm(userId, fumoName, coinsPerMin, gemsPerMin, quantity = 1) {
+    // First, actually remove the fumo from inventory
+    const inventoryRow = await get(
+        `SELECT id, quantity as invQty FROM userInventory WHERE userId = ? AND fumoName = ?`,
+        [userId, fumoName]
+    );
+    
+    if (!inventoryRow || inventoryRow.invQty < quantity) {
+        debugLog('FARMING', `[addFumoToFarm] Insufficient inventory: has ${inventoryRow?.invQty || 0}, need ${quantity}`);
+        return false;
+    }
+    
+    // Deduct from inventory
+    if (inventoryRow.invQty === quantity) {
+        await run(`DELETE FROM userInventory WHERE id = ?`, [inventoryRow.id]);
+    } else {
+        await run(
+            `UPDATE userInventory SET quantity = quantity - ? WHERE id = ?`,
+            [quantity, inventoryRow.id]
+        );
+    }
+    
     // Check if already farming this fumo
     const existing = await get(
         `SELECT id, quantity FROM farmingFumos WHERE userId = ? AND fumoName = ?`,
@@ -61,18 +88,44 @@ async function addFumoToFarm(userId, fumoName, coinsPerMin, gemsPerMin, quantity
         );
     }
     
-    debugLog('FARMING', `Added ${quantity}x ${fumoName} to farm for user ${userId}`);
+    debugLog('FARMING', `Added ${quantity}x ${fumoName} to farm for user ${userId} (removed from inventory)`);
+    return true;
 }
 
 async function removeFumoFromFarm(userId, fumoName, quantity = 1) {
     const row = await get(
-        `SELECT quantity FROM farmingFumos WHERE userId = ? AND fumoName = ?`,
+        `SELECT id, quantity FROM farmingFumos WHERE userId = ? AND fumoName = ?`,
         [userId, fumoName]
     );
 
     if (!row) return false;
 
-    if (quantity >= row.quantity) {
+    const actualRemove = Math.min(quantity, row.quantity);
+    
+    // Return fumos back to inventory
+    const existingInv = await get(
+        `SELECT id, quantity as invQty FROM userInventory WHERE userId = ? AND fumoName = ?`,
+        [userId, fumoName]
+    );
+    
+    // Get rarity from fumo name for inventory insert
+    const rarityMatch = fumoName.match(/\((.*?)\)/);
+    const rarity = rarityMatch ? rarityMatch[1] : 'Common';
+    
+    if (existingInv) {
+        await run(
+            `UPDATE userInventory SET quantity = quantity + ? WHERE id = ?`,
+            [actualRemove, existingInv.id]
+        );
+    } else {
+        await run(
+            `INSERT INTO userInventory (userId, fumoName, quantity, rarity) VALUES (?, ?, ?, ?)`,
+            [userId, fumoName, actualRemove, rarity]
+        );
+    }
+
+    // Remove from farm
+    if (actualRemove >= row.quantity) {
         await run(
             `DELETE FROM farmingFumos WHERE userId = ? AND fumoName = ?`,
             [userId, fumoName]
@@ -80,11 +133,11 @@ async function removeFumoFromFarm(userId, fumoName, quantity = 1) {
     } else {
         await run(
             `UPDATE farmingFumos SET quantity = quantity - ? WHERE userId = ? AND fumoName = ?`,
-            [quantity, userId, fumoName]
+            [actualRemove, userId, fumoName]
         );
     }
 
-    debugLog('FARMING', `Removed ${quantity}x ${fumoName} from farm for user ${userId}`);
+    debugLog('FARMING', `Removed ${actualRemove}x ${fumoName} from farm for user ${userId} (returned to inventory)`);
     return true;
 }
 
@@ -121,12 +174,21 @@ async function getUserInventoryByRarityAndTrait(userId, rarity, trait) {
             AND fumoName LIKE ?
             AND fumoName NOT LIKE '%[✨SHINY]%'
             AND fumoName NOT LIKE '%[🌟alG]%'
+            AND fumoName NOT LIKE '%[🔮GLITCHED]%'
+            AND fumoName NOT LIKE '%[🌀VOID]%'
             GROUP BY fumoName
             ORDER BY fumoName
         `;
         params = [userId, `%(${rarity})%`];
     } else {
-        const traitTag = trait === 'SHINY' ? '[✨SHINY]' : '[🌟alG]';
+        // Map trait name to tag
+        const traitTags = {
+            'SHINY': '[✨SHINY]',
+            'alG': '[🌟alG]',
+            'GLITCHED': '[🔮GLITCHED]',
+            'VOID': '[🌀VOID]'
+        };
+        const traitTag = traitTags[trait] || '[✨SHINY]';
         query = `
             SELECT fumoName, SUM(quantity) as count 
             FROM userInventory 
@@ -153,11 +215,15 @@ async function getInventoryCountForFumo(userId, fumoName) {
     const baseVariant = baseWithRarity;
     const shinyVariant = `${baseWithRarity}[✨SHINY]`;
     const alGVariant = `${baseWithRarity}[🌟alG]`;
+    const glitchedVariant = `${baseWithRarity}[🔮GLITCHED]`;
+    const voidVariant = `${baseWithRarity}[🌀VOID]`;
     
     debugLog('FARMING', `[getInventoryCountForFumo] Looking for variants of: ${baseWithRarity}`);
     debugLog('FARMING', `  - Base: ${baseVariant}`);
     debugLog('FARMING', `  - Shiny: ${shinyVariant}`);
     debugLog('FARMING', `  - alG: ${alGVariant}`);
+    debugLog('FARMING', `  - GLITCHED: ${glitchedVariant}`);
+    debugLog('FARMING', `  - VOID: ${voidVariant}`);
     
     const rows = await all(
         `SELECT fumoName, SUM(quantity) as count 
@@ -166,10 +232,12 @@ async function getInventoryCountForFumo(userId, fumoName) {
          AND (
              fumoName = ? OR
              fumoName = ? OR
+             fumoName = ? OR
+             fumoName = ? OR
              fumoName = ?
          )
          GROUP BY fumoName`,
-        [userId, baseVariant, shinyVariant, alGVariant]
+        [userId, baseVariant, shinyVariant, alGVariant, glitchedVariant, voidVariant]
     );
     
     const totalCount = rows.reduce((sum, row) => {
@@ -229,6 +297,91 @@ async function updateDailyQuest(userId, coinsAwarded) {
     `, [userId, date, coinsAwarded, coinsAwarded, coinsAwarded]);
 }
 
+/**
+ * Migrate existing farming fumos by deducting them from inventory
+ * This prevents duplication where the same fumo exists in both farm and inventory
+ * Should be run once on startup
+ */
+async function migrateExistingFarmingFumos() {
+    const allFarming = await all(`SELECT DISTINCT userId, fumoName, quantity FROM farmingFumos`);
+    
+    if (allFarming.length === 0) {
+        debugLog('FARMING', '[Migration] No farming fumos to migrate');
+        return { migrated: 0, cleaned: 0 };
+    }
+    
+    let migrated = 0;
+    let cleaned = 0;
+    
+    for (const { userId, fumoName, quantity } of allFarming) {
+        // Check if user has this fumo in inventory
+        const invRow = await get(
+            `SELECT id, quantity as invQty FROM userInventory WHERE userId = ? AND fumoName = ?`,
+            [userId, fumoName]
+        );
+        
+        if (invRow && invRow.invQty > 0) {
+            const toDeduct = Math.min(quantity, invRow.invQty);
+            
+            if (toDeduct >= invRow.invQty) {
+                // Remove entire inventory entry
+                await run(`DELETE FROM userInventory WHERE id = ?`, [invRow.id]);
+            } else {
+                // Deduct from inventory
+                await run(
+                    `UPDATE userInventory SET quantity = quantity - ? WHERE id = ?`,
+                    [toDeduct, invRow.id]
+                );
+            }
+            
+            debugLog('FARMING', `[Migration] Deducted ${toDeduct}x ${fumoName} from user ${userId} inventory`);
+            migrated++;
+            
+            // If farming more than inventory had, reduce farming quantity
+            if (quantity > invRow.invQty) {
+                const newQty = quantity - (quantity - invRow.invQty);
+                if (newQty <= 0) {
+                    await run(`DELETE FROM farmingFumos WHERE userId = ? AND fumoName = ?`, [userId, fumoName]);
+                    cleaned++;
+                } else {
+                    await run(
+                        `UPDATE farmingFumos SET quantity = ? WHERE userId = ? AND fumoName = ?`,
+                        [newQty, userId, fumoName]
+                    );
+                }
+            }
+        } else {
+            // No inventory entry means this is potentially a duplicate/orphan
+            // Remove it from farming since they don't actually own it
+            await run(`DELETE FROM farmingFumos WHERE userId = ? AND fumoName = ?`, [userId, fumoName]);
+            debugLog('FARMING', `[Migration] Removed orphan farming entry: ${fumoName} for user ${userId}`);
+            cleaned++;
+        }
+    }
+    
+    debugLog('FARMING', `[Migration] Complete: ${migrated} migrated, ${cleaned} cleaned`);
+    return { migrated, cleaned };
+}
+
+/**
+ * Check if migration has been run already
+ */
+async function isFarmingMigrationNeeded() {
+    // Check a flag in the database or a simple heuristic
+    const result = await get(
+        `SELECT name FROM sqlite_master WHERE type='table' AND name='farmingMigrationDone'`
+    );
+    return !result;
+}
+
+/**
+ * Mark migration as done
+ */
+async function markFarmingMigrationDone() {
+    await run(`CREATE TABLE IF NOT EXISTS farmingMigrationDone (id INTEGER PRIMARY KEY, migratedAt INTEGER)`);
+    await run(`INSERT OR REPLACE INTO farmingMigrationDone (id, migratedAt) VALUES (1, ?)`, [Date.now()]);
+}
+
 module.exports = {
     getFarmLimit,
     getUserFarmingFumos,
@@ -246,5 +399,8 @@ module.exports = {
     getInventoryCountForFumo,
     getBaseFumoNameWithRarity,
     getBaseFumoNameOnly,
-    extractTrait
+    extractTrait,
+    migrateExistingFarmingFumos,
+    isFarmingMigrationNeeded,
+    markFarmingMigrationDone
 };

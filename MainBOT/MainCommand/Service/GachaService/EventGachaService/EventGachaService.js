@@ -1,6 +1,6 @@
 const { get, run } = require('../../../Core/database');
 const { EVENT_BASE_CHANCES, PITY_THRESHOLDS } = require('../../../Configuration/rarity');
-const { selectAndAddFumo } = require('../NormalGachaService/InventoryService');
+const { selectAndAddFumo, rollBaseVariant, rollSpecialVariant, applyVariantToName } = require('../NormalGachaService/InventoryService');
 const { updateQuestsAndAchievements } = require('../NormalGachaService/CrateGachaRollService');
 const { incrementWeeklyShiny } = require('../../../Ultility/weekly');
 const FumoPool = require('../../../Data/FumoPool');
@@ -338,8 +338,9 @@ async function selectAndAddMultipleEventFumos(userId, rarities, fumoPool) {
     
     const results = [];
     const fumoUpdates = new Map(); // Track fumo name -> {count, rarity, fumoData}
+    let shinyCount = 0;
     
-    // First pass: determine all fumos without DB writes
+    // First pass: determine all fumos and variants without DB writes
     for (const rarity of rarities) {
         let rarityPool;
         if (Array.isArray(fumoPool)) {
@@ -355,7 +356,16 @@ async function selectAndAddMultipleEventFumos(userId, rarities, fumoPool) {
         
         // Select base fumo
         const baseFumo = rarityPool[Math.floor(Math.random() * rarityPool.length)];
-        const finalName = baseFumo.name;
+        let finalName = baseFumo.name;
+        
+        // Roll for base variant (SHINY or alG)
+        const baseVariant = await rollBaseVariant(userId);
+        
+        // Roll for special variant (GLITCHED or VOID)
+        const specialVariant = await rollSpecialVariant(userId, finalName);
+        
+        // Apply variants to name
+        finalName = applyVariantToName(finalName, baseVariant, specialVariant);
         
         // Track for batch update
         if (fumoUpdates.has(finalName)) {
@@ -365,12 +375,24 @@ async function selectAndAddMultipleEventFumos(userId, rarities, fumoPool) {
             fumoUpdates.set(finalName, { count: 1, rarity, baseFumo });
         }
         
+        // Track shiny count
+        if (baseVariant?.type === 'SHINY') {
+            shinyCount++;
+        }
+        
         results.push({
             success: true,
             fumo: {
                 name: finalName,
+                baseName: baseFumo.name,
                 rarity,
-                picture: baseFumo.picture
+                picture: baseFumo.picture,
+                baseVariant: baseVariant?.type || null,
+                specialVariant: specialVariant?.type || null,
+                isShiny: baseVariant?.type === 'SHINY',
+                isAlG: baseVariant?.type === 'alG',
+                isGlitched: specialVariant?.type === 'GLITCHED',
+                isVoid: specialVariant?.type === 'VOID'
             }
         });
     }
@@ -403,6 +425,13 @@ async function selectAndAddMultipleEventFumos(userId, rarities, fumoPool) {
                     [userId, fumoName, data.count, data.rarity]
                 );
             }
+        }
+    }
+    
+    // Track weekly shiny count
+    if (shinyCount > 0) {
+        for (let i = 0; i < shinyCount; i++) {
+            await incrementWeeklyShiny(userId);
         }
     }
     

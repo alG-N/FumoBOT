@@ -23,12 +23,23 @@ async function getActiveBoosts(userId) {
         const sigilActive = await isSigilActive(userId);
         
         let boostQuery;
+        let disabledBoostsQuery = null;
+        
         if (sigilActive) {
-            // Only get S!gil boosts when S!gil is active
+            // Get S!gil boosts when S!gil is active
             boostQuery = all(
                 `SELECT type, source, multiplier, expiresAt, uses, stack, extra
                  FROM activeBoosts
                  WHERE userId = ? AND source = 'S!gil' AND (expiresAt IS NULL OR expiresAt > ?)`,
+                [userId, now]
+            );
+            
+            // Also get disabled boosts to show them with DISABLED tag
+            disabledBoostsQuery = all(
+                `SELECT type, source, multiplier, expiresAt, uses, stack, extra
+                 FROM activeBoosts
+                 WHERE userId = ? AND source != 'S!gil' AND (expiresAt IS NULL OR expiresAt > ?)
+                 AND json_extract(extra, '$.sigilDisabled') = true`,
                 [userId, now]
             );
         } else {
@@ -42,8 +53,9 @@ async function getActiveBoosts(userId) {
             );
         }
         
-        const [boosts, userData, mysteriousDice, timeClock, sanaeBoosts] = await Promise.all([
+        const [boosts, disabledBoosts, userData, mysteriousDice, timeClock, sanaeBoosts] = await Promise.all([
             boostQuery,
+            disabledBoostsQuery || Promise.resolve([]),
             get(`SELECT rollsLeft, luck FROM userCoins WHERE userId = ?`, [userId]),
             sigilActive ? null : getMysteriousDiceBoost(userId, now),
             sigilActive ? null : getTimeClockBoost(userId, now),
@@ -51,6 +63,14 @@ async function getActiveBoosts(userId) {
         ]);
 
         const categorized = categorizeBoosts(boosts || []);
+        
+        // If S!gil is active, categorize disabled boosts separately
+        let categorizedDisabled = { coin: [], gem: [], luck: [], special: [], sanae: [], cooldown: [], debuff: [], yuyukoRolls: [] };
+        if (sigilActive && disabledBoosts && disabledBoosts.length > 0) {
+            // Mark disabled boosts with a flag
+            const markedDisabled = disabledBoosts.map(b => ({ ...b, sigilDisabled: true }));
+            categorizedDisabled = categorizeBoosts(markedDisabled);
+        }
 
         // Add permanent luck as a luck boost if > 0 (only if S!gil not active)
         // Cap display at 500% (5.0)
@@ -91,10 +111,13 @@ async function getActiveBoosts(userId) {
         }
 
         const hasBoosts = Object.values(categorized).some(arr => arr.length > 0);
+        const hasDisabledBoosts = sigilActive && Object.values(categorizedDisabled).some(arr => arr.length > 0);
 
         return {
             hasBoosts,
             boosts: categorized,
+            disabledBoosts: sigilActive ? categorizedDisabled : null,
+            sigilActive,
             totals: calculateTotals(categorized)
         };
 

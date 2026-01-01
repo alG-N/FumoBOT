@@ -108,12 +108,16 @@ function getBaseFumoName(fumoName) {
     return fumoName
         .replace(/\[✨SHINY\]/g, '')
         .replace(/\[🌟alG\]/g, '')
+        .replace(/\[🔮GLITCHED\]/g, '')
+        .replace(/\[🌀VOID\]/g, '')
         .trim();
 }
 
 function getTrait(fumoName) {
     if (fumoName.includes('[🌟alG]')) return '🌟alG';
     if (fumoName.includes('[✨SHINY]')) return '✨SHINY';
+    if (fumoName.includes('[🔮GLITCHED]')) return '🔮GLITCHED';
+    if (fumoName.includes('[🌀VOID]')) return '🌀VOID';
     return null;
 }
 

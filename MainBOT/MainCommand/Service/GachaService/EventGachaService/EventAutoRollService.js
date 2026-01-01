@@ -81,6 +81,9 @@ async function performEventAutoSell(userId) {
     const SELLABLE_EVENT_RARITIES = ['Common', 'UNCOMMON', 'RARE'];
 
     for (const row of inventoryRows) {
+        // Skip if fumoName is null or undefined
+        if (!row.fumoName) continue;
+        
         let rarity = null;
         
         // Check for event banner rarities

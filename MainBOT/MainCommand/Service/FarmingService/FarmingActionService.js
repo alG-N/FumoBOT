@@ -34,20 +34,26 @@ async function addMultipleFumosToFarm(userId, fumoName, quantity) {
 
     const actualQuantity = Math.min(quantity, availableSlots);
 
+    // Check inventory before attempting to add (will be checked again in addFumoToFarm)
     const inventoryCount = await getInventoryCountForFumo(userId, fumoName);
     
     if (inventoryCount < actualQuantity) {
-        return { success: false, error: 'INSUFFICIENT_INVENTORY' };
+        return { success: false, error: 'INSUFFICIENT_INVENTORY', have: inventoryCount, need: actualQuantity };
     }
 
     const { coinsPerMin, gemsPerMin } = calculateFarmingStats(fumoName);
 
     const existingFumo = farmingFumos.find(f => f.fumoName === fumoName);
     
-    if (existingFumo) {
-        await addFumoToFarm(userId, fumoName, coinsPerMin, gemsPerMin, actualQuantity);
-    } else {
-        await addFumoToFarm(userId, fumoName, coinsPerMin, gemsPerMin, actualQuantity);
+    // addFumoToFarm now actually removes from inventory and returns success/failure
+    const added = await addFumoToFarm(userId, fumoName, coinsPerMin, gemsPerMin, actualQuantity);
+    
+    if (!added) {
+        return { success: false, error: 'ADD_FAILED' };
+    }
+    
+    // Start farming interval only if this is a new fumo type
+    if (!existingFumo) {
         await startFarmingInterval(userId, fumoName, coinsPerMin, gemsPerMin);
     }
 
@@ -166,7 +172,7 @@ async function optimizeFarm(userId) {
          WHERE userId = ? 
          AND fumoName IS NOT NULL
          AND TRIM(fumoName) != ''
-         AND (fumoName LIKE '%(%)' OR fumoName LIKE '%[✨SHINY]' OR fumoName LIKE '%[🌟alG]')
+         AND (fumoName LIKE '%(%)' OR fumoName LIKE '%[✨SHINY]' OR fumoName LIKE '%[🌟alG]' OR fumoName LIKE '%[🔮GLITCHED]' OR fumoName LIKE '%[🌀VOID]')
          GROUP BY fumoName`,
         [userId]
     );

@@ -18,7 +18,7 @@
   },
   "1128296349566251068": {
     "normal": {
-      "rollCount": 2,
+      "rollCount": 4,
       "autoSell": true,
       "startTime": 1767252351086,
       "bestFumo": {
@@ -28,9 +28,26 @@
       },
       "bestFumoAt": "1/1/2026, 2:50:24 PM",
       "bestFumoRoll": 8,
-      "specialFumoCount": 46,
+      "specialFumoCount": 115,
       "specialFumoFirstAt": "1/1/2026, 2:25:51 PM",
       "specialFumoFirstRoll": 1
+    }
+  },
+  "1448912158367813662": {
+    "normal": {
+      "rollCount": 4,
+      "autoSell": true,
+      "startTime": 1767258569163,
+      "bestFumo": {
+        "name": "Athena(ASTRAL)",
+        "rarity": "ASTRAL",
+        "picture": "https://media.discordapp.net/attachments/1372426801472737280/1372426818594017311/OIP.png?ex=6826bb94&is=68256a14&hm=eb47a890b02dc810beefb84938f01c70b98522c1fe3c4a2ccb96de9293da28ac&=&format=webp&quality=lossless&width=309&height=309"
+      },
+      "bestFumoAt": "1/1/2026, 4:26:15 PM",
+      "bestFumoRoll": 4,
+      "specialFumoCount": 5,
+      "specialFumoFirstAt": "1/1/2026, 4:11:29 PM",
+      "specialFumoFirstRoll": 3
     }
   }
 }

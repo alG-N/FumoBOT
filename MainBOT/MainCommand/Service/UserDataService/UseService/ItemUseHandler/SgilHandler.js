@@ -357,13 +357,30 @@ async function confirmSigilActivation(interaction, client) {
             [userId]
         );
 
-        // Disable all other boosts by marking them
-        await run(
-            `UPDATE activeBoosts 
-             SET extra = json_set(COALESCE(extra, '{}'), '$.sigilDisabled', true)
-             WHERE userId = ? AND source != ?`,
+        // Disable all other boosts by marking them and storing remaining time for timer freeze
+        const now = Date.now();
+        const otherBoosts = await all(
+            `SELECT id, expiresAt, extra FROM activeBoosts WHERE userId = ? AND source != ?`,
             [userId, SIGIL_CONFIG.source]
         );
+        
+        for (const boost of otherBoosts) {
+            let extra = {};
+            try {
+                extra = JSON.parse(boost.extra || '{}');
+            } catch {}
+            
+            extra.sigilDisabled = true;
+            // Store remaining time so we can restore it when S!gil expires
+            if (boost.expiresAt && boost.expiresAt > now) {
+                extra.frozenTimeRemaining = boost.expiresAt - now;
+            }
+            
+            await run(
+                `UPDATE activeBoosts SET extra = ? WHERE id = ?`,
+                [JSON.stringify(extra), boost.id]
+            );
+        }
 
         // Calculate boost values
         const luckMultiplier = currentPrereqs.goldenStacks > 0 
@@ -379,7 +396,6 @@ async function confirmSigilActivation(interaction, client) {
         const variantLuckMultiplier = SIGIL_CONFIG.variantLuck.min + 
             (Math.random() * (SIGIL_CONFIG.variantLuck.max - SIGIL_CONFIG.variantLuck.min));
 
-        const now = Date.now();
         const expiresAt = now + SIGIL_CONFIG.duration;
 
         // Apply all S!gil boosts

@@ -1,17 +1,20 @@
 const {
+    WEATHER_CONFIG,
     WEATHER_EVENTS,
     isWeekend,
     shouldTriggerWeather,
     calculateTotalMultipliers,
     getWeatherDuration,
     getWeatherCheckInterval,
-    getSeasonDescription
+    getSeasonDescription,
+    GLOBAL_WEATHER_COOLDOWN,
+    MAX_SIMULTANEOUS_WEATHER,
+    GUARANTEED_WEATHER_INTERVAL
 } = require('../../../Configuration/seasonConfig');
 
 const {
     WEATHER_COMBOS,
     checkForWeatherCombo,
-    shouldTriggerCombo,
     getComboDescription,
     getComboDuration
 } = require('../../../Configuration/weatherComboConfig');
@@ -31,8 +34,8 @@ const comboCheckInterval = null;
 let cleanupInterval = null;
 let guaranteeCheckInterval = null;
 let lastWeatherEventTime = Date.now();
+let lastWeatherCooldowns = new Map(); // Track per-weather cooldowns
 
-const GUARANTEED_WEATHER_INTERVAL = 3 * 60 * 60 * 1000;
 const COMBO_CHECK_INTERVAL = 60000;
 
 async function initializeSeasonSystem(client) {
@@ -104,9 +107,30 @@ function startWeekendMonitor(client) {
 
 function startWeatherCheckInterval(weatherType, client) {
     const interval = getWeatherCheckInterval(weatherType);
+    const weatherConfig = WEATHER_CONFIG[weatherType];
+    const cooldown = weatherConfig?.cooldown || 3600000;
     
     const intervalId = setInterval(async () => {
         try {
+            // Check global cooldown between any weather events
+            const timeSinceLastWeather = Date.now() - lastWeatherEventTime;
+            if (timeSinceLastWeather < GLOBAL_WEATHER_COOLDOWN) {
+                return;
+            }
+            
+            // Check per-weather cooldown
+            const lastCooldown = lastWeatherCooldowns.get(weatherType) || 0;
+            if (Date.now() - lastCooldown < cooldown) {
+                return;
+            }
+            
+            // Check max simultaneous weather
+            const activeSeasons = await getActiveSeasonTypes();
+            const activeWeatherCount = activeSeasons.filter(s => s !== 'WEEKEND').length;
+            if (activeWeatherCount >= MAX_SIMULTANEOUS_WEATHER) {
+                return;
+            }
+            
             const alreadyActive = await isSeasonActive(weatherType);
             if (alreadyActive) {
                 return;
@@ -117,6 +141,7 @@ function startWeatherCheckInterval(weatherType, client) {
                 await startSeason(weatherType, duration);
                 
                 lastWeatherEventTime = Date.now();
+                lastWeatherCooldowns.set(weatherType, Date.now());
                 
                 const description = getSeasonDescription(weatherType);
                 console.log(`🌤️ Weather event triggered: ${weatherType}`);
@@ -166,32 +191,36 @@ function startWeatherComboCheck(client) {
         try {
             const activeSeasons = await getActiveSeasonTypes();
             const activeWeathers = activeSeasons.filter(s => s !== 'WEEKEND');
-
-            for (const [comboKey, comboData] of Object.entries(WEATHER_COMBOS)) {
-                const alreadyActive = await isSeasonActive(comboKey);
-                if (alreadyActive) continue;
-
-                const hasAllWeathers = comboData.requiredWeathers.every(w => activeWeathers.includes(w));
+            
+            // Need at least 2 weather events for a combo
+            if (activeWeathers.length < 2) return;
+            
+            // Check for combo match
+            const comboResult = checkForWeatherCombo(activeWeathers);
+            
+            if (comboResult.found) {
+                const { comboKey, comboData } = comboResult;
                 
-                if (hasAllWeathers && shouldTriggerCombo(comboKey)) {
-                    const duration = getComboDuration(comboKey);
-                    await startSeason(comboKey, duration);
-                    
-                    const description = getComboDescription(comboKey);
-                    console.log(`🌟 WEATHER COMBO TRIGGERED: ${comboKey}`);
-                    
-                    await logToDiscord(
-                        client,
-                        `🌟 **WEATHER COMBO ACTIVATED!**\n${description}\nDuration: ${Math.floor(duration / 60000)} minutes`,
-                        null,
-                        LogLevel.ACTIVITY
-                    );
+                // Check if combo is already active
+                const alreadyActive = await isSeasonActive(comboKey);
+                if (alreadyActive) return;
+                
+                const duration = getComboDuration(comboKey);
+                await startSeason(comboKey, duration);
+                
+                const description = getComboDescription(comboKey);
+                console.log(`🌟 WEATHER COMBO TRIGGERED: ${comboKey}`);
+                
+                await logToDiscord(
+                    client,
+                    `🌟 **WEATHER COMBO ACTIVATED!**\n${description}\nDuration: ${Math.floor(duration / 60000)} minutes`,
+                    null,
+                    LogLevel.ACTIVITY
+                );
 
-                    for (const weather of comboData.requiredWeathers) {
-                        await endSeason(weather);
-                    }
-                    
-                    break;
+                // End the individual weather events that formed the combo
+                for (const weather of comboData.requiredWeathers) {
+                    await endSeason(weather);
                 }
             }
         } catch (error) {
@@ -203,21 +232,22 @@ function startWeatherComboCheck(client) {
 }
 
 async function triggerGuaranteedWeather(client) {
-    const positiveWeather = [
-        'FESTIVAL_HARVEST',
-        'DAWN_DAYLIGHT',
-        'GOLDEN_HOUR',
-        'METEOR_SHOWER',
-        'BLOOD_MOON',
-        'AURORA_BOREALIS',
-        'SOLAR_FLARE'
-    ];
+    // Pick from positive weathers for guaranteed event
+    const positiveWeather = Object.entries(WEATHER_CONFIG)
+        .filter(([_, config]) => config.type === 'positive' && config.tier !== 'DIVINE' && config.tier !== 'GLITCHED')
+        .map(([key]) => key);
+    
+    if (positiveWeather.length === 0) {
+        console.warn('No positive weather events configured for guaranteed weather');
+        return;
+    }
     
     const randomWeather = positiveWeather[Math.floor(Math.random() * positiveWeather.length)];
     const duration = getWeatherDuration(randomWeather);
     
     await startSeason(randomWeather, duration);
     lastWeatherEventTime = Date.now();
+    lastWeatherCooldowns.set(randomWeather, Date.now());
     
     const description = getSeasonDescription(randomWeather);
     
@@ -226,7 +256,7 @@ async function triggerGuaranteedWeather(client) {
     await logToDiscord(
         client,
         `🌟 **GUARANTEED Weather Event**\n` +
-        `No weather for 3 hours, triggering guaranteed event!\n\n` +
+        `No weather for 2 hours, triggering guaranteed event!\n\n` +
         `${description}\n` +
         `Duration: ${Math.floor(duration / 60000)} minutes`,
         null,

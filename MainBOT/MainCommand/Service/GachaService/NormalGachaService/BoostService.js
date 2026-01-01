@@ -399,12 +399,13 @@ function getSanaeBoostDisplay(boosts) {
 /**
  * Get VOID and GLITCHED trait boost display lines with timer for gacha UI
  * S!gil has priority over CosmicCore for GLITCHED trait
+ * When S!gil is active, non-S!gil boosts show frozen timer from stored frozenTimeRemaining
  */
 async function getTraitBoostDisplay(userId) {
     const now = Date.now();
     const lines = [];
     
-    // Check if S!gil is active (determines GLITCHED priority)
+    // Check if S!gil is active (determines GLITCHED priority and timer freezing)
     const sigilActive = await get(
         `SELECT * FROM activeBoosts 
          WHERE userId = ? AND source = 'S!gil' AND type = 'coin'
@@ -419,12 +420,38 @@ async function getTraitBoostDisplay(userId) {
         [userId, now]
     );
     
-    // Get GLITCHED trait from CosmicCore
+    // Get GLITCHED trait from CosmicCore (may be frozen if S!gil active)
     const cosmicGlitched = await get(
-        `SELECT multiplier, expiresAt, stack FROM activeBoosts 
-         WHERE userId = ? AND type = 'glitchedTrait' AND source = 'CosmicCore' AND expiresAt > ?`,
+        `SELECT multiplier, expiresAt, stack, extra FROM activeBoosts 
+         WHERE userId = ? AND type = 'glitchedTrait' AND source = 'CosmicCore'
+         AND (expiresAt > ? OR json_extract(extra, '$.sigilDisabled') = true)`,
         [userId, now]
     );
+    
+    // Helper to get display time - uses frozenTimeRemaining when frozen
+    const getDisplayTime = (boost, isFrozen) => {
+        if (isFrozen && boost.extra) {
+            try {
+                const extra = typeof boost.extra === 'string' ? JSON.parse(boost.extra) : boost.extra;
+                // If we have frozenTimeRemaining stored, use it (this is the FROZEN time that shouldn't decrease)
+                if (extra.frozenTimeRemaining && extra.frozenTimeRemaining > 0) {
+                    return formatTimeRemaining(extra.frozenTimeRemaining);
+                }
+            } catch {}
+        }
+        // For non-frozen or no stored time, calculate from expiresAt
+        return formatTimeRemaining(boost.expiresAt - now);
+    };
+    
+    // Helper to check if boost has sigilDisabled flag in extra
+    const hasSigilDisabledFlag = (boost) => {
+        if (!boost?.extra) return false;
+        try {
+            const extra = typeof boost.extra === 'string' ? JSON.parse(boost.extra) : boost.extra;
+            return extra.sigilDisabled === true;
+        } catch {}
+        return false;
+    };
     
     // Display GLITCHED traits with active/deactivated status
     if (sigilGlitched && cosmicGlitched) {
@@ -434,12 +461,14 @@ async function getTraitBoostDisplay(userId) {
             const oneInX = Math.round(1 / sigilGlitched.multiplier).toLocaleString();
             lines.push(`🔮 GLITCHED Trait (S!gil) — 1 in ${oneInX} (${timeLeft}) ✅`);
             
-            const cosmicTime = formatTimeRemaining(cosmicGlitched.expiresAt - now);
+            // CosmicCore is frozen - show frozen time (use flag check OR sigilActive)
+            const isFrozen = hasSigilDisabledFlag(cosmicGlitched) || sigilActive;
+            const cosmicTime = getDisplayTime(cosmicGlitched, isFrozen);
             const cosmicChance = (cosmicGlitched.multiplier * 100).toFixed(4);
-            lines.push(`🔮 GLITCHED Trait (CosmicCore) — ${cosmicChance}% (${cosmicTime}) ⏸️`);
+            lines.push(`🔮 GLITCHED Trait (CosmicCore) — ${cosmicChance}% (${cosmicTime}) ❄️FROZEN`);
         } else {
             // S!gil not active, CosmicCore takes effect
-            const cosmicTime = formatTimeRemaining(cosmicGlitched.expiresAt - now);
+            const cosmicTime = getDisplayTime(cosmicGlitched, false);
             const cosmicChance = (cosmicGlitched.multiplier * 100).toFixed(4);
             lines.push(`🔮 GLITCHED Trait (CosmicCore) — ${cosmicChance}% (${cosmicTime}) ✅`);
             
@@ -453,23 +482,30 @@ async function getTraitBoostDisplay(userId) {
         const oneInX = Math.round(1 / sigilGlitched.multiplier).toLocaleString();
         lines.push(`🔮 GLITCHED Trait (S!gil) — 1 in ${oneInX} (${timeLeft})`);
     } else if (cosmicGlitched) {
-        // Only CosmicCore GLITCHED
-        const timeLeft = formatTimeRemaining(cosmicGlitched.expiresAt - now);
+        // Only CosmicCore GLITCHED - check if frozen (flag OR sigil active)
+        const isFrozen = hasSigilDisabledFlag(cosmicGlitched) || sigilActive;
+        const timeLeft = getDisplayTime(cosmicGlitched, isFrozen);
         const chance = (cosmicGlitched.multiplier * 100).toFixed(4);
-        lines.push(`🔮 GLITCHED Trait (CosmicCore) — ${chance}% (${timeLeft})`);
+        const status = isFrozen ? ' ❄️FROZEN' : '';
+        lines.push(`🔮 GLITCHED Trait (CosmicCore) — ${chance}% (${timeLeft})${status}`);
     }
     
-    // Get VOID trait from VoidCrystal (VOID is independent of S!gil, always active)
+    // Get VOID trait from VoidCrystal (check if frozen by S!gil)
     const voidBoost = await get(
-        `SELECT multiplier, expiresAt, stack FROM activeBoosts 
-         WHERE userId = ? AND type = 'voidTrait' AND source = 'VoidCrystal' AND expiresAt > ?`,
+        `SELECT multiplier, expiresAt, stack, extra FROM activeBoosts 
+         WHERE userId = ? AND type = 'voidTrait' AND source = 'VoidCrystal'
+         AND (expiresAt > ? OR json_extract(extra, '$.sigilDisabled') = true)`,
         [userId, now]
     );
     
     if (voidBoost) {
-        const timeLeft = formatTimeRemaining(voidBoost.expiresAt - now);
+        // Check if VOID is frozen - by flag OR if S!gil is currently active
+        const isFrozen = hasSigilDisabledFlag(voidBoost) || sigilActive;
+        
+        const timeLeft = getDisplayTime(voidBoost, isFrozen);
         const chance = (voidBoost.multiplier * 100).toFixed(2);
-        lines.push(`🌀 VOID Trait (VoidCrystal) — ${chance}% (${timeLeft})`);
+        const status = isFrozen ? ' ❄️FROZEN' : '';
+        lines.push(`🌀 VOID Trait (VoidCrystal) — ${chance}% (${timeLeft})${status}`);
     }
     
     return lines;
@@ -582,7 +618,7 @@ async function shouldBlockAstralDuplicate(userId) {
 }
 
 /**
- * Clean up expired S!gil and re-enable disabled boosts
+ * Clean up expired S!gil and re-enable disabled boosts with restored timers
  */
 async function cleanupExpiredSigil(userId) {
     const now = Date.now();
@@ -602,13 +638,41 @@ async function cleanupExpiredSigil(userId) {
             [userId]
         );
         
-        // Re-enable disabled boosts
-        await run(
-            `UPDATE activeBoosts 
-             SET extra = json_remove(extra, '$.sigilDisabled')
+        // Re-enable disabled boosts and restore frozen timers
+        const disabledBoosts = await all(
+            `SELECT id, extra FROM activeBoosts 
              WHERE userId = ? AND json_extract(extra, '$.sigilDisabled') = true`,
             [userId]
         );
+        
+        for (const boost of disabledBoosts) {
+            let extra = {};
+            try {
+                extra = JSON.parse(boost.extra || '{}');
+            } catch {}
+            
+            // Restore the frozen timer if it was stored
+            let newExpiresAt = null;
+            if (extra.frozenTimeRemaining) {
+                newExpiresAt = now + extra.frozenTimeRemaining;
+            }
+            
+            // Remove the disabled flags
+            delete extra.sigilDisabled;
+            delete extra.frozenTimeRemaining;
+            
+            if (newExpiresAt) {
+                await run(
+                    `UPDATE activeBoosts SET extra = ?, expiresAt = ? WHERE id = ?`,
+                    [JSON.stringify(extra), newExpiresAt, boost.id]
+                );
+            } else {
+                await run(
+                    `UPDATE activeBoosts SET extra = ? WHERE id = ?`,
+                    [JSON.stringify(extra), boost.id]
+                );
+            }
+        }
         
         debugLog(`[SIGIL] Cleaned up expired S!gil for user ${userId}`);
         return true;

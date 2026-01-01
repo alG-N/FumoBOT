@@ -56,11 +56,15 @@ async function validateFumoInInventory(userId, fumoName) {
     const baseWithRarity = fumoName
         .replace(/\[✨SHINY\]/g, '')
         .replace(/\[🌟alG\]/g, '')
+        .replace(/\[🔮GLITCHED\]/g, '')
+        .replace(/\[🌀VOID\]/g, '')
         .trim();
     
     const baseVariant = baseWithRarity;
     const shinyVariant = `${baseWithRarity}[✨SHINY]`;
     const alGVariant = `${baseWithRarity}[🌟alG]`;
+    const glitchedVariant = `${baseWithRarity}[🔮GLITCHED]`;
+    const voidVariant = `${baseWithRarity}[🌀VOID]`;
     
     const rows = await dbAll(
         `SELECT SUM(quantity) as totalCount 
@@ -69,14 +73,16 @@ async function validateFumoInInventory(userId, fumoName) {
          AND (
              fumoName = ? OR
              fumoName = ? OR
+             fumoName = ? OR
+             fumoName = ? OR
              fumoName = ?
          )`,
-        [userId, baseVariant, shinyVariant, alGVariant]
+        [userId, baseVariant, shinyVariant, alGVariant, glitchedVariant, voidVariant]
     );
     
     const totalCount = rows[0]?.totalCount || 0;
     
-    debugLog('FARMING', `[validateFumoInInventory] ${fumoName} -> ${baseWithRarity} has ${totalCount} total in inventory (base + shiny + alG)`);
+    debugLog('FARMING', `[validateFumoInInventory] ${fumoName} -> ${baseWithRarity} has ${totalCount} total in inventory (base + shiny + alG + glitched + void)`);
     
     return totalCount > 0;
 }
@@ -175,6 +181,21 @@ async function stopAllFarmingIntervals(userId) {
 async function resumeAllFarmingIntervals() {
     try {
         const { all: dbAll } = require('../../Core/database');
+        const { 
+            migrateExistingFarmingFumos, 
+            isFarmingMigrationNeeded, 
+            markFarmingMigrationDone 
+        } = require('./FarmingDatabaseService');
+        
+        // Run migration if needed (one-time to deduct farming fumos from inventory)
+        const needsMigration = await isFarmingMigrationNeeded();
+        if (needsMigration) {
+            console.log('🔄 Running farming inventory migration...');
+            const result = await migrateExistingFarmingFumos();
+            await markFarmingMigrationDone();
+            console.log(`✅ Migration complete: ${result.migrated} migrated, ${result.cleaned} cleaned`);
+        }
+        
         const allFarming = await dbAll(`SELECT * FROM farmingFumos`);
         
         for (const row of allFarming) {

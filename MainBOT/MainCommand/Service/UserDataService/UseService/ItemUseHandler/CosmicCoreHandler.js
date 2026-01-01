@@ -56,21 +56,34 @@ async function handleCosmicCore(message, itemName, quantity, userId) {
         const expiresAt = now + COSMIC_CORE_CONFIG.duration;
         const totalStacks = currentStacks + stacksToAdd;
         
+        // Check if S!gil is active - if so, mark new boosts as frozen
+        const sigilActive = await get(
+            `SELECT * FROM activeBoosts 
+             WHERE userId = ? AND source = 'S!gil' AND type = 'coin'
+             AND (expiresAt IS NULL OR expiresAt > ?)`,
+            [userId, now]
+        );
+        
         const coinMultiplier = 1 + (COSMIC_CORE_CONFIG.coinBoost * totalStacks);
         const gemMultiplier = 1 + (COSMIC_CORE_CONFIG.gemBoost * totalStacks);
         const glitchedChance = COSMIC_CORE_CONFIG.glitchedVariantChance * totalStacks;
 
-        // Upsert boosts
+        // Upsert boosts - mark as frozen if S!gil is active
         const boostTypes = [
-            { type: 'coin', multiplier: coinMultiplier },
-            { type: 'gem', multiplier: gemMultiplier },
+            { type: 'coin', multiplier: coinMultiplier, extra: sigilActive ? JSON.stringify({ sigilDisabled: true, frozenTimeRemaining: COSMIC_CORE_CONFIG.duration }) : '{}' },
+            { type: 'gem', multiplier: gemMultiplier, extra: sigilActive ? JSON.stringify({ sigilDisabled: true, frozenTimeRemaining: COSMIC_CORE_CONFIG.duration }) : '{}' },
             { 
                 type: 'glitchedTrait', 
                 multiplier: glitchedChance,
                 extra: JSON.stringify({ 
                     enabled: true, 
                     chance: glitchedChance,
-                    tag: COSMIC_CORE_CONFIG.glitchedTag
+                    tag: COSMIC_CORE_CONFIG.glitchedTag,
+                    // If S!gil is active, mark as frozen
+                    ...(sigilActive ? {
+                        sigilDisabled: true,
+                        frozenTimeRemaining: COSMIC_CORE_CONFIG.duration
+                    } : {})
                 })
             }
         ];

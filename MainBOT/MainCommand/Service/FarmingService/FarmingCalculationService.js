@@ -40,6 +40,14 @@ function calculateFarmingStats(fumoName) {
         coinsPerMin *= 100;
         gemsPerMin *= 100;
     }
+    if (fumoName.includes('🔮GLITCHED')) {
+        coinsPerMin *= 500;
+        gemsPerMin *= 500;
+    }
+    if (fumoName.includes('🌀VOID')) {
+        coinsPerMin *= 25;
+        gemsPerMin *= 25;
+    }
 
     return { coinsPerMin, gemsPerMin };
 }
