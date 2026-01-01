@@ -38,9 +38,48 @@ function formatTimestamp(ms) {
     return date.toLocaleString("en-US", { hour12: false });
 }
 
+function formatNumber(num) {
+    if (!num) return '0';
+    return num.toLocaleString();
+}
+
+function truncateText(text, maxLength = 50) {
+    if (!text) return 'Unknown';
+    return text.length > maxLength ? text.substring(0, maxLength - 3) + '...' : text;
+}
+
+function timeAgo(timestamp) {
+    const seconds = Math.floor((Date.now() - timestamp) / 1000);
+    
+    if (seconds < 60) return 'just now';
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+    if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
+    return `${Math.floor(seconds / 604800)}w ago`;
+}
+
+function createProgressBar(current, max, length = 10) {
+    const filled = Math.round((current / max) * length);
+    const empty = length - filled;
+    return '▓'.repeat(filled) + '░'.repeat(empty);
+}
+
+function formatBytes(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
 module.exports = {
     fmtDur,
     parseDuration,
     formatViewCount,
-    formatTimestamp
+    formatTimestamp,
+    formatNumber,
+    truncateText,
+    timeAgo,
+    createProgressBar,
+    formatBytes
 };

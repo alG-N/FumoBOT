@@ -1,7 +1,8 @@
-const { Collection } = require('discord.js');
+const { Collection, REST, Routes } = require('discord.js');
 const { createClient, setPresence, ActivityType } = require('./MainCommand/Configuration/discord');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 require('dotenv').config();
 
 // ═══════════════════════════════════════════════════════════════
@@ -12,6 +13,13 @@ const { startIncomeSystem } = require('./MainCommand/Core/Database/PassiveIncome
 const { scheduleBackups } = require('./MainCommand/Core/Database/backup');
 const { initializeErrorHandlers } = require('./MainCommand/Ultility/errorHandler');
 const { LOG_CHANNEL_ID } = require('./MainCommand/Core/logger');
+
+// ═══════════════════════════════════════════════════════════════
+// AUTO-DEPLOY CONFIGURATION
+// ═══════════════════════════════════════════════════════════════
+const { clientId, guildId } = require('./config.json');
+const COMMANDS_HASH_FILE = path.join(__dirname, '.commands-hash.json');
+const AUTO_DEPLOY_ENABLED = true; // Set to false to disable auto-deploy
 
 // ═══════════════════════════════════════════════════════════════
 // SERVICES
@@ -56,11 +64,14 @@ lavalinkService.preInitialize(client);
 // ═══════════════════════════════════════════════════════════════
 // COMMAND LOADER (Optimized)
 // ═══════════════════════════════════════════════════════════════
+const SKIP_FOLDERS = ['handlers', 'node_modules', 'Test', 'backup'];
 function loadCommandsRecursively(directory, depth = 0) {
     const items = fs.readdirSync(directory, { withFileTypes: true });
     for (const item of items) {
         const fullPath = path.join(directory, item.name);
         if (item.isDirectory()) {
+            // Skip certain folders that contain non-command modules
+            if (SKIP_FOLDERS.includes(item.name)) continue;
             loadCommandsRecursively(fullPath, depth + 1);
         } else if (item.isFile() && item.name.endsWith('.js')) {
             try {
@@ -161,10 +172,92 @@ console.log('🔄 Loading commands from SubCommand folder...');
 loadCommandsRecursively(path.join(__dirname, 'SubCommand'));
 console.log(`✅ Total commands loaded: ${client.commands.size}`);
 
+// ═══════════════════════════════════════════════════════════════
+// AUTO-DEPLOY SLASH COMMANDS (with hash check to avoid unnecessary deploys)
+// ═══════════════════════════════════════════════════════════════
+async function deployCommands(forceRefresh = false) {
+    if (!AUTO_DEPLOY_ENABLED) {
+        console.log('⏭️ Auto-deploy disabled, skipping...');
+        return;
+    }
+
+    try {
+        // Collect all commands with data property
+        const commands = [];
+        for (const [name, command] of client.commands) {
+            if (command.data) {
+                try {
+                    commands.push(command.data.toJSON());
+                } catch (err) {
+                    console.error(`❌ Failed to serialize command ${name}:`, err.message);
+                }
+            }
+        }
+
+        if (commands.length === 0) {
+            console.log('⚠️ No commands to deploy');
+            return;
+        }
+
+        // Create hash of current commands
+        const commandsString = JSON.stringify(commands.sort((a, b) => a.name.localeCompare(b.name)));
+        const currentHash = crypto.createHash('md5').update(commandsString).digest('hex');
+
+        // Check if commands have changed
+        let previousHash = null;
+        try {
+            if (fs.existsSync(COMMANDS_HASH_FILE)) {
+                const hashData = JSON.parse(fs.readFileSync(COMMANDS_HASH_FILE, 'utf8'));
+                previousHash = hashData.hash;
+            }
+        } catch (err) {
+            // File doesn't exist or is corrupted, will deploy
+        }
+
+        if (!forceRefresh && previousHash === currentHash) {
+            console.log('✅ Commands unchanged, skipping deploy');
+            return;
+        }
+
+        console.log(`🔄 Deploying ${commands.length} slash commands...`);
+        
+        const rest = new REST({ version: '10' }).setToken(process.env.BOT_TOKEN);
+        
+        await rest.put(
+            Routes.applicationGuildCommands(clientId, guildId),
+            { body: commands }
+        );
+
+        // Save new hash
+        fs.writeFileSync(COMMANDS_HASH_FILE, JSON.stringify({ 
+            hash: currentHash, 
+            deployedAt: new Date().toISOString(),
+            commandCount: commands.length
+        }, null, 2));
+
+        console.log(`✅ Successfully deployed ${commands.length} slash commands!`);
+        
+        // Log deployed commands
+        console.log('📋 Deployed commands:');
+        commands.slice(0, 10).forEach((cmd, i) => {
+            console.log(`  ${i + 1}. /${cmd.name}`);
+        });
+        if (commands.length > 10) {
+            console.log(`  ... and ${commands.length - 10} more`);
+        }
+
+    } catch (error) {
+        console.error('❌ Failed to deploy commands:', error.message);
+    }
+}
+
 client.login(process.env.BOT_TOKEN);
 
 client.once('ready', async () => {
     console.log(`✅ Logged in as ${client.user.tag}`);
+
+    // Auto-deploy slash commands (only if changed)
+    await deployCommands();
 
     console.log('[Lavalink] Finalizing music system initialization...');
     lavalinkService.finalize();
@@ -358,6 +451,25 @@ client.on('interactionCreate', async interaction => {
             }
             return;
         }
+
+        // Music settings select menus
+        if (interaction.customId.startsWith('music_setting_')) {
+            const musicCommand = client.commands.get('music');
+            if (musicCommand && musicCommand.handleSelectMenu) {
+                try {
+                    await musicCommand.handleSelectMenu(interaction);
+                } catch (error) {
+                    console.error('Music select menu handler error:', error);
+                    if (!interaction.replied && !interaction.deferred) {
+                        await interaction.reply({
+                            content: '❌ An error occurred while updating settings.',
+                            ephemeral: true
+                        }).catch(() => {});
+                    }
+                }
+            }
+            return;
+        }
     }
 
     if (interaction.isButton()) {
@@ -429,6 +541,25 @@ client.on('interactionCreate', async interaction => {
                     await rule34Command.handleButton(interaction);
                 } catch (error) {
                     console.error('Rule34 button handler error:', error);
+                    if (!interaction.replied && !interaction.deferred) {
+                        await interaction.reply({
+                            content: '❌ An error occurred. Please try again.',
+                            ephemeral: true
+                        }).catch(() => {});
+                    }
+                }
+            }
+            return;
+        }
+
+        // Music button handlers
+        if (interaction.customId.startsWith('music_')) {
+            const musicCommand = client.commands.get('music');
+            if (musicCommand && musicCommand.handleButton) {
+                try {
+                    await musicCommand.handleButton(interaction);
+                } catch (error) {
+                    console.error('Music button handler error:', error);
                     if (!interaction.replied && !interaction.deferred) {
                         await interaction.reply({
                             content: '❌ An error occurred. Please try again.',

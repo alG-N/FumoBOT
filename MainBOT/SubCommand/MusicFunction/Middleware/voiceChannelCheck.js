@@ -1,10 +1,10 @@
 const validators = require('../Utility/validators');
-const embedBuilder = require('../Utility/embedBuilder');
+const trackHandler = require('../Handler/trackHandler');
 
 async function checkVoiceChannel(interaction) {
     if (!validators.isInVoiceChannel(interaction.member)) {
         await interaction.reply({
-            embeds: [embedBuilder.buildInfoEmbed("❌ No Voice Channel", "Join a voice channel first.")],
+            embeds: [trackHandler.createInfoEmbed("❌ No Voice Channel", "Join a voice channel first.")],
             ephemeral: true,
         });
         return false;
@@ -32,7 +32,7 @@ async function checkVoicePermissions(interaction) {
     
     if (!voiceChannel) {
         await interaction.reply({
-            embeds: [embedBuilder.buildInfoEmbed("❌ No Voice Channel", "Join a voice channel first.")],
+            embeds: [trackHandler.createInfoEmbed("❌ No Voice Channel", "Join a voice channel first.")],
             ephemeral: true,
         });
         return false;
@@ -40,7 +40,7 @@ async function checkVoicePermissions(interaction) {
 
     if (!validators.hasVoicePermissions(voiceChannel)) {
         await interaction.reply({
-            embeds: [embedBuilder.buildInfoEmbed(
+            embeds: [trackHandler.createInfoEmbed(
                 "❌ Missing Permissions", 
                 "I don't have permission to connect or speak in your voice channel."
             )],

@@ -18,71 +18,35 @@
   },
   "1128296349566251068": {
     "normal": {
-      "rollCount": 7,
+      "rollCount": 2,
       "autoSell": true,
       "startTime": 1766990191906,
       "bestFumo": {
-        "name": "Arisu(TRANSCENDENT)",
+        "name": "Rinnosuke(TRANSCENDENT)[✨SHINY]",
         "rarity": "TRANSCENDENT",
-        "picture": "https://www.picclickimg.com/I70AAOSwPVJmW9NO/Blue-Archive-Tendou-Arisu-Fumo-Fumo-Plushie-Plush.webp"
+        "picture": "https://img1.picmix.com/output/stamp/normal/6/1/0/7/2577016_a2c58.png"
       },
-      "bestFumoAt": "12/29/2025, 5:36:30 PM",
-      "bestFumoRoll": 193,
-      "specialFumoCount": 253,
+      "bestFumoAt": "12/31/2025, 9:13:18 PM",
+      "bestFumoRoll": 3054,
+      "specialFumoCount": 4084,
       "specialFumoFirstAt": "12/29/2025, 1:37:09 PM",
       "specialFumoFirstRoll": 1
     }
   },
   "1362450043939979378": {
-    "event": {
-      "rollCount": 14,
-      "autoSell": true,
-      "startTime": 1767003586094,
-      "totalFumosRolled": 6800,
-      "totalCoinsFromSales": 76910,
-      "bestFumo": {
-        "name": "NewYearYukari(???)",
-        "rarity": "???",
-        "picture": "https://media.discordapp.net/attachments/1454788676549742613/1454793949175742648/image.png?ex=695261f2&is=69511072&hm=24bf8ee7ff9b814e5c2dfc6aa5e39ef5a41c55f8c286c7f1c076330f44b08576&=&format=webp&quality=lossless&width=618&height=585"
-      },
-      "bestFumoAt": "12/29/2025, 5:19:47 PM",
-      "bestFumoRoll": 1,
-      "specialFumoCount": 688,
-      "specialFumoFirstAt": "12/29/2025, 5:19:47 PM",
-      "specialFumoFirstRoll": 1
-    },
     "normal": {
-      "rollCount": 7,
+      "rollCount": 2,
       "autoSell": true,
       "startTime": 1767003612973,
       "bestFumo": {
-        "name": "Rinnosuke(TRANSCENDENT)",
+        "name": "Rinnosuke(TRANSCENDENT)[✨SHINY]",
         "rarity": "TRANSCENDENT",
         "picture": "https://img1.picmix.com/output/stamp/normal/6/1/0/7/2577016_a2c58.png"
       },
-      "bestFumoAt": "12/29/2025, 5:28:13 PM",
-      "bestFumoRoll": 9,
-      "specialFumoCount": 35,
+      "bestFumoAt": "12/30/2025, 7:22:19 AM",
+      "bestFumoRoll": 798,
+      "specialFumoCount": 3901,
       "specialFumoFirstAt": "12/29/2025, 5:20:13 PM",
-      "specialFumoFirstRoll": 1
-    }
-  },
-  "845274868697661440": {
-    "event": {
-      "rollCount": 14,
-      "autoSell": true,
-      "startTime": 1767003741782,
-      "totalFumosRolled": 6300,
-      "totalCoinsFromSales": 76300,
-      "bestFumo": {
-        "name": "NewYearYukari(???)",
-        "rarity": "???",
-        "picture": "https://media.discordapp.net/attachments/1454788676549742613/1454793949175742648/image.png?ex=695261f2&is=69511072&hm=24bf8ee7ff9b814e5c2dfc6aa5e39ef5a41c55f8c286c7f1c076330f44b08576&=&format=webp&quality=lossless&width=618&height=585"
-      },
-      "bestFumoAt": "12/29/2025, 5:22:21 PM",
-      "bestFumoRoll": 1,
-      "specialFumoCount": 634,
-      "specialFumoFirstAt": "12/29/2025, 5:22:21 PM",
       "specialFumoFirstRoll": 1
     }
   }

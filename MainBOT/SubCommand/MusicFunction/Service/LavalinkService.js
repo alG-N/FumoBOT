@@ -132,7 +132,9 @@ class LavalinkService {
                 deaf: lavalinkConfig.playerOptions?.selfDeafen || true
             });
 
-            await player.setGlobalVolume(lavalinkConfig.playerOptions?.volume || 100);
+            // Shoukaku setGlobalVolume: 100 = 100% volume
+            const configVolume = lavalinkConfig.playerOptions?.volume || 100;
+            await player.setGlobalVolume(configVolume);
 
             console.log(`[Lavalink] ✅ Player created successfully for guild ${guildId}`);
             console.log(`[Lavalink] Setting up player event logging for debugging...`);
@@ -264,8 +266,13 @@ class LavalinkService {
             console.log(`[Lavalink] Track plugin info:`, track.pluginInfo);
 
             const youtubeId = this.extractYouTubeId(track.info.uri);
-            const thumbnail = track.info.artworkUrl ||
-                (youtubeId ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg` : null);
+            
+            // Try multiple thumbnail options with fallbacks
+            let thumbnail = track.info.artworkUrl;
+            if (!thumbnail && youtubeId) {
+                // Try hqdefault first (more reliable), then maxresdefault
+                thumbnail = `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`;
+            }
 
             const viewCount = track.pluginInfo?.viewCount || 
                             track.pluginInfo?.playCount || 
@@ -282,7 +289,8 @@ class LavalinkService {
                 author: track.info.author,
                 requestedBy: requester,
                 source: track.info.sourceName || 'Unknown',
-                viewCount: viewCount
+                viewCount: viewCount,
+                identifier: youtubeId || track.info.identifier
             };
 
         } catch (error) {
@@ -347,8 +355,12 @@ class LavalinkService {
                 const playlistData = result.data;
                 const tracks = playlistData.tracks.map(track => {
                     const youtubeId = this.extractYouTubeId(track.info.uri);
-                    const thumbnail = track.info.artworkUrl ||
-                        (youtubeId ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg` : null);
+                    
+                    // Try multiple thumbnail options with fallbacks
+                    let thumbnail = track.info.artworkUrl;
+                    if (!thumbnail && youtubeId) {
+                        thumbnail = `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`;
+                    }
 
                     const viewCount = track.pluginInfo?.viewCount || 
                                     track.pluginInfo?.playCount || 
@@ -365,7 +377,8 @@ class LavalinkService {
                         author: track.info.author,
                         requestedBy: requester,
                         source: track.info.sourceName || 'Unknown',
-                        viewCount: viewCount
+                        viewCount: viewCount,
+                        identifier: youtubeId || track.info.identifier
                     };
                 });
 
