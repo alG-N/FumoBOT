@@ -783,7 +783,8 @@ async function ensureColumnsExist() {
             'rebirth',
             'yukariMark',
             'reimuPityCount',
-            'timeclockLastUsed'
+            'timeclockLastUsed',
+            'lastSigilUse'
         ];
 
         for (const col of requiredColumns) {

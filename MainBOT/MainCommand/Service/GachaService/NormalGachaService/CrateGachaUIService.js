@@ -1,7 +1,7 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Colors } = require('discord.js');
 const { SPECIAL_RARITIES, RARITY_PRIORITY, isRarer } = require('../../../Configuration/rarity');
 const { formatNumber } = require('../../../Ultility/formatting');
-const { getSanaeBoostDisplay, getTraitBoostDisplay } = require('./BoostService');
+const { getSanaeBoostDisplay, getTraitBoostDisplay, isSigilActive } = require('./BoostService');
 
 async function createShopEmbed(userData, boosts, hasFantasyBook, isAutoRollActive, userId) {
     const { coins, boostCharge, boostActive, boostRollsRemaining, rollsLeft, totalRolls, luck } = userData;
@@ -83,43 +83,88 @@ async function createShopEmbed(userData, boosts, hasFantasyBook, isAutoRollActiv
     const unknownChances = shownUnknownChances.join('\n');
 
     const ancientNoteLines = [];
-    if (boosts.ancientLuckMultiplier > 1) {
-        ancientNoteLines.push(`🎇 AncientRelic active! Luck boosted by ${boosts.ancientLuckMultiplier}×`);
-    }
-    if (boosts.luminaActive) {
-        ancientNoteLines.push(`🌟 Lumina active! Every 10th roll grants 5× Luck`);
-    }
-    // Show Yuyuko bonus rolls with count (Divine Blessing from Pray)
-    if (rollsLeft > 0 && !isBoostActive) {
-        ancientNoteLines.push(`🌸 Yuyuko's Blessing: ${formatNumber(rollsLeft)} bonus rolls (2× luck)`);
-    }
-    if (boosts.mysteriousLuckMultiplier && boosts.mysteriousLuckMultiplier > 1) {
-        ancientNoteLines.push(`🧊 MysteriousCube active! Luck boosted by ${boosts.mysteriousLuckMultiplier.toFixed(2)}×`);
-    }
-    if (boosts.mysteriousDiceMultiplier && boosts.mysteriousDiceMultiplier !== 1) {
-        ancientNoteLines.push(`🎲 MysteriousDice active! Luck boosted by ${boosts.mysteriousDiceMultiplier.toFixed(4)}× (random per hour)`);
-    }
-    if (boosts.petBoost && boosts.petBoost > 1) {
-        ancientNoteLines.push(`🐰 Pet boost active! Luck boosted by ${boosts.petBoost.toFixed(4)}×`);
-    }
-    if (luck > 0) {
-        ancientNoteLines.push(`🍀 Base Luck: +${(luck * 100).toFixed(1)}% (permanent)`);
-    }
-    // Sanae direct luck multiplier (x10, etc.)
-    if (boosts.sanaeTempLuckMultiplier > 1) {
-        ancientNoteLines.push(`⛩️ SanaeBlessing active! Luck boosted by ${boosts.sanaeTempLuckMultiplier}×`);
-    }
-    // Sanae global boost multiplier (x5 all boosts)
-    if (boosts.sanaeGlobalMultiplier > 1) {
-        ancientNoteLines.push(`✨ Sanae Blessing: All boosts multiplied by ${boosts.sanaeGlobalMultiplier}×`);
+    const sigilActive = await isSigilActive(userId);
+    
+    // When S!gil is active, show S!gil luck boost and freeze other boosts
+    if (sigilActive) {
+        // S!gil provides its own luck multiplier - show it as "S!gil Luck Boost"
+        if (boosts.sigilLuckMultiplier && boosts.sigilLuckMultiplier > 1) {
+            ancientNoteLines.push(`🪄 S!gil Luck Boost active! Luck boosted by ${boosts.sigilLuckMultiplier.toFixed(2)}×`);
+        }
+        
+        // Show frozen/disabled boosts
+        if (boosts.ancientLuckMultiplier > 1) {
+            ancientNoteLines.push(`❄️ ~~🎇 AncientRelic ${boosts.ancientLuckMultiplier}×~~ (FROZEN)`);
+        }
+        if (boosts.luminaActive) {
+            ancientNoteLines.push(`❄️ ~~🌟 Lumina 5× every 10th roll~~ (FROZEN)`);
+        }
+        if (rollsLeft > 0 && !isBoostActive) {
+            ancientNoteLines.push(`❄️ ~~🌸 Yuyuko's Blessing: ${formatNumber(rollsLeft)} bonus rolls~~ (FROZEN)`);
+        }
+        if (boosts.mysteriousLuckMultiplier && boosts.mysteriousLuckMultiplier > 1) {
+            ancientNoteLines.push(`❄️ ~~🧊 MysteriousCube ${boosts.mysteriousLuckMultiplier.toFixed(2)}×~~ (FROZEN)`);
+        }
+        if (boosts.mysteriousDiceMultiplier && boosts.mysteriousDiceMultiplier !== 1) {
+            ancientNoteLines.push(`❄️ ~~🎲 MysteriousDice ${boosts.mysteriousDiceMultiplier.toFixed(4)}×~~ (FROZEN)`);
+        }
+        if (boosts.petBoost && boosts.petBoost > 1) {
+            ancientNoteLines.push(`❄️ ~~🐰 Pet boost ${boosts.petBoost.toFixed(4)}×~~ (FROZEN)`);
+        }
+        if (luck > 0) {
+            ancientNoteLines.push(`❄️ ~~🍀 Base Luck +${(luck * 100).toFixed(1)}%~~ (FROZEN)`);
+        }
+        if (boosts.sanaeTempLuckMultiplier > 1) {
+            ancientNoteLines.push(`❄️ ~~⛩️ SanaeBlessing ${boosts.sanaeTempLuckMultiplier}×~~ (FROZEN)`);
+        }
+        if (boosts.sanaeGlobalMultiplier > 1) {
+            ancientNoteLines.push(`❄️ ~~✨ Sanae Blessing ${boosts.sanaeGlobalMultiplier}×~~ (FROZEN)`);
+        }
+    } else {
+        // Normal display when S!gil is not active
+        if (boosts.ancientLuckMultiplier > 1) {
+            ancientNoteLines.push(`🎇 AncientRelic active! Luck boosted by ${boosts.ancientLuckMultiplier}×`);
+        }
+        if (boosts.luminaActive) {
+            ancientNoteLines.push(`🌟 Lumina active! Every 10th roll grants 5× Luck`);
+        }
+        // Show Yuyuko bonus rolls with count (Divine Blessing from Pray)
+        if (rollsLeft > 0 && !isBoostActive) {
+            ancientNoteLines.push(`🌸 Yuyuko's Blessing: ${formatNumber(rollsLeft)} bonus rolls (2× luck)`);
+        }
+        if (boosts.mysteriousLuckMultiplier && boosts.mysteriousLuckMultiplier > 1) {
+            ancientNoteLines.push(`🧊 MysteriousCube active! Luck boosted by ${boosts.mysteriousLuckMultiplier.toFixed(2)}×`);
+        }
+        if (boosts.mysteriousDiceMultiplier && boosts.mysteriousDiceMultiplier !== 1) {
+            ancientNoteLines.push(`🎲 MysteriousDice active! Luck boosted by ${boosts.mysteriousDiceMultiplier.toFixed(4)}× (random per hour)`);
+        }
+        if (boosts.petBoost && boosts.petBoost > 1) {
+            ancientNoteLines.push(`🐰 Pet boost active! Luck boosted by ${boosts.petBoost.toFixed(4)}×`);
+        }
+        if (luck > 0) {
+            ancientNoteLines.push(`🍀 Base Luck: +${(luck * 100).toFixed(1)}% (permanent)`);
+        }
+        // Sanae direct luck multiplier (x10, etc.)
+        if (boosts.sanaeTempLuckMultiplier > 1) {
+            ancientNoteLines.push(`⛩️ SanaeBlessing active! Luck boosted by ${boosts.sanaeTempLuckMultiplier}×`);
+        }
+        // Sanae global boost multiplier (x5 all boosts)
+        if (boosts.sanaeGlobalMultiplier > 1) {
+            ancientNoteLines.push(`✨ Sanae Blessing: All boosts multiplied by ${boosts.sanaeGlobalMultiplier}×`);
+        }
     }
 
-    // Build Sanae blessing text for footer
+    // Build Sanae blessing text for footer (show as frozen when S!gil is active)
     const sanaeBoosts = getSanaeBoostDisplay(boosts);
     if (sanaeBoosts.length > 0) {
         ancientNoteLines.push(''); // Empty line separator
-        ancientNoteLines.push('⛩️ Sanae Blessings Active:');
-        sanaeBoosts.forEach(boost => ancientNoteLines.push(`  ${boost}`));
+        if (sigilActive) {
+            ancientNoteLines.push('❄️ ~~⛩️ Sanae Blessings~~ (FROZEN):');
+            sanaeBoosts.forEach(boost => ancientNoteLines.push(`  ~~${boost}~~`));
+        } else {
+            ancientNoteLines.push('⛩️ Sanae Blessings Active:');
+            sanaeBoosts.forEach(boost => ancientNoteLines.push(`  ${boost}`));
+        }
     }
 
     // Build VOID/GLITCHED trait boosts for footer

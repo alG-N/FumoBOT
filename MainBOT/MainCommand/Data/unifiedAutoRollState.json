@@ -28,16 +28,16 @@
       },
       "bestFumoAt": "1/2/2026, 7:45:49 AM",
       "bestFumoRoll": 845,
-      "specialFumoCount": 349,
+      "specialFumoCount": 355,
       "specialFumoFirstAt": "1/1/2026, 4:11:29 PM",
       "specialFumoFirstRoll": 3
     },
     "event": {
-      "rollCount": 13,
+      "rollCount": 14,
       "autoSell": true,
       "startTime": 1767325204801,
-      "totalFumosRolled": 41800,
-      "totalCoinsFromSales": 76350,
+      "totalFumosRolled": 46800,
+      "totalCoinsFromSales": 74050,
       "bestFumo": {
         "name": "NewYearYukari(???)",
         "rarity": "???",
@@ -45,7 +45,7 @@
       },
       "bestFumoAt": "1/2/2026, 10:40:05 AM",
       "bestFumoRoll": 1,
-      "specialFumoCount": 723,
+      "specialFumoCount": 809,
       "specialFumoFirstAt": "1/2/2026, 10:40:05 AM",
       "specialFumoFirstRoll": 1
     }
@@ -62,16 +62,16 @@
       },
       "bestFumoAt": "1/2/2026, 10:49:19 AM",
       "bestFumoRoll": 14,
-      "specialFumoCount": 216,
+      "specialFumoCount": 241,
       "specialFumoFirstAt": "1/2/2026, 10:36:16 AM",
       "specialFumoFirstRoll": 1
     },
     "event": {
-      "rollCount": 13,
+      "rollCount": 14,
       "autoSell": true,
       "startTime": 1767329938616,
-      "totalFumosRolled": 28800,
-      "totalCoinsFromSales": 74780,
+      "totalFumosRolled": 33800,
+      "totalCoinsFromSales": 72710,
       "bestFumo": {
         "name": "NewYearYukari(???)",
         "rarity": "???",
@@ -79,7 +79,7 @@
       },
       "bestFumoAt": "1/2/2026, 11:59:35 AM",
       "bestFumoRoll": 1,
-      "specialFumoCount": 3958,
+      "specialFumoCount": 4666,
       "specialFumoFirstAt": "1/2/2026, 11:59:35 AM",
       "specialFumoFirstRoll": 1
     }

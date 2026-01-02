@@ -42,6 +42,9 @@ const SIGIL_CONFIG = {
     // Blocks duplicate ASTRAL+
     blocksAstralDuplicates: true,
     
+    // Cooldown: 1 day (24 hours) between uses
+    useCooldown: 24 * 60 * 60 * 1000,
+    
     source: 'S!gil'
 };
 
@@ -146,6 +149,40 @@ async function handleSigil(message, itemName, quantity, userId) {
                     .setDescription('You already have an active S!gil boost! Wait for it to expire before using another.\n\n**Your item has been returned.**')
                     .setColor(Colors.Red)]
             });
+        }
+
+        // Check cooldown (24 hours since last use)
+        const lastUse = await get(
+            `SELECT lastSigilUse FROM userCoins WHERE userId = ?`,
+            [userId]
+        );
+        
+        if (lastUse?.lastSigilUse) {
+            const timeSinceLastUse = Date.now() - lastUse.lastSigilUse;
+            if (timeSinceLastUse < SIGIL_CONFIG.useCooldown) {
+                const remainingCooldown = SIGIL_CONFIG.useCooldown - timeSinceLastUse;
+                const hours = Math.floor(remainingCooldown / (60 * 60 * 1000));
+                const minutes = Math.floor((remainingCooldown % (60 * 60 * 1000)) / (60 * 1000));
+                
+                // Return the item
+                await run(
+                    `INSERT INTO userInventory (userId, itemName, quantity, type) 
+                     VALUES (?, ?, 1, 'item')
+                     ON CONFLICT(userId, itemName) DO UPDATE SET quantity = quantity + 1`,
+                    [userId, itemName]
+                );
+                
+                return message.reply({
+                    embeds: [new EmbedBuilder()
+                        .setTitle('❌ S!gil On Cooldown')
+                        .setDescription(
+                            `You can only use S!gil once every **24 hours**.\n\n` +
+                            `⏱️ Time remaining: **${hours}h ${minutes}m**\n\n` +
+                            `**Your item has been returned.**`
+                        )
+                        .setColor(Colors.Red)]
+                });
+            }
         }
 
         // Check prerequisites
@@ -445,6 +482,20 @@ async function confirmSigilActivation(interaction, client) {
             );
         }
 
+        // Update the cooldown timestamp (so user can't use again for 24 hours)
+        await run(
+            `UPDATE userCoins SET lastSigilUse = ? WHERE userId = ?`,
+            [now, userId]
+        );
+
+        // Return the S!gil item after successful activation
+        await run(
+            `INSERT INTO userInventory (userId, itemName, quantity, type) 
+             VALUES (?, ?, 1, 'item')
+             ON CONFLICT(userId, itemName) DO UPDATE SET quantity = quantity + 1`,
+            [userId, itemName]
+        );
+
         // Clean up stored data
         delete client.sigilData[userId];
 
@@ -454,7 +505,9 @@ async function confirmSigilActivation(interaction, client) {
             .setDescription(
                 `**S!gil has been activated!**\n\n` +
                 `Consumed **${SIGIL_CONFIG.transcendentCost}** Transcendent fumos.\n` +
-                `All other boosts have been **disabled** for the duration.`
+                `All other boosts have been **disabled** for the duration.\n\n` +
+                `✅ **Your S!gil has been returned!**\n` +
+                `⏱️ *Cooldown: 24 hours before next use*`
             )
             .addFields(
                 { name: '💰 Coin Boost', value: `x${SIGIL_CONFIG.baseCoinBoost}`, inline: true },

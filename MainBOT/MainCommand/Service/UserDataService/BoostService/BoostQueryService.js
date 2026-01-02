@@ -34,12 +34,11 @@ async function getActiveBoosts(userId) {
                 [userId, now]
             );
             
-            // Also get disabled boosts to show them with DISABLED tag
+            // Get ALL non-S!gil boosts to show them as FROZEN (not just ones with sigilDisabled flag)
             disabledBoostsQuery = all(
                 `SELECT type, source, multiplier, expiresAt, uses, stack, extra
                  FROM activeBoosts
-                 WHERE userId = ? AND source != 'S!gil' AND (expiresAt IS NULL OR expiresAt > ?)
-                 AND json_extract(extra, '$.sigilDisabled') = 1`,
+                 WHERE userId = ? AND source != 'S!gil' AND (expiresAt IS NULL OR expiresAt > ?)`,
                 [userId, now]
             );
         } else {
@@ -64,52 +63,101 @@ async function getActiveBoosts(userId) {
 
         const categorized = categorizeBoosts(boosts || []);
         
-        // If S!gil is active, categorize disabled boosts separately
+        // If S!gil is active, categorize disabled boosts separately (show ALL non-S!gil boosts as FROZEN)
         let categorizedDisabled = { coin: [], gem: [], luck: [], special: [], sanae: [], cooldown: [], debuff: [], yuyukoRolls: [] };
-        if (sigilActive && disabledBoosts && disabledBoosts.length > 0) {
-            // Mark disabled boosts with a flag
-            const markedDisabled = disabledBoosts.map(b => ({ ...b, sigilDisabled: true }));
-            categorizedDisabled = categorizeBoosts(markedDisabled);
-        }
-
-        // Add permanent luck as a luck boost if > 0 (only if S!gil not active)
-        // Cap display at 500% (5.0)
-        if (!sigilActive && userData?.luck > 0) {
-            const cappedLuck = Math.min(userData.luck, 5.0); // Cap at 500%
-            categorized.luck.push({
-                type: 'luck',
-                source: 'Permanent (Sanae Blessing)',
-                multiplier: 1 + cappedLuck, // For calculation purposes
-                expiresAt: null,
-                displayValue: `+${(cappedLuck * 100).toFixed(1)}% permanent luck` // Display as percentage
-            });
-        }
-
-        if (mysteriousDice) {
-            categorized.luck.push(mysteriousDice);
-        }
-
-        if (timeClock) {
-            categorized.cooldown.push(timeClock);
-        }
-
-        // Add Sanae boosts (only if S!gil not active)
-        if (!sigilActive && sanaeBoosts && sanaeBoosts.length > 0) {
-            categorized.sanae = sanaeBoosts;
+        if (sigilActive) {
+            // Mark all non-S!gil boosts as disabled
+            if (disabledBoosts && disabledBoosts.length > 0) {
+                const markedDisabled = disabledBoosts.map(b => ({ ...b, sigilDisabled: true }));
+                categorizedDisabled = categorizeBoosts(markedDisabled);
+            }
+            
+            // Add permanent luck as a disabled boost (frozen)
+            if (userData?.luck > 0) {
+                const cappedLuck = Math.min(userData.luck, 5.0);
+                categorizedDisabled.luck.push({
+                    type: 'luck',
+                    source: 'Permanent (Sanae Blessing)',
+                    multiplier: 1 + cappedLuck,
+                    expiresAt: null,
+                    displayValue: `+${(cappedLuck * 100).toFixed(1)}% permanent luck`,
+                    sigilDisabled: true
+                });
+            }
+            
+            // Get and add Sanae boosts as frozen
+            const allSanaeBoosts = await getSanaeBoosts(userId, now);
+            if (allSanaeBoosts && allSanaeBoosts.length > 0) {
+                allSanaeBoosts.forEach(b => {
+                    categorizedDisabled.sanae.push({ ...b, sigilDisabled: true });
+                });
+            }
+            
+            // Add Yuyuko rolls as frozen
+            if (userData?.rollsLeft > 0) {
+                categorizedDisabled.sanae.push({
+                    type: BOOST_TYPES.YUYUKO_ROLLS,
+                    source: 'Yuyuko Prayer',
+                    multiplier: 1,
+                    expiresAt: null,
+                    uses: userData.rollsLeft,
+                    displayValue: `${userData.rollsLeft.toLocaleString()} bonus rolls (2× luck)`,
+                    sigilDisabled: true
+                });
+            }
+            
+            // Get and add MysteriousDice as frozen
+            const mysteriousDiceFrozen = await getMysteriousDiceBoost(userId, now);
+            if (mysteriousDiceFrozen) {
+                categorizedDisabled.luck.push({ ...mysteriousDiceFrozen, sigilDisabled: true });
+            }
+            
+            // Get and add TimeClock as frozen
+            const timeClockFrozen = await getTimeClockBoost(userId, now);
+            if (timeClockFrozen) {
+                categorizedDisabled.cooldown.push({ ...timeClockFrozen, sigilDisabled: true });
+            }
         } else {
-            categorized.sanae = [];
-        }
+            // When S!gil is not active, add boosts normally
+            // Add permanent luck as a luck boost if > 0
+            // Cap display at 500% (5.0)
+            if (userData?.luck > 0) {
+                const cappedLuck = Math.min(userData.luck, 5.0); // Cap at 500%
+                categorized.luck.push({
+                    type: 'luck',
+                    source: 'Permanent (Sanae Blessing)',
+                    multiplier: 1 + cappedLuck, // For calculation purposes
+                    expiresAt: null,
+                    displayValue: `+${(cappedLuck * 100).toFixed(1)}% permanent luck` // Display as percentage
+                });
+            }
 
-        // Add Yuyuko rolls to Divine (sanae) category - pray boost
-        if (userData?.rollsLeft > 0) {
-            categorized.sanae.push({
-                type: BOOST_TYPES.YUYUKO_ROLLS,
-                source: 'Yuyuko Prayer',
-                multiplier: 1,
-                expiresAt: null,
-                uses: userData.rollsLeft,
-                displayValue: `${userData.rollsLeft.toLocaleString()} bonus rolls (2× luck)`
-            });
+            if (mysteriousDice) {
+                categorized.luck.push(mysteriousDice);
+            }
+
+            if (timeClock) {
+                categorized.cooldown.push(timeClock);
+            }
+
+            // Add Sanae boosts
+            if (sanaeBoosts && sanaeBoosts.length > 0) {
+                categorized.sanae = sanaeBoosts;
+            } else {
+                categorized.sanae = [];
+            }
+
+            // Add Yuyuko rolls to Divine (sanae) category - pray boost
+            if (userData?.rollsLeft > 0) {
+                categorized.sanae.push({
+                    type: BOOST_TYPES.YUYUKO_ROLLS,
+                    source: 'Yuyuko Prayer',
+                    multiplier: 1,
+                    expiresAt: null,
+                    uses: userData.rollsLeft,
+                    displayValue: `${userData.rollsLeft.toLocaleString()} bonus rolls (2× luck)`
+                });
+            }
         }
 
         const hasBoosts = Object.values(categorized).some(arr => arr.length > 0);

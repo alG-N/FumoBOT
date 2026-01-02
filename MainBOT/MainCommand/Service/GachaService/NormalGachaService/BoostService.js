@@ -51,7 +51,7 @@ async function getUserBoosts(userId) {
         get(`SELECT 1 FROM activeBoosts WHERE userId = ? AND type = 'luckEvery10'`, [userId]),
         get(`SELECT multiplier FROM activeBoosts WHERE userId = ? AND type = 'summonCooldown' AND source = 'TimeBlessing' AND expiresAt > ?`, [userId, now]),
         get(`SELECT multiplier FROM activeBoosts WHERE userId = ? AND type = 'summonSpeed' AND source = 'TimeClock' AND expiresAt > ?`, [userId, now]),
-        all(`SELECT multiplier, source FROM activeBoosts WHERE userId = ? AND type = 'luck' AND source NOT IN ('SanaeBlessing') AND expiresAt > ?`, [userId, now]),
+        all(`SELECT multiplier, source FROM activeBoosts WHERE userId = ? AND type = 'luck' AND source NOT IN ('SanaeBlessing', 'S!gil', 'AncientRelic', 'MysteriousCube', 'MysteriousDice') AND expiresAt > ?`, [userId, now]),
         get(`SELECT uses FROM activeBoosts WHERE userId = ? AND type = 'rarityOverride' AND source = 'Nullified'`, [userId]),
         getSanaeBoostMultiplier(userId),
         get(`SELECT luckForRolls, luckForRollsAmount, guaranteedRarityRolls, guaranteedMinRarity FROM sanaeBlessings WHERE userId = ?`, [userId])
@@ -132,6 +132,19 @@ async function getUserBoosts(userId) {
     const sanaeLuckRollsRemaining = sanaeData?.luckForRolls || 0;
     const sanaeLuckBoost = sanaeData?.luckForRollsAmount || 0;
 
+    // Get S!gil luck multiplier if active
+    let sigilLuckMultiplier = 1;
+    const sigilActive = await isSigilActive(userId);
+    if (sigilActive) {
+        const sigilLuck = await get(
+            `SELECT multiplier FROM activeBoosts 
+             WHERE userId = ? AND source = 'S!gil' AND type = 'luck'
+             AND (expiresAt IS NULL OR expiresAt > ?)`,
+            [userId, now]
+        );
+        sigilLuckMultiplier = sigilLuck?.multiplier || 1;
+    }
+
     return {
         ancientLuckMultiplier,
         mysteriousLuckMultiplier,
@@ -146,7 +159,8 @@ async function getUserBoosts(userId) {
         sanaeLuckRollsRemaining,
         sanaeLuckBoost,
         timeBlessing: timeBlessing?.multiplier || 1,
-        timeClock: timeClock?.multiplier || 1
+        timeClock: timeClock?.multiplier || 1,
+        sigilLuckMultiplier
     };
 }
 
