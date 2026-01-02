@@ -98,12 +98,14 @@ function formatBoostLabel(boost, timeLeft) {
         return `• 🙏 **Sacred Protection** (pray penalty immunity): ${timeLeft}`;
     }
 
-    if (type === 'faithPoints') {
-        return `• ⛩️ **Faith Points** (${uses}/20 accumulated)`;
-    }
+    // Note: faithPoints removed - it's a tracker, not a boost (shown in .pray sanae)
 
     if (type === 'boostMultiplier') {
         return `• 👑 **Divine Amplification** (×${multiplier} all boosts): ${timeLeft}`;
+    }
+
+    if (type === 'income') {
+        return `• 💰 **${source}** (×${multiplier} income - coins & gems): ${timeLeft}`;
     }
 
     // === TIER 6 SPECIAL EFFECTS ===

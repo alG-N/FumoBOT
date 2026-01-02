@@ -1,16 +1,18 @@
 const { EmbedBuilder } = require('discord.js');
-const { PRAY_CHARACTERS } = require('../../../Configuration/prayConfig');
+const { PRAY_CHARACTERS, calculateScaledPrayCost } = require('../../../Configuration/prayConfig');
 const { formatNumber } = require('../../../Ultility/formatting');
 const { calculateFarmingStats } = require('../../FarmingService/FarmingCalculationService');
+const { getActiveBoosts: getFarmActiveBoosts } = require('../../FarmingService/FarmStatusHelper');
 const {
     getUserData,
     getSakuyaUsage,
     updateSakuyaUsage,
     getFarmingFumos,
-    getActiveBoosts,
     addToInventory,
     getReimuRareFumos,
-    deleteFumoFromInventory
+    deleteFumoFromInventory,
+    getFumoTokens,
+    deductFumoTokens
 } = require('../PrayDatabaseService');
 const { run } = require('../../../Core/database');
 
@@ -26,6 +28,28 @@ async function handleSakuya(userId, channel) {
         if (!user) {
             await channel.send("❌ Couldn't find your account!");
             return;
+        }
+
+        // Calculate scaled cost based on user's total wealth
+        const scaledCost = calculateScaledPrayCost(config, user.coins || 0, user.gems || 0);
+        const requiredTokens = scaledCost.fumoTokens || 0;
+        
+        // Check fumo tokens (Sakuya is MYTHICAL, requires 5 tokens)
+        if (requiredTokens > 0) {
+            const userTokens = await getFumoTokens(userId);
+            if (userTokens < requiredTokens) {
+                await channel.send({
+                    embeds: [new EmbedBuilder()
+                        .setTitle('❌ Insufficient Fumo Tokens')
+                        .setDescription(`Sakuya requires **${requiredTokens} Fumo Tokens** to manipulate time.\nYou only have **${userTokens}** Fumo Tokens.\n\n*Earn Fumo Tokens from Reimu's gifts!*`)
+                        .setColor(0xff5555)
+                        .setTimestamp()]
+                });
+                return;
+            }
+            
+            // Deduct fumo tokens upfront
+            await deductFumoTokens(userId, requiredTokens);
         }
 
         const now = Date.now();
@@ -88,7 +112,7 @@ async function handleSakuya(userId, channel) {
         const [allFumos, farming, coinBoosts] = await Promise.all([
             getReimuRareFumos(userId, allowedRarities),
             getFarmingFumos(userId),
-            getActiveBoosts(userId, now)
+            getFarmActiveBoosts(userId, now)  // Use farming boost logic (handles S!gil properly)
         ]);
 
         const ownsSakuyaUncommon = allFumos.some(f => f.fumoName === "Sakuya(UNCOMMON)");
@@ -132,11 +156,14 @@ async function handleSakuya(userId, channel) {
         let farmingCoins = 0;
         let farmingGems = 0;
 
+        // Use stored coinsPerMin/gemsPerMin from database (base rates without boosts)
         for (const fumo of farming) {
-            const stats = calculateFarmingStats(fumo.fumoName);
             const qty = fumo.quantity || 1;
-            farmingCoins += stats.coinsPerMin * twelveHours * qty;
-            farmingGems += stats.gemsPerMin * twelveHours * qty;
+            // Use stored values if available, otherwise recalculate
+            const coinsPerMin = fumo.coinsPerMin || calculateFarmingStats(fumo.fumoName).coinsPerMin;
+            const gemsPerMin = fumo.gemsPerMin || calculateFarmingStats(fumo.fumoName).gemsPerMin;
+            farmingCoins += coinsPerMin * twelveHours * qty;
+            farmingGems += gemsPerMin * twelveHours * qty;
         }
 
         const baseCoins = 150 * twelveHours;
@@ -257,8 +284,10 @@ async function handleSakuya(userId, channel) {
         if (usage) {
             const timeSinceFirst = now - firstUseTime;
 
-            if (usage.uses < timeSkip.maxUses) {
+            if (useCount < timeSkip.maxUses) {
                 if (timeSinceFirst >= timeSkip.cooldownWindow) {
+                    // Reset happened, set to 1
+                    useCount = 1;
                     await updateSakuyaUsage(userId, {
                         uses: 1,
                         firstUseTime: now,
@@ -266,8 +295,10 @@ async function handleSakuya(userId, channel) {
                         timeBlessing
                     });
                 } else {
+                    // Normal increment from current useCount (after any resets that happened earlier)
+                    useCount = useCount + 1;
                     await updateSakuyaUsage(userId, {
-                        uses: usage.uses + 1,
+                        uses: useCount,
                         lastUsed: now,
                         timeBlessing
                     });
@@ -281,9 +312,10 @@ async function handleSakuya(userId, channel) {
                 timeBlessing,
                 blessingExpiry: null
             });
+            useCount = 1;
         }
 
-        const currentDemand = Math.min(useCount + 1, timeSkip.maxUses);
+        const currentDemand = useCount;
         const progressBar = '█'.repeat(currentDemand) + '░'.repeat(timeSkip.maxUses - currentDemand);
 
         const blessingRemaining = blessingActive && blessingExpiry ? blessingExpiry - now : 0;

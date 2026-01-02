@@ -4,11 +4,13 @@ const {
     getFaithCostMultiplier, 
     getFaithRewardMultiplier, 
     getFaithTierUpgradeChance,
-    getSanaeDonationCosts 
+    getSanaeDonationCosts,
+    getRequiredFumoTokens
 } = require('../../../../Configuration/prayConfig');
 const { formatNumber } = require('../../../../Ultility/formatting');
 const FumoPool = require('../../../../Data/FumoPool');
 const { run, all, get } = require('../../../../Core/database');
+const { isSigilActive } = require('../../../GachaService/NormalGachaService/BoostService');
 const {
     getUserData,
     deductUserCurrency,
@@ -19,7 +21,9 @@ const {
     incrementDailyPray,
     getSanaeData,
     updateSanaeData,
-    checkSanaePrayImmunity
+    checkSanaePrayImmunity,
+    getFumoTokens,
+    deductFumoTokens
 } = require('../../PrayDatabaseService');
 
 const activeSanaeSessions = new Map();
@@ -146,6 +150,34 @@ async function handleSanae(userId, channel) {
     const config = PRAY_CHARACTERS.SANAE;
 
     try {
+        // Check for Fumo Token requirement (DIVINE = 10 tokens)
+        const requiredTokens = getRequiredFumoTokens(config.rarity) || config.costScaling.fumoTokens || 10;
+        const userTokens = await getFumoTokens(userId);
+        
+        if (userTokens < requiredTokens) {
+            await channel.send({
+                embeds: [new EmbedBuilder()
+                    .setTitle('🌊⛩️ Divine Barrier ⛩️🌊')
+                    .setDescription(
+                        `*The living goddess of the Moriya Shrine senses your presence...*\n\n` +
+                        `**"Your spirit lacks the necessary tokens for my blessing."**\n\n` +
+                        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+                        `**Required:** ${requiredTokens} 🪙 Fumo Tokens\n` +
+                        `**You Have:** ${userTokens} 🪙 Fumo Tokens\n` +
+                        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+                        `*Sanae is a DIVINE character and requires more tokens than lesser beings...*`
+                    )
+                    .setColor('#FF6B6B')
+                    .setThumbnail(config.picture)
+                    .setFooter({ text: 'Gather more Fumo Tokens to access this divine prayer' })
+                    .setTimestamp()]
+            });
+            return;
+        }
+        
+        // Deduct fumo tokens for DIVINE character
+        await deductFumoTokens(userId, requiredTokens);
+        
         const [user, sanaeData] = await Promise.all([
             getUserData(userId),
             getSanaeData(userId)
@@ -200,10 +232,11 @@ async function sendDonationOptions(userId, channel, user, config, sanaeData) {
         getFumoCountByRarities(userId, config.legendaryPlusRarities)
     ]);
 
-    const costA = getSanaeDonationCosts('A', faithPoints);
-    const costB = getSanaeDonationCosts('B', faithPoints);
-    const costC = getSanaeDonationCosts('C', faithPoints);
-    const costD = getSanaeDonationCosts('D', faithPoints);
+    // Pass user wealth for percentage-based cost calculation
+    const costA = getSanaeDonationCosts('A', faithPoints, user.coins, user.gems);
+    const costB = getSanaeDonationCosts('B', faithPoints, user.coins, user.gems);
+    const costC = getSanaeDonationCosts('C', faithPoints, user.coins, user.gems);
+    const costD = getSanaeDonationCosts('D', faithPoints, user.coins, user.gems);
 
     const requiredMythical = costC.fumoRequirement?.count || 3;
     const requiredLegendary = costD.fumoRequirement?.count || 1;
@@ -381,9 +414,14 @@ async function handleDonation(interaction, userId, option, config, collector, ms
         return;
     }
 
-    const sanaeData = await getSanaeData(userId);
+    // Get fresh user data for wealth-based cost calculation
+    const [sanaeData, user] = await Promise.all([
+        getSanaeData(userId),
+        getUserData(userId)
+    ]);
+    
     const faithPoints = sanaeData.faithPoints || 0;
-    const costs = getSanaeDonationCosts(option, faithPoints);
+    const costs = getSanaeDonationCosts(option, faithPoints, user.coins, user.gems);
     
     let faithGained = costs.faithPoints;
     let consumedItems = [];
@@ -814,14 +852,35 @@ async function applyBlessingRewards(userId, rewards, config, rewardMult = 1) {
     }
 
     if (rewards.boost) {
-        const expiry = now + rewards.boost.duration;
-        await run(
-            `INSERT OR REPLACE INTO activeBoosts (userId, type, source, multiplier, expiresAt) 
-             VALUES (?, ?, 'SanaeBlessing', ?, ?)`,
-            [userId, rewards.boost.type, rewards.boost.multiplier, expiry]
-        );
         const hours = Math.floor(rewards.boost.duration / (60 * 60 * 1000));
-        summary.push(`⚡ **x${rewards.boost.multiplier} ${rewards.boost.type} boost for ${hours}h**`);
+        
+        // Check if S!gil is active - if so, freeze the boost with preserved timer
+        const sigilActive = await isSigilActive(userId);
+        
+        if (sigilActive) {
+            // S!gil is active - store the boost as frozen with full duration preserved
+            const extra = JSON.stringify({
+                sigilDisabled: true,
+                frozenTimeRemaining: rewards.boost.duration
+            });
+            // Set expiresAt to far future so it doesn't expire while frozen
+            const frozenExpiry = now + (365 * 24 * 60 * 60 * 1000); // 1 year placeholder
+            await run(
+                `INSERT OR REPLACE INTO activeBoosts (userId, type, source, multiplier, expiresAt, extra) 
+                 VALUES (?, ?, 'SanaeBlessing', ?, ?, ?)`,
+                [userId, rewards.boost.type, rewards.boost.multiplier, frozenExpiry, extra]
+            );
+            summary.push(`⚡ **x${rewards.boost.multiplier} ${rewards.boost.type} boost for ${hours}h** ❄️ (frozen until S!gil ends)`);
+        } else {
+            // No S!gil - add boost normally
+            const expiry = now + rewards.boost.duration;
+            await run(
+                `INSERT OR REPLACE INTO activeBoosts (userId, type, source, multiplier, expiresAt) 
+                 VALUES (?, ?, 'SanaeBlessing', ?, ?)`,
+                [userId, rewards.boost.type, rewards.boost.multiplier, expiry]
+            );
+            summary.push(`⚡ **x${rewards.boost.multiplier} ${rewards.boost.type} boost for ${hours}h**`);
+        }
     }
 
     if (rewards.items) {

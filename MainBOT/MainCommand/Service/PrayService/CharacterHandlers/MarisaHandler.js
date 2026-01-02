@@ -1,5 +1,5 @@
 const { EmbedBuilder } = require('discord.js');
-const { PRAY_CHARACTERS } = require('../../../Configuration/prayConfig');
+const { PRAY_CHARACTERS, calculateScaledPrayCost } = require('../../../Configuration/prayConfig');
 const { formatNumber } = require('../../../Ultility/formatting');
 const {
     getUserData,
@@ -7,7 +7,9 @@ const {
     deductUserCurrency,
     updateMarisaData,
     addToInventory,
-    incrementDailyPray
+    incrementDailyPray,
+    getFumoTokens,
+    deductFumoTokens
 } = require('../PrayDatabaseService');
 
 const ITEM_POOLS = {
@@ -98,38 +100,82 @@ async function handleMarisa(userId, channel) {
 }
 
 async function handleDonationPhase(userId, channel, user, config) {
-    if (user.coins < config.costs.donation) {
+    // Calculate scaled cost based on user's total wealth
+    const scaledCost = calculateScaledPrayCost(config, user.coins || 0, user.gems || 0);
+    const requiredCoins = scaledCost.coins;
+    const requiredTokens = scaledCost.fumoTokens || 0;
+    
+    // Check fumo tokens if required (for MYTHICAL+ characters)
+    if (requiredTokens > 0) {
+        const userTokens = await getFumoTokens(userId);
+        if (userTokens < requiredTokens) {
+            await channel.send({
+                embeds: [new EmbedBuilder()
+                    .setTitle('❌ Insufficient Fumo Tokens')
+                    .setDescription(`Marisa requires **${requiredTokens} Fumo Tokens** for this deal.\nYou only have **${userTokens}** Fumo Tokens.`)
+                    .setColor('#ff0000')
+                    .setTimestamp()]
+            });
+            return;
+        }
+    }
+    
+    if (user.coins < requiredCoins) {
         await channel.send({
             embeds: [new EmbedBuilder()
                 .setTitle('⚠️ Not Enough Coins ⚠️')
-                .setDescription('You need at least 15,000 coins to donate to Marisa.')
+                .setDescription(`You need at least **${formatNumber(requiredCoins)} coins** to donate to Marisa.\nYou only have **${formatNumber(user.coins)} coins**.`)
                 .setColor('#ff0000')
                 .setTimestamp()]
         });
         return;
     }
 
-    await deductUserCurrency(userId, config.costs.donation, 0);
+    await deductUserCurrency(userId, requiredCoins, 0);
+    
+    // Deduct fumo tokens if required
+    if (requiredTokens > 0) {
+        await deductFumoTokens(userId, requiredTokens);
+    }
     
     const newCount = (user.marisaDonationCount || 0) + 1;
     await updateMarisaData(userId, newCount, 1); 
 
+    // Build cost message
+    let costMsg = `You gave Marisa **${formatNumber(requiredCoins)} coins**.`;
+    if (requiredTokens > 0) {
+        costMsg += ` + **${requiredTokens} Fumo Tokens**`;
+    }
+    costMsg += ` She smiles mysteriously...`;
+    
+    if (scaledCost.breakdown && (scaledCost.breakdown.percentCoins > 0)) {
+        costMsg += `\n\n📊 **Cost Breakdown:**`;
+        costMsg += `\n├ Base: ${formatNumber(scaledCost.breakdown.baseCoins)} coins`;
+        costMsg += `\n└ Wealth Tax (${scaledCost.breakdown.coinPercent}%): +${formatNumber(scaledCost.breakdown.percentCoins)} coins`;
+    }
+
     await channel.send({
         embeds: [new EmbedBuilder()
             .setTitle('🧪 Donation Received 🧪')
-            .setDescription('You gave Marisa 15k coins. She smiles mysteriously...\n\n**Pray to Marisa again to receive your rewards!**')
+            .setDescription(`${costMsg}\n\n**Pray to Marisa again to receive your rewards!**`)
             .setColor('#0099ff')
             .setTimestamp()]
     });
 }
 
 async function handleReturnPhase(userId, channel, user, config, isPityRound) {
-    await updateUserCoins(userId, config.costs.return, 0);
+    // Marisa returns more than what was donated (based on config return/donation ratio)
+    const returnRatio = config.costs.return / config.costs.donation; // 35k/15k = 2.33x
+    const scaledCost = calculateScaledPrayCost(config, user.coins || 0, user.gems || 0);
+    const returnCoins = Math.floor(scaledCost.coins * returnRatio);
+    const netProfit = returnCoins - scaledCost.coins;
+    
+    await updateUserCoins(userId, returnCoins, 0);
     
     await updateMarisaData(userId, user.marisaDonationCount || 0, 0);
 
     const rewards = [];
-    let embedDescription = `You donated 15k coins. She returned with 35k coins for you!\n(Net profit: 20k)\n\n**Rewards:**\n`;
+    let embedDescription = `You donated **${formatNumber(scaledCost.coins)} coins**. She returned with **${formatNumber(returnCoins)} coins** for you!\n(Net profit: **${formatNumber(netProfit)}** coins)\n\n**Rewards:**\n`;
 
     const potionReward = await rollPotion(userId, config, isPityRound);
     if (potionReward) rewards.push(potionReward);

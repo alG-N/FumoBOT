@@ -1,209 +1,286 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { format } = require('date-fns');
-const { VARIANT_CONFIG } = require('../../../Configuration/informConfig');
-const { calculateVariantChance } = require('./InformDataService');
-const { buildSecureCustomId } = require('../../../Middleware/buttonOwnership');
-const { formatNumber } = require('../../../Ultility/formatting');
+const { 
+    coinBannerChances, 
+    gemBannerChances, 
+    ReimuChances, 
+    VARIANT_CONFIG,
+    formatChanceAsOneInX,
+    parsePercentage,
+    getVariantChanceInfo
+} = require('../../../Configuration/informConfig');
 
-function createVariantButtons(userId) {
-    return new ActionRowBuilder()
-        .addComponents(
-            new ButtonBuilder()
-                .setCustomId(buildSecureCustomId('inform_variant_normal', userId))
-                .setLabel('Normal')
-                .setStyle(ButtonStyle.Primary),
-            new ButtonBuilder()
-                .setCustomId(buildSecureCustomId('inform_variant_shiny', userId))
-                .setLabel('✨ Shiny')
-                .setStyle(ButtonStyle.Success),
-            new ButtonBuilder()
-                .setCustomId(buildSecureCustomId('inform_variant_alg', userId))
-                .setLabel('🌟 alG')
-                .setStyle(ButtonStyle.Danger),
-            new ButtonBuilder()
-                .setCustomId(buildSecureCustomId('inform_variant_void', userId))
-                .setLabel('🌀 Void')
-                .setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder()
-                .setCustomId(buildSecureCustomId('inform_variant_glitched', userId))
-                .setLabel('🔮 Glitched')
-                .setStyle(ButtonStyle.Secondary)
-        );
-}
+const RARITY_COLORS = {
+    'Common': 0x808080,
+    'UNCOMMON': 0x1ABC9C,
+    'RARE': 0x3498DB,
+    'EPIC': 0x9B59B6,
+    'OTHERWORLDLY': 0xE91E63,
+    'LEGENDARY': 0xF39C12,
+    'MYTHICAL': 0xE74C3C,
+    'EXCLUSIVE': 0xFF69B4,
+    '???': 0x2C3E50,
+    'ASTRAL': 0x00CED1,
+    'CELESTIAL': 0xFFD700,
+    'INFINITE': 0x8B00FF,
+    'ETERNAL': 0x00FF00,
+    'TRANSCENDENT': 0xFFFFFF
+};
 
-function createSelectionEmbed(fumo) {
-    return new EmbedBuilder()
-        .setTitle(`Select Variant for ${fumo.name}(${fumo.rarity})`)
-        .setDescription('Choose which variant you want to view information for:')
-        .setColor('#FFA500')
-        .setThumbnail(fumo.picture);
-}
-
-function createInformEmbed(fumoData, ownershipData, variant) {
-    const { fumo, summonPlaces } = fumoData;
-    const variantConfig = VARIANT_CONFIG[variant];
-
-    const titleSuffix = variant !== 'NORMAL' ? ` - ${variantConfig.emoji} ${variant} Variant` : '';
-
+/**
+ * Create the main inform embed for a fumo
+ */
+function createInformEmbed(fumoData, userData = null) {
+    const { name, rarity, image, lore, series } = fumoData;
+    
     const embed = new EmbedBuilder()
-        .setTitle(`Fumo Information: ${fumo.name}(${fumo.rarity})${titleSuffix}`)
-        .setColor(getVariantColor(variant))
-        .setImage(fumo.picture);
-
-    if (fumo.origin) {
-        embed.addFields({ name: '📖 Origin', value: fumo.origin, inline: false });
+        .setTitle(`📖 ${name}`)
+        .setColor(RARITY_COLORS[rarity] || 0x808080)
+        .setThumbnail(image);
+    
+    // Basic info
+    embed.addFields(
+        { name: '⭐ Rarity', value: rarity, inline: true },
+        { name: '📚 Series', value: series || 'Unknown', inline: true }
+    );
+    
+    // Lore
+    if (lore) {
+        embed.setDescription(lore);
     }
-
-    if (fumo.fact) {
-        embed.addFields({ name: '💡 Interesting Fact', value: fumo.fact, inline: false });
+    
+    // Ownership info if available
+    if (userData) {
+        const ownedCount = userData.normalCount || 0;
+        const shinyCount = userData.shinyCount || 0;
+        const algCount = userData.algCount || 0;
+        const voidCount = userData.voidCount || 0;
+        const glitchedCount = userData.glitchedCount || 0;
+        
+        let ownershipText = `📦 **Normal:** ${ownedCount}`;
+        if (shinyCount > 0) ownershipText += `\n✨ **SHINY:** ${shinyCount}`;
+        if (algCount > 0) ownershipText += `\n🌟 **alG:** ${algCount}`;
+        if (voidCount > 0) ownershipText += `\n🌀 **VOID:** ${voidCount}`;
+        if (glitchedCount > 0) ownershipText += `\n🔮 **GLITCHED:** ${glitchedCount}`;
+        
+        embed.addFields({ name: '🎒 Your Collection', value: ownershipText, inline: false });
     }
-
-    // Ownership section
-    let ownershipText = '';
-    if (!ownershipData.userOwns) {
-        ownershipText += `❌ You currently don't own this ${variant.toLowerCase()} variant.\n`;
-    } else {
-        ownershipText += `✅ You own **${ownershipData.userQuantity}** of this ${variant.toLowerCase()} variant.\n`;
-        if (ownershipData.firstObtained) {
-            const formattedDate = format(new Date(ownershipData.firstObtained), 'PPpp');
-            ownershipText += `📅 First obtained: ${formattedDate}\n`;
-        }
-    }
-
-    embed.addFields({
-        name: '👤 Your Ownership',
-        value: ownershipText,
-        inline: false
-    });
-
-    // Existence statistics
-    let existenceText = '';
-    if (variant === 'NORMAL') {
-        existenceText += `🔹 Normal: **${formatNumber(ownershipData.normalExistence)}**\n`;
-        existenceText += `✨ Shiny: **${formatNumber(ownershipData.shinyExistence)}**\n`;
-        existenceText += `🌟 alG: **${formatNumber(ownershipData.algExistence)}**\n`;
-        existenceText += `🌀 Void: **${formatNumber(ownershipData.voidExistence)}**\n`;
-        existenceText += `🔮 Glitched: **${formatNumber(ownershipData.glitchedExistence)}**\n`;
-    } else {
-        existenceText += `${variantConfig.emoji} **${formatNumber(ownershipData.variantExistence)}** exist\n`;
-    }
-    existenceText += `🌐 Total (all variants): **${formatNumber(ownershipData.totalExistence)}**\n`;
-    existenceText += `👥 Unique owners: **${formatNumber(ownershipData.uniqueOwners)}**`;
-
-    embed.addFields({
-        name: '📊 Server Statistics',
-        value: existenceText,
-        inline: false
-    });
-
-    // How to obtain section
-    if (summonPlaces && summonPlaces.length > 0) {
-        let availabilityText = '';
-
-        summonPlaces.forEach((summonPlace, index) => {
-            if (index > 0) availabilityText += '\n\n';
-
-            availabilityText += `**${summonPlace.place}**\n`;
-
-            if (summonPlace.price !== undefined) {
-                availabilityText += `💰 Price: **${formatNumber(summonPlace.price)}** coins`;
-            } else if (summonPlace.chance) {
-                const displayChance = variant !== 'NORMAL'
-                    ? calculateVariantChance(summonPlace.chance, variantConfig.multiplier)
-                    : summonPlace.chance;
-
-                availabilityText += `🎲 Base chance: **${summonPlace.chance}**`;
-
-                if (variant !== 'NORMAL') {
-                    availabilityText += `\n${variantConfig.emoji} ${variant} chance: **${displayChance}**`;
-                }
-
-                availabilityText += `\n💎 Currency: **${summonPlace.currency}**`;
-            }
-        });
-
-        embed.addFields({
-            name: '🎯 How to Obtain',
-            value: availabilityText,
-            inline: false
-        });
-    }
-
-    // Variant-specific info
-    const variantInfo = getVariantInfoField(variant);
-    if (variantInfo) {
-        embed.addFields(variantInfo);
-    }
-
-    embed.setFooter({ text: 'Use the buttons below to view different variants' });
-
+    
+    embed.setFooter({ text: 'Use buttons below to view more details' });
+    embed.setTimestamp();
+    
     return embed;
 }
 
-function getVariantColor(variant) {
-    const colors = {
-        'NORMAL': '#0099ff',
-        'SHINY': '#FFD700',
-        'ALG': '#FF4500',
-        'VOID': '#8B008B',
-        'GLITCHED': '#9932CC'
-    };
-    return colors[variant] || '#0099ff';
+/**
+ * Create the chances embed showing all summon rates
+ */
+function createChancesEmbed(fumoData) {
+    const { name, rarity, image } = fumoData;
+    
+    const embed = new EmbedBuilder()
+        .setTitle(`🎲 ${name} - Summon Chances`)
+        .setColor(RARITY_COLORS[rarity] || 0x808080)
+        .setThumbnail(image);
+    
+    // Get base chances
+    const coinChance = coinBannerChances[rarity];
+    const gemChance = gemBannerChances[rarity?.toUpperCase()];
+    const reimuChance = ReimuChances[rarity];
+    
+    // Format chances as "1 in X (Y%)"
+    let chancesText = '**📍 Where to Find:**\n\n';
+    
+    if (coinChance) {
+        const coinPercent = parsePercentage(coinChance);
+        chancesText += `💰 **Coins Banner:** ${formatChanceAsOneInX(coinPercent)}\n`;
+    }
+    
+    if (gemChance) {
+        const gemPercent = parsePercentage(gemChance);
+        chancesText += `💎 **Gems Banner:** ${formatChanceAsOneInX(gemPercent)}\n`;
+    }
+    
+    if (reimuChance) {
+        const reimuPercent = parsePercentage(reimuChance);
+        chancesText += `⛩️ **Reimu Prayer:** ${formatChanceAsOneInX(reimuPercent)}\n`;
+    }
+    
+    chancesText += `\n🏪 **Market:** Available from other players`;
+    
+    embed.setDescription(chancesText);
+    embed.setFooter({ text: 'Chances shown are base rates without boosts' });
+    embed.setTimestamp();
+    
+    return embed;
 }
 
-function getVariantInfoField(variant) {
-    const variantInfos = {
-        'SHINY': {
-            name: '✨ Shiny Variant Info',
-            value: 'This is a rare **SHINY** variant with a 1% base appearance chance when summoning this fumo.',
-            inline: false
-        },
-        'ALG': {
-            name: '🌟 alG Variant Info',
-            value: 'This is an **Extremely Rare alG** variant with a 0.001% base appearance chance when summoning this fumo.',
-            inline: false
-        },
-        'VOID': {
-            name: '🌀 VOID Variant Info',
-            value: 'This is a **Mysterious VOID** variant with a 0.1% base appearance chance when summoning this fumo (requires VoidCrystal active).\n\n**Note:** VOID trait can be activated in: Coin Banner, Gem Banner, Reimu Prayer, and Market purchases!',
-            inline: false
-        },
-        'GLITCHED': {
-            name: '🔮 Glitched Variant Info',
-            value: 'This is a **Glitched** variant with a 0.002% base appearance chance when summoning this fumo (requires S!gil? or CosmicCore active).\n\n**Note:** GLITCHED trait can be activated in: Coin Banner, Gem Banner, Reimu Prayer, and Market purchases!',
-            inline: false
+/**
+ * Create the variants embed showing all variant chances
+ */
+function createVariantsEmbed(fumoData, hasBoosts = {}) {
+    const { name, rarity, image } = fumoData;
+    
+    const embed = new EmbedBuilder()
+        .setTitle(`✨ ${name} - Variant Chances`)
+        .setColor(RARITY_COLORS[rarity] || 0x808080)
+        .setThumbnail(image);
+    
+    // Get base rarity chance for combined calculation
+    const baseRarityChance = parsePercentage(coinBannerChances[rarity] || '100%');
+    
+    let variantsText = '**🎭 Available Variants:**\n\n';
+    
+    // Normal variant
+    variantsText += `📦 **Normal**\n`;
+    variantsText += `└ Chance: ${formatChanceAsOneInX(baseRarityChance)}\n\n`;
+    
+    // SHINY variant
+    const shinyInfo = getVariantChanceInfo('SHINY', baseRarityChance);
+    variantsText += `${shinyInfo.emoji} **${shinyInfo.tag}**\n`;
+    variantsText += `├ Variant Rate: ${shinyInfo.variantChance}\n`;
+    variantsText += `├ Combined Rate: ${shinyInfo.combinedChance}\n`;
+    variantsText += `└ ${shinyInfo.description}\n\n`;
+    
+    // alG variant
+    const algInfo = getVariantChanceInfo('ALG', baseRarityChance);
+    variantsText += `${algInfo.emoji} **${algInfo.tag}**\n`;
+    variantsText += `├ Variant Rate: ${algInfo.variantChance}\n`;
+    variantsText += `├ Combined Rate: ${algInfo.combinedChance}\n`;
+    variantsText += `└ ${algInfo.description}\n\n`;
+    
+    // VOID variant
+    const voidInfo = getVariantChanceInfo('VOID', baseRarityChance);
+    const voidStatus = hasBoosts.hasVoidBoost ? '🟢 Active' : '🔴 Requires Boost';
+    variantsText += `${voidInfo.emoji} **${voidInfo.tag}** (${voidStatus})\n`;
+    variantsText += `├ Variant Rate: ${voidInfo.variantChance}\n`;
+    variantsText += `├ Combined Rate: ${voidInfo.combinedChance}\n`;
+    variantsText += `├ Boost Sources: ${voidInfo.boostSources.join(', ')}\n`;
+    variantsText += `└ ${voidInfo.description}\n\n`;
+    
+    // GLITCHED variant
+    const glitchedInfo = getVariantChanceInfo('GLITCHED', baseRarityChance);
+    const glitchedStatus = hasBoosts.hasGlitchedBoost ? '🟢 Active' : '🔴 Requires Boost';
+    variantsText += `${glitchedInfo.emoji} **${glitchedInfo.tag}** (${glitchedStatus})\n`;
+    variantsText += `├ Variant Rate: ${glitchedInfo.variantChance}\n`;
+    variantsText += `├ Combined Rate: ${glitchedInfo.combinedChance}\n`;
+    variantsText += `├ Boost Sources: ${glitchedInfo.boostSources.join(', ')}\n`;
+    variantsText += `└ ${glitchedInfo.description}\n`;
+    
+    embed.setDescription(variantsText);
+    
+    // Footer with boost info
+    let footerText = 'VOID requires VoidCrystal • GLITCHED requires CosmicCore or S!gil';
+    if (hasBoosts.hasVoidBoost || hasBoosts.hasGlitchedBoost) {
+        footerText = `Your active boosts: ${hasBoosts.hasVoidBoost ? '🌀VOID ' : ''}${hasBoosts.hasGlitchedBoost ? '🔮GLITCHED' : ''}`;
+    }
+    embed.setFooter({ text: footerText });
+    embed.setTimestamp();
+    
+    return embed;
+}
+
+/**
+ * Create the market value embed
+ */
+function createMarketEmbed(fumoData, marketData = null) {
+    const { name, rarity, image } = fumoData;
+    
+    const embed = new EmbedBuilder()
+        .setTitle(`💰 ${name} - Market Value`)
+        .setColor(RARITY_COLORS[rarity] || 0x808080)
+        .setThumbnail(image);
+    
+    // Base sell values
+    const FUMO_PRICES = require('../../../Configuration/prayConfig').FUMO_PRICES;
+    const baseValue = FUMO_PRICES[rarity] || 100;
+    
+    let valueText = '**📊 Sell Values:**\n\n';
+    valueText += `📦 **Normal:** ${baseValue.toLocaleString()} coins\n`;
+    valueText += `✨ **SHINY:** ${Math.floor(baseValue * 2).toLocaleString()} coins\n`;
+    valueText += `🌟 **alG:** ${Math.floor(baseValue * 10).toLocaleString()} coins\n`;
+    valueText += `🌀 **VOID:** ${Math.floor(baseValue * 5).toLocaleString()} coins\n`;
+    valueText += `🔮 **GLITCHED:** ${Math.floor(baseValue * 25).toLocaleString()} coins\n`;
+    
+    if (marketData) {
+        valueText += '\n**🏪 Market Listings:**\n';
+        if (marketData.listings && marketData.listings.length > 0) {
+            valueText += `├ Lowest Price: ${marketData.lowestPrice?.toLocaleString() || 'N/A'} coins\n`;
+            valueText += `├ Average Price: ${marketData.avgPrice?.toLocaleString() || 'N/A'} coins\n`;
+            valueText += `└ Listings: ${marketData.listings.length}`;
+        } else {
+            valueText += '└ No active listings';
         }
-    };
-    return variantInfos[variant] || null;
+    }
+    
+    embed.setDescription(valueText);
+    embed.setFooter({ text: 'Sell values may be affected by boosts' });
+    embed.setTimestamp();
+    
+    return embed;
 }
 
-function createTutorialEmbed() {
-    return new EmbedBuilder()
-        .setColor('#FFA500')
-        .setTitle('📘 How to Use the .inform Command')
-        .setDescription('Learn how to gather detailed information about your fumos.')
-        .addFields(
-            { name: '📌 Command Format', value: '`.inform <Fumo(Rarity)>` or `.in <Fumo(Rarity)>`' },
-            { name: '🔧 Parameters', value: '**<fumo name>:** The exact name of the fumo to get information about.' },
-            { name: '❗ Example', value: '`.inform Marisa(Common)`\nThis shows detailed information about the fumo named "Marisa".' }
-        )
-        .setFooter({ text: 'If you encounter any issues, please use .report' });
+/**
+ * Create navigation buttons for inform command
+ */
+function createInformButtons(userId, fumoName) {
+    const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId(`inform_main_${userId}_${fumoName}`)
+            .setLabel('📖 Info')
+            .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+            .setCustomId(`inform_chances_${userId}_${fumoName}`)
+            .setLabel('🎲 Chances')
+            .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+            .setCustomId(`inform_variants_${userId}_${fumoName}`)
+            .setLabel('✨ Variants')
+            .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+            .setCustomId(`inform_market_${userId}_${fumoName}`)
+            .setLabel('💰 Market')
+            .setStyle(ButtonStyle.Secondary)
+    );
+    
+    return row;
 }
 
-function createNotFoundEmbed() {
-    return new EmbedBuilder()
-        .setColor('#FF0000')
-        .setTitle('❌ Fumo Not Found')
-        .setDescription("I think you just typed nothing or you just typed a non-existent fumo, well that's okay! Please re-type again, or contact support if there is any problem using `.report`")
-        .setFooter({ text: 'Tip: Make sure to include the rarity, e.g. Reimu(Common)' });
+/**
+ * Create a compact chance display for tooltips/quick view
+ */
+function formatCompactChance(rarity, variant = 'NORMAL') {
+    const baseChance = parsePercentage(coinBannerChances[rarity] || '100%');
+    const variantConfig = VARIANT_CONFIG[variant];
+    
+    if (!variantConfig) return 'N/A';
+    
+    const finalChance = baseChance * variantConfig.multiplier;
+    return formatChanceAsOneInX(finalChance);
+}
+
+/**
+ * Create summary text for all variants of a rarity
+ */
+function createVariantSummary(rarity) {
+    const baseChance = parsePercentage(coinBannerChances[rarity] || '100%');
+    
+    const summary = [];
+    summary.push(`📦 Normal: ${formatChanceAsOneInX(baseChance)}`);
+    summary.push(`✨ SHINY: ${formatChanceAsOneInX(baseChance * 0.01)}`);
+    summary.push(`🌟 alG: ${formatChanceAsOneInX(baseChance * 0.00001)}`);
+    summary.push(`🌀 VOID: ${formatChanceAsOneInX(baseChance * 0.001)} (boost required)`);
+    summary.push(`🔮 GLITCHED: ${formatChanceAsOneInX(baseChance * 0.000002)} (boost required)`);
+    
+    return summary.join('\n');
 }
 
 module.exports = {
-    createVariantButtons,
-    createSelectionEmbed,
     createInformEmbed,
-    createTutorialEmbed,
-    createNotFoundEmbed,
-    getVariantColor,
-    getVariantInfoField
+    createChancesEmbed,
+    createVariantsEmbed,
+    createMarketEmbed,
+    createInformButtons,
+    formatCompactChance,
+    createVariantSummary,
+    RARITY_COLORS
 };

@@ -272,17 +272,8 @@ async function getSanaeBoosts(userId, now) {
             });
         }
 
-        // Faith Points (always show if > 0)
-        if (sanaeData.faithPoints > 0) {
-            boosts.push({
-                type: 'faithPoints',
-                source: 'Sanae',
-                multiplier: 1,
-                expiresAt: null,
-                uses: sanaeData.faithPoints,
-                displayValue: `${sanaeData.faithPoints}/20 Faith Points`
-            });
-        }
+        // Note: Faith Points are NOT a boost - they're a tracker shown in .pray sanae
+        // Removed from boost display
 
         return boosts;
 
@@ -376,6 +367,10 @@ function categorizeBoosts(boosts) {
             categorized.coin.push(boost);
         } else if (type === 'gem') {
             categorized.gem.push(boost);
+        } else if (type === 'income') {
+            // Income boosts apply to BOTH coin and gem farming
+            categorized.coin.push({ ...boost, displayValue: `x${boost.multiplier} income (coins & gems)` });
+            categorized.gem.push({ ...boost, displayValue: `x${boost.multiplier} income (coins & gems)` });
         } else if (type === 'luck' || type === 'luckevery10') {
             categorized.luck.push(boost);
         } else if (type === 'sellpenalty') {

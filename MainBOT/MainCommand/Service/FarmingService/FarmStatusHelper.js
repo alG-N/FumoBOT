@@ -288,5 +288,6 @@ function createFarmStatusEmbed(farmData) {
 
 module.exports = {
     getFarmStatusData,
-    createFarmStatusEmbed
+    createFarmStatusEmbed,
+    getActiveBoosts
 };

@@ -140,6 +140,31 @@ async function updateUserRolls(userId, rollsToAdd) {
     );
 }
 
+/**
+ * Get user's current Fumo Token count
+ * @param {string} userId - User ID
+ * @returns {number} Fumo token count
+ */
+async function getFumoTokens(userId) {
+    const user = await getUserData(userId);
+    return user?.spiritTokens || 0;
+}
+
+/**
+ * Deduct Fumo Tokens from user
+ * @param {string} userId - User ID
+ * @param {number} amount - Amount to deduct
+ * @returns {boolean} Success status
+ */
+async function deductFumoTokens(userId, amount) {
+    userDataCache.delete(userId);
+    await run(
+        `UPDATE userCoins SET spiritTokens = MAX(0, spiritTokens - ?) WHERE userId = ?`,
+        [amount, userId]
+    );
+    return true;
+}
+
 async function addToInventory(userId, itemName, quantity = 1) {
     inventoryCache.delete(userId);
     prayItemCache.delete(userId);
@@ -772,6 +797,8 @@ module.exports = {
     deductUserCurrency,
     updateUserLuck,
     updateUserRolls,
+    getFumoTokens,
+    deductFumoTokens,
     addToInventory,
     deleteFumoFromInventory,
     incrementDailyPray,

@@ -8,6 +8,16 @@ const PRAY_CHARACTERS = {
         picture: 'https://th.bing.com/th/id/R.0b8e747c85c844e21285070088e39298?rik=Gdm12AsVV%2fAH9A&pid=ImgRaw&r=0',
         description: 'The Princess of the Netherworld offers ghostly blessings... or curses.',
         color: 0xFF69B4,
+        // Cost scaling config
+        costScaling: {
+            baseCoins: 50000,
+            baseGems: 10000,
+            coinPercentage: 0.02, // 2% of total coins
+            gemPercentage: 0.02, // 2% of total gems
+            maxCoinPercentage: 0.05, // Cap at 5%
+            maxGemPercentage: 0.05,
+            fumoTokens: 0 // Epic doesn't require tokens
+        },
         offers: {
             normal: {
                 coinCost: 50000,
@@ -41,6 +51,16 @@ const PRAY_CHARACTERS = {
         picture: 'https://th.bing.com/th/id/R.cfd0fe7d995179d74aa79180e02ac1d8?rik=B3rQ%2f9r4uo6g8g&riu=http%3a%2f%2fwww.stock2007.sakura.ne.jp%2fedp2016%2f03%2fYakumo+Yukari.png&ehk=J7T9Ekd6NnH2Lsj2HWEZ2QVHtgVOpe40gS5zEueckWc%3d&risl=&pid=ImgRaw&r=0',
         description: 'The gap youkai trades your fumos for coins and gems. Better have enough collection!',
         color: 0x9932CC,
+        // Cost scaling config
+        costScaling: {
+            baseCoins: 0,
+            baseGems: 0,
+            coinPercentage: 0,
+            gemPercentage: 0,
+            maxCoinPercentage: 0.05,
+            maxGemPercentage: 0.05,
+            fumoTokens: 0 // Yukari uses fumo sacrifice instead
+        },
         requirements: {
             minFumos: {
                 1: 750,
@@ -120,6 +140,18 @@ const PRAY_CHARACTERS = {
         picture: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/00f39406-ea15-4816-a71f-48c412d96de6/dfaxgup-4dc13bb7-2c07-4856-b6e6-069cbc57dc07.png/v1/fill/w_1280,h_2273/reimu_hakurei__render__1__by_wtfbooomsh_dfaxgup-fullview.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7ImhlaWdodCI6Ijw9MjI3MyIsInBhdGgiOiJcL2ZcLzAwZjM5NDA2LWVhMTUtNDgxNi1hNzFmLTQ4YzQxMmQ5NmRlNlwvZGZheGd1cC00ZGMxM2JiNy0yYzA3LTQ4NTYtYjZlNi0wNjljYmM1N2RjMDcucG5nIiwid2lkdGgiOiI8PTEyODAifV1dLCJhdWQiOlsidXJuOnNlcnZpY2U6aW1hZ2Uub3BlcmF0aW9ucyJdfQ.ZwsnkThzOy7bqMkPetnLOWCspac2geguh11VLirZU08',
         description: 'The shrine maiden accepts donations and gives rare fumos in return.',
         color: 0xFF0000,
+        // Cost scaling config
+        costScaling: {
+            baseCoins: 30000,
+            baseGems: 2500,
+            coinPercentage: 0.015, // 1.5% of total coins
+            gemPercentage: 0.015, // 1.5% of total gems
+            maxCoinPercentage: 0.05,
+            maxGemPercentage: 0.05,
+            fumoTokens: 0 // Rare doesn't require tokens
+        },
+        // Variant boost support
+        supportsVariantBoosts: true,
         phases: {
             donation: {
                 baseCoinCost: 30000,
@@ -151,6 +183,8 @@ const PRAY_CHARACTERS = {
                 ultraRares: ['???', 'ASTRAL', 'CELESTIAL', 'INFINITE', 'ETERNAL', 'TRANSCENDENT'],
                 shinyChance: 0.35,
                 alGChance: 0.1,
+                voidChance: 0.1, // Base VOID chance (requires boost)
+                glitchedChance: 0.0002, // Base GLITCHED chance (requires boost)
                 tokenChances: {
                     25: 0.08,
                     5: 0.12,
@@ -171,6 +205,16 @@ const PRAY_CHARACTERS = {
         picture: 'https://www.pikpng.com/pngl/b/445-4450104_png-touhou-project-marisa-png-clipart.png',
         description: 'The ordinary magician borrows coins and returns them with interest... usually.',
         color: 0xFFD700,
+        // Cost scaling config
+        costScaling: {
+            baseCoins: 15000,
+            baseGems: 0,
+            coinPercentage: 0.01, // 1% of total coins
+            gemPercentage: 0,
+            maxCoinPercentage: 0.05,
+            maxGemPercentage: 0.05,
+            fumoTokens: 0 // Common doesn't require tokens
+        },
         costs: {
             donation: 15000,
             return: 35000
@@ -249,6 +293,16 @@ const PRAY_CHARACTERS = {
         picture: 'https://vignette.wikia.nocookie.net/death-battle-en-espanol/images/4/4e/Sakuya.png/revision/latest?cb=20180504021545&path-prefix=es',
         description: 'The time-manipulating maid can skip time, but demands payment for her services.',
         color: 0x87CEEB,
+        // Cost scaling config - MYTHICAL requires fumo tokens
+        costScaling: {
+            baseCoins: 0,
+            baseGems: 0,
+            coinPercentage: 0.03, // 3% of total coins
+            gemPercentage: 0.03, // 3% of total gems
+            maxCoinPercentage: 0.05,
+            maxGemPercentage: 0.05,
+            fumoTokens: 5 // MYTHICAL requires 5 fumo tokens
+        },
         timeSkip: {
             duration: 12 * 60 * 60 * 1000,
             costScaling: [0.03, 0.054, 0.084, 0.12, 0.15, 0.18],
@@ -310,6 +364,16 @@ const PRAY_CHARACTERS = {
         picture: 'https://vignette.wikia.nocookie.net/the-outsider-who-loved-gensokyo/images/2/25/SanaeSmile.png/revision/latest?cb=20190504003049',
         description: 'The living goddess of the Moriya Shrine offers divine blessings through faith.',
         color: 0x00CED1,
+        // Cost scaling config - DIVINE requires highest fumo tokens
+        costScaling: {
+            baseCoins: 100000,
+            baseGems: 15000,
+            coinPercentage: 0.04, // 4% of total coins
+            gemPercentage: 0.04, // 4% of total gems
+            maxCoinPercentage: 0.05,
+            maxGemPercentage: 0.05,
+            fumoTokens: 10 // DIVINE requires 10 fumo tokens
+        },
         
         faithPoints: {
             max: 20,
@@ -519,12 +583,12 @@ const PRAY_CHARACTERS = {
 };
 
 const RARITY_CONFIG = {
-    Common: { color: 0x808080, weight: 50, emoji: '⚪' },
-    Rare: { color: 0x0099FF, weight: 25, emoji: '🔵' },
-    Epic: { color: 0x9933FF, weight: 15, emoji: '🟣' },
-    Legendary: { color: 0xFFAA00, weight: 7, emoji: '🟠' },
-    Mythical: { color: 0xFF0000, weight: 2, emoji: '🔴' },
-    Divine: { color: 0xFFFF66, weight: 1, emoji: '✨' }
+    Common: { color: 0x808080, weight: 50, emoji: '⚪', fumoTokens: 0 },
+    Rare: { color: 0x0099FF, weight: 25, emoji: '🔵', fumoTokens: 0 },
+    Epic: { color: 0x9933FF, weight: 15, emoji: '🟣', fumoTokens: 0 },
+    Legendary: { color: 0xFFAA00, weight: 7, emoji: '🟠', fumoTokens: 0 },
+    Mythical: { color: 0xFF0000, weight: 2, emoji: '🔴', fumoTokens: 5 },
+    Divine: { color: 0xFFFF66, weight: 1, emoji: '✨', fumoTokens: 10 }
 };
 
 const PRAY_LIMITS = {
@@ -550,6 +614,42 @@ const FUMO_PRICES = {
     ETERNAL: 360000000,
     TRANSCENDENT: 720000000
 };
+
+/**
+ * Calculate scaled pray cost based on user's total wealth
+ * @param {object} character - The pray character config
+ * @param {number} userCoins - User's total coins
+ * @param {number} userGems - User's total gems
+ * @returns {object} Calculated costs
+ */
+function calculateScaledPrayCost(character, userCoins, userGems) {
+    const scaling = character.costScaling;
+    if (!scaling) {
+        return { coins: 0, gems: 0, fumoTokens: 0 };
+    }
+    
+    // Calculate percentage-based costs
+    let coinPercentCost = Math.floor(userCoins * Math.min(scaling.coinPercentage, scaling.maxCoinPercentage));
+    let gemPercentCost = Math.floor(userGems * Math.min(scaling.gemPercentage, scaling.maxGemPercentage));
+    
+    // Total cost = base + percentage
+    const totalCoins = scaling.baseCoins + coinPercentCost;
+    const totalGems = scaling.baseGems + gemPercentCost;
+    
+    return {
+        coins: totalCoins,
+        gems: totalGems,
+        fumoTokens: scaling.fumoTokens || 0,
+        breakdown: {
+            baseCoins: scaling.baseCoins,
+            baseGems: scaling.baseGems,
+            percentCoins: coinPercentCost,
+            percentGems: gemPercentCost,
+            coinPercent: (Math.min(scaling.coinPercentage, scaling.maxCoinPercentage) * 100).toFixed(1),
+            gemPercent: (Math.min(scaling.gemPercentage, scaling.maxGemPercentage) * 100).toFixed(1)
+        }
+    };
+}
 
 /**
  * Get the cost multiplier based on current faith points
@@ -597,20 +697,37 @@ function getFaithTierUpgradeChance(faithPoints) {
 }
 
 /**
- * Calculate scaled donation costs for Sanae
+ * Calculate scaled donation costs for Sanae with wealth percentage
  */
-function getSanaeDonationCosts(option, faithPoints) {
+function getSanaeDonationCosts(option, faithPoints, userCoins = 0, userGems = 0) {
     const optionConfig = PRAY_CHARACTERS.SANAE.donationOptions[option];
     if (!optionConfig) return null;
     
     const costMult = getFaithCostMultiplier(faithPoints);
+    const scaling = PRAY_CHARACTERS.SANAE.costScaling;
+    
+    // Base cost + percentage of wealth
+    let baseCoinCost = optionConfig.baseCost?.coins || 0;
+    let baseGemCost = optionConfig.baseCost?.gems || 0;
+    
+    // Add percentage-based cost
+    const coinPercentCost = Math.floor(userCoins * Math.min(scaling.coinPercentage, scaling.maxCoinPercentage));
+    const gemPercentCost = Math.floor(userGems * Math.min(scaling.gemPercentage, scaling.maxGemPercentage));
     
     return {
-        coins: Math.floor((optionConfig.baseCost?.coins || 0) * costMult),
-        gems: Math.floor((optionConfig.baseCost?.gems || 0) * costMult),
+        coins: Math.floor((baseCoinCost + coinPercentCost) * costMult),
+        gems: Math.floor((baseGemCost + gemPercentCost) * costMult),
         fumoRequirement: optionConfig.fumoRequirement || null,
+        fumoTokens: scaling.fumoTokens,
         faithPoints: optionConfig.faithPoints,
-        label: optionConfig.label
+        label: optionConfig.label,
+        breakdown: {
+            baseCoins: baseCoinCost,
+            baseGems: baseGemCost,
+            percentCoins: coinPercentCost,
+            percentGems: gemPercentCost,
+            multiplier: costMult
+        }
     };
 }
 
@@ -638,6 +755,13 @@ function getRarityEmoji(rarity) {
     return RARITY_CONFIG[rarity]?.emoji || '⚪';
 }
 
+/**
+ * Get required fumo tokens for a character rarity
+ */
+function getRequiredFumoTokens(rarity) {
+    return RARITY_CONFIG[rarity]?.fumoTokens || 0;
+}
+
 module.exports = {
     PRAY_CHARACTERS,
     RARITY_CONFIG,
@@ -650,5 +774,7 @@ module.exports = {
     getFaithCostMultiplier,
     getFaithRewardMultiplier,
     getFaithTierUpgradeChance,
-    getSanaeDonationCosts
+    getSanaeDonationCosts,
+    calculateScaledPrayCost,
+    getRequiredFumoTokens
 };

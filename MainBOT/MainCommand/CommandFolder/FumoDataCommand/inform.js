@@ -9,7 +9,7 @@ const {
     createInformEmbed, 
     createTutorialEmbed, 
     createNotFoundEmbed 
-} = require('../../Service/FumoDataService/InformService/InformUIService');
+} = require('../../Service/FumoDataService/InformService/InformInteractionHandler');
 
 module.exports = (client) => {
     client.on('messageCreate', async message => {
@@ -62,6 +62,10 @@ module.exports = (client) => {
                         variant = 'SHINY';
                     } else if (interaction.customId.includes('alg')) {
                         variant = 'ALG';
+                    } else if (interaction.customId.includes('void')) {
+                        variant = 'VOID';
+                    } else if (interaction.customId.includes('glitched')) {
+                        variant = 'GLITCHED';
                     }
 
                     const ownershipData = await getFumoOwnershipData(

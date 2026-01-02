@@ -1,6 +1,6 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { format } = require('date-fns');
-const { VARIANT_CONFIG, SUMMON_PLACES } = require('../../../Configuration/informConfig');
+const { VARIANT_CONFIG, SUMMON_PLACES, formatChanceAsOneInX, parsePercentage } = require('../../../Configuration/informConfig');
 const { calculateVariantChance } = require('./InformDataService');
 const { buildSecureCustomId } = require('../../../Middleware/buttonOwnership');
 const { formatNumber } = require('../../../Ultility/formatting');
@@ -77,24 +77,46 @@ function createInformEmbed(fumoData, ownershipData, variant) {
     if (summonPlace === SUMMON_PLACES.MARKET && fumo.marketPrice) {
         description += `\n🛍️ This fumo can be acquired at the ${summonPlace} for a mere ${formatNumber(fumo.marketPrice)} coins.`;
     } else if (baseChance) {
-        const displayChance = variant !== 'NORMAL' 
-            ? calculateVariantChance(baseChance, variantConfig.multiplier)
-            : baseChance;
+        // Parse base chance and format with variant multiplier
+        const basePercent = parsePercentage(baseChance);
+        let displayChance;
+        
+        if (variant !== 'NORMAL') {
+            const combinedPercent = basePercent * variantConfig.baseChance;
+            displayChance = formatChanceAsOneInX(combinedPercent);
+        } else {
+            displayChance = formatChanceAsOneInX(basePercent);
+        }
             
-        description += `\n🔮 This fumo is summoned at the mystical ${summonPlace} using ${summonPlace === SUMMON_PLACES.GEMS_BANNER ? 'gems' : 'coins'} with a chance of ${displayChance}.`;
+        description += `\n🔮 This fumo is summoned at the mystical ${summonPlace} using ${summonPlace === SUMMON_PLACES.GEMS_BANNER ? 'gems' : 'coins'} with a chance of **${displayChance}**.`;
     }
 
+    // Variant-specific information with proper chance display
     if (variant === 'SHINY') {
-        description += `\n✨ This is a rare **SHINY** variant with a 1% base summon chance.`;
+        const shinyChance = formatChanceAsOneInX(1); // 1% = 1 in 100
+        description += `\n\n✨ **SHINY Variant Info:**`;
+        description += `\n├ Base Variant Chance: ${shinyChance}`;
+        description += `\n└ ${variantConfig.description}`;
     } else if (variant === 'ALG') {
-        description += `\n🌟 This is an **Extremely Rare alG** variant with a 0.001% base summon chance.`;
+        const algChance = formatChanceAsOneInX(0.001); // 0.001% = 1 in 100,000
+        description += `\n\n🌟 **alG Variant Info:**`;
+        description += `\n├ Base Variant Chance: ${algChance}`;
+        description += `\n└ ${variantConfig.description}`;
     } else if (variant === 'VOID') {
-        description += `\n🌀 This is a **Mysterious VOID** variant with a 0.1% base summon chance(with VoidCrystal).`;
+        const voidChance = formatChanceAsOneInX(0.1); // 0.1% = 1 in 1,000
+        description += `\n\n🌀 **VOID Variant Info:**`;
+        description += `\n├ Base Variant Chance: ${voidChance}`;
+        description += `\n├ Requires: **VoidCrystal** active`;
+        description += `\n└ ${variantConfig.description}`;
     } else if (variant === 'GLITCHED') {
-        description += `\n🔮 This is a **Glitched** variant with a 0.0002% base summon chance(while enabling S!gil? or CosmicCore).`;
+        const glitchedChance = formatChanceAsOneInX(0.0002); // 0.0002% = 1 in 500,000
+        description += `\n\n🔮 **GLITCHED Variant Info:**`;
+        description += `\n├ Base Variant Chance: ${glitchedChance}`;
+        description += `\n├ Requires: **S!gil** or **CosmicCore** active`;
+        description += `\n└ ${variantConfig.description}`;
     }
 
-    description += `\n👥 Owned by ${formatNumber(ownershipData.uniqueOwners)} unique users.`;
+    description += `\n\n👥 Owned by ${formatNumber(ownershipData.uniqueOwners)} unique users.`;
 
     embed.setDescription(description);
     

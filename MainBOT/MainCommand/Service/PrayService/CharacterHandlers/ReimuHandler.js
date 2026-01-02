@@ -1,5 +1,5 @@
 const { EmbedBuilder } = require('discord.js');
-const { PRAY_CHARACTERS } = require('../../../Configuration/prayConfig');
+const { PRAY_CHARACTERS, calculateScaledPrayCost } = require('../../../Configuration/prayConfig');
 const { formatNumber } = require('../../../Ultility/formatting');
 const { incrementWeeklyShiny, incrementWeeklyAstral } = require('../../../Ultility/weekly');
 const FumoPool = require('../../../Data/FumoPool');
@@ -9,8 +9,27 @@ const {
     deductUserCurrency,
     updateReimuData,
     addSpiritTokens,
-    incrementDailyPray
+    incrementDailyPray,
+    getFumoTokens,
+    deductFumoTokens
 } = require('../PrayDatabaseService');
+
+/**
+ * Special Variant Configuration for Reimu gifts
+ * VOID and GLITCHED can be obtained when special items are active
+ */
+const REIMU_VARIANT_CONFIG = {
+    VOID: {
+        baseChance: 0.001,      // 0.1% base (same as gacha)
+        tag: '[🌀VOID]',
+        sources: ['VoidCrystal']    // ONLY VoidCrystal provides VOID
+    },
+    GLITCHED: {
+        baseChance: 1 / 50000,  // 0.002% base (same as gacha)
+        tag: '[🔮GLITCHED]',
+        sources: ['S!gil', 'CosmicCore']  // S!gil and CosmicCore provide GLITCHED
+    }
+};
 
 /**
  * Get S!gil Reimu luck multiplier (+500%)
@@ -31,6 +50,161 @@ async function getSigilReimuLuckMultiplier(userId) {
     }
     
     return 1.0;
+}
+
+/**
+ * Get active special variant boosts for Reimu gifts
+ * Checks for VoidCrystal, CosmicCore, and S!gil
+ * @param {string} userId - User ID
+ * @param {number} reimuLuckMult - Reimu luck multiplier to apply to variant chances
+ * @returns {Object} Active variant info with chances
+ */
+async function getActiveReimuVariants(userId, reimuLuckMult = 1.0) {
+    const now = Date.now();
+    const variants = {
+        void: null,
+        glitched: null
+    };
+    
+    // Check if S!gil is active (takes priority and has ALL variants)
+    const sigilActive = await get(
+        `SELECT * FROM activeBoosts 
+         WHERE userId = ? AND source = 'S!gil' AND type = 'coin'
+         AND (expiresAt IS NULL OR expiresAt > ?)`,
+        [userId, now]
+    );
+    
+    if (sigilActive) {
+        // S!gil provides both GLITCHED and VOID
+        const sigilGlitched = await get(
+            `SELECT multiplier, extra FROM activeBoosts 
+             WHERE userId = ? AND source = 'S!gil' AND type = 'glitchedTrait'
+             AND (expiresAt IS NULL OR expiresAt > ?)`,
+            [userId, now]
+        );
+        
+        if (sigilGlitched) {
+            try {
+                const extra = JSON.parse(sigilGlitched.extra || '{}');
+                // Apply Reimu luck to GLITCHED chance (capped at 0.01 = 1%)
+                const baseChance = extra.chance || sigilGlitched.multiplier || REIMU_VARIANT_CONFIG.GLITCHED.baseChance;
+                variants.glitched = {
+                    chance: Math.min(baseChance * reimuLuckMult, 0.01),
+                    tag: REIMU_VARIANT_CONFIG.GLITCHED.tag,
+                    source: 'S!gil'
+                };
+            } catch {
+                variants.glitched = {
+                    chance: Math.min(REIMU_VARIANT_CONFIG.GLITCHED.baseChance * reimuLuckMult, 0.01),
+                    tag: REIMU_VARIANT_CONFIG.GLITCHED.tag,
+                    source: 'S!gil'
+                };
+            }
+        }
+        
+        // S!gil does NOT grant VOID - only GLITCHED
+        // VOID requires VoidCrystal to be active
+        
+        return variants;
+    }
+    
+    // Check CosmicCore for GLITCHED (only when S!gil not active)
+    const cosmicCore = await get(
+        `SELECT multiplier, extra FROM activeBoosts 
+         WHERE userId = ? AND source = 'CosmicCore' AND type = 'glitchedTrait'
+         AND expiresAt > ?`,
+        [userId, now]
+    );
+    
+    if (cosmicCore) {
+        try {
+            const extra = JSON.parse(cosmicCore.extra || '{}');
+            if (!extra.sigilDisabled) {
+                const baseChance = extra.chance || cosmicCore.multiplier || REIMU_VARIANT_CONFIG.GLITCHED.baseChance;
+                variants.glitched = {
+                    chance: Math.min(baseChance * reimuLuckMult, 0.01),
+                    tag: REIMU_VARIANT_CONFIG.GLITCHED.tag,
+                    source: 'CosmicCore'
+                };
+            }
+        } catch {
+            variants.glitched = {
+                chance: Math.min(REIMU_VARIANT_CONFIG.GLITCHED.baseChance * reimuLuckMult, 0.01),
+                tag: REIMU_VARIANT_CONFIG.GLITCHED.tag,
+                source: 'CosmicCore'
+            };
+        }
+        
+        // CosmicCore does NOT grant VOID - only GLITCHED
+        // VOID requires VoidCrystal to be active
+    }
+    
+    // Check VoidCrystal for VOID variant (independent of CosmicCore)
+    const voidCrystal = await get(
+        `SELECT multiplier, extra FROM activeBoosts 
+         WHERE userId = ? AND source = 'VoidCrystal' AND type = 'voidTrait'
+         AND expiresAt > ?`,
+        [userId, now]
+    );
+    
+    if (voidCrystal) {
+        try {
+            const extra = JSON.parse(voidCrystal.extra || '{}');
+            if (!extra.sigilDisabled) {
+                const voidChance = extra.chance || voidCrystal.multiplier || REIMU_VARIANT_CONFIG.VOID.baseChance;
+                const adjustedChance = Math.min(voidChance * reimuLuckMult, 0.05);
+                // Use the higher chance between VoidCrystal and CosmicCore
+                if (!variants.void || adjustedChance > variants.void.chance) {
+                    variants.void = {
+                        chance: adjustedChance,
+                        tag: REIMU_VARIANT_CONFIG.VOID.tag,
+                        source: 'VoidCrystal'
+                    };
+                }
+            }
+        } catch {
+            if (!variants.void) {
+                variants.void = {
+                    chance: Math.min(REIMU_VARIANT_CONFIG.VOID.baseChance * reimuLuckMult, 0.05),
+                    tag: REIMU_VARIANT_CONFIG.VOID.tag,
+                    source: 'VoidCrystal'
+                };
+            }
+        }
+    }
+    
+    return variants;
+}
+
+/**
+ * Roll for special variants (GLITCHED or VOID) for Reimu gifts
+ * @param {Object} variants - Active variant info from getActiveReimuVariants
+ * @returns {Object|null} Rolled special variant or null
+ */
+function rollReimuSpecialVariant(variants) {
+    // Roll for GLITCHED first (rarer, higher priority)
+    if (variants.glitched) {
+        if (Math.random() < variants.glitched.chance) {
+            return {
+                type: 'GLITCHED',
+                tag: variants.glitched.tag,
+                source: variants.glitched.source
+            };
+        }
+    }
+    
+    // Roll for VOID if GLITCHED didn't hit
+    if (variants.void) {
+        if (Math.random() < variants.void.chance) {
+            return {
+                type: 'VOID',
+                tag: variants.void.tag,
+                source: variants.void.source
+            };
+        }
+    }
+    
+    return null;
 }
 
 async function handleReimu(userId, channel, interactionUserId) {
@@ -116,9 +290,16 @@ async function handleGiftPhase(userId, channel, user, config, interactionUserId)
     const algChance = Math.min(baseAlgChance * reimuLuckMult, 0.5); // Max 50% alG chance
     const shinyChance = Math.min(baseShinyChance * reimuLuckMult, 0.8); // Max 80% SHINY chance
     
+    // Roll for base variants (SHINY/alG)
     const isAlterGolden = Math.random() < algChance;
     const isShiny = !isAlterGolden && Math.random() < shinyChance;
+    
+    // Get and roll for special variants (VOID/GLITCHED) - affected by Reimu luck too!
+    const activeVariants = await getActiveReimuVariants(userId, reimuLuckMult);
+    const specialVariant = rollReimuSpecialVariant(activeVariants);
 
+    // Build fumo name with variants
+    // Order: FumoName(RARITY)[BASE_VARIANT][SPECIAL_VARIANT]
     let fumoName = fumo.name;
     if (isAlterGolden) {
         fumoName += '[🌟alG]';
@@ -126,6 +307,11 @@ async function handleGiftPhase(userId, channel, user, config, interactionUserId)
     } else if (isShiny) {
         fumoName += '[✨SHINY]';
         await incrementWeeklyShiny(interactionUserId);
+    }
+    
+    // Add special variant (VOID or GLITCHED)
+    if (specialVariant) {
+        fumoName += specialVariant.tag;
     }
 
     if (giftConfig.ultraRares.includes(fumo.rarity)) {
@@ -137,11 +323,21 @@ async function handleGiftPhase(userId, channel, user, config, interactionUserId)
         [userId, fumo.rarity, fumoName, fumo.rarity]
     );
 
-    const variantNote = isAlterGolden
-        ? " It's a **divine, golden anomaly**—a truly miraculous find!"
-        : isShiny
-            ? " It sparkles with a magical glow—**a Shiny Fumo!**"
-            : "";
+    // Build variant description
+    let variantNote = '';
+    if (isAlterGolden && specialVariant) {
+        variantNote = ` It's a **divine, golden anomaly** blessed by the ${specialVariant.type === 'GLITCHED' ? '🔮 **GLITCHED**' : '🌀 **VOID**'}—an impossibly rare find!`;
+    } else if (isShiny && specialVariant) {
+        variantNote = ` It sparkles with ${specialVariant.type === 'GLITCHED' ? '🔮 **glitched energy**' : '🌀 **void energy**'}—a magical and mysterious fumo!`;
+    } else if (isAlterGolden) {
+        variantNote = " It's a **divine, golden anomaly**—a truly miraculous find!";
+    } else if (isShiny) {
+        variantNote = " It sparkles with a magical glow—**a Shiny Fumo!**";
+    } else if (specialVariant) {
+        variantNote = specialVariant.type === 'GLITCHED' 
+            ? " It radiates 🔮 **unstable glitched energy**—reality bends around it!"
+            : " It emanates 🌀 **dark void energy**—consumed by the abyss!";
+    }
 
     await channel.send({
         embeds: [new EmbedBuilder()
@@ -191,20 +387,63 @@ async function handleDonationPhase(userId, channel, user, config) {
         multiplier = pityMultipliers.low.multiplier;
     }
 
-    const requiredCoins = (30000 + penalty * 5000) * multiplier;
-    const requiredGems = (2500 + penalty * 1000) * multiplier;
+    // Calculate scaled cost based on user's total wealth
+    const scaledCost = calculateScaledPrayCost(config, user.coins || 0, user.gems || 0);
+    
+    // Apply pity multiplier and penalty to scaled cost
+    const baseCoinCost = scaledCost.coins + (penalty * 5000);
+    const baseGemCost = scaledCost.gems + (penalty * 1000);
+    
+    const requiredCoins = Math.floor(baseCoinCost * multiplier);
+    const requiredGems = Math.floor(baseGemCost * multiplier);
+    const requiredTokens = scaledCost.fumoTokens || 0;
+
+    // Check fumo tokens if required (for MYTHICAL+ characters)
+    if (requiredTokens > 0) {
+        const userTokens = await getFumoTokens(userId);
+        if (userTokens < requiredTokens) {
+            await channel.send({
+                embeds: [new EmbedBuilder()
+                    .setTitle('❌ Insufficient Fumo Tokens')
+                    .setDescription(`Reimu requires **${requiredTokens} Fumo Tokens** for this prayer.\nYou only have **${userTokens}** Fumo Tokens.`)
+                    .setColor(0xff5555)
+                    .setTimestamp()]
+            });
+            return;
+        }
+    }
 
     if (user.coins >= requiredCoins && user.gems >= requiredGems) {
         await deductUserCurrency(userId, requiredCoins, requiredGems);
+        
+        // Deduct fumo tokens if required
+        if (requiredTokens > 0) {
+            await deductFumoTokens(userId, requiredTokens);
+        }
+        
         await updateReimuData(userId, { reimuStatus: 1, reimuPenalty: 0 });
+
+        // Build cost breakdown message
+        let costBreakdown = `Donated: **${formatNumber(requiredCoins)} coins** and **${formatNumber(requiredGems)} gems**`;
+        if (requiredTokens > 0) {
+            costBreakdown += ` + **${requiredTokens} Fumo Tokens**`;
+        }
+        costBreakdown += `\nPity Multiplier: x${multiplier}`;
+        
+        if (scaledCost.breakdown) {
+            costBreakdown += `\n\n📊 **Cost Breakdown:**`;
+            costBreakdown += `\n├ Base: ${formatNumber(scaledCost.breakdown.baseCoins)} coins + ${formatNumber(scaledCost.breakdown.baseGems)} gems`;
+            if (scaledCost.breakdown.percentCoins > 0 || scaledCost.breakdown.percentGems > 0) {
+                costBreakdown += `\n├ Wealth Tax (${scaledCost.breakdown.coinPercent}%): +${formatNumber(scaledCost.breakdown.percentCoins)} coins`;
+                costBreakdown += `\n└ Wealth Tax (${scaledCost.breakdown.gemPercent}%): +${formatNumber(scaledCost.breakdown.percentGems)} gems`;
+            }
+        }
 
         await channel.send({
             embeds: [new EmbedBuilder()
                 .setTitle('🙏 Reimu\'s Gratitude 🙏')
                 .setDescription(
-                    `You have earned her favor.\n\n` +
-                    `Donated: **${formatNumber(requiredCoins)} coins** and **${formatNumber(requiredGems)} gems**\n` +
-                    `Pity Multiplier: x${multiplier}`
+                    `You have earned her favor.\n\n${costBreakdown}`
                 )
                 .setColor('#0099ff')
                 .setTimestamp()]
@@ -220,8 +459,8 @@ async function handleDonationPhase(userId, channel, user, config) {
                 .setTitle('😔 Reimu is Unimpressed 😔')
                 .setDescription(
                     penalty === 0
-                        ? 'You failed to donate enough. She gives you a cold look.'
-                        : `Next time you must pay an extra ${formatNumber(penaltyCoins)} coins and ${formatNumber(penaltyGems)} gems.`
+                        ? `You failed to donate enough. She gives you a cold look.\n\nRequired: **${formatNumber(requiredCoins)} coins** and **${formatNumber(requiredGems)} gems**`
+                        : `Next time you must pay an extra ${formatNumber(penaltyCoins)} coins and ${formatNumber(penaltyGems)} gems.\n\nRequired: **${formatNumber(requiredCoins)} coins** and **${formatNumber(requiredGems)} gems**`
                 )
                 .setColor('#ff0000')
                 .setTimestamp()]
