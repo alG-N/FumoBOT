@@ -164,10 +164,13 @@ async function optimizeFarm(userId) {
     const limitBreaks = upgradesRow?.limitBreaks || 0;
     const limit = calculateFarmLimit(fragmentUses) + limitBreaks;
     
-    const farmingFumos = await getUserFarmingFumos(userId);
+    // FIRST: Stop all intervals and clear farming (returns fumos to inventory)
+    await stopAllFarmingIntervals(userId);
+    await clearAllFarming(userId);
     
+    // NOW query inventory AFTER clearing farm - this includes all fumos
     const inventory = await all(
-        `SELECT fumoName, SUM(quantity) as count 
+        `SELECT fumoName, SUM(COALESCE(quantity, 1)) as count 
          FROM userInventory 
          WHERE userId = ? 
          AND fumoName IS NOT NULL
@@ -176,6 +179,8 @@ async function optimizeFarm(userId) {
          GROUP BY fumoName`,
         [userId]
     );
+
+    debugLog('FARMING', `[optimizeFarm] Found ${inventory.length} unique fumo types in inventory`);
 
     const inventoryWithStats = inventory
         .filter(item => {
@@ -217,17 +222,22 @@ async function optimizeFarm(userId) {
         }
     }
 
-    await stopAllFarmingIntervals(userId);
-    await clearAllFarming(userId);
+    debugLog('FARMING', `[optimizeFarm] Optimal farm plan: ${optimalFarm.length} types, ${slotsUsed} slots`);
 
+    let actualAdded = 0;
     for (const fumo of optimalFarm) {
-        await addFumoToFarm(userId, fumo.fumoName, fumo.coinsPerMin, fumo.gemsPerMin, fumo.quantity);
-        await startFarmingInterval(userId, fumo.fumoName, fumo.coinsPerMin, fumo.gemsPerMin);
+        const success = await addFumoToFarm(userId, fumo.fumoName, fumo.coinsPerMin, fumo.gemsPerMin, fumo.quantity);
+        if (success) {
+            await startFarmingInterval(userId, fumo.fumoName, fumo.coinsPerMin, fumo.gemsPerMin);
+            actualAdded += fumo.quantity;
+        } else {
+            debugLog('FARMING', `[optimizeFarm] Failed to add ${fumo.quantity}x ${fumo.fumoName}`);
+        }
     }
 
-    const totalAdded = optimalFarm.reduce((sum, f) => sum + f.quantity, 0);
+    debugLog('FARMING', `[optimizeFarm] Complete: ${actualAdded} fumos added to farm`);
 
-    return { success: true, count: totalAdded, uniqueFumos: optimalFarm.length };
+    return { success: true, count: actualAdded, uniqueFumos: optimalFarm.length };
 }
 
 async function removeByName(userId, fumoName, quantity = 1) {

@@ -96,23 +96,12 @@ async function startFarmingInterval(userId, fumoName, coinsPerMin, gemsPerMin) {
 
     const intervalId = setInterval(async () => {
         try {
-            const existsInInventory = await validateFumoInInventory(userId, fumoName);
-            
-            if (!existsInInventory) {
-                debugLog('FARMING', `⚠️ ${fumoName} no longer in inventory for user ${userId}, removing from farm`);
-                
-                const { removeFumoFromFarm } = require('./FarmingDatabaseService');
-                await removeFumoFromFarm(userId, fumoName, 999);
-                
-                clearInterval(intervalId);
-                farmingIntervals.delete(key);
-                return;
-            }
-
+            // Check if fumo is still in the farm (not inventory - fumos are removed from inventory when farming)
             const farmingFumos = await getUserFarmingFumos(userId);
             const fumo = farmingFumos.find(f => f.fumoName === fumoName);
             
             if (!fumo) {
+                // Fumo no longer in farm, stop interval
                 clearInterval(intervalId);
                 farmingIntervals.delete(key);
                 return;

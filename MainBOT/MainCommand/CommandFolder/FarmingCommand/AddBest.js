@@ -28,7 +28,7 @@ module.exports = async (client) => {
             const farmLimit = calculateFarmLimit(fragmentUses) + limitBreaks;
             
             const farmingFumos = await getUserFarmingFumos(userId);
-            const currentFarmCount = farmingFumos.reduce((sum, f) => sum + (f.quantity || 1), 0);
+            const currentFarmCount = farmingFumos.reduce((sum, f) => sum + (parseInt(f.quantity) || 1), 0);
 
             // Create confirmation embed
             const confirmEmbed = new EmbedBuilder()

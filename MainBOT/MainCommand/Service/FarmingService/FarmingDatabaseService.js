@@ -43,36 +43,49 @@ async function getFarmLimit(userId) {
 
 async function getUserFarmingFumos(userId) {
     return await all(
-        `SELECT fumoName, coinsPerMin, gemsPerMin, quantity FROM farmingFumos WHERE userId = ?`,
+        `SELECT fumoName, coinsPerMin, gemsPerMin, COALESCE(quantity, 1) as quantity FROM farmingFumos WHERE userId = ?`,
         [userId]
     );
 }
 
 async function addFumoToFarm(userId, fumoName, coinsPerMin, gemsPerMin, quantity = 1) {
-    // First, actually remove the fumo from inventory
-    const inventoryRow = await get(
-        `SELECT id, quantity as invQty FROM userInventory WHERE userId = ? AND fumoName = ?`,
+    // First, get ALL inventory rows for this fumo (there may be multiple)
+    const inventoryRows = await all(
+        `SELECT id, COALESCE(quantity, 1) as invQty FROM userInventory WHERE userId = ? AND fumoName = ? ORDER BY quantity DESC`,
         [userId, fumoName]
     );
     
-    if (!inventoryRow || inventoryRow.invQty < quantity) {
-        debugLog('FARMING', `[addFumoToFarm] Insufficient inventory: has ${inventoryRow?.invQty || 0}, need ${quantity}`);
+    // Calculate total available
+    const totalAvailable = inventoryRows.reduce((sum, row) => sum + (parseInt(row.invQty) || 0), 0);
+    
+    if (totalAvailable < quantity) {
+        debugLog('FARMING', `[addFumoToFarm] Insufficient inventory: has ${totalAvailable}, need ${quantity}`);
         return false;
     }
     
-    // Deduct from inventory
-    if (inventoryRow.invQty === quantity) {
-        await run(`DELETE FROM userInventory WHERE id = ?`, [inventoryRow.id]);
-    } else {
-        await run(
-            `UPDATE userInventory SET quantity = quantity - ? WHERE id = ?`,
-            [quantity, inventoryRow.id]
-        );
+    // Deduct from inventory rows starting from largest
+    let remaining = quantity;
+    for (const row of inventoryRows) {
+        if (remaining <= 0) break;
+        
+        const rowQty = parseInt(row.invQty) || 0;
+        const toDeduct = Math.min(remaining, rowQty);
+        
+        if (toDeduct >= rowQty) {
+            await run(`DELETE FROM userInventory WHERE id = ?`, [row.id]);
+        } else {
+            await run(
+                `UPDATE userInventory SET quantity = quantity - ? WHERE id = ?`,
+                [toDeduct, row.id]
+            );
+        }
+        
+        remaining -= toDeduct;
     }
     
     // Check if already farming this fumo
     const existing = await get(
-        `SELECT id, quantity FROM farmingFumos WHERE userId = ? AND fumoName = ?`,
+        `SELECT id, COALESCE(quantity, 1) as quantity FROM farmingFumos WHERE userId = ? AND fumoName = ?`,
         [userId, fumoName]
     );
     
@@ -88,23 +101,24 @@ async function addFumoToFarm(userId, fumoName, coinsPerMin, gemsPerMin, quantity
         );
     }
     
-    debugLog('FARMING', `Added ${quantity}x ${fumoName} to farm for user ${userId} (removed from inventory)`);
+    debugLog('FARMING', `Added ${quantity}x ${fumoName} to farm for user ${userId}`);
     return true;
 }
 
 async function removeFumoFromFarm(userId, fumoName, quantity = 1) {
     const row = await get(
-        `SELECT id, quantity FROM farmingFumos WHERE userId = ? AND fumoName = ?`,
+        `SELECT id, COALESCE(quantity, 1) as quantity FROM farmingFumos WHERE userId = ? AND fumoName = ?`,
         [userId, fumoName]
     );
 
     if (!row) return false;
 
-    const actualRemove = Math.min(quantity, row.quantity);
+    const farmQuantity = Math.max(1, parseInt(row.quantity) || 1);
+    const actualRemove = Math.min(quantity, farmQuantity);
     
-    // Return fumos back to inventory
-    const existingInv = await get(
-        `SELECT id, quantity as invQty FROM userInventory WHERE userId = ? AND fumoName = ?`,
+    // Return fumos back to inventory - handle multiple inventory rows
+    const existingInvRows = await all(
+        `SELECT id, COALESCE(quantity, 1) as invQty FROM userInventory WHERE userId = ? AND fumoName = ?`,
         [userId, fumoName]
     );
     
@@ -112,10 +126,11 @@ async function removeFumoFromFarm(userId, fumoName, quantity = 1) {
     const rarityMatch = fumoName.match(/\((.*?)\)/);
     const rarity = rarityMatch ? rarityMatch[1] : 'Common';
     
-    if (existingInv) {
+    if (existingInvRows && existingInvRows.length > 0) {
+        // Update the first existing row
         await run(
-            `UPDATE userInventory SET quantity = quantity + ? WHERE id = ?`,
-            [actualRemove, existingInv.id]
+            `UPDATE userInventory SET quantity = COALESCE(quantity, 0) + ? WHERE id = ?`,
+            [actualRemove, existingInvRows[0].id]
         );
     } else {
         // Insert new inventory entry (no ON CONFLICT - fumoName column doesn't have unique constraint)
@@ -127,7 +142,7 @@ async function removeFumoFromFarm(userId, fumoName, quantity = 1) {
     }
 
     // Remove from farm
-    if (actualRemove >= row.quantity) {
+    if (actualRemove >= farmQuantity) {
         await run(
             `DELETE FROM farmingFumos WHERE userId = ? AND fumoName = ?`,
             [userId, fumoName]
@@ -146,38 +161,57 @@ async function removeFumoFromFarm(userId, fumoName, quantity = 1) {
 async function clearAllFarming(userId) {
     // First, get all farming fumos to return them to inventory
     const farmingFumos = await all(
-        `SELECT fumoName, quantity FROM farmingFumos WHERE userId = ?`,
+        `SELECT fumoName, COALESCE(quantity, 1) as quantity FROM farmingFumos WHERE userId = ?`,
         [userId]
     );
 
     debugLog('FARMING', `[clearAllFarming] Found ${farmingFumos.length} fumos to return for user ${userId}`);
 
-    // Return each fumo to inventory
+    // Return each fumo to inventory - consolidating duplicates
     for (const fumo of farmingFumos) {
         try {
-            const existingInv = await get(
-                `SELECT id, quantity as invQty FROM userInventory WHERE userId = ? AND fumoName = ?`,
+            // Ensure quantity is at least 1
+            const returnQuantity = Math.max(1, parseInt(fumo.quantity) || 1);
+            
+            // Get ALL existing inventory entries for this fumo
+            const existingInvRows = await all(
+                `SELECT id, COALESCE(quantity, 1) as invQty FROM userInventory WHERE userId = ? AND fumoName = ?`,
                 [userId, fumo.fumoName]
             );
 
             const rarityMatch = fumo.fumoName.match(/\((.*?)\)/);
             const rarity = rarityMatch ? rarityMatch[1] : 'Common';
 
-            if (existingInv) {
-                // Update existing inventory entry
+            if (existingInvRows && existingInvRows.length > 0) {
+                // Update the FIRST existing inventory entry and delete any duplicates
+                const primaryRow = existingInvRows[0];
+                
+                // Calculate total from all duplicate rows
+                const totalExisting = existingInvRows.reduce((sum, row) => sum + (parseInt(row.invQty) || 0), 0);
+                const newTotal = totalExisting + returnQuantity;
+                
+                // Update primary row with total + returned quantity
                 await run(
-                    `UPDATE userInventory SET quantity = quantity + ? WHERE id = ?`,
-                    [fumo.quantity, existingInv.id]
+                    `UPDATE userInventory SET quantity = ? WHERE id = ?`,
+                    [newTotal, primaryRow.id]
                 );
-                debugLog('FARMING', `Returned ${fumo.quantity}x ${fumo.fumoName} to inventory (updated existing)`);
+                
+                // Delete any duplicate rows
+                if (existingInvRows.length > 1) {
+                    for (let i = 1; i < existingInvRows.length; i++) {
+                        await run(`DELETE FROM userInventory WHERE id = ?`, [existingInvRows[i].id]);
+                    }
+                }
+                
+                debugLog('FARMING', `Returned ${returnQuantity}x ${fumo.fumoName} to inventory (now ${newTotal})`);
             } else {
                 // Insert new inventory entry
                 await run(
                     `INSERT INTO userInventory (userId, fumoName, quantity, rarity) 
                      VALUES (?, ?, ?, ?)`,
-                    [userId, fumo.fumoName, fumo.quantity, rarity]
+                    [userId, fumo.fumoName, returnQuantity, rarity]
                 );
-                debugLog('FARMING', `Returned ${fumo.quantity}x ${fumo.fumoName} to inventory (inserted new)`);
+                debugLog('FARMING', `Returned ${returnQuantity}x ${fumo.fumoName} to inventory (new row)`);
             }
         } catch (error) {
             console.error(`[clearAllFarming] ERROR returning ${fumo.fumoName} to inventory:`, error);
@@ -186,7 +220,7 @@ async function clearAllFarming(userId) {
 
     // Now delete all from farm
     await run(`DELETE FROM farmingFumos WHERE userId = ?`, [userId]);
-    debugLog('FARMING', `Cleared all farming for user ${userId} (${farmingFumos.length} fumos returned to inventory)`);
+    debugLog('FARMING', `Cleared all farming for user ${userId}`);
 }
 
 async function getUserInventoryFumo(userId, fumoName) {

@@ -431,7 +431,7 @@ async function handleConfirmListing(interaction) {
 
         // Verify fumo still exists in inventory
         const fumoCheck = await get(
-            `SELECT id FROM userInventory WHERE userId = ? AND fumoName = ? LIMIT 1`,
+            `SELECT id, quantity FROM userInventory WHERE userId = ? AND fumoName = ? LIMIT 1`,
             [userId, fumoName]
         );
 
@@ -442,8 +442,17 @@ async function handleConfirmListing(interaction) {
             });
         }
 
-        // Remove from inventory
-        await run(`DELETE FROM userInventory WHERE id = ?`, [fumoCheck.id]);
+        // FIX: Handle quantity properly
+        if (fumoCheck.quantity && fumoCheck.quantity > 1) {
+            // If there's more than 1, just decrement the quantity
+            await run(
+                `UPDATE userInventory SET quantity = quantity - 1 WHERE id = ?`,
+                [fumoCheck.id]
+            );
+        } else {
+            // If quantity is 1 (or null), delete the entry
+            await run(`DELETE FROM userInventory WHERE id = ?`, [fumoCheck.id]);
+        }
         
         // Add to global market
         await addGlobalListing(userId, fumoName, coinPrice, gemPrice);

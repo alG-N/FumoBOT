@@ -5,39 +5,28 @@ const { debugLog } = require('../../Core/logger');
 const CLEANUP_INTERVAL = 60000; 
 let cleanupIntervalId = null;
 
+/**
+ * NOTE: This cleanup is NO LONGER NEEDED since the farming system now:
+ * - Removes fumos from inventory when adding to farm
+ * - Returns fumos to inventory when removing from farm
+ * 
+ * The old logic that checked if fumos exist in inventory was WRONG
+ * because fumos being farmed are NOT in inventory - they're in farmingFumos table.
+ * 
+ * This function now only cleans up entries with null/empty fumoName or quantity <= 0
+ */
 async function cleanupInvalidFarmingFumos() {
     try {
-        const allFarming = await all(
-            `SELECT DISTINCT userId, fumoName FROM farmingFumos`
+        // Only clean up truly invalid entries (null names, zero quantity, etc.)
+        const result = await run(
+            `DELETE FROM farmingFumos 
+             WHERE fumoName IS NULL 
+             OR TRIM(fumoName) = '' 
+             OR quantity <= 0`
         );
 
-        let removedCount = 0;
-
-        for (const { userId, fumoName } of allFarming) {
-            const inventoryRow = await all(
-                `SELECT COUNT(*) as count FROM userInventory 
-                 WHERE userId = ? AND fumoName = ?`,
-                [userId, fumoName]
-            );
-
-            const existsInInventory = (inventoryRow[0]?.count || 0) > 0;
-
-            if (!existsInInventory) {
-                debugLog('FARMING_CLEANUP', `Removing ${fumoName} from farm for user ${userId} - not in inventory`);
-                
-                await run(
-                    `DELETE FROM farmingFumos WHERE userId = ? AND fumoName = ?`,
-                    [userId, fumoName]
-                );
-
-                stopFarmingInterval(userId, fumoName);
-                
-                removedCount++;
-            }
-        }
-
-        if (removedCount > 0) {
-            debugLog('FARMING_CLEANUP', `Cleaned up ${removedCount} invalid farming entries`);
+        if (result && result.changes > 0) {
+            debugLog('FARMING_CLEANUP', `Cleaned up ${result.changes} invalid farming entries (null/empty names or zero quantity)`);
         }
 
     } catch (error) {
@@ -51,8 +40,9 @@ function startCleanupJob() {
         return;
     }
 
-    cleanupIntervalId = setInterval(cleanupInvalidFarmingFumos, CLEANUP_INTERVAL);
-    console.log(`✅ Started farming cleanup job (every ${CLEANUP_INTERVAL / 1000}s)`);
+    // Run cleanup less frequently since it only handles edge cases now
+    cleanupIntervalId = setInterval(cleanupInvalidFarmingFumos, CLEANUP_INTERVAL * 5); // Every 5 minutes
+    console.log(`✅ Started farming cleanup job (every ${(CLEANUP_INTERVAL * 5) / 1000}s)`);
 }
 
 function stopCleanupJob() {
