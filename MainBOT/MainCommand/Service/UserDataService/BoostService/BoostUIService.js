@@ -23,11 +23,11 @@ function createBoostEmbed(boostData, category = null) {
     const summaryLines = [];
     
     if (totals.coin > 1) {
-        const percent = ((totals.coin - 1) * 100).toFixed(1);
+        const percent = (totals.coin * 100).toFixed(0);
         summaryLines.push(`💰 **Coin:** +${percent}% (×${totals.coin.toFixed(2)})`);
     }
     if (totals.gem > 1) {
-        const percent = ((totals.gem - 1) * 100).toFixed(1);
+        const percent = (totals.gem * 100).toFixed(0);
         summaryLines.push(`💎 **Gem:** +${percent}% (×${totals.gem.toFixed(2)})`);
     }
     if (totals.luck > 1) {
@@ -230,7 +230,7 @@ function formatDisabledBoostLine(boost) {
     }
 
     // Default format for coin/gem boosts
-    const percent = ((multiplier - 1) * 100).toFixed(1);
+    const percent = Math.round(multiplier * 100);
     const formattedMult = multiplier.toFixed(2);
     return `• ~~**${source}**~~ — +${percent}% (×${formattedMult})${frozenTimer} (**FROZEN**)`;
 }
@@ -335,8 +335,8 @@ function formatBoostLine(boost, now) {
     }
 
     // === DEFAULT: Coin/Gem ===
-    const percent = Math.round((multiplier - 1) * 100);
-    const sign = percent >= 0 ? '+' : '';
+    const percent = Math.round(multiplier * 100);
+    const sign = '+';
     const stack = boost.stack ? ` [${boost.stack}x]` : '';
     return `• **${source}**${stack} — ${sign}${percent}% (${timeLeft})`;
 }

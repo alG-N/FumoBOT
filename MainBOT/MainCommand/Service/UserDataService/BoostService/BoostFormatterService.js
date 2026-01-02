@@ -20,9 +20,7 @@ function formatTime(ms) {
 
 function formatBoostPercentage(multiplier) {
     const percent = Math.round(multiplier * 100);
-    const sign = percent >= 100 ? "+" : (percent < 100 ? "-" : "");
-    const effective = Math.abs(percent - 100);
-    return `${sign}${effective}%`;
+    return `+${percent}%`;
 }
 
 function formatBoostLabel(boost, timeLeft) {
