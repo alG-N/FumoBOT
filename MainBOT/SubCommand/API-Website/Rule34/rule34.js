@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
-const { checkAccess } = require('../shared/middleware/checkAccess');
+const { checkAccess, AccessType } = require('../../Middleware');
 const rule34Service = require('./services/rule34Service');
 const rule34Cache = require('./repositories/rule34Cache');
 const postHandler = require('./handlers/postHandler');
@@ -278,7 +278,7 @@ module.exports = {
 
     async execute(interaction) {
         // Check maintenance/ban status
-        const accessCheck = await checkAccess(interaction);
+        const accessCheck = await checkAccess(interaction, AccessType.SUB);
         if (accessCheck.blocked) {
             return interaction.reply({ embeds: [accessCheck.embed], ephemeral: true });
         }

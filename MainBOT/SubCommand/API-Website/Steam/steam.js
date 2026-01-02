@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require('discord.js');
-const { checkAccess } = require('../shared/middleware/checkAccess');
+const { checkAccess, AccessType } = require('../../Middleware');
 const { handleSaleCommand } = require('./handlers/saleHandler');
 
 module.exports = {
@@ -27,7 +27,7 @@ module.exports = {
         ),
 
     async execute(interaction) {
-        const accessCheck = await checkAccess(interaction);
+        const accessCheck = await checkAccess(interaction, AccessType.SUB);
         if (accessCheck.blocked) {
             return interaction.reply({ embeds: [accessCheck.embed], ephemeral: true });
         }

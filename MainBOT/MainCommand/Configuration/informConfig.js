@@ -61,6 +61,16 @@ const VARIANT_CONFIG = {
         tag: '[🌟alG]',
         multiplier: 1 / 100000,
         emoji: '🌟'
+    },
+    VOID : {
+        tag: '[🌀VOID]',
+        multiplier: 1 / 1000,
+        emoji: '🌀'
+    },
+    GLITCHED: {
+        tag: '[🔮GLITCHED]',
+        multiplier: 1 / 500000,
+        emoji: '🔮'
     }
 };
 

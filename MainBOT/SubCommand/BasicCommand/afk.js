@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { checkAccess, AccessType } = require('../Middleware');
 const fs = require('fs');
 const afkFilePath = 'MainBOT/SubCommand/BasicCommand/SillyAFK.json';
 
@@ -40,6 +41,12 @@ module.exports = {
         ),
 
     async execute(interaction) {
+        // Access control check
+        const access = await checkAccess(interaction, AccessType.SUB);
+        if (access.blocked) {
+            return interaction.reply({ embeds: [access.embed], ephemeral: true });
+        }
+
         const afkData = loadAfkUsers();
         const userId = interaction.user.id;
         const guildId = interaction.guild?.id;

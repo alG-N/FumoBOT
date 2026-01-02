@@ -12,6 +12,7 @@ class ConnectionMonitor {
         };
         this.checkInterval = null;
         this.LOG_CHANNEL_ID = '1411386632589807719';
+        this.isReady = false;
     }
 
     /**
@@ -23,8 +24,11 @@ class ConnectionMonitor {
         this.setupDiscordListeners();
         this.checkInterval = setInterval(() => this.performHealthCheck(), intervalMs);
         
-        // Initial check
-        this.performHealthCheck();
+        // Initial check after client is ready
+        if (this.client.isReady()) {
+            this.isReady = true;
+            this.performHealthCheck();
+        }
     }
 
     /**
@@ -58,6 +62,7 @@ class ConnectionMonitor {
         this.client.on('ready', () => {
             this.healthStatus.discord.status = 'connected';
             this.healthStatus.reconnectAttempts = 0;
+            this.isReady = true;
             console.log('✅ Discord connection restored');
         });
 
@@ -81,6 +86,11 @@ class ConnectionMonitor {
      * Perform comprehensive health check
      */
     async performHealthCheck() {
+        if (!this.isReady || !this.client.isReady()) {
+            console.log('⏳ Skipping health check - client not ready');
+            return;
+        }
+
         const now = Date.now();
 
         // Check Discord connection
@@ -123,9 +133,31 @@ class ConnectionMonitor {
      * Log connection events to Discord
      */
     async logConnectionEvent(type, details) {
+        // Make sure client is ready before trying to send
+        if (!this.isReady || !this.client.isReady()) {
+            console.log(`📝 [ConnectionMonitor] Queued log event (client not ready): ${type} - ${details}`);
+            return;
+        }
+
         try {
-            const channel = await this.client.channels.fetch(this.LOG_CHANNEL_ID);
-            if (!channel) return;
+            const channel = await this.client.channels.fetch(this.LOG_CHANNEL_ID).catch(err => {
+                console.error(`❌ Failed to fetch log channel ${this.LOG_CHANNEL_ID}:`, err.message);
+                return null;
+            });
+
+            if (!channel) {
+                console.error(`❌ Log channel ${this.LOG_CHANNEL_ID} not found or inaccessible`);
+                return;
+            }
+
+            // Check if bot has permission to send messages
+            if (channel.guild) {
+                const permissions = channel.permissionsFor(this.client.user);
+                if (!permissions || !permissions.has('SendMessages')) {
+                    console.error(`❌ Bot lacks SendMessages permission in channel ${this.LOG_CHANNEL_ID}`);
+                    return;
+                }
+            }
 
             const colors = {
                 disconnect: '#FF0000',
@@ -139,13 +171,14 @@ class ConnectionMonitor {
                 .setColor(colors[type] || '#808080')
                 .setDescription(details || 'No details available')
                 .addFields(
-                    { name: 'Latency', value: `${this.client.ws.ping}ms`, inline: true },
+                    { name: 'Latency', value: `${this.client.ws.ping || 'N/A'}ms`, inline: true },
                     { name: 'Total Disconnects', value: `${this.healthStatus.totalDisconnects}`, inline: true },
                     { name: 'Reconnect Attempts', value: `${this.healthStatus.reconnectAttempts}`, inline: true }
                 )
                 .setTimestamp();
 
             await channel.send({ embeds: [embed] });
+            console.log(`✅ Logged connection event to Discord: ${type}`);
         } catch (err) {
             console.error('Failed to log connection event:', err.message);
         }
@@ -169,6 +202,13 @@ class ConnectionMonitor {
         return this.healthStatus.discord.status === 'connected' &&
                this.healthStatus.database.status === 'connected' &&
                this.healthStatus.discord.latency < 1000;
+    }
+
+    /**
+     * Manually send a test log to verify channel access
+     */
+    async testLog() {
+        await this.logConnectionEvent('test', 'This is a test log message from ConnectionMonitor');
     }
 }
 

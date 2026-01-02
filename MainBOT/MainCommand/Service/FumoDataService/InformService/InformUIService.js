@@ -19,7 +19,15 @@ function createVariantButtons(userId) {
             new ButtonBuilder()
                 .setCustomId(buildSecureCustomId('inform_variant_alg', userId))
                 .setLabel('🌟 alG')
-                .setStyle(ButtonStyle.Danger)
+                .setStyle(ButtonStyle.Danger),
+            new ButtonBuilder()
+                .setCustomId(buildSecureCustomId('inform_variant_void', userId))
+                .setLabel('🌀 Void')
+                .setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder()
+                .setCustomId(buildSecureCustomId('inform_variant_glitched', userId))
+                .setLabel('🔮 Glitched')
+                .setStyle(ButtonStyle.Secondary)
         );
 }
 
@@ -34,22 +42,23 @@ function createSelectionEmbed(fumo) {
 function createInformEmbed(fumoData, ownershipData, variant) {
     const { fumo, summonPlaces } = fumoData;
     const variantConfig = VARIANT_CONFIG[variant];
-    
+
     const titleSuffix = variant !== 'NORMAL' ? ` - ${variantConfig.emoji} ${variant} Variant` : '';
 
     const embed = new EmbedBuilder()
         .setTitle(`Fumo Information: ${fumo.name}(${fumo.rarity})${titleSuffix}`)
-        .setColor('#0099ff')
+        .setColor(getVariantColor(variant))
         .setImage(fumo.picture);
 
     if (fumo.origin) {
         embed.addFields({ name: '📖 Origin', value: fumo.origin, inline: false });
     }
-    
+
     if (fumo.fact) {
         embed.addFields({ name: '💡 Interesting Fact', value: fumo.fact, inline: false });
     }
 
+    // Ownership section
     let ownershipText = '';
     if (!ownershipData.userOwns) {
         ownershipText += `❌ You currently don't own this ${variant.toLowerCase()} variant.\n`;
@@ -60,79 +69,112 @@ function createInformEmbed(fumoData, ownershipData, variant) {
             ownershipText += `📅 First obtained: ${formattedDate}\n`;
         }
     }
-    
-    embed.addFields({ 
-        name: '👤 Your Ownership', 
+
+    embed.addFields({
+        name: '👤 Your Ownership',
         value: ownershipText,
-        inline: false 
+        inline: false
     });
 
+    // Existence statistics
     let existenceText = '';
     if (variant === 'NORMAL') {
         existenceText += `🔹 Normal: **${formatNumber(ownershipData.normalExistence)}**\n`;
         existenceText += `✨ Shiny: **${formatNumber(ownershipData.shinyExistence)}**\n`;
         existenceText += `🌟 alG: **${formatNumber(ownershipData.algExistence)}**\n`;
+        existenceText += `🌀 Void: **${formatNumber(ownershipData.voidExistence)}**\n`;
+        existenceText += `🔮 Glitched: **${formatNumber(ownershipData.glitchedExistence)}**\n`;
     } else {
         existenceText += `${variantConfig.emoji} **${formatNumber(ownershipData.variantExistence)}** exist\n`;
     }
     existenceText += `🌐 Total (all variants): **${formatNumber(ownershipData.totalExistence)}**\n`;
     existenceText += `👥 Unique owners: **${formatNumber(ownershipData.uniqueOwners)}**`;
-    
-    embed.addFields({ 
-        name: '📊 Server Statistics', // change this to global soon.
+
+    embed.addFields({
+        name: '📊 Server Statistics',
         value: existenceText,
-        inline: false 
+        inline: false
     });
 
-    if (summonPlaces.length > 0) {
+    // How to obtain section
+    if (summonPlaces && summonPlaces.length > 0) {
         let availabilityText = '';
-        
+
         summonPlaces.forEach((summonPlace, index) => {
             if (index > 0) availabilityText += '\n\n';
-            
+
             availabilityText += `**${summonPlace.place}**\n`;
-            
+
             if (summonPlace.price !== undefined) {
                 availabilityText += `💰 Price: **${formatNumber(summonPlace.price)}** coins`;
             } else if (summonPlace.chance) {
-                const displayChance = variant !== 'NORMAL' 
+                const displayChance = variant !== 'NORMAL'
                     ? calculateVariantChance(summonPlace.chance, variantConfig.multiplier)
                     : summonPlace.chance;
-                
+
                 availabilityText += `🎲 Base chance: **${summonPlace.chance}**`;
-                
+
                 if (variant !== 'NORMAL') {
                     availabilityText += `\n${variantConfig.emoji} ${variant} chance: **${displayChance}**`;
                 }
-                
+
                 availabilityText += `\n💎 Currency: **${summonPlace.currency}**`;
             }
         });
-        
-        embed.addFields({ 
-            name: '🎯 How to Obtain', 
+
+        embed.addFields({
+            name: '🎯 How to Obtain',
             value: availabilityText,
-            inline: false 
+            inline: false
         });
     }
 
-    if (variant === 'SHINY') {
-        embed.addFields({
-            name: '✨ Shiny Variant Info',
-            value: 'This is a rare **SHINY** variant with a 1% base appearance chance when summoning this fumo.',
-            inline: false
-        });
-    } else if (variant === 'ALG') {
-        embed.addFields({
-            name: '🌟 alG Variant Info',
-            value: 'This is an **Extremely Rare alG** variant with a 0.001% base appearance chance when summoning this fumo.',
-            inline: false
-        });
+    // Variant-specific info
+    const variantInfo = getVariantInfoField(variant);
+    if (variantInfo) {
+        embed.addFields(variantInfo);
     }
 
     embed.setFooter({ text: 'Use the buttons below to view different variants' });
-    
+
     return embed;
+}
+
+function getVariantColor(variant) {
+    const colors = {
+        'NORMAL': '#0099ff',
+        'SHINY': '#FFD700',
+        'ALG': '#FF4500',
+        'VOID': '#8B008B',
+        'GLITCHED': '#9932CC'
+    };
+    return colors[variant] || '#0099ff';
+}
+
+function getVariantInfoField(variant) {
+    const variantInfos = {
+        'SHINY': {
+            name: '✨ Shiny Variant Info',
+            value: 'This is a rare **SHINY** variant with a 1% base appearance chance when summoning this fumo.',
+            inline: false
+        },
+        'ALG': {
+            name: '🌟 alG Variant Info',
+            value: 'This is an **Extremely Rare alG** variant with a 0.001% base appearance chance when summoning this fumo.',
+            inline: false
+        },
+        'VOID': {
+            name: '🌀 VOID Variant Info',
+            value: 'This is a **Mysterious VOID** variant with a 0.1% base appearance chance when summoning this fumo (requires VoidCrystal active).\n\n**Note:** VOID trait can be activated in: Coin Banner, Gem Banner, Reimu Prayer, and Market purchases!',
+            inline: false
+        },
+        'GLITCHED': {
+            name: '🔮 Glitched Variant Info',
+            value: 'This is a **Glitched** variant with a 0.002% base appearance chance when summoning this fumo (requires S!gil? or CosmicCore active).\n\n**Note:** GLITCHED trait can be activated in: Coin Banner, Gem Banner, Reimu Prayer, and Market purchases!',
+            inline: false
+        }
+    };
+    return variantInfos[variant] || null;
 }
 
 function createTutorialEmbed() {
@@ -161,5 +203,7 @@ module.exports = {
     createSelectionEmbed,
     createInformEmbed,
     createTutorialEmbed,
-    createNotFoundEmbed
+    createNotFoundEmbed,
+    getVariantColor,
+    getVariantInfoField
 };

@@ -11,6 +11,8 @@ function stripVariantTags(fumoName) {
     return fumoName
         .replace(/\[✨SHINY\]/gi, '')
         .replace(/\[🌟alG\]/gi, '')
+        .replace(/\[🌀VOID\]/gi, '')
+        .replace(/\[🔮GLITCHED\]/gi, '')
         .trim();
 }
 
@@ -29,9 +31,13 @@ async function getFumoOwnershipData(userId, fumoName, variant = 'NORMAL') {
         variantPattern = `${baseFumoName}[✨SHINY]`;
     } else if (variant === 'ALG') {
         variantPattern = `${baseFumoName}[🌟alG]`;
+    } else if (variant === 'VOID') {
+        variantPattern = `${baseFumoName}[🌀VOID]`;
+    } else if (variant === 'GLITCHED') {
+        variantPattern = `${baseFumoName}[🔮GLITCHED]`;
     }
 
-    const [userFumos, totalCount, normalCount, shinyCount, algCount, userCount] = await Promise.all([
+    const [userFumos, totalCount, normalCount, shinyCount, algCount, voidCount, glitchedCount, userCount] = await Promise.all([
         all(`SELECT dateObtained FROM userInventory WHERE userId = ? AND fumoName = ? ORDER BY dateObtained`, [userId, variantPattern]),
         
         all(`SELECT fumoName FROM userInventory WHERE fumoName LIKE ?`, [`${baseFumoName}%`]),
@@ -41,6 +47,10 @@ async function getFumoOwnershipData(userId, fumoName, variant = 'NORMAL') {
         all(`SELECT fumoName FROM userInventory WHERE fumoName = ?`, [`${baseFumoName}[✨SHINY]`]),
         
         all(`SELECT fumoName FROM userInventory WHERE fumoName = ?`, [`${baseFumoName}[🌟alG]`]),
+
+        all(`SELECT fumoName FROM userInventory WHERE fumoName = ?`, [`${baseFumoName}[🌀VOID]`]),
+        
+        all(`SELECT fumoName FROM userInventory WHERE fumoName = ?`, [`${baseFumoName}[🔮GLITCHED]`]),
         
         all(`SELECT DISTINCT userId FROM userInventory WHERE fumoName LIKE ?`, [`${baseFumoName}%`])
     ]);
@@ -53,10 +63,14 @@ async function getFumoOwnershipData(userId, fumoName, variant = 'NORMAL') {
         normalExistence: normalCount.length,
         shinyExistence: shinyCount.length,
         algExistence: algCount.length,
+        voidExistence: voidCount.length,
+        glitchedExistence: glitchedCount.length,
         uniqueOwners: userCount.length,
         variantExistence: variant === 'NORMAL' ? normalCount.length : 
-                         variant === 'SHINY' ? shinyCount.length : 
-                         algCount.length
+                        variant === 'SHINY' ? shinyCount.length : 
+                        variant === 'ALG' ? algCount.length :
+                        variant === 'VOID' ? voidCount.length :
+                        variant === 'GLITCHED' ? glitchedCount.length : 0
     };
 
     informCache.set(cacheKey, {

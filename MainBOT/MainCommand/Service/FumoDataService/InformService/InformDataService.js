@@ -5,8 +5,12 @@ function normalizeFumoName(input) {
     return input
         .replace(/\[✨SHINY\]$/i, '')
         .replace(/\[🌟alG\]$/i, '')
+        .replace(/\[🌀VOID\]$/i, '')
+        .replace(/\[🔮GLITCHED\]$/i, '')
         .replace(/^shiny\s+/i, '')
         .replace(/^alg\s+/i, '')
+        .replace(/^void\s+/i, '')
+        .replace(/^glitched\s+/i, '')
         .replace(/\s+/g, ' ')
         .trim();
 }
@@ -17,6 +21,12 @@ function extractVariant(input) {
     }
     if (/\[🌟alG\]/i.test(input) || /^alg\s+/i.test(input)) {
         return 'ALG';
+    }
+    if (/\[🌀VOID\]/i.test(input) || /^void\s+/i.test(input)) {
+        return 'VOID';
+    }
+    if (/\[🔮GLITCHED\]/i.test(input) || /^glitched\s+/i.test(input)) {
+        return 'GLITCHED';
     }
     return 'NORMAL';
 }

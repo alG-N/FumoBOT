@@ -1,4 +1,5 @@
 const { SlashCommandBuilder } = require('discord.js');
+const { checkAccess, AccessType } = require('../../Middleware');
 const { checkRestrictions } = require('../../../MainCommand/Middleware/restrictions');
 const skillsetService = require('../Service/DeathBattleService/SkillsetService');
 const battleService = require('../Service/DeathBattleService/BattleService');
@@ -35,6 +36,12 @@ module.exports = {
 
     async execute(interaction) {
         try {
+            // Access control check (maintenance/ban)
+            const access = await checkAccess(interaction, AccessType.SUB);
+            if (access.blocked) {
+                return interaction.reply({ embeds: [access.embed], ephemeral: true });
+            }
+
             const restriction = checkRestrictions(interaction.user.id);
             if (restriction.blocked) {
                 return interaction.reply({ embeds: [restriction.embed], ephemeral: true });

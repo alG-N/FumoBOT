@@ -1,4 +1,5 @@
 const { SlashCommandBuilder } = require('discord.js');
+const { checkAccess, AccessType } = require('../../Middleware');
 const path = require('path');
 const fs = require('fs');
 
@@ -40,6 +41,12 @@ module.exports = {
         ),
 
     async execute(interaction) {
+        // Access control check (before defer so we can use ephemeral)
+        const access = await checkAccess(interaction, AccessType.SUB);
+        if (access.blocked) {
+            return interaction.reply({ embeds: [access.embed], ephemeral: true });
+        }
+
         await interaction.deferReply();
 
         const url = interaction.options.getString('url');

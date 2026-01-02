@@ -31,6 +31,8 @@ class LibraryDataService {
         const discovered = {};
         let shinyCount = 0;
         let algCount = 0;
+        let voidCount = 0;      // FIX: Initialize voidCount
+        let glitchedCount = 0;  // FIX: Initialize glitchedCount
 
         for (const row of inventory) {
             if (!row.fumoName) continue;
@@ -38,7 +40,7 @@ class LibraryDataService {
             const baseName = this.stripTags(row.fumoName);
             
             if (!discovered[baseName]) {
-                discovered[baseName] = { base: false, shiny: false, alg: false };
+                discovered[baseName] = { base: false, shiny: false, alg: false, void: false, glitched: false };
             }
 
             discovered[baseName].base = true;
@@ -51,9 +53,17 @@ class LibraryDataService {
                 discovered[baseName].alg = true;
                 algCount++;
             }
+            if (row.fumoName.includes('[🌀VOID]')) {
+                discovered[baseName].void = true;
+                voidCount++;
+            }
+            if (row.fumoName.includes('[🔮GLITCHED]')) {
+                discovered[baseName].glitched = true;
+                glitchedCount++;
+            }
         }
 
-        return { discovered, shinyCount, algCount };
+        return { discovered, shinyCount, algCount, voidCount, glitchedCount };
     }
 
     static categorizeFumos(libraryFumos, { discovered }) {
@@ -73,12 +83,16 @@ class LibraryDataService {
             const hasBase = !!userData.base;
             const hasShiny = !!userData.shiny;
             const hasAlg = !!userData.alg;
+            const hasVoid = !!userData.void;
+            const hasGlitched = !!userData.glitched;
 
             categories[rarity].push({
                 name: hasBase ? fumo.name : '???',
                 hasBase,
                 hasShiny,
                 hasAlg,
+                hasVoid,
+                hasGlitched,
                 baseName
             });
         }
@@ -95,7 +109,9 @@ class LibraryDataService {
             totalFumos,
             percentage,
             shinyCount: discovered.shinyCount,
-            algCount: discovered.algCount
+            algCount: discovered.algCount,
+            voidCount: discovered.voidCount,
+            glitchedCount: discovered.glitchedCount
         };
     }
 

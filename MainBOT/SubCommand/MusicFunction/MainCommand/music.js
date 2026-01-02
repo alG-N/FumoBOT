@@ -6,6 +6,7 @@
  */
 
 const { SlashCommandBuilder } = require('discord.js');
+const { checkAccess, AccessType } = require('../../Middleware');
 const handlers = require('./handlers');
 const trackHandler = require('../Handler/trackHandler');
 
@@ -245,6 +246,12 @@ module.exports = {
      * Execute the music command
      */
     async execute(interaction) {
+        // Access control check
+        const access = await checkAccess(interaction, AccessType.SUB);
+        if (access.blocked) {
+            return interaction.reply({ embeds: [access.embed], ephemeral: true });
+        }
+
         const subcommandGroup = interaction.options.getSubcommandGroup(false);
         const subcommand = interaction.options.getSubcommand();
         const guildId = interaction.guild.id;

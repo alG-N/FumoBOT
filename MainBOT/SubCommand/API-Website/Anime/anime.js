@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, ComponentType } = require('discord.js');
+const { checkAccess, AccessType } = require('../../Middleware');
 const anilistService = require('./services/anilistService');
 const animeRepository = require('./repositories/animeRepository');
 const animeHandler = require('./handlers/animeHandler');
@@ -362,6 +363,12 @@ module.exports = {
     },
 
     async execute(interaction) {
+        // Access control check
+        const access = await checkAccess(interaction, AccessType.SUB);
+        if (access.blocked) {
+            return interaction.reply({ embeds: [access.embed], ephemeral: true });
+        }
+
         const animeName = interaction.options.getString('name');
         await interaction.deferReply();
         await handleAnimeSearch(interaction, animeName, true);

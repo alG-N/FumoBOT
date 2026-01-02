@@ -454,7 +454,7 @@ async function getTraitBoostDisplay(userId) {
     );
     const sigilActive = !!sigilRow; // Convert to boolean
     
-    console.log(`[TraitBoostDisplay] userId=${userId}, sigilActive=${sigilActive}`);
+    // console.log(`[TraitBoostDisplay] userId=${userId}, sigilActive=${sigilActive}`);
     
     // If S!gil is active, migrate any frozen boosts that don't have frozenTimeRemaining
     if (sigilActive) {

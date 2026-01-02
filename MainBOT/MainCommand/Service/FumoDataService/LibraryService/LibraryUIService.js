@@ -26,10 +26,7 @@ class LibraryUIService {
 
         collector.on('collect', async (interaction) => {
             if (interaction.user.id !== message.author.id) {
-                return interaction.reply({ 
-                    content: "❌ This library isn't yours! Use `.library` to view your own.", 
-                    ephemeral: true 
-                });
+                return interaction.reply({ content: 'This is not your library!', ephemeral: true });
             }
 
             const action = this.parseAction(interaction.customId);
@@ -37,10 +34,7 @@ class LibraryUIService {
             // Handle INFO button separately
             if (action === 'INFO') {
                 const infoEmbed = this.buildInfoEmbed(libraryData);
-                return interaction.reply({ 
-                    embeds: [infoEmbed], 
-                    ephemeral: true 
-                });
+                return interaction.reply({ embeds: [infoEmbed], ephemeral: true });
             }
 
             currentPage = this.calculateNewPage(action, currentPage, pages.length);
@@ -70,7 +64,7 @@ class LibraryUIService {
         // Build rarity breakdown
         let rarityBreakdown = '';
         for (const [rarity, fumos] of Object.entries(categories)) {
-            if (fumos.length === 0) continue;
+            if (fumos.length === 0) continue; // FIX: Add continue statement
             
             const discovered = fumos.filter(f => f.hasBase).length;
             const emoji = LibraryDataService.getRarityEmoji(rarity);
@@ -87,7 +81,7 @@ class LibraryUIService {
             },
             {
                 name: '✨ Special Variants',
-                value: `**SHINY Variants:** ${stats.shinyCount}\n**alG Variants:** ${stats.algCount}`,
+                value: `**SHINY Variants:** ${stats.shinyCount}\n**alG Variants:** ${stats.algCount}\n**VOID Variants:** ${stats.voidCount || 0}\n**GLITCHED Variants:** ${stats.glitchedCount || 0}`,
                 inline: true
             },
             {
@@ -146,7 +140,7 @@ class LibraryUIService {
             },
             {
                 name: '✨ Variants Collected',
-                value: `${this.buildProgressBar(stats.shinyCount, stats.totalFumos, '✨ SHINY')}\n${this.buildProgressBar(stats.algCount, stats.totalFumos, '🌟 alG')}`,
+                value: `${this.buildProgressBar(stats.shinyCount, stats.totalFumos, '✨ SHINY')}\n${this.buildProgressBar(stats.algCount, stats.totalFumos, '🌟 alG')}\n${this.buildProgressBar(stats.voidCount || 0, stats.totalFumos, '🌀 VOID')}\n${this.buildProgressBar(stats.glitchedCount || 0, stats.totalFumos, '🔮 GLITCHED')}`,
                 inline: false
             }
         );
@@ -170,6 +164,8 @@ class LibraryUIService {
         let badges = '';
         if (fumo.hasShiny) badges += ' [✨]';
         if (fumo.hasAlg) badges += ' [🌟]';
+        if (fumo.hasVoid) badges += ' [🌀]';
+        if (fumo.hasGlitched) badges += ' [🔮]';
         return badges;
     }
 
@@ -190,10 +186,10 @@ class LibraryUIService {
 
     static getMotivation(percentage) {
         if (percentage === 100) return "🎉 Perfect Collection! You're a true collector!";
-        if (percentage >= 90) return "🔥 Almost there! Just a few more!";
-        if (percentage >= 75) return "⭐ Outstanding progress!";
-        if (percentage >= 50) return "💪 Halfway there! Keep going!";
-        if (percentage >= 25) return "🌟 Good start! Keep collecting!";
+        if (percentage >= 90) return "🌟 Almost there! So close to perfection!";
+        if (percentage >= 75) return "💪 Great progress! Keep it up!";
+        if (percentage >= 50) return "📈 Halfway there! You're doing great!";
+        if (percentage >= 25) return "🌱 Growing collection! Nice work!";
         return "🚀 Your journey begins!";
     }
 

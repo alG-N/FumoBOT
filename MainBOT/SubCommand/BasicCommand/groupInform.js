@@ -2,53 +2,17 @@ const {
     SlashCommandBuilder,
     EmbedBuilder
 } = require('discord.js');
-const { maintenance, developerID } = require("../../MainCommand/Configuration/maintenanceConfig.js");
-const { isBanned } = require('../../MainCommand/Administrator');
+const { checkAccess, AccessType } = require('../Middleware');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('groupinform')
         .setDescription('Shows information about the server.'),
     async execute(interaction) {
-        const banData = isBanned(interaction.user.id);
-        if ((maintenance === "yes" && interaction.user.id !== developerID) || banData) {
-            let description = '';
-            let footerText = '';
-
-            if (maintenance === "yes" && interaction.user.id !== developerID) {
-                description = "The bot is currently in maintenance mode. Please try again later.\nFumoBOT's Developer: alterGolden";
-                footerText = "Thank you for your patience";
-            } else if (banData) {
-                description = `You are banned from using this bot.\n\n**Reason:** ${banData.reason || 'No reason provided'}`;
-                if (banData.expiresAt) {
-                    const remaining = banData.expiresAt - Date.now();
-                    const seconds = Math.floor((remaining / 1000) % 60);
-                    const minutes = Math.floor((remaining / (1000 * 60)) % 60);
-                    const hours = Math.floor((remaining / (1000 * 60 * 60)) % 24);
-                    const days = Math.floor(remaining / (1000 * 60 * 60 * 24));
-                    const timeString = [
-                        days ? `${days}d` : '',
-                        hours ? `${hours}h` : '',
-                        minutes ? `${minutes}m` : '',
-                        seconds ? `${seconds}s` : ''
-                    ].filter(Boolean).join(' ');
-                    description += `\n**Time Remaining:** ${timeString}`;
-                } else {
-                    description += `\n**Ban Type:** Permanent`;
-                }
-                footerText = "Ban enforced by developer";
-            }
-
-            const embed = new EmbedBuilder()
-                .setColor('#FF0000')
-                .setTitle(maintenance === "yes" ? '🚧 Maintenance Mode' : '⛔ You Are Banned')
-                .setDescription(description)
-                .setFooter({ text: footerText })
-                .setTimestamp();
-
-            console.log(`[${new Date().toISOString()}] Blocked user (${interaction.user.id}) due to ${maintenance === "yes" ? "maintenance" : "ban"}.`);
-
-            return interaction.reply({ embeds: [embed], ephemeral: true });
+        // Check access (maintenance + ban)
+        const access = await checkAccess(interaction, AccessType.SUB);
+        if (access.blocked) {
+            return interaction.reply({ embeds: [access.embed], ephemeral: true });
         }
 
         const guild = interaction.guild;

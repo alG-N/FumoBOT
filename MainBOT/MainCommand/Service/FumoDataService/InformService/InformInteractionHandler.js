@@ -19,7 +19,15 @@ function createVariantButtons(userId) {
             new ButtonBuilder()
                 .setCustomId(buildSecureCustomId('inform_variant_alg', userId))
                 .setLabel('🌟 alG')
-                .setStyle(ButtonStyle.Danger)
+                .setStyle(ButtonStyle.Danger),
+            new ButtonBuilder()
+                .setCustomId(buildSecureCustomId('inform_variant_void', userId))
+                .setLabel('🌀 Void')
+                .setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder()
+                .setCustomId(buildSecureCustomId('inform_variant_glitched', userId))
+                .setLabel('🔮 Glitched')
+                .setStyle(ButtonStyle.Secondary)
         );
 }
 
@@ -80,6 +88,10 @@ function createInformEmbed(fumoData, ownershipData, variant) {
         description += `\n✨ This is a rare **SHINY** variant with a 1% base summon chance.`;
     } else if (variant === 'ALG') {
         description += `\n🌟 This is an **Extremely Rare alG** variant with a 0.001% base summon chance.`;
+    } else if (variant === 'VOID') {
+        description += `\n🌀 This is a **Mysterious VOID** variant with a 0.1% base summon chance(with VoidCrystal).`;
+    } else if (variant === 'GLITCHED') {
+        description += `\n🔮 This is a **Glitched** variant with a 0.0002% base summon chance(while enabling S!gil? or CosmicCore).`;
     }
 
     description += `\n👥 Owned by ${formatNumber(ownershipData.uniqueOwners)} unique users.`;

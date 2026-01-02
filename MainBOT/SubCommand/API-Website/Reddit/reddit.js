@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { checkAccess, AccessType } = require('../../Middleware');
 const redditService = require('./services/redditService');
 const redditCache = require('./repositories/redditCache');
 const postHandler = require('./handlers/postHandler');
@@ -67,6 +68,12 @@ module.exports = {
     },
 
     async execute(interaction) {
+        // Access control check
+        const access = await checkAccess(interaction, AccessType.SUB);
+        if (access.blocked) {
+            return interaction.reply({ embeds: [access.embed], ephemeral: true });
+        }
+
         const subreddit = interaction.options.getString('subreddit').replace(/\s/g, '').trim();
         const sortBy = interaction.options.getString('sort') || 'top';
         const count = parseInt(interaction.options.getString('count') || '5');
