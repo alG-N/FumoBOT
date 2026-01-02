@@ -86,9 +86,23 @@ async function logCraftHistory(userId, craftType, itemName, amount) {
 }
 
 async function processCraft(userId, itemName, amount, craftType, recipe, totalCoins, totalGems) {
-    // Deduct resources first
-    await deductResources(userId, totalCoins, totalGems);
-    await deductMaterials(userId, recipe, amount);
+    // OPTIMIZED: Deduct resources and materials in single transaction
+    const operations = [
+        {
+            sql: `UPDATE userCoins SET coins = coins - ?, gems = gems - ? WHERE userId = ?`,
+            params: [totalCoins, totalGems, userId]
+        }
+    ];
+    
+    // Add material deductions to same transaction
+    for (const [reqItem, reqQty] of Object.entries(recipe.requires)) {
+        operations.push({
+            sql: `UPDATE userInventory SET quantity = quantity - ? WHERE userId = ? AND itemName = ?`,
+            params: [reqQty * amount, userId, reqItem]
+        });
+    }
+    
+    await transaction(operations);
 
     // FIX: Pass amount to getCraftTimer here too
     const timerDuration = getCraftTimer(craftType, itemName, amount);

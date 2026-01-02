@@ -107,9 +107,11 @@ module.exports = async (client) => {
 
         if (!isPaidReroll) {
             if (rerollData.count <= 0) {
-                const cooldownRemaining = await getRerollCooldownRemaining(userId);
+                const [cooldownRemaining, gemCost] = await Promise.all([
+                    getRerollCooldownRemaining(userId),
+                    getPaidRerollCost(userId)
+                ]);
                 const timeLeft = formatTimeRemaining(cooldownRemaining);
-                const gemCost = await getPaidRerollCost(userId);
 
                 return interaction.reply({
                     content: `❌ You have no free rerolls left! Rerolls reset in: **${timeLeft}**\n💎 Use the Gem Reroll button to reroll for **${formatNumber(gemCost)} gems**.`,
@@ -117,6 +119,8 @@ module.exports = async (client) => {
                 });
             }
 
+            // CRITICAL: Defer before DB operations
+            await interaction.deferUpdate();
             await useReroll(userId, false);
         } else {
             if (rerollData.count > 0) {
@@ -143,6 +147,9 @@ module.exports = async (client) => {
                 });
             }
 
+            // CRITICAL: Defer before DB operations
+            await interaction.deferUpdate();
+
             await new Promise((resolve) => {
                 db.run('UPDATE userCoins SET gems = gems - ? WHERE userId = ?', [cost, userId], resolve);
             });
@@ -168,7 +175,7 @@ module.exports = async (client) => {
             createShopButtons(userId, updatedRerollData.count, 0)
         ]);
 
-        await interaction.update({
+        await interaction.editReply({
             content: isPaidReroll ? '💎 **Gem Reroll Complete!**' : '🔄 **Free Reroll Complete!**',
             embeds: [rerollEmbed, shopEmbed],
             components: buttons

@@ -101,6 +101,9 @@ async function handleAddListing(interaction) {
 
 async function handleRaritySelection(interaction) {
     try {
+        // Defer immediately to prevent timeout during DB query
+        await interaction.deferUpdate();
+
         const valueWithIndex = interaction.values[0];
         const rarity = valueWithIndex.split('_').slice(0, -1).join('_');
 
@@ -116,7 +119,7 @@ async function handleRaritySelection(interaction) {
         );
 
         if (!allFumos || allFumos.length === 0) {
-            return interaction.update({
+            return interaction.editReply({
                 content: `❌ You don't have any **${rarity}** fumos.`,
                 components: []
             });
@@ -150,7 +153,7 @@ async function handleRaritySelection(interaction) {
         const groupedFumos = Array.from(baseFumoMap.values());
 
         if (groupedFumos.length === 0) {
-            return interaction.update({
+            return interaction.editReply({
                 content: `❌ No valid fumos found for **${rarity}**.`,
                 components: []
             });
@@ -169,13 +172,13 @@ async function handleRaritySelection(interaction) {
 
         const row = new ActionRowBuilder().addComponents(selectMenu);
 
-        await interaction.update({
+        await interaction.editReply({
             content: '**Step 2/4:** Select which Fumo to list',
             components: [row]
         });
     } catch (error) {
         console.error('Rarity selection error:', error);
-        await interaction.update({
+        await interaction.editReply({
             content: '❌ An error occurred.',
             components: []
         });
@@ -184,6 +187,9 @@ async function handleRaritySelection(interaction) {
 
 async function handleBaseFumoSelection(interaction) {
     try {
+        // Defer immediately to prevent timeout during DB query
+        await interaction.deferUpdate();
+
         const valueWithIndex = interaction.values[0];
         const baseFumoName = valueWithIndex.split('_').slice(0, -1).join('_');
         
@@ -210,7 +216,7 @@ async function handleBaseFumoSelection(interaction) {
         );
 
         if (!variants || variants.length === 0) {
-            return interaction.update({
+            return interaction.editReply({
                 content: `❌ You don't have any copies of **${baseFumoName}**.`,
                 components: []
             });
@@ -223,7 +229,7 @@ async function handleBaseFumoSelection(interaction) {
         });
 
         if (filteredVariants.length === 0) {
-            return interaction.update({
+            return interaction.editReply({
                 content: `❌ You don't have any copies of **${baseFumoName}**.`,
                 components: []
             });
@@ -277,13 +283,13 @@ async function handleBaseFumoSelection(interaction) {
 
         listingDataCache.set(userId, { variants: uniqueVariants, baseFumoName });
 
-        await interaction.update({
+        await interaction.editReply({
             content: `**Step 3/4:** Select which version of **${baseFumoName}** to list`,
             components: [row]
         });
     } catch (error) {
         console.error('Base fumo selection error:', error);
-        await interaction.update({
+        await interaction.editReply({
             content: '❌ An error occurred.',
             components: []
         });

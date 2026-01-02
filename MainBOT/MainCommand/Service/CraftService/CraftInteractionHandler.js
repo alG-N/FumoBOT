@@ -71,6 +71,9 @@ async function handleButtonInteraction(interaction) {
             return interaction.reply({ content: "❌ You can't use someone else's button.", ephemeral: true });
         }
 
+        // Defer immediately to prevent timeout during DB queries
+        await interaction.deferUpdate();
+
         try {
             const userData = await getUserCraftData(userId, 'item');
             console.log('✅ [Craft] Got user data:', Object.keys(userData));
@@ -94,7 +97,7 @@ async function handleButtonInteraction(interaction) {
             if (selectMenu) components.push(selectMenu);
 
             console.log('🔄 [Craft] Updating interaction with', components.length, 'component rows');
-            await interaction.update({ embeds: [pageData.embed], components });
+            await interaction.editReply({ embeds: [pageData.embed], components });
             console.log('✅ [Craft] Update successful!');
         } catch (err) {
             console.error('❌ [Craft Item Menu] Error:', err);
@@ -114,6 +117,9 @@ async function handleButtonInteraction(interaction) {
         if (!checkButtonOwnership(interaction, 'craft_menu_potion', null, false)) {
             return interaction.reply({ content: "❌ You can't use someone else's button.", ephemeral: true });
         }
+
+        // Defer immediately to prevent timeout during DB queries
+        await interaction.deferUpdate();
 
         try {
             const userData = await getUserCraftData(userId, 'potion');
@@ -138,7 +144,7 @@ async function handleButtonInteraction(interaction) {
             if (selectMenu) components.push(selectMenu);
 
             console.log('🔄 [Craft] Updating interaction with', components.length, 'component rows');
-            await interaction.update({ embeds: [pageData.embed], components });
+            await interaction.editReply({ embeds: [pageData.embed], components });
             console.log('✅ [Craft] Update successful!');
         } catch (err) {
             console.error('❌ [Craft Potion Menu] Error:', err);
@@ -158,12 +164,15 @@ async function handleButtonInteraction(interaction) {
             return interaction.reply({ content: "❌ You can't use someone else's button.", ephemeral: true });
         }
 
+        // Defer immediately to prevent timeout during DB query
+        await interaction.deferUpdate();
+
         const queueItems = await getQueueItems(userId);
         const queueData = createQueueEmbed(queueItems, userId);
 
-        await interaction.update({ embeds: [queueData.embed], components: queueData.buttons }).catch(async (err) => {
+        await interaction.editReply({ embeds: [queueData.embed], components: queueData.buttons }).catch(async (err) => {
             console.error('[Queue Menu] Update failed:', err);
-            await interaction.reply({ 
+            await interaction.followUp({ 
                 content: '❌ Failed to display queue. Please try again.', 
                 ephemeral: true 
             }).catch(() => {});
@@ -205,9 +214,10 @@ async function handleButtonInteraction(interaction) {
 
     // Refresh queue
     if (action === 'craft_queue_refresh') {
+        await interaction.deferUpdate();
         const queueItems = await getQueueItems(userId);
         const queueData = createQueueEmbed(queueItems, userId);
-        await interaction.update({ embeds: [queueData.embed], components: queueData.buttons });
+        await interaction.editReply({ embeds: [queueData.embed], components: queueData.buttons });
         return;
     }
 }
@@ -289,6 +299,9 @@ async function handleNavigation(interaction, action, additionalData, userId) {
         return interaction.reply({ content: "❌ You can't use someone else's button.", ephemeral: true });
     }
 
+    // Defer immediately to prevent timeout during DB query
+    await interaction.deferUpdate();
+
     const craftType = additionalData?.type || 'item';
     const userData = await getUserCraftData(userId, craftType);
     const recipes = getAllRecipes(craftType);
@@ -314,9 +327,9 @@ async function handleNavigation(interaction, action, additionalData, userId) {
     const components = [...navButtons];
     if (selectMenu) components.push(selectMenu);
 
-    await interaction.update({ embeds: [pageData.embed], components }).catch(async (err) => {
+    await interaction.editReply({ embeds: [pageData.embed], components }).catch(async (err) => {
         console.error('[Navigation] Update failed:', err);
-        await interaction.reply({ 
+        await interaction.followUp({ 
             content: '❌ Failed to navigate. Please try again.', 
             ephemeral: true 
         }).catch(() => {});
@@ -367,18 +380,21 @@ async function handleConfirmCraft(interaction, userId) {
         return interaction.reply({ content: '❌ Session expired.', ephemeral: true });
     }
 
+    // Defer immediately to prevent timeout during craft processing
+    await interaction.deferUpdate();
+
     try {
         const result = await processCraft(userId, craftData.itemName, craftData.amount, craftData.craftType, craftData.recipe, craftData.totalCoins, craftData.totalGems);
         const successEmbed = createSuccessEmbed(craftData.itemName, craftData.amount, result.queued, result);
 
-        await interaction.update({ embeds: [successEmbed], components: [] });
+        await interaction.editReply({ embeds: [successEmbed], components: [] });
 
         interaction.client.craftConfirmData.delete(userId);
         interaction.client.craftModalData?.delete(userId);
     } catch (error) {
         console.error('[Confirm Craft] Error:', error);
         const errorEmbed = createErrorEmbed(error.message === 'QUEUE_FULL' ? 'QUEUE_FULL' : 'UNKNOWN', { error: error.message });
-        await interaction.update({ embeds: [errorEmbed], components: [] });
+        await interaction.editReply({ embeds: [errorEmbed], components: [] });
     }
 }
 

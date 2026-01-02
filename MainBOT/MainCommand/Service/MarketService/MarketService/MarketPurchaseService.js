@@ -52,11 +52,11 @@ async function validateShopPurchase(userId, fumoIndex, amount, market, currency)
 async function processShopPurchase(userId, fumo, amount, totalPrice, currency, shopType) {
     await run(`UPDATE userCoins SET ${currency} = ${currency} - ? WHERE userId = ?`, [totalPrice, userId]);
     
-    const balanceRow = await get(`SELECT ${currency} FROM userCoins WHERE userId = ?`, [userId]);
-    const remainingBalance = balanceRow?.[currency] || 0;
+    // OPTIMIZED: Single query for both balance and luck
+    const userRow = await get(`SELECT ${currency}, luck FROM userCoins WHERE userId = ?`, [userId]);
     
-    const luckRow = await get(`SELECT luck FROM userCoins WHERE userId = ?`, [userId]);
-    const shinyMarkValue = luckRow?.luck || 0;
+    const remainingBalance = userRow?.[currency] || 0;
+    const shinyMarkValue = userRow?.luck || 0;
     
     for (let i = 0; i < amount; i++) {
         await addFumoToInventory(userId, fumo, shinyMarkValue);
@@ -115,23 +115,18 @@ async function processGlobalPurchase(buyerId, listing) {
     const sellerReceivesCoins = listing.coinPrice - coinTax;
     const sellerReceivesGems = listing.gemPrice - gemTax;
     
-    await run(
-        `UPDATE userCoins SET coins = coins - ?, gems = gems - ? WHERE userId = ?`, 
-        [listing.coinPrice, listing.gemPrice, buyerId]
-    );
+    // OPTIMIZED: Run buyer debit and seller credit in parallel
+    await Promise.all([
+        run(`UPDATE userCoins SET coins = coins - ?, gems = gems - ? WHERE userId = ?`, 
+            [listing.coinPrice, listing.gemPrice, buyerId]),
+        run(`UPDATE userCoins SET coins = coins + ?, gems = gems + ? WHERE userId = ?`, 
+            [sellerReceivesCoins, sellerReceivesGems, listing.userId])
+    ]);
     
-    await run(
-        `UPDATE userCoins SET coins = coins + ?, gems = gems + ? WHERE userId = ?`, 
-        [sellerReceivesCoins, sellerReceivesGems, listing.userId]
-    );
+    // OPTIMIZED: Single query for balance and luck
+    const userRow = await get(`SELECT coins, gems, luck FROM userCoins WHERE userId = ?`, [buyerId]);
     
-    const balanceRow = await get(
-        `SELECT coins, gems FROM userCoins WHERE userId = ?`, 
-        [buyerId]
-    );
-    
-    const luckRow = await get(`SELECT luck FROM userCoins WHERE userId = ?`, [buyerId]);
-    const shinyMarkValue = luckRow?.luck || 0;
+    const shinyMarkValue = userRow?.luck || 0;
     
     const fumoToAdd = {
         name: listing.fumoName,
@@ -143,8 +138,8 @@ async function processGlobalPurchase(buyerId, listing) {
     const removed = purchaseGlobalListing(listing.id, buyerId);
     
     return { 
-        remainingCoins: balanceRow?.coins || 0,
-        remainingGems: balanceRow?.gems || 0,
+        remainingCoins: userRow?.coins || 0,
+        remainingGems: userRow?.gems || 0,
         sellerReceivesCoins,
         sellerReceivesGems,
         coinTax,

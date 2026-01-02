@@ -90,6 +90,9 @@ async function handleGlobalPurchaseSelect(interaction) {
 
 async function handleConfirmGlobalPurchase(interaction) {
     try {
+        // CRITICAL: Defer immediately to prevent interaction timeout
+        await interaction.deferUpdate();
+        
         const parts = interaction.customId.split('_');
         const listingId = parseInt(parts[3]);
 
@@ -99,7 +102,7 @@ async function handleConfirmGlobalPurchase(interaction) {
         );
 
         if (!listing) {
-            return interaction.update({
+            return interaction.editReply({
                 content: '❌ This listing is no longer available.',
                 embeds: [],
                 components: []
@@ -109,7 +112,7 @@ async function handleConfirmGlobalPurchase(interaction) {
         const validation = await validateGlobalPurchase(interaction.user.id, listing);
 
         if (!validation.valid) {
-            return interaction.update({
+            return interaction.editReply({
                 embeds: [createErrorEmbed(validation.error, validation)],
                 components: []
             });
@@ -142,17 +145,19 @@ async function handleConfirmGlobalPurchase(interaction) {
             )
             .setColor('#2ECC71');
 
-        await interaction.update({
+        await interaction.editReply({
             embeds: [successEmbed],
             components: []
         });
 
     } catch (error) {
         console.error('Confirm global purchase error:', error);
-        await interaction.update({
-            embeds: [createErrorEmbed('PROCESSING_ERROR')],
-            components: []
-        });
+        if (interaction.deferred || interaction.replied) {
+            await interaction.editReply({
+                embeds: [createErrorEmbed('PROCESSING_ERROR')],
+                components: []
+            }).catch(() => {});
+        }
     }
 }
 

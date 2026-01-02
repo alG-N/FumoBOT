@@ -112,11 +112,14 @@ function setupInteractionCollector(msg, userId, message, client) {
 }
 
 async function refreshFarmStatus(interaction, userId, message) {
+    // Defer immediately to prevent timeout during DB query
+    await interaction.deferUpdate();
+
     const farmData = await getFarmStatusData(userId, message.author.username);
     const embed = createFarmStatusEmbed(farmData);
     const buttons = createMainButtons(userId);
 
-    await interaction.update({
+    await interaction.editReply({
         embeds: [embed],
         components: [buttons]
     });

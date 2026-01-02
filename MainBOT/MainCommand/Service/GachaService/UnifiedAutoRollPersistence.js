@@ -4,6 +4,51 @@ const { debugLog } = require('../../Core/logger');
 
 const UNIFIED_AUTO_ROLL_STATE_FILE = path.join(__dirname, '../../Data/unifiedAutoRollState.json');
 
+// In-memory cache and debounced save
+let stateCache = null;
+let saveTimeout = null;
+const SAVE_DEBOUNCE_MS = 5000; // Save at most every 5 seconds
+
+// Async debounced save - prevents blocking on every state change
+function scheduleSave() {
+    if (saveTimeout) return; // Already scheduled
+    
+    saveTimeout = setTimeout(async () => {
+        saveTimeout = null;
+        if (stateCache !== null) {
+            try {
+                await fs.promises.writeFile(
+                    UNIFIED_AUTO_ROLL_STATE_FILE,
+                    JSON.stringify(stateCache, null, 2),
+                    'utf8'
+                );
+                debugLog('UNIFIED_AUTO_ROLL_PERSIST', `Async saved state for ${Object.keys(stateCache).length} users`);
+            } catch (error) {
+                console.error('❌ Failed to async save unified auto-roll state:', error);
+            }
+        }
+    }, SAVE_DEBOUNCE_MS);
+}
+
+// Force immediate save (for shutdown)
+async function forceSave() {
+    if (saveTimeout) {
+        clearTimeout(saveTimeout);
+        saveTimeout = null;
+    }
+    if (stateCache !== null) {
+        try {
+            await fs.promises.writeFile(
+                UNIFIED_AUTO_ROLL_STATE_FILE,
+                JSON.stringify(stateCache, null, 2),
+                'utf8'
+            );
+        } catch (error) {
+            console.error('❌ Failed to force save:', error);
+        }
+    }
+}
+
 function saveUnifiedAutoRollState(normalAutoRollMap, eventAutoRollMap) {
     try {
         const existingState = loadUnifiedAutoRollState();
@@ -68,13 +113,11 @@ function saveUnifiedAutoRollState(normalAutoRollMap, eventAutoRollMap) {
             fs.mkdirSync(dir, { recursive: true });
         }
 
-        fs.writeFileSync(
-            UNIFIED_AUTO_ROLL_STATE_FILE,
-            JSON.stringify(stateData, null, 2),
-            'utf8'
-        );
+        // Update cache and schedule async save
+        stateCache = stateData;
+        scheduleSave();
 
-        debugLog('UNIFIED_AUTO_ROLL_PERSIST', `Saved unified state for ${Object.keys(stateData).length} users`);
+        debugLog('UNIFIED_AUTO_ROLL_PERSIST', `Cached unified state for ${Object.keys(stateData).length} users`);
         return true;
     } catch (error) {
         console.error('❌ Failed to save unified auto-roll state:', error);
@@ -83,20 +126,27 @@ function saveUnifiedAutoRollState(normalAutoRollMap, eventAutoRollMap) {
 }
 
 function loadUnifiedAutoRollState() {
+    // Return cached version if available
+    if (stateCache !== null) {
+        return stateCache;
+    }
+    
     try {
         if (!fs.existsSync(UNIFIED_AUTO_ROLL_STATE_FILE)) {
             debugLog('UNIFIED_AUTO_ROLL_PERSIST', 'No saved state file found');
-            return {};
+            stateCache = {};
+            return stateCache;
         }
 
         const data = fs.readFileSync(UNIFIED_AUTO_ROLL_STATE_FILE, 'utf8');
-        const stateData = JSON.parse(data);
+        stateCache = JSON.parse(data);
 
-        debugLog('UNIFIED_AUTO_ROLL_PERSIST', `Loaded unified state for ${Object.keys(stateData).length} users`);
-        return stateData;
+        debugLog('UNIFIED_AUTO_ROLL_PERSIST', `Loaded unified state for ${Object.keys(stateCache).length} users`);
+        return stateCache;
     } catch (error) {
         console.error('❌ Failed to load unified auto-roll state:', error);
-        return {};
+        stateCache = {};
+        return stateCache;
     }
 }
 
@@ -145,12 +195,8 @@ function removeUserState(userId) {
         
         if (stateData[userId]) {
             delete stateData[userId];
-            
-            fs.writeFileSync(
-                UNIFIED_AUTO_ROLL_STATE_FILE,
-                JSON.stringify(stateData, null, 2),
-                'utf8'
-            );
+            stateCache = stateData;
+            scheduleSave();
             
             debugLog('UNIFIED_AUTO_ROLL_PERSIST', `Removed unified state for user ${userId}`);
             return true;
@@ -174,11 +220,8 @@ function removeNormalUserState(userId) {
                 delete stateData[userId];
             }
             
-            fs.writeFileSync(
-                UNIFIED_AUTO_ROLL_STATE_FILE,
-                JSON.stringify(stateData, null, 2),
-                'utf8'
-            );
+            stateCache = stateData;
+            scheduleSave();
             
             debugLog('UNIFIED_AUTO_ROLL_PERSIST', `Removed normal state for user ${userId}`);
             return true;
@@ -202,11 +245,8 @@ function removeEventUserState(userId) {
                 delete stateData[userId];
             }
             
-            fs.writeFileSync(
-                UNIFIED_AUTO_ROLL_STATE_FILE,
-                JSON.stringify(stateData, null, 2),
-                'utf8'
-            );
+            stateCache = stateData;
+            scheduleSave();
             
             debugLog('UNIFIED_AUTO_ROLL_PERSIST', `Removed event state for user ${userId}`);
             return true;
@@ -264,5 +304,6 @@ module.exports = {
     getEventUserState,
     hasNormalUserState,
     hasEventUserState,
+    forceSave,
     UNIFIED_AUTO_ROLL_STATE_FILE
 };

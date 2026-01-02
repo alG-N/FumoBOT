@@ -80,6 +80,9 @@ async function handleFumoSelection(interaction, shopType) {
 
 async function handleConfirmPurchase(interaction) {
     try {
+        // CRITICAL: Defer immediately to prevent interaction timeout
+        await interaction.deferUpdate();
+        
         const parts = interaction.customId.split('_');
         const shopType = parts[2];
         const fumoIndex = parseInt(parts[3]);
@@ -91,7 +94,7 @@ async function handleConfirmPurchase(interaction) {
         const validation = await validateShopPurchase(interaction.user.id, fumoIndex, amount, market, currency);
 
         if (!validation.valid) {
-            return interaction.update({
+            return interaction.editReply({
                 embeds: [createErrorEmbed(validation.error, validation)],
                 components: []
             });
@@ -107,14 +110,16 @@ async function handleConfirmPurchase(interaction) {
         );
 
         const successEmbed = createPurchaseSuccessEmbed(validation.fumo, amount, remainingBalance, currency);
-        await interaction.update({ embeds: [successEmbed], components: [] });
+        await interaction.editReply({ embeds: [successEmbed], components: [] });
 
     } catch (error) {
         console.error('Confirm purchase error:', error);
-        await interaction.update({
-            embeds: [createErrorEmbed('PROCESSING_ERROR')],
-            components: []
-        });
+        if (interaction.deferred || interaction.replied) {
+            await interaction.editReply({
+                embeds: [createErrorEmbed('PROCESSING_ERROR')],
+                components: []
+            }).catch(() => {});
+        }
     }
 }
 

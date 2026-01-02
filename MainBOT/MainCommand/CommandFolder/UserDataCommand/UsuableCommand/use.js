@@ -29,13 +29,16 @@ async function handleUseCommand(message) {
 }
 
 async function handleRaritySelection(interaction) {
+    // Defer immediately to prevent timeout during DB query
+    await interaction.deferUpdate();
+
     const userId = interaction.user.id;
     const selectedRarity = interaction.values[0].replace('use_rarity_', '');
 
     const usableItems = await UseService.getUsableInventoryByRarity(userId, selectedRarity);
 
     if (usableItems.length === 0) {
-        return interaction.update({
+        return interaction.editReply({
             content: `❌ No usable items found for rarity: ${selectedRarity}`,
             embeds: [],
             components: []
@@ -45,7 +48,7 @@ async function handleRaritySelection(interaction) {
     const totalPages = Math.ceil(usableItems.length / 25);
     const { embed, components } = UseService.buildItemSelectionPage(userId, selectedRarity, usableItems, 0, totalPages);
     
-    await interaction.update({ embeds: [embed], components });
+    await interaction.editReply({ embeds: [embed], components });
 }
 
 async function handleItemSelection(interaction) {
@@ -60,13 +63,16 @@ async function handleItemSelection(interaction) {
         });
     }
 
+    // Defer immediately to prevent timeout during DB query
+    await interaction.deferUpdate();
+
     const selectedIndex = parseInt(interaction.values[0].replace('use_item_', ''));
     const userId = interaction.user.id;
     const usableItems = await UseService.getUsableInventoryByRarity(userId, rarity);
     const selectedItem = usableItems[selectedIndex];
 
     if (!selectedItem) {
-        return interaction.update({
+        return interaction.editReply({
             content: '❌ Invalid item selection.',
             embeds: [],
             components: []
@@ -102,7 +108,9 @@ async function showQuantityInput(interaction, itemName, maxQuantity, userId) {
         .setStyle(ButtonStyle.Danger);
 
     const row = new ActionRowBuilder().addComponents(cancelButton);
-    await interaction.update({ embeds: [embed], components: [row] });
+    
+    // Use editReply since interaction was already deferred in handleItemSelection
+    await interaction.editReply({ embeds: [embed], components: [row] });
 
     const filter = m => m.author.id === userId && !isNaN(m.content);
     

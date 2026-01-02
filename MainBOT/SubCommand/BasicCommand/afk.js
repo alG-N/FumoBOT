@@ -3,6 +3,10 @@ const { checkAccess, AccessType } = require('../Middleware');
 const fs = require('fs');
 const afkFilePath = 'MainBOT/SubCommand/BasicCommand/SillyAFK.json';
 
+// In-memory cache for AFK data
+let afkCache = null;
+let isDirty = false;
+
 function formatTime(seconds) {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
@@ -10,18 +14,39 @@ function formatTime(seconds) {
     return `${h}h ${m}m ${s}s`;
 }
 
+// Load once at startup, then use cache
 function loadAfkUsers() {
-    if (!fs.existsSync(afkFilePath)) fs.writeFileSync(afkFilePath, '{}');
+    if (afkCache !== null) return afkCache;
+    
     try {
-        return JSON.parse(fs.readFileSync(afkFilePath, 'utf-8').trim() || '{}');
+        if (!fs.existsSync(afkFilePath)) {
+            afkCache = {};
+            fs.promises.writeFile(afkFilePath, '{}').catch(() => {});
+            return afkCache;
+        }
+        afkCache = JSON.parse(fs.readFileSync(afkFilePath, 'utf-8').trim() || '{}');
     } catch {
-        return {};
+        afkCache = {};
     }
+    return afkCache;
 }
 
 function saveAfkUsers(data) {
-    fs.writeFileSync(afkFilePath, JSON.stringify(data, null, 2));
+    afkCache = data;
+    isDirty = true;
 }
+
+// Periodic async save (every 30s if dirty)
+setInterval(async () => {
+    if (isDirty && afkCache !== null) {
+        try {
+            await fs.promises.writeFile(afkFilePath, JSON.stringify(afkCache, null, 2));
+            isDirty = false;
+        } catch (err) {
+            console.error('[AFK] Failed to save:', err);
+        }
+    }
+}, 30000);
 
 module.exports = {
     data: new SlashCommandBuilder()

@@ -251,8 +251,11 @@ module.exports = async (client) => {
                 return message.reply({ embeds: [restriction.embed] });
             }
 
-            await db.run(`DELETE FROM dailyQuestProgress WHERE date != ?`, [currentDate]);
-            await db.run(`DELETE FROM weeklyQuestProgress WHERE week != ?`, [currentWeek]);
+            // OPTIMIZED: Run both deletes in parallel
+            await Promise.all([
+                db.run(`DELETE FROM dailyQuestProgress WHERE date != ?`, [currentDate]),
+                db.run(`DELETE FROM weeklyQuestProgress WHERE week != ?`, [currentWeek])
+            ]);
 
             const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId("daily_quests").setLabel("🗓️ Daily").setStyle(ButtonStyle.Primary),
@@ -318,8 +321,11 @@ module.exports = async (client) => {
                 return message.reply({ embeds: [restriction.embed] });
             }
 
-            await db.run(`DELETE FROM dailyQuestProgress WHERE date != ?`, [currentDate]);
-            await db.run(`DELETE FROM weeklyQuestProgress WHERE week != ?`, [currentWeek]);
+            // OPTIMIZED: Run both deletes in parallel
+            await Promise.all([
+                db.run(`DELETE FROM dailyQuestProgress WHERE date != ?`, [currentDate]),
+                db.run(`DELETE FROM weeklyQuestProgress WHERE week != ?`, [currentWeek])
+            ]);
 
             try {
                 const result = await QuestClaimService.claimAll(userId);

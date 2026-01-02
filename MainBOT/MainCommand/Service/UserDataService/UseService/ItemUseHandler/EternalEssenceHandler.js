@@ -26,12 +26,16 @@ async function handleEternalEssence(message, itemName, quantity, userId) {
         if (stacksToAdd <= 0) {
             // Return unused items
             if (quantity > 0) {
-                await run(
-                    `INSERT INTO userInventory (userId, itemName, quantity, type) 
-                     VALUES (?, ?, ?, 'item')
-                     ON CONFLICT(userId, itemName) DO UPDATE SET quantity = quantity + ?`,
-                    [userId, itemName, quantity, quantity]
+                const updateResult = await run(
+                    `UPDATE userInventory SET quantity = quantity + ? WHERE userId = ? AND itemName = ?`,
+                    [quantity, userId, itemName]
                 );
+                if (!updateResult || updateResult.changes === 0) {
+                    await run(
+                        `INSERT INTO userInventory (userId, itemName, quantity, type) VALUES (?, ?, ?, 'item')`,
+                        [userId, itemName, quantity]
+                    );
+                }
             }
             
             return message.reply({
@@ -45,12 +49,17 @@ async function handleEternalEssence(message, itemName, quantity, userId) {
         // Return excess items if any
         const excessItems = quantity - stacksToAdd;
         if (excessItems > 0) {
-            await run(
-                `INSERT INTO userInventory (userId, itemName, quantity, type) 
-                 VALUES (?, ?, ?, 'item')
-                 ON CONFLICT(userId, itemName) DO UPDATE SET quantity = quantity + ?`,
-                [userId, itemName, excessItems, excessItems]
+            const updateResult = await run(
+                `UPDATE userInventory SET quantity = quantity + ? WHERE userId = ? AND itemName = ?`,
+                [excessItems, userId, itemName]
             );
+            if (!updateResult || updateResult.changes === 0) {
+                await run(
+                    `INSERT INTO userInventory (userId, itemName, quantity, type) VALUES (?, ?, ?, 'item')`,
+                    [userId, itemName, excessItems]
+                );
+            }
+            console.log(`[EternalEssence] Returned ${excessItems} excess items to user ${userId}`);
         }
 
         const now = Date.now();

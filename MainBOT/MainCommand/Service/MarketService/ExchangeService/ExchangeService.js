@@ -166,10 +166,13 @@ async function handleExchangeInteraction(interaction) {
             });
         }
 
+        // CRITICAL: Defer immediately to prevent interaction timeout
+        await interaction.deferUpdate();
+
         const limitCheck = await checkDailyLimit(userId);
         if (!limitCheck.canExchange) {
             exchangeCache.remove(interaction.customId);
-            return interaction.reply({ 
+            return interaction.followUp({ 
                 content: limitCheck.message, 
                 ephemeral: true 
             });
@@ -178,7 +181,7 @@ async function handleExchangeInteraction(interaction) {
         const userRow = await get('SELECT coins, gems FROM userCoins WHERE userId = ?', [userId]);
         if (!userRow) {
             exchangeCache.remove(interaction.customId);
-            return interaction.reply({ 
+            return interaction.followUp({ 
                 content: '❌ Account not found.', 
                 ephemeral: true 
             });
@@ -187,7 +190,7 @@ async function handleExchangeInteraction(interaction) {
         const userBalance = type === 'coins' ? userRow.coins : userRow.gems;
         if (userBalance < amount) {
             exchangeCache.remove(interaction.customId);
-            return interaction.reply({ 
+            return interaction.followUp({ 
                 content: `❌ You don't have enough ${type} to exchange.`, 
                 ephemeral: true 
             });
@@ -197,7 +200,7 @@ async function handleExchangeInteraction(interaction) {
         
         if (!exchangeResult.success) {
             exchangeCache.remove(interaction.customId);
-            return interaction.reply({ 
+            return interaction.followUp({ 
                 content: '❌ Exchange failed.', 
                 ephemeral: true 
             });
@@ -216,7 +219,7 @@ async function handleExchangeInteraction(interaction) {
             taxedAmount
         );
 
-        await interaction.update({ 
+        await interaction.editReply({ 
             embeds: [embed.embed], 
             components: [embed.buttons] 
         });

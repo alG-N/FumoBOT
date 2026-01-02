@@ -77,11 +77,14 @@ module.exports = async (client) => {
 };
 
 async function handleCancelHatch(interaction, userId, eggName, hatchAt, timestamp) {
+    // Defer immediately to prevent timeout during DB queries
+    await interaction.deferUpdate();
+
     const hatching = await PetDatabase.getHatchingEggs(userId, false);
     const egg = hatching.find(e => e.eggName === eggName && Math.abs(e.hatchAt - hatchAt) < 1000);
     
     if (!egg) {
-        return interaction.update({
+        return interaction.editReply({
             content: "❌ Could not find this egg in your incubator.",
             embeds: [],
             components: []
@@ -98,7 +101,7 @@ async function handleCancelHatch(interaction, userId, eggName, hatchAt, timestam
             .setDisabled(true)
     );
 
-    await interaction.update({
+    await interaction.editReply({
         embeds: [
             new EmbedBuilder()
                 .setColor("#FF9900")

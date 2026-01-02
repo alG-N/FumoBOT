@@ -1,4 +1,4 @@
-const { getUserCurrency, deductCurrency, addItemToInventory } = require('./ShopDatabaseService');
+const { getUserCurrency, deductCurrency, addItemToInventory, batchProcessPurchases } = require('./ShopDatabaseService');
 const { updateUserStock, getUserShop } = require('./ShopCacheService');
 const { debugLog } = require('../../../Core/logger');
 
@@ -131,16 +131,19 @@ async function processBuyAll(userId, userShop) {
         let totalCoins = 0;
         let totalGems = 0;
 
+        // Calculate totals
         for (const item of purchases) {
-            await deductCurrency(userId, item.itemData.currency, item.totalCost);
-            await addItemToInventory(userId, item.itemName, item.quantity);
-
             if (item.itemData.currency === 'coins') {
                 totalCoins += item.totalCost;
             } else {
                 totalGems += item.totalCost;
             }
+        }
 
+        // OPTIMIZED: Process all purchases in batch
+        await batchProcessPurchases(userId, purchases, totalCoins, totalGems);
+
+        for (const item of purchases) {
             debugLog('SHOP_BUY_ALL', `${userId} bought ${item.quantity}x ${item.itemName} for ${item.totalCost} ${item.itemData.currency}`);
         }
 

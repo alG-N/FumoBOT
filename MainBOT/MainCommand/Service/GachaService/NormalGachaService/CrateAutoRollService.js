@@ -1,4 +1,4 @@
-const { get, run, all } = require('../../../Core/database');
+const { get, run, all, transaction } = require('../../../Core/database');
 const { performMultiRoll } = require('./CrateGachaRollService');
 const { calculateCooldown } = require('./BoostService');
 const { SELL_REWARDS, SHINY_CONFIG, SPECIAL_RARITIES, compareFumos } = require('../../../Configuration/rarity');
@@ -82,26 +82,54 @@ async function performAutoSell(userId, rolledFumos = []) {
         }
     }
     
-    // Now remove the sold fumos from inventory
+    const fumoNames = Object.keys(toSell);
+    if (fumoNames.length === 0) return totalSell;
+    
+    // OPTIMIZED: Single query to get all inventory rows for fumos to sell
+    const placeholders = fumoNames.map(() => '?').join(',');
+    const inventoryRows = await all(
+        `SELECT id, fumoName, quantity FROM userInventory WHERE userId = ? AND fumoName IN (${placeholders})`,
+        [userId, ...fumoNames]
+    );
+    
+    // Build a map of fumoName -> row data
+    const inventoryMap = new Map();
+    for (const row of inventoryRows) {
+        inventoryMap.set(row.fumoName, row);
+    }
+    
+    // OPTIMIZED: Build all operations and execute in single transaction
+    const operations = [];
+    
     for (const [fumoName, count] of Object.entries(toSell)) {
-        // Get current inventory entry
-        const row = await get(
-            `SELECT id, quantity FROM userInventory WHERE userId = ? AND fumoName = ?`,
-            [userId, fumoName]
-        );
-        
+        const row = inventoryMap.get(fumoName);
         if (row) {
             const newQuantity = (row.quantity || 1) - count;
             if (newQuantity <= 0) {
-                await run(`DELETE FROM userInventory WHERE userId = ? AND id = ?`, [userId, row.id]);
+                operations.push({
+                    sql: `DELETE FROM userInventory WHERE userId = ? AND id = ?`,
+                    params: [userId, row.id]
+                });
             } else {
-                await run(`UPDATE userInventory SET quantity = ? WHERE userId = ? AND id = ?`, [newQuantity, userId, row.id]);
+                operations.push({
+                    sql: `UPDATE userInventory SET quantity = ? WHERE userId = ? AND id = ?`,
+                    params: [newQuantity, userId, row.id]
+                });
             }
         }
     }
     
+    // Add coin update to transaction
     if (totalSell > 0) {
-        await run(`UPDATE userCoins SET coins = coins + ? WHERE userId = ?`, [totalSell, userId]);
+        operations.push({
+            sql: `UPDATE userCoins SET coins = coins + ? WHERE userId = ?`,
+            params: [totalSell, userId]
+        });
+    }
+    
+    // Execute all operations in single transaction
+    if (operations.length > 0) {
+        await transaction(operations);
     }
 
     return totalSell;

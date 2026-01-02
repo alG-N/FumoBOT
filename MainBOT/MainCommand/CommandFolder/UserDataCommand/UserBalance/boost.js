@@ -41,6 +41,9 @@ module.exports = (client) => {
                     });
                 }
 
+                // Defer immediately to prevent timeout during DB refresh
+                await interaction.deferUpdate();
+
                 const [, action] = interaction.customId.split('_');
                 
                 try {
@@ -59,7 +62,7 @@ module.exports = (client) => {
                     const newEmbed = createBoostEmbed(newBoostData, category);
                     const newButtons = createBoostButtons(userId, category);
 
-                    await interaction.update({ 
+                    await interaction.editReply({ 
                         embeds: [newEmbed], 
                         components: newButtons 
                     });

@@ -175,42 +175,72 @@ function toggleConfirm(sessionKey, userId) {
 }
 
 async function validateUserResources(userId, coins, gems, items, pets, fumos) {
-    const user = await get(`SELECT coins, gems FROM userCoins WHERE userId = ?`, [userId]);
+    // OPTIMIZED: Parallel queries for validation
+    const [user, itemResults, petResults, fumoResults] = await Promise.all([
+        // Get user balance
+        get(`SELECT coins, gems FROM userCoins WHERE userId = ?`, [userId]),
+        
+        // Get all items in one query if there are items to check
+        items.size > 0 ? (async () => {
+            const itemNames = Array.from(items.keys());
+            const placeholders = itemNames.map(() => '?').join(',');
+            return all(
+                `SELECT itemName, quantity FROM userInventory WHERE userId = ? AND itemName IN (${placeholders})`,
+                [userId, ...itemNames]
+            );
+        })() : [],
+        
+        // Get all pets in one query if there are pets to check
+        pets.size > 0 ? (async () => {
+            const petIds = Array.from(pets.keys());
+            const placeholders = petIds.map(() => '?').join(',');
+            return all(
+                `SELECT petId FROM petInventory WHERE userId = ? AND petId IN (${placeholders})`,
+                [userId, ...petIds]
+            );
+        })() : [],
+        
+        // Get all fumos in one query if there are fumos to check
+        fumos.size > 0 ? (async () => {
+            const fumoNames = Array.from(fumos.keys());
+            const conditions = fumoNames.map(() => `fumoName = ? OR itemName = ?`).join(' OR ');
+            const params = [userId];
+            fumoNames.forEach(name => params.push(name, name));
+            return all(
+                `SELECT fumoName, itemName, SUM(quantity) as total FROM userInventory 
+                 WHERE userId = ? AND (${conditions}) GROUP BY COALESCE(fumoName, itemName)`,
+                params
+            );
+        })() : []
+    ]);
 
     if (!user) return { valid: false, error: 'USER_NOT_FOUND' };
     if (user.coins < coins) return { valid: false, error: `INSUFFICIENT_COINS (Have: ${user.coins}, Need: ${coins})` };
     if (user.gems < gems) return { valid: false, error: `INSUFFICIENT_GEMS (Have: ${user.gems}, Need: ${gems})` };
 
+    // Validate items
+    const itemMap = new Map(itemResults.map(i => [i.itemName, i.quantity]));
     for (const [itemName, quantity] of items) {
-        const item = await get(
-            `SELECT quantity FROM userInventory WHERE userId = ? AND itemName = ?`,
-            [userId, itemName]
-        );
-        if (!item || item.quantity < quantity) {
-            return { valid: false, error: `INSUFFICIENT_ITEMS: ${itemName} (Have: ${item?.quantity || 0}, Need: ${quantity})` };
+        const have = itemMap.get(itemName) || 0;
+        if (have < quantity) {
+            return { valid: false, error: `INSUFFICIENT_ITEMS: ${itemName} (Have: ${have}, Need: ${quantity})` };
         }
     }
 
+    // Validate pets
+    const petSet = new Set(petResults.map(p => p.petId));
     for (const [petId] of pets) {
-        const pet = await get(
-            `SELECT * FROM petInventory WHERE userId = ? AND petId = ?`,
-            [userId, petId]
-        );
-        if (!pet) {
+        if (!petSet.has(petId)) {
             return { valid: false, error: `PET_NOT_FOUND: ${petId}` };
         }
     }
 
+    // Validate fumos
+    const fumoMap = new Map(fumoResults.map(f => [f.fumoName || f.itemName, f.total]));
     for (const [fumoName, quantity] of fumos) {
-        const fumo = await get(
-            `SELECT SUM(quantity) as total FROM userInventory 
-             WHERE userId = ? AND (fumoName = ? OR itemName = ?)`,
-            [userId, fumoName, fumoName]
-        );
-        const totalQuantity = fumo?.total || 0;
-        
-        if (totalQuantity < quantity) {
-            return { valid: false, error: `INSUFFICIENT_FUMOS: ${fumoName} (Have: ${totalQuantity}, Need: ${quantity})` };
+        const have = fumoMap.get(fumoName) || 0;
+        if (have < quantity) {
+            return { valid: false, error: `INSUFFICIENT_FUMOS: ${fumoName} (Have: ${have}, Need: ${quantity})` };
         }
     }
 
@@ -281,12 +311,60 @@ async function executeTrade(sessionKey) {
         });
     }
 
+    // OPTIMIZED: Pre-fetch all fumo inventory rows for both users in parallel
+    const user1FumoNames = Array.from(user1.fumos.keys());
+    const user2FumoNames = Array.from(user2.fumos.keys());
+    
+    let user1FumoRows = [];
+    let user2FumoRows = [];
+    
+    if (user1FumoNames.length > 0 || user2FumoNames.length > 0) {
+        const fetchPromises = [];
+        
+        if (user1FumoNames.length > 0) {
+            const conditions1 = user1FumoNames.map(() => `(fumoName = ? OR itemName = ?)`).join(' OR ');
+            const params1 = [user1.id];
+            user1FumoNames.forEach(name => params1.push(name, name));
+            fetchPromises.push(
+                all(`SELECT id, fumoName, itemName, quantity FROM userInventory WHERE userId = ? AND (${conditions1})`, params1)
+            );
+        } else {
+            fetchPromises.push(Promise.resolve([]));
+        }
+        
+        if (user2FumoNames.length > 0) {
+            const conditions2 = user2FumoNames.map(() => `(fumoName = ? OR itemName = ?)`).join(' OR ');
+            const params2 = [user2.id];
+            user2FumoNames.forEach(name => params2.push(name, name));
+            fetchPromises.push(
+                all(`SELECT id, fumoName, itemName, quantity FROM userInventory WHERE userId = ? AND (${conditions2})`, params2)
+            );
+        } else {
+            fetchPromises.push(Promise.resolve([]));
+        }
+        
+        [user1FumoRows, user2FumoRows] = await Promise.all(fetchPromises);
+    }
+    
+    // Build user1 fumo rows map by name
+    const user1FumoMap = new Map();
+    for (const row of user1FumoRows) {
+        const name = row.fumoName || row.itemName;
+        if (!user1FumoMap.has(name)) user1FumoMap.set(name, []);
+        user1FumoMap.get(name).push(row);
+    }
+    
+    // Build user2 fumo rows map by name
+    const user2FumoMap = new Map();
+    for (const row of user2FumoRows) {
+        const name = row.fumoName || row.itemName;
+        if (!user2FumoMap.has(name)) user2FumoMap.set(name, []);
+        user2FumoMap.get(name).push(row);
+    }
+
+    // Process user1 fumos (no more queries in loop)
     for (const [fumoName, quantity] of user1.fumos) {
-        const fumoRows = await all(
-            `SELECT id, quantity FROM userInventory 
-             WHERE userId = ? AND (fumoName = ? OR itemName = ?)`,
-            [user1.id, fumoName, fumoName]
-        );
+        const fumoRows = user1FumoMap.get(fumoName) || [];
         
         let remaining = quantity;
         
@@ -303,12 +381,12 @@ async function executeTrade(sessionKey) {
             remaining -= toDeduct;
         }
         
-            operations.push({
-                sql: `INSERT INTO userInventory (userId, fumoName, itemName, quantity, type) 
+        operations.push({
+            sql: `INSERT INTO userInventory (userId, fumoName, itemName, quantity, type) 
                   VALUES (?, ?, ?, ?, 'fumo')
                   ON CONFLICT(userId, fumoName) DO UPDATE SET quantity = quantity + ?`,
-                params: [user2.id, fumoName, fumoName, quantity, quantity]
-            });
+            params: [user2.id, fumoName, fumoName, quantity, quantity]
+        });
         
         operations.push({
             sql: `DELETE FROM userInventory WHERE userId = ? AND (fumoName = ? OR itemName = ?) AND quantity <= 0`,
@@ -316,12 +394,9 @@ async function executeTrade(sessionKey) {
         });
     }
 
+    // Process user2 fumos (no more queries in loop)
     for (const [fumoName, quantity] of user2.fumos) {
-        const fumoRows = await all(
-            `SELECT id, quantity FROM userInventory 
-             WHERE userId = ? AND (fumoName = ? OR itemName = ?)`,
-            [user2.id, fumoName, fumoName]
-        );
+        const fumoRows = user2FumoMap.get(fumoName) || [];
         
         let remaining = quantity;
         
@@ -338,12 +413,12 @@ async function executeTrade(sessionKey) {
             remaining -= toDeduct;
         }
         
-            operations.push({
-                sql: `INSERT INTO userInventory (userId, fumoName, itemName, quantity, type) 
+        operations.push({
+            sql: `INSERT INTO userInventory (userId, fumoName, itemName, quantity, type) 
                   VALUES (?, ?, ?, ?, 'fumo')
                   ON CONFLICT(userId, fumoName) DO UPDATE SET quantity = quantity + ?`,
-                params: [user1.id, fumoName, fumoName, quantity, quantity]
-            });
+            params: [user1.id, fumoName, fumoName, quantity, quantity]
+        });
         
         operations.push({
             sql: `DELETE FROM userInventory WHERE userId = ? AND (fumoName = ? OR itemName = ?) AND quantity <= 0`,

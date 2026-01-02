@@ -1,4 +1,4 @@
-const { get, all, run } = require('../../../../Core/database');
+const { get, all, run, transaction } = require('../../../../Core/database');
 
 function getMaxHunger(rarity) {
     const hungerMap = {
@@ -130,18 +130,24 @@ async function handlePetFoob(message, itemName, quantity, userId) {
         const fedPets = [];
         const currentTime = Math.floor(Date.now() / 1000);
         
+        // OPTIMIZED: Build all operations and execute in single transaction
+        const operations = [];
+        
         for (const pet of petsToFeed) {
             console.log(`  Feeding ${pet.name} "${pet.petName}": ${pet.currentHunger} → ${pet.maxHunger}`);
             
             // Set hunger to max and update the timestamp
-            await run(
-                `UPDATE petInventory 
-                 SET hunger = ?, lastHungerUpdate = ? 
-                 WHERE petId = ?`,
-                [pet.maxHunger, currentTime, pet.petId]
-            );
+            operations.push({
+                sql: `UPDATE petInventory SET hunger = ?, lastHungerUpdate = ? WHERE petId = ?`,
+                params: [pet.maxHunger, currentTime, pet.petId]
+            });
             
             fedPets.push(pet);
+        }
+        
+        // Execute all updates in single transaction
+        if (operations.length > 0) {
+            await transaction(operations);
         }
 
         console.log(`\n✅ Successfully fed ${fedPets.length} pets`);

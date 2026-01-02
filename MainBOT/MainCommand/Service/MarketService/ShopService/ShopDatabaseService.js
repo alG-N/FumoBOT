@@ -1,4 +1,4 @@
-const { get, run, all } = require('../../../Core/database');
+const { get, run, all, transaction } = require('../../../Core/database');
 const { debugLog } = require('../../../Core/logger');
 const { MAX_REROLLS } = require('../../../Configuration/shopConfig');
 
@@ -80,6 +80,32 @@ async function addItemToInventory(userId, itemName, quantity) {
     debugLog('SHOP', `Added ${quantity}x ${itemName} to ${userId}'s inventory`);
 }
 
+/**
+ * OPTIMIZED: Process multiple purchases in single transaction
+ */
+async function batchProcessPurchases(userId, purchases, totalCoins, totalGems) {
+    const operations = [];
+    
+    // Deduct total currency in one operation
+    operations.push({
+        sql: `UPDATE userCoins SET coins = coins - ?, gems = gems - ? WHERE userId = ?`,
+        params: [totalCoins, totalGems, userId]
+    });
+    
+    // Add all items to inventory
+    for (const purchase of purchases) {
+        operations.push({
+            sql: `INSERT INTO userInventory (userId, itemName, quantity) 
+                  VALUES (?, ?, ?) 
+                  ON CONFLICT(userId, itemName) DO UPDATE SET quantity = quantity + ?`,
+            params: [userId, purchase.itemName, purchase.quantity, purchase.quantity]
+        });
+    }
+    
+    await transaction(operations);
+    debugLog('SHOP', `Batch processed ${purchases.length} purchases for ${userId}`);
+}
+
 module.exports = {
     getUserRerollData,
     updateRerollCount,
@@ -87,5 +113,6 @@ module.exports = {
     resetPaidRerollCount,
     getUserCurrency,
     deductCurrency,
-    addItemToInventory
+    addItemToInventory,
+    batchProcessPurchases
 };

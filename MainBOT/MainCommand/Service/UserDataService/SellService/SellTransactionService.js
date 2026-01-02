@@ -6,23 +6,42 @@ const ALG_MULTIPLIER = 150;
 
 class SellTransactionService {
     /**
-     * Get S!gil sell value boost multiplier
-     * Returns the multiplier (e.g., 3.5 for +350%)
+     * Get sell multiplier for user - OPTIMIZED: single query for all boosts
+     * Checks S!gil sell boost and AncientRelic penalty in one query
      */
-    static async getSigilSellBoost(userId) {
+    static async getSellMultiplier(userId) {
         try {
             const now = Date.now();
-            const sigilSellBoost = await db.get(
-                `SELECT multiplier FROM activeBoosts 
-                 WHERE userId = ? AND source = 'S!gil' AND type = 'sellValue'
+            
+            // OPTIMIZED: Single query for both S!gil and AncientRelic boosts
+            const boosts = await db.all(
+                `SELECT source, type, multiplier FROM activeBoosts 
+                 WHERE userId = ? 
+                 AND ((source = 'S!gil' AND type IN ('coin', 'sellValue')) 
+                      OR (source = 'AncientRelic' AND type = 'sellPenalty'))
                  AND (expiresAt IS NULL OR expiresAt > ?)`,
                 [userId, now]
             );
-            if (sigilSellBoost) {
-                return 1 + sigilSellBoost.multiplier; // +350% = x4.5
+            
+            // Check if S!gil is active
+            const sigilCoin = boosts.find(b => b.source === 'S!gil' && b.type === 'coin');
+            
+            if (sigilCoin) {
+                // S!gil is active - only S!gil sell boost applies
+                const sigilSellBoost = boosts.find(b => b.source === 'S!gil' && b.type === 'sellValue');
+                if (sigilSellBoost) {
+                    return 1 + sigilSellBoost.multiplier; // +350% = x4.5
+                }
+                return 1.0;
+            }
+            
+            // No S!gil - check AncientRelic penalty
+            const ancientRelic = boosts.find(b => b.source === 'AncientRelic' && b.type === 'sellPenalty');
+            if (ancientRelic) {
+                return ancientRelic.multiplier;
             }
         } catch (error) {
-            console.error('[SellTransaction] Error fetching S!gil sell boost:', error);
+            console.error('[SellTransaction] Error fetching sell multiplier:', error);
         }
         return 1.0;
     }
@@ -39,30 +58,6 @@ class SellTransactionService {
             [userId, now]
         );
         return !!sigil;
-    }
-
-    static async getSellMultiplier(userId) {
-        try {
-            // Check if S!gil is active - if so, only S!gil sell boost applies
-            const sigilActive = await this.isSigilActive(userId);
-            
-            if (sigilActive) {
-                // Only return S!gil sell boost when S!gil is active
-                return await this.getSigilSellBoost(userId);
-            }
-            
-            // Normal sell multiplier (AncientRelic penalty)
-            const row = await db.get(
-                `SELECT multiplier, expiresAt FROM activeBoosts WHERE userId = ? AND type = ? AND source = ?`,
-                [userId, 'sellPenalty', 'AncientRelic']
-            );
-            if (row && row.expiresAt > Date.now()) {
-                return row.multiplier;
-            }
-        } catch (error) {
-            console.error('[SellTransaction] Error fetching sell multiplier:', error);
-        }
-        return 1.0;
     }
 
     static async calculateSellReward(userId, fumoName, quantity) {
@@ -183,35 +178,44 @@ class SellTransactionService {
 
     static async executeBulkSell(userId, fumos, totalReward, rewardType, tag) {
         try {
-            await db.run('BEGIN TRANSACTION');
+            // OPTIMIZED: Build all operations and execute in single transaction
+            const operations = [];
+            const timestamp = Date.now();
 
             for (const fumo of fumos) {
                 if (tag && !fumo.fumoName.endsWith(tag)) continue;
                 if (!tag && (fumo.fumoName.endsWith('[✨SHINY]') || fumo.fumoName.endsWith('[🌟alG]'))) continue;
 
                 // Delete entire fumo entry (all quantity)
-                await db.run(
-                    'DELETE FROM userInventory WHERE userId = ? AND fumoName = ?',
-                    [userId, fumo.fumoName]
-                );
+                operations.push({
+                    sql: 'DELETE FROM userInventory WHERE userId = ? AND fumoName = ?',
+                    params: [userId, fumo.fumoName]
+                });
 
-                await db.run(
-                    'INSERT INTO userSales (userId, fumoName, quantity, timestamp) VALUES (?, ?, ?, ?)',
-                    [userId, fumo.fumoName, fumo.count, Date.now()]
-                );
+                operations.push({
+                    sql: 'INSERT INTO userSales (userId, fumoName, quantity, timestamp) VALUES (?, ?, ?, ?)',
+                    params: [userId, fumo.fumoName, fumo.count, timestamp]
+                });
             }
 
+            // Add reward update
             if (rewardType === 'coins') {
-                await this.addUserReward(userId, totalReward, 0);
+                operations.push({
+                    sql: 'UPDATE userCoins SET coins = coins + ? WHERE userId = ?',
+                    params: [totalReward, userId]
+                });
             } else {
-                await this.addUserReward(userId, 0, totalReward);
+                operations.push({
+                    sql: 'UPDATE userCoins SET gems = gems + ? WHERE userId = ?',
+                    params: [totalReward, userId]
+                });
             }
 
-            await db.run('COMMIT');
+            // Execute all in single transaction
+            await db.transaction(operations);
 
             return { success: true };
         } catch (error) {
-            await db.run('ROLLBACK').catch(() => {});
             console.error('[SellTransaction] Execute bulk sell error:', error);
             return { success: false, error };
         }

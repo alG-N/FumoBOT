@@ -57,6 +57,9 @@ module.exports = (client) => {
                         });
                     }
 
+                    // Defer immediately to prevent timeout during DB query
+                    await interaction.deferUpdate();
+
                     let variant = 'NORMAL';
                     if (interaction.customId.includes('shiny')) {
                         variant = 'SHINY';
@@ -77,7 +80,7 @@ module.exports = (client) => {
                     const informEmbed = createInformEmbed(fumoData, ownershipData, variant);
                     const updatedButtons = createVariantButtons(message.author.id);
 
-                    await interaction.update({
+                    await interaction.editReply({
                         embeds: [informEmbed],
                         components: [updatedButtons]
                     });

@@ -94,29 +94,30 @@ async function getTranscendentCount(userId) {
 }
 
 async function checkPrerequisites(userId) {
-    // Check for GoldenSigil stacks
-    const goldenSigils = await get(
-        `SELECT stack FROM activeBoosts 
-         WHERE userId = ? AND source = 'GoldenSigil' AND type = 'coin'`,
-        [userId]
-    );
-    
-    // Check for CrystalSigil stacks
-    const crystalSigils = await get(
-        `SELECT stack FROM activeBoosts 
-         WHERE userId = ? AND source = 'CrystalSigil' AND type = 'coin'`,
-        [userId]
-    );
-    
-    // Get Transcendent fumos with improved detection
-    const { total: totalTranscendent, fumos: transcendentFumos } = await getTranscendentCount(userId);
+    // OPTIMIZED: Fetch all data in parallel
+    const [goldenSigils, crystalSigils, transcendentData] = await Promise.all([
+        // Check for GoldenSigil stacks
+        get(
+            `SELECT stack FROM activeBoosts 
+             WHERE userId = ? AND source = 'GoldenSigil' AND type = 'coin'`,
+            [userId]
+        ),
+        // Check for CrystalSigil stacks
+        get(
+            `SELECT stack FROM activeBoosts 
+             WHERE userId = ? AND source = 'CrystalSigil' AND type = 'coin'`,
+            [userId]
+        ),
+        // Get Transcendent fumos with improved detection
+        getTranscendentCount(userId)
+    ]);
     
     return {
         goldenStacks: goldenSigils?.stack || 0,
         crystalStacks: crystalSigils?.stack || 0,
-        transcendentFumos,
-        totalTranscendent,
-        hasEnoughTranscendent: totalTranscendent >= SIGIL_CONFIG.transcendentCost
+        transcendentFumos: transcendentData.fumos,
+        totalTranscendent: transcendentData.total,
+        hasEnoughTranscendent: transcendentData.total >= SIGIL_CONFIG.transcendentCost
     };
 }
 
@@ -279,18 +280,23 @@ function createConfirmationEmbed(prereqs) {
                 inline: true
             },
             {
-                name: '🍀 Luck Multiplier',
-                value: `x${luckMultiplier.toFixed(2)} (from ${prereqs.goldenStacks} GoldenSigil)`,
+                name: '🍀 Gacha Luck',
+                value: `x${luckMultiplier.toFixed(2)} (${prereqs.goldenStacks} GoldenSigil)`,
                 inline: true
             },
             {
                 name: '⚡ Roll Speed',
-                value: `x${rollSpeedMultiplier.toFixed(2)} (from ${prereqs.crystalStacks} CrystalSigil)`,
+                value: `x${rollSpeedMultiplier.toFixed(2)} (${prereqs.crystalStacks} CrystalSigil)`,
                 inline: true
             },
             {
-                name: '🎲 Variant Luck',
+                name: '✨ Variant Luck (SHINY/alG)',
                 value: `x${variantLuckMultiplier.toFixed(2)}`,
+                inline: true
+            },
+            {
+                name: '🙏 Reimu Pray Luck',
+                value: `+${(SIGIL_CONFIG.reimuLuckBoost * 100).toFixed(0)}% better outcomes`,
                 inline: true
             },
             {
@@ -300,17 +306,27 @@ function createConfirmationEmbed(prereqs) {
             },
             {
                 name: '🔮 GLITCHED Trait',
-                value: `1 in ${Math.round(1 / SIGIL_CONFIG.glitchedTraitChance).toLocaleString()} chance`,
+                value: `1/${Math.round(1 / SIGIL_CONFIG.glitchedTraitChance).toLocaleString()} chance`,
                 inline: true
             },
             {
-                name: '💵 Sell Value',
+                name: '💵 Sell Value Boost',
                 value: `+${(SIGIL_CONFIG.sellValueBoost * 100).toFixed(0)}%`,
+                inline: true
+            },
+            {
+                name: '🚫 ASTRAL+ Dupe Block',
+                value: SIGIL_CONFIG.blocksAstralDuplicates ? '✅ Enabled' : '❌ Disabled',
                 inline: true
             },
             {
                 name: '⏱️ Duration',
                 value: '12 hours',
+                inline: true
+            },
+            {
+                name: '⏳ Cooldown',
+                value: '24 hours after use',
                 inline: true
             }
         )
@@ -348,6 +364,9 @@ async function confirmSigilActivation(interaction, client) {
         });
     }
 
+    // Defer immediately to prevent timeout during DB operations
+    await interaction.deferUpdate();
+
     const { prereqs, itemName } = sigilData;
 
     try {
@@ -363,7 +382,7 @@ async function confirmSigilActivation(interaction, client) {
                 [userId, itemName]
             );
             
-            return interaction.update({
+            return interaction.editReply({
                 embeds: [new EmbedBuilder()
                     .setTitle('❌ Insufficient Transcendent Fumos')
                     .setDescription('You no longer have enough Transcendent fumos. Your item has been returned.')
@@ -521,7 +540,7 @@ async function confirmSigilActivation(interaction, client) {
             .setFooter({ text: 'May the ancient power guide your rolls!' })
             .setTimestamp();
 
-        await interaction.update({ embeds: [embed], components: [] });
+        await interaction.editReply({ embeds: [embed], components: [] });
 
     } catch (error) {
         console.error('[SIGIL] Confirmation error:', error);
@@ -534,7 +553,7 @@ async function confirmSigilActivation(interaction, client) {
             [userId, itemName]
         ).catch(() => {});
         
-        await interaction.update({
+        await interaction.editReply({
             embeds: [new EmbedBuilder()
                 .setTitle('❌ Error')
                 .setDescription('Failed to activate S!gil. Your item has been returned.')
@@ -546,6 +565,9 @@ async function confirmSigilActivation(interaction, client) {
 
 async function cancelSigilActivation(interaction, client) {
     const userId = interaction.user.id;
+    
+    // Defer immediately to prevent timeout during DB operation
+    await interaction.deferUpdate();
     
     // Get stored data
     const sigilData = client.sigilData?.[userId];
@@ -562,7 +584,7 @@ async function cancelSigilActivation(interaction, client) {
         delete client.sigilData[userId];
     }
 
-    await interaction.update({
+    await interaction.editReply({
         embeds: [new EmbedBuilder()
             .setTitle('❌ Cancelled')
             .setDescription('S!gil activation was cancelled. Your item has been returned.')

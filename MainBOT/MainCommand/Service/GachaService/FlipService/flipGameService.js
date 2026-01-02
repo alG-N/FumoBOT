@@ -15,10 +15,14 @@ async function getOrCreateUser(userId) {
     let user = await get(`SELECT * FROM userCoins WHERE userId = ?`, [userId]);
     
     if (!user) {
+        // OPTIMIZED: Use INSERT with ON CONFLICT to avoid double query
         await run(
-            `INSERT INTO userCoins (userId, coins, gems, wins, losses, joinDate) VALUES (?, 0, 0, 0, 0, ?)`,
+            `INSERT INTO userCoins (userId, coins, gems, wins, losses, joinDate) 
+             VALUES (?, 0, 0, 0, 0, ?)
+             ON CONFLICT(userId) DO NOTHING`,
             [userId, new Date().toISOString()]
         );
+        // Only query again if we actually needed to create
         user = await get(`SELECT * FROM userCoins WHERE userId = ?`, [userId]);
     }
     

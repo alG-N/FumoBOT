@@ -19,12 +19,17 @@ const { get, all } = require('../../Core/database');
 const { parseTraitFromFumoName, stripTraitFromFumoName } = require('./FarmingParserService');
 
 async function addMultipleFumosToFarm(userId, fumoName, quantity) {
-    const fragmentUses = await getFarmLimit(userId);
-    const upgradesRow = await get(`SELECT limitBreaks FROM userUpgrades WHERE userId = ?`, [userId]);
+    // OPTIMIZED: Fetch all needed data in parallel
+    const [fragmentUses, upgradesRow, farmingFumos, inventoryCount] = await Promise.all([
+        getFarmLimit(userId),
+        get(`SELECT limitBreaks FROM userUpgrades WHERE userId = ?`, [userId]),
+        getUserFarmingFumos(userId),
+        getInventoryCountForFumo(userId, fumoName)
+    ]);
+    
     const limitBreaks = upgradesRow?.limitBreaks || 0;
     const limit = calculateFarmLimit(fragmentUses) + limitBreaks;
     
-    const farmingFumos = await getUserFarmingFumos(userId);
     const currentFarmCount = farmingFumos.reduce((sum, f) => sum + (f.quantity || 1), 0);
     const availableSlots = limit - currentFarmCount;
 
@@ -33,9 +38,6 @@ async function addMultipleFumosToFarm(userId, fumoName, quantity) {
     }
 
     const actualQuantity = Math.min(quantity, availableSlots);
-
-    // Check inventory before attempting to add (will be checked again in addFumoToFarm)
-    const inventoryCount = await getInventoryCountForFumo(userId, fumoName);
     
     if (inventoryCount < actualQuantity) {
         return { success: false, error: 'INSUFFICIENT_INVENTORY', have: inventoryCount, need: actualQuantity };
@@ -121,11 +123,16 @@ async function addSingleFumo(userId, fumoName) {
 }
 
 async function addRandomByRarity(userId, rarity) {
-    const fragmentUses = await getFarmLimit(userId);
-    const upgradesRow = await get(`SELECT limitBreaks FROM userUpgrades WHERE userId = ?`, [userId]);
+    // OPTIMIZED: Fetch all needed data in parallel
+    const [fragmentUses, upgradesRow, farmingFumos, inventory] = await Promise.all([
+        getFarmLimit(userId),
+        get(`SELECT limitBreaks FROM userUpgrades WHERE userId = ?`, [userId]),
+        getUserFarmingFumos(userId),
+        getUserInventoryByRarity(userId, rarity)
+    ]);
+    
     const limitBreaks = upgradesRow?.limitBreaks || 0;
     const limit = calculateFarmLimit(fragmentUses) + limitBreaks;
-    const farmingFumos = await getUserFarmingFumos(userId);
     const currentFarmCount = farmingFumos.reduce((sum, f) => sum + (f.quantity || 1), 0);
     const availableSlots = limit - currentFarmCount;
 
@@ -133,7 +140,6 @@ async function addRandomByRarity(userId, rarity) {
         return { success: false, error: 'FARM_FULL', limit };
     }
 
-    const inventory = await getUserInventoryByRarity(userId, rarity);
     inventory.sort(() => Math.random() - 0.5);
 
     let added = 0;
@@ -159,8 +165,11 @@ async function addRandomByRarity(userId, rarity) {
 }
 
 async function optimizeFarm(userId) {
-    const fragmentUses = await getFarmLimit(userId);
-    const upgradesRow = await get(`SELECT limitBreaks FROM userUpgrades WHERE userId = ?`, [userId]);
+    // OPTIMIZED: Fetch both in parallel
+    const [fragmentUses, upgradesRow] = await Promise.all([
+        getFarmLimit(userId),
+        get(`SELECT limitBreaks FROM userUpgrades WHERE userId = ?`, [userId])
+    ]);
     const limitBreaks = upgradesRow?.limitBreaks || 0;
     const limit = calculateFarmLimit(fragmentUses) + limitBreaks;
     

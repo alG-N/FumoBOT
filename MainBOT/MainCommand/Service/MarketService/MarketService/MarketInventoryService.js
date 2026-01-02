@@ -1,4 +1,4 @@
-const { run, get } = require('../../../Core/database');
+const { run, get, all } = require('../../../Core/database');
 const { incrementWeeklyShiny } = require('../../../Ultility/weekly');
 const { debugLog } = require('../../../Core/logger');
 
@@ -32,6 +32,7 @@ const MARKET_VARIANT_CONFIG = {
 /**
  * Get active special variant boosts for market purchases
  * Checks for VoidCrystal, CosmicCore, and S!gil
+ * OPTIMIZED: Single query for all boost sources
  * @param {string} userId - User ID
  * @returns {Object} Active variant info with chances
  */
@@ -43,22 +44,22 @@ async function getActiveMarketVariants(userId) {
         reimuLuck: 1.0
     };
     
-    // Check if S!gil is active (takes priority and has ALL variants)
-    const sigilActive = await get(
-        `SELECT * FROM activeBoosts 
-         WHERE userId = ? AND source = 'S!gil' AND type = 'coin'
+    // OPTIMIZED: Get all relevant boosts in single query
+    const allBoosts = await all(
+        `SELECT source, type, multiplier, extra FROM activeBoosts 
+         WHERE userId = ? 
+         AND source IN ('S!gil', 'CosmicCore', 'VoidCrystal')
+         AND type IN ('coin', 'glitchedTrait', 'voidTrait', 'reimuLuck')
          AND (expiresAt IS NULL OR expiresAt > ?)`,
         [userId, now]
     );
     
-    if (sigilActive) {
-        // S!gil provides both GLITCHED and VOID
-        const sigilGlitched = await get(
-            `SELECT multiplier, extra FROM activeBoosts 
-             WHERE userId = ? AND source = 'S!gil' AND type = 'glitchedTrait'
-             AND (expiresAt IS NULL OR expiresAt > ?)`,
-            [userId, now]
-        );
+    // Check if S!gil is active (takes priority)
+    const sigilCoin = allBoosts.find(b => b.source === 'S!gil' && b.type === 'coin');
+    
+    if (sigilCoin) {
+        // S!gil provides GLITCHED
+        const sigilGlitched = allBoosts.find(b => b.source === 'S!gil' && b.type === 'glitchedTrait');
         
         if (sigilGlitched) {
             try {
@@ -77,19 +78,24 @@ async function getActiveMarketVariants(userId) {
             }
         }
         
-        // S!gil does NOT grant VOID - only GLITCHED
-        // VOID requires VoidCrystal to be active
-        
-        // Get S!gil Reimu luck multiplier for base variant enhancement
-        const sigilReimuLuck = await get(
-            `SELECT multiplier FROM activeBoosts 
-             WHERE userId = ? AND source = 'S!gil' AND type = 'reimuLuck'
-             AND (expiresAt IS NULL OR expiresAt > ?)`,
-            [userId, now]
-        );
-        
+        // Get S!gil Reimu luck multiplier
+        const sigilReimuLuck = allBoosts.find(b => b.source === 'S!gil' && b.type === 'reimuLuck');
         if (sigilReimuLuck) {
             variants.reimuLuck = sigilReimuLuck.multiplier || 1.0;
+        }
+        
+        // Check VoidCrystal even when S!gil is active
+        const voidCrystal = allBoosts.find(b => b.source === 'VoidCrystal' && b.type === 'voidTrait');
+        if (voidCrystal) {
+            try {
+                const extra = JSON.parse(voidCrystal.extra || '{}');
+                const voidChance = extra.chance || voidCrystal.multiplier || MARKET_VARIANT_CONFIG.VOID.baseChance;
+                variants.void = {
+                    chance: voidChance,
+                    tag: MARKET_VARIANT_CONFIG.VOID.tag,
+                    source: 'VoidCrystal'
+                };
+            } catch {}
         }
         
         debugLog('MARKET_INV', `[S!gil Active] GLITCHED: ${variants.glitched?.chance}, VOID: ${variants.void?.chance}, ReimuLuck: ${variants.reimuLuck}`);
@@ -97,18 +103,11 @@ async function getActiveMarketVariants(userId) {
     }
     
     // Check CosmicCore for GLITCHED (only when S!gil not active)
-    const cosmicCore = await get(
-        `SELECT multiplier, extra FROM activeBoosts 
-         WHERE userId = ? AND source = 'CosmicCore' AND type = 'glitchedTrait'
-         AND expiresAt > ?`,
-        [userId, now]
-    );
+    const cosmicCore = allBoosts.find(b => b.source === 'CosmicCore' && b.type === 'glitchedTrait');
     
     if (cosmicCore) {
         try {
             const extra = JSON.parse(cosmicCore.extra || '{}');
-            // CosmicCore GLITCHED is NOT disabled by checking sigilDisabled here
-            // since S!gil check already passed above
             if (!extra.sigilDisabled) {
                 variants.glitched = {
                     chance: extra.chance || cosmicCore.multiplier || MARKET_VARIANT_CONFIG.GLITCHED.baseChance,
@@ -123,26 +122,16 @@ async function getActiveMarketVariants(userId) {
                 source: 'CosmicCore'
             };
         }
-        
-        // CosmicCore does NOT grant VOID - only GLITCHED
-        // VOID requires VoidCrystal to be active
     }
     
-    // Check VoidCrystal for VOID variant (independent of CosmicCore)
-    const voidCrystal = await get(
-        `SELECT multiplier, extra FROM activeBoosts 
-         WHERE userId = ? AND source = 'VoidCrystal' AND type = 'voidTrait'
-         AND expiresAt > ?`,
-        [userId, now]
-    );
+    // Check VoidCrystal for VOID variant
+    const voidCrystal = allBoosts.find(b => b.source === 'VoidCrystal' && b.type === 'voidTrait');
     
     if (voidCrystal) {
         try {
             const extra = JSON.parse(voidCrystal.extra || '{}');
             if (!extra.sigilDisabled) {
-                // VoidCrystal has its own VOID chance (may stack or override)
                 const voidChance = extra.chance || voidCrystal.multiplier || MARKET_VARIANT_CONFIG.VOID.baseChance;
-                // Use the higher chance between VoidCrystal and CosmicCore
                 if (!variants.void || voidChance > variants.void.chance) {
                     variants.void = {
                         chance: voidChance,

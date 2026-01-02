@@ -3,7 +3,7 @@ const { PRAY_CHARACTERS, calculateScaledPrayCost } = require('../../../Configura
 const { formatNumber } = require('../../../Ultility/formatting');
 const { incrementWeeklyShiny, incrementWeeklyAstral } = require('../../../Ultility/weekly');
 const FumoPool = require('../../../Data/FumoPool');
-const { run, get } = require('../../../Core/database');
+const { run, get, all } = require('../../../Core/database');
 const {
     getUserData,
     deductUserCurrency,
@@ -55,6 +55,7 @@ async function getSigilReimuLuckMultiplier(userId) {
 /**
  * Get active special variant boosts for Reimu gifts
  * Checks for VoidCrystal, CosmicCore, and S!gil
+ * OPTIMIZED: Single query for all boost sources
  * @param {string} userId - User ID
  * @param {number} reimuLuckMult - Reimu luck multiplier to apply to variant chances
  * @returns {Object} Active variant info with chances
@@ -66,27 +67,26 @@ async function getActiveReimuVariants(userId, reimuLuckMult = 1.0) {
         glitched: null
     };
     
-    // Check if S!gil is active (takes priority and has ALL variants)
-    const sigilActive = await get(
-        `SELECT * FROM activeBoosts 
-         WHERE userId = ? AND source = 'S!gil' AND type = 'coin'
+    // OPTIMIZED: Get all relevant boosts in single query
+    const allBoosts = await all(
+        `SELECT source, type, multiplier, extra FROM activeBoosts 
+         WHERE userId = ? 
+         AND source IN ('S!gil', 'CosmicCore', 'VoidCrystal')
+         AND type IN ('coin', 'glitchedTrait', 'voidTrait')
          AND (expiresAt IS NULL OR expiresAt > ?)`,
         [userId, now]
     );
     
-    if (sigilActive) {
-        // S!gil provides both GLITCHED and VOID
-        const sigilGlitched = await get(
-            `SELECT multiplier, extra FROM activeBoosts 
-             WHERE userId = ? AND source = 'S!gil' AND type = 'glitchedTrait'
-             AND (expiresAt IS NULL OR expiresAt > ?)`,
-            [userId, now]
-        );
+    // Check if S!gil is active (takes priority)
+    const sigilCoin = allBoosts.find(b => b.source === 'S!gil' && b.type === 'coin');
+    
+    if (sigilCoin) {
+        // S!gil provides GLITCHED
+        const sigilGlitched = allBoosts.find(b => b.source === 'S!gil' && b.type === 'glitchedTrait');
         
         if (sigilGlitched) {
             try {
                 const extra = JSON.parse(sigilGlitched.extra || '{}');
-                // Apply Reimu luck to GLITCHED chance (capped at 0.01 = 1%)
                 const baseChance = extra.chance || sigilGlitched.multiplier || REIMU_VARIANT_CONFIG.GLITCHED.baseChance;
                 variants.glitched = {
                     chance: Math.min(baseChance * reimuLuckMult, 0.01),
@@ -105,16 +105,25 @@ async function getActiveReimuVariants(userId, reimuLuckMult = 1.0) {
         // S!gil does NOT grant VOID - only GLITCHED
         // VOID requires VoidCrystal to be active
         
+        // Check VoidCrystal even when S!gil is active
+        const voidCrystal = allBoosts.find(b => b.source === 'VoidCrystal' && b.type === 'voidTrait');
+        if (voidCrystal) {
+            try {
+                const extra = JSON.parse(voidCrystal.extra || '{}');
+                const voidChance = extra.chance || voidCrystal.multiplier || REIMU_VARIANT_CONFIG.VOID.baseChance;
+                variants.void = {
+                    chance: Math.min(voidChance * reimuLuckMult, 0.05),
+                    tag: REIMU_VARIANT_CONFIG.VOID.tag,
+                    source: 'VoidCrystal'
+                };
+            } catch {}
+        }
+        
         return variants;
     }
     
     // Check CosmicCore for GLITCHED (only when S!gil not active)
-    const cosmicCore = await get(
-        `SELECT multiplier, extra FROM activeBoosts 
-         WHERE userId = ? AND source = 'CosmicCore' AND type = 'glitchedTrait'
-         AND expiresAt > ?`,
-        [userId, now]
-    );
+    const cosmicCore = allBoosts.find(b => b.source === 'CosmicCore' && b.type === 'glitchedTrait');
     
     if (cosmicCore) {
         try {
@@ -134,18 +143,10 @@ async function getActiveReimuVariants(userId, reimuLuckMult = 1.0) {
                 source: 'CosmicCore'
             };
         }
-        
-        // CosmicCore does NOT grant VOID - only GLITCHED
-        // VOID requires VoidCrystal to be active
     }
     
     // Check VoidCrystal for VOID variant (independent of CosmicCore)
-    const voidCrystal = await get(
-        `SELECT multiplier, extra FROM activeBoosts 
-         WHERE userId = ? AND source = 'VoidCrystal' AND type = 'voidTrait'
-         AND expiresAt > ?`,
-        [userId, now]
-    );
+    const voidCrystal = allBoosts.find(b => b.source === 'VoidCrystal' && b.type === 'voidTrait');
     
     if (voidCrystal) {
         try {

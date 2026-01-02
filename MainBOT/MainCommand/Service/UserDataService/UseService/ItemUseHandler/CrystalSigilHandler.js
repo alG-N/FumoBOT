@@ -25,26 +25,49 @@ async function handleCrystalSigil(message, itemName, quantity, userId) {
         const stacksToAdd = Math.min(quantity, CRYSTAL_SIGIL_CONFIG.maxStacks - currentStacks);
 
         if (stacksToAdd <= 0) {
+            // Return ALL items since none can be used (executeItemUse already consumed them)
+            const updateResult = await run(
+                `UPDATE userInventory SET quantity = quantity + ? WHERE userId = ? AND itemName = ?`,
+                [quantity, userId, itemName]
+            );
+            if (!updateResult || updateResult.changes === 0) {
+                await run(
+                    `INSERT INTO userInventory (userId, itemName, quantity, type) VALUES (?, ?, ?, 'item')`,
+                    [userId, itemName, quantity]
+                );
+            }
+            
             return message.reply({
                 embeds: [new EmbedBuilder()
                     .setTitle('❌ Maximum Stacks Reached')
-                    .setDescription(`You already have ${CRYSTAL_SIGIL_CONFIG.maxStacks} CrystalSigil stacks active!`)
+                    .setDescription(`You already have ${CRYSTAL_SIGIL_CONFIG.maxStacks} CrystalSigil stacks active!\n\n**Your items have been returned.**`)
                     .setColor(Colors.Red)]
             });
         }
 
-        // Remove items from inventory
-        await run(
-            `UPDATE userInventory SET quantity = quantity - ? 
-             WHERE userId = ? AND itemName = ?`,
-            [stacksToAdd, userId, itemName]
-        );
+        // Return excess items if quantity > stacksToAdd (executeItemUse already consumed all)
+        const excessItems = quantity - stacksToAdd;
+        if (excessItems > 0) {
+            // First try to update existing row, then insert if needed
+            const updateResult = await run(
+                `UPDATE userInventory SET quantity = quantity + ? 
+                 WHERE userId = ? AND itemName = ?`,
+                [excessItems, userId, itemName]
+            );
+            
+            // If no row was updated, insert a new one
+            if (!updateResult || updateResult.changes === 0) {
+                await run(
+                    `INSERT INTO userInventory (userId, itemName, quantity, type) 
+                     VALUES (?, ?, ?, 'item')`,
+                    [userId, itemName, excessItems]
+                );
+            }
+            
+            console.log(`[CrystalSigil] Returned ${excessItems} excess items to user ${userId}`);
+        }
 
-        // Clean up zero quantity
-        await run(
-            `DELETE FROM userInventory WHERE userId = ? AND itemName = ? AND quantity <= 0`,
-            [userId, itemName]
-        );
+        // Items already consumed by executeItemUse, just activate boosts
 
         const now = Date.now();
         const expiresAt = now + CRYSTAL_SIGIL_CONFIG.duration;
@@ -83,7 +106,8 @@ async function handleCrystalSigil(message, itemName, quantity, userId) {
             .setColor(Colors.Purple)
             .setDescription(
                 `You've activated **${stacksToAdd}x CrystalSigil(?)**!\n\n` +
-                `**Current Stacks:** ${totalStacks}/${CRYSTAL_SIGIL_CONFIG.maxStacks}`
+                `**Current Stacks:** ${totalStacks}/${CRYSTAL_SIGIL_CONFIG.maxStacks}` +
+                (excessItems > 0 ? `\n\n📦 **${excessItems} excess item${excessItems > 1 ? 's' : ''} returned** to your inventory.` : '')
             )
             .addFields(
                 {

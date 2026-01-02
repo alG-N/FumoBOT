@@ -88,8 +88,13 @@ async function performSingleRoll(userId, fumos) {
     debugLog('ROLL', `Single roll for user ${userId}`);
     
     try {
-        // Check storage first
-        const storageCheck = await StorageLimitService.canAddFumos(userId, 1);
+        // OPTIMIZED: Fetch storage check, user data, and boosts in parallel
+        const [storageCheck, row, boosts] = await Promise.all([
+            StorageLimitService.canAddFumos(userId, 1),
+            getUserRollData(userId),
+            getUserBoosts(userId)
+        ]);
+        
         if (!storageCheck.canAdd) {
             return { 
                 success: false, 
@@ -98,13 +103,11 @@ async function performSingleRoll(userId, fumos) {
             };
         }
 
-        const row = await getUserRollData(userId);
         if (!row || row.coins < 100) {
             return { success: false, error: 'INSUFFICIENT_COINS' };
         }
 
         const hasFantasyBook = !!row.hasFantasyBook;
-        const boosts = await getUserBoosts(userId);
 
         // Check for Sanae guaranteed rarity
         let sanaeGuaranteedUsed = false;
@@ -170,14 +173,18 @@ async function performMultiRoll(userId, fumos, rollCount, isAutoRoll = false) {
     
     try {
         const cost = rollCount * 100;
-        const row = await getUserRollData(userId);
+        
+        // OPTIMIZED: Fetch user data and boosts in parallel
+        const [row, boosts] = await Promise.all([
+            getUserRollData(userId),
+            getUserBoosts(userId)
+        ]);
         
         if (!row || row.coins < cost) {
             return { success: false, error: 'INSUFFICIENT_COINS' };
         }
 
         const hasFantasyBook = !!row.hasFantasyBook;
-        const boosts = await getUserBoosts(userId);
 
         let { boostCharge, boostActive, boostRollsRemaining } = row;
         let pities = {

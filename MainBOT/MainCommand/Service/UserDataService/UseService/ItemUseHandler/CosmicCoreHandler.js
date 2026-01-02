@@ -26,12 +26,16 @@ async function handleCosmicCore(message, itemName, quantity, userId) {
 
         if (stacksToAdd <= 0) {
             // Return all items since none can be used
-            await run(
-                `INSERT INTO userInventory (userId, itemName, quantity, type) 
-                 VALUES (?, ?, ?, 'item')
-                 ON CONFLICT(userId, itemName) DO UPDATE SET quantity = quantity + ?`,
-                [userId, itemName, quantity, quantity]
+            const updateResult = await run(
+                `UPDATE userInventory SET quantity = quantity + ? WHERE userId = ? AND itemName = ?`,
+                [quantity, userId, itemName]
             );
+            if (!updateResult || updateResult.changes === 0) {
+                await run(
+                    `INSERT INTO userInventory (userId, itemName, quantity, type) VALUES (?, ?, ?, 'item')`,
+                    [userId, itemName, quantity]
+                );
+            }
             
             return message.reply({
                 embeds: [new EmbedBuilder()
@@ -44,12 +48,17 @@ async function handleCosmicCore(message, itemName, quantity, userId) {
         // Return excess items if any
         const excessItems = quantity - stacksToAdd;
         if (excessItems > 0) {
-            await run(
-                `INSERT INTO userInventory (userId, itemName, quantity, type) 
-                 VALUES (?, ?, ?, 'item')
-                 ON CONFLICT(userId, itemName) DO UPDATE SET quantity = quantity + ?`,
-                [userId, itemName, excessItems, excessItems]
+            const updateResult = await run(
+                `UPDATE userInventory SET quantity = quantity + ? WHERE userId = ? AND itemName = ?`,
+                [excessItems, userId, itemName]
             );
+            if (!updateResult || updateResult.changes === 0) {
+                await run(
+                    `INSERT INTO userInventory (userId, itemName, quantity, type) VALUES (?, ?, ?, 'item')`,
+                    [userId, itemName, excessItems]
+                );
+            }
+            console.log(`[CosmicCore] Returned ${excessItems} excess items to user ${userId}`);
         }
 
         const now = Date.now();

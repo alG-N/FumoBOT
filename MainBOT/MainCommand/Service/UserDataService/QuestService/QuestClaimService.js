@@ -198,15 +198,17 @@ class QuestClaimService {
         const date = new Date().toISOString().slice(0, 10);
         const week = getWeekIdentifier();
 
-        const dailyProgress = await QuestProgressService.getDailyProgress(userId);
-        const weeklyProgress = await QuestProgressService.getWeeklyProgress(userId);
-        const achievements = await QuestProgressService.getAchievementProgress(userId);
+        // OPTIMIZED: Fetch all progress and claim status in parallel
+        const [dailyProgress, weeklyProgress, achievements, dailyClaimed, weeklyClaimed] = await Promise.all([
+            QuestProgressService.getDailyProgress(userId),
+            QuestProgressService.getWeeklyProgress(userId),
+            QuestProgressService.getAchievementProgress(userId),
+            this.checkClaimed(userId, `daily_${date}`),
+            this.checkClaimed(userId, `weekly_${week}`)
+        ]);
 
         const dailyCompleted = Object.values(dailyProgress).filter(p => p.completed).length;
         const weeklyCompleted = Object.values(weeklyProgress).filter(p => p.completed).length;
-
-        const dailyClaimed = await this.checkClaimed(userId, `daily_${date}`);
-        const weeklyClaimed = await this.checkClaimed(userId, `weekly_${week}`);
 
         const { claimableAchievements } = await QuestRewardService.getClaimableAchievements(userId, achievements);
 

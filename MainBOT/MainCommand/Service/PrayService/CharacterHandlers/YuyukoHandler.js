@@ -54,8 +54,11 @@ async function handleDevourOutcome(userId, channel, user, currentLuck, config) {
         
         bonusRolls = Math.floor(bonusRolls * 3);
         
-        await updateUserRolls(userId, bonusRolls);
-        await updateUserLuck(userId, 1.5);
+        // OPTIMIZED: Update rolls and luck in parallel
+        await Promise.all([
+            updateUserRolls(userId, bonusRolls),
+            updateUserLuck(userId, 1.5)
+        ]);
 
         await channel.send({
             embeds: [new EmbedBuilder()
@@ -94,8 +97,11 @@ async function handleNormalOutcome(userId, channel, user, currentLuck, config) {
     
     bonusRolls = Math.floor(bonusRolls * 2.5);
     
-    await updateUserRolls(userId, bonusRolls);
-    await updateUserLuck(userId, 0.125, normalConfig.luckRarities);
+    // OPTIMIZED: Update rolls and luck in parallel
+    await Promise.all([
+        updateUserRolls(userId, bonusRolls),
+        updateUserLuck(userId, 0.125, normalConfig.luckRarities)
+    ]);
 
     await channel.send({
         embeds: [new EmbedBuilder()

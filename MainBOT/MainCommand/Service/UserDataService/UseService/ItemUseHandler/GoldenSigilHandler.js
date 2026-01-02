@@ -18,7 +18,17 @@ async function handleGoldenSigil(message, itemName, quantity, userId) {
         const currentStacks = row?.stack || 0;
 
         if (currentStacks >= 10) {
-            await run(`UPDATE userInventory SET quantity = quantity + 1 WHERE userId = ? AND itemName = ?`, [userId, itemName]);
+            // Return item since max stacks reached
+            const updateResult = await run(
+                `UPDATE userInventory SET quantity = quantity + 1 WHERE userId = ? AND itemName = ?`,
+                [userId, itemName]
+            );
+            if (!updateResult || updateResult.changes === 0) {
+                await run(
+                    `INSERT INTO userInventory (userId, itemName, quantity, type) VALUES (?, ?, 1, 'item')`,
+                    [userId, itemName]
+                );
+            }
 
             const embed = new EmbedBuilder()
                 .setColor(0xFF4500)

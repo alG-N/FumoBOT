@@ -31,6 +31,7 @@ const SPECIAL_VARIANTS = {
  * Get active special variant boost for a user
  * GLITCHED and VOID can both exist and are rolled independently
  * Returns all active variant chances
+ * OPTIMIZED: Single query instead of multiple sequential queries
  */
 async function getActiveSpecialVariants(userId) {
     const now = Date.now();
@@ -39,22 +40,23 @@ async function getActiveSpecialVariants(userId) {
         void: null
     };
     
-    // Check if S!gil is active (has priority for glitched)
-    const sigilActive = await get(
-        `SELECT * FROM activeBoosts 
-         WHERE userId = ? AND source = 'S!gil' AND type = 'coin'
+    // OPTIMIZED: Get all relevant boosts in single query
+    const allBoosts = await all(
+        `SELECT source, type, multiplier, extra, expiresAt FROM activeBoosts 
+         WHERE userId = ? 
+         AND source IN ('S!gil', 'CosmicCore', 'VoidCrystal')
+         AND type IN ('coin', 'glitchedTrait', 'voidTrait')
          AND (expiresAt IS NULL OR expiresAt > ?)`,
         [userId, now]
     );
     
+    // Check if S!gil is active
+    const sigilCoin = allBoosts.find(b => b.source === 'S!gil' && b.type === 'coin');
+    const sigilActive = !!sigilCoin;
+    
     if (sigilActive) {
         // Get S!gil glitched chance (S!gil has priority for GLITCHED)
-        const sigilGlitched = await get(
-            `SELECT multiplier, extra FROM activeBoosts 
-             WHERE userId = ? AND source = 'S!gil' AND type = 'glitchedTrait'
-             AND (expiresAt IS NULL OR expiresAt > ?)`,
-            [userId, now]
-        );
+        const sigilGlitched = allBoosts.find(b => b.source === 'S!gil' && b.type === 'glitchedTrait');
         
         if (sigilGlitched) {
             try {
@@ -68,12 +70,7 @@ async function getActiveSpecialVariants(userId) {
         }
     } else {
         // Check CosmicCore glitched (only when S!gil not active)
-        const cosmicGlitched = await get(
-            `SELECT multiplier, extra FROM activeBoosts 
-             WHERE userId = ? AND source = 'CosmicCore' AND type = 'glitchedTrait'
-             AND expiresAt > ?`,
-            [userId, now]
-        );
+        const cosmicGlitched = allBoosts.find(b => b.source === 'CosmicCore' && b.type === 'glitchedTrait');
         
         if (cosmicGlitched) {
             try {
@@ -88,12 +85,7 @@ async function getActiveSpecialVariants(userId) {
     }
     
     // Check VoidCrystal void (VOID is independent of S!gil, always active)
-    const voidCrystal = await get(
-        `SELECT multiplier, extra FROM activeBoosts 
-         WHERE userId = ? AND source = 'VoidCrystal' AND type = 'voidTrait'
-         AND expiresAt > ?`,
-        [userId, now]
-    );
+    const voidCrystal = allBoosts.find(b => b.source === 'VoidCrystal' && b.type === 'voidTrait');
     
     if (voidCrystal) {
         try {
@@ -112,38 +104,32 @@ async function getActiveSpecialVariants(userId) {
 /**
  * Get variant luck multiplier (affects SHINY/alG chances)
  * From EternalEssence or S!gil - changed from 'traitLuck' to 'variantLuck'
+ * OPTIMIZED: Single query for all variant luck sources
  */
 async function getVariantLuckMultiplier(userId) {
     const now = Date.now();
     
-    // Check if S!gil is active
-    const sigilActive = await get(
-        `SELECT * FROM activeBoosts 
-         WHERE userId = ? AND source = 'S!gil' AND type = 'coin'
+    // Get all variant luck related boosts in one query
+    const boosts = await all(
+        `SELECT source, type, multiplier FROM activeBoosts 
+         WHERE userId = ? 
+         AND source IN ('S!gil', 'EternalEssence')
+         AND type IN ('coin', 'variantLuck')
          AND (expiresAt IS NULL OR expiresAt > ?)`,
         [userId, now]
     );
     
-    if (sigilActive) {
+    // Check if S!gil is active
+    const sigilCoin = boosts.find(b => b.source === 'S!gil' && b.type === 'coin');
+    
+    if (sigilCoin) {
         // Only use S!gil variant luck when active
-        const sigilVariantLuck = await get(
-            `SELECT multiplier FROM activeBoosts 
-             WHERE userId = ? AND source = 'S!gil' AND type = 'variantLuck'
-             AND (expiresAt IS NULL OR expiresAt > ?)`,
-            [userId, now]
-        );
-        
+        const sigilVariantLuck = boosts.find(b => b.source === 'S!gil' && b.type === 'variantLuck');
         return sigilVariantLuck?.multiplier || 1.0;
     }
     
-    // Check EternalEssence variant luck (24h duration now)
-    const eternalVariantLuck = await get(
-        `SELECT multiplier FROM activeBoosts 
-         WHERE userId = ? AND source = 'EternalEssence' AND type = 'variantLuck'
-         AND expiresAt > ?`,
-        [userId, now]
-    );
-    
+    // Check EternalEssence variant luck
+    const eternalVariantLuck = boosts.find(b => b.source === 'EternalEssence' && b.type === 'variantLuck');
     return eternalVariantLuck?.multiplier || 1.0;
 }
 
@@ -292,6 +278,7 @@ function applyVariantToName(fumoName, baseVariant, specialVariant) {
 
 /**
  * Select and add a fumo to user's inventory with variant rolls
+ * OPTIMIZED: Parallel variant rolls
  */
 async function selectAndAddFumo(userId, rarity, fumoPool) {
     // Check storage
@@ -335,11 +322,11 @@ async function selectAndAddFumo(userId, rarity, fumoPool) {
     } while (attempts < maxAttempts);
     let finalName = baseFumo.name;
     
-    // Roll for base variant (SHINY or alG)
-    const baseVariant = await rollBaseVariant(userId);
-    
-    // Roll for special variant (GLITCHED or VOID)
-    const specialVariant = await rollSpecialVariant(userId, finalName);
+    // OPTIMIZED: Roll for variants in parallel
+    const [baseVariant, specialVariant] = await Promise.all([
+        rollBaseVariant(userId),
+        rollSpecialVariant(userId, finalName)
+    ]);
     
     // Apply variants to name
     finalName = applyVariantToName(finalName, baseVariant, specialVariant);
@@ -406,9 +393,11 @@ async function selectAndAddMultipleFumos(userId, rarities, fumoPool) {
         const baseFumo = rarityPool[Math.floor(Math.random() * rarityPool.length)];
         let finalName = baseFumo.name;
         
-        // Roll for variants
-        const baseVariant = await rollBaseVariant(userId);
-        const specialVariant = await rollSpecialVariant(userId, finalName);
+        // OPTIMIZED: Roll for variants in parallel
+        const [baseVariant, specialVariant] = await Promise.all([
+            rollBaseVariant(userId),
+            rollSpecialVariant(userId, finalName)
+        ]);
         
         // Apply variants to name
         finalName = applyVariantToName(finalName, baseVariant, specialVariant);

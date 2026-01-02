@@ -267,8 +267,11 @@ class QuestTrackerService {
     }
 
     static async getNearCompletionQuests(userId, threshold = 0.9) {
-        const dailyProgress = await QuestProgressService.getDailyProgress(userId);
-        const weeklyProgress = await QuestProgressService.getWeeklyProgress(userId);
+        // OPTIMIZED: Fetch both progress types in parallel
+        const [dailyProgress, weeklyProgress] = await Promise.all([
+            QuestProgressService.getDailyProgress(userId),
+            QuestProgressService.getWeeklyProgress(userId)
+        ]);
 
         const near = [];
 
