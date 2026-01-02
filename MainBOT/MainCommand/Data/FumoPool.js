@@ -4,6 +4,8 @@ const path = require('path');
 const fumoDataPath = path.join(__dirname, 'fumos.json');
 let fumoData;
 
+const PLACEHOLDER_IMAGE = 'https://www.firstbenefits.org/wp-content/uploads/2017/10/placeholder.png';
+
 try {
   const rawData = fs.readFileSync(fumoDataPath, 'utf8');
   fumoData = JSON.parse(rawData);
@@ -15,12 +17,55 @@ try {
 }
 
 class FumoPool {
+  /**
+   * Get fumo picture with fallback to placeholder
+   * @param {string} fumoName - Full fumo name like "Reimu(Common)"
+   * @returns {string} - Picture URL or placeholder
+   */
+  static getPicture(fumoName) {
+    const fumo = this.findByName(fumoName);
+    return fumo?.picture || PLACEHOLDER_IMAGE;
+  }
+
+  /**
+   * Find fumo by full name
+   * @param {string} fullName - e.g., "Reimu(Common)"
+   */
+  static findByName(fullName) {
+    const match = fullName.match(/^(.+?)\(([^)]+)\)/);
+    if (!match) return null;
+    
+    const [, name, rarity] = match;
+    return fumoData.fumos.find(
+      f => f.name.toLowerCase() === name.toLowerCase() && 
+           f.rarity.toLowerCase() === rarity.toLowerCase()
+    );
+  }
+
+  /**
+   * Get fumo with validated picture (async)
+   * @param {string} fumoName - Full fumo name
+   * @returns {Promise<Object>} - Fumo object with validated picture
+   */
+  static async getWithValidatedPicture(fumoName) {
+    const fumo = this.findByName(fumoName);
+    if (!fumo) return null;
+
+    // Lazy import to avoid circular dependency
+    const { getValidImageUrl } = require('../Service/ImageValidationService/ImageValidator');
+    
+    return {
+      ...fumo,
+      picture: await getValidImageUrl(fumo.picture)
+    };
+  }
+
   static getForCrate() {
     return fumoData.fumos
       .filter(f => f.availability.crate)
       .map(f => ({
         name: `${f.name}(${f.rarity})`,
-        picture: f.picture,
+        picture: f.picture || PLACEHOLDER_IMAGE,
         rarity: f.rarity
       }));
   }
@@ -31,7 +76,7 @@ class FumoPool {
       .map(f => ({
         name: `${f.name}(${f.rarity})`,
         rarity: f.rarity,
-        picture: f.picture
+        picture: f.picture || PLACEHOLDER_IMAGE
       }));
   }
 
@@ -40,7 +85,7 @@ class FumoPool {
       .filter(f => f.availability.pray)
       .map(f => ({
         name: `${f.name}(${f.rarity})`,
-        picture: f.picture,
+        picture: f.picture || PLACEHOLDER_IMAGE,
         rarity: f.rarity
       }));
   }
@@ -78,7 +123,7 @@ class FumoPool {
     
     return fumos.map(f => ({
       name: `${f.name}(${f.rarity})`,
-      picture: f.picture,
+      picture: f.picture || PLACEHOLDER_IMAGE,
       rarity: f.rarity
     }));
   }
@@ -89,7 +134,7 @@ class FumoPool {
       .filter(f => f.name.toLowerCase().includes(lowerQuery))
       .map(f => ({
         name: `${f.name}(${f.rarity})`,
-        picture: f.picture,
+        picture: f.picture || PLACEHOLDER_IMAGE,
         rarity: f.rarity,
         availability: f.availability
       }));
@@ -185,3 +230,4 @@ module.exports.getEventFumos = FumoPool.getForEvent;
 module.exports.getPrayFumos = FumoPool.getForPray;
 module.exports.getLibraryFumos = FumoPool.getForLibrary;
 module.exports.getMarketFumos = FumoPool.getForMarket;
+module.exports.PLACEHOLDER_IMAGE = PLACEHOLDER_IMAGE;

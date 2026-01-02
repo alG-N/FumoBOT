@@ -442,6 +442,9 @@ async function getTraitBoostDisplay(userId) {
     const now = Date.now();
     const lines = [];
     
+    // Clean up expired S!gil and unfreeze boosts BEFORE checking status
+    await cleanupExpiredSigil(userId);
+    
     // Check if S!gil is active (determines GLITCHED priority and timer freezing)
     const sigilRow = await get(
         `SELECT * FROM activeBoosts 
@@ -676,6 +679,7 @@ async function shouldBlockAstralDuplicate(userId) {
 
 /**
  * Clean up expired S!gil and re-enable disabled boosts with restored timers
+ * Also handles orphaned frozen boosts (frozen but no sigil exists)
  */
 async function cleanupExpiredSigil(userId) {
     const now = Date.now();
@@ -694,48 +698,67 @@ async function cleanupExpiredSigil(userId) {
             `DELETE FROM activeBoosts WHERE userId = ? AND source = 'S!gil'`,
             [userId]
         );
-        
-        // Re-enable disabled boosts and restore frozen timers
+        console.log(`[cleanupExpiredSigil] Deleted expired S!gil for user ${userId}`);
+    }
+    
+    // Check if there's an ACTIVE sigil
+    const activeSigil = await get(
+        `SELECT * FROM activeBoosts 
+         WHERE userId = ? AND source = 'S!gil' AND type = 'coin'
+         AND (expiresAt IS NULL OR expiresAt > ?)`,
+        [userId, now]
+    );
+    
+    // If NO active sigil exists, unfreeze any orphaned frozen boosts
+    if (!activeSigil) {
         const disabledBoosts = await all(
             `SELECT userId, type, source, extra FROM activeBoosts 
              WHERE userId = ? AND json_extract(extra, '$.sigilDisabled') = 1`,
             [userId]
         );
         
-        for (const boost of disabledBoosts) {
-            let extra = {};
-            try {
-                extra = JSON.parse(boost.extra || '{}');
-            } catch {}
+        if (disabledBoosts.length > 0) {
+            console.log(`[cleanupExpiredSigil] Found ${disabledBoosts.length} orphaned frozen boosts for user ${userId}`);
             
-            // Restore the frozen timer if it was stored
-            let newExpiresAt = null;
-            if (extra.frozenTimeRemaining) {
-                newExpiresAt = now + extra.frozenTimeRemaining;
+            for (const boost of disabledBoosts) {
+                let extra = {};
+                try {
+                    extra = JSON.parse(boost.extra || '{}');
+                } catch {}
+                
+                // Restore the frozen timer if it was stored
+                let newExpiresAt = null;
+                if (extra.frozenTimeRemaining && extra.frozenTimeRemaining > 0) {
+                    newExpiresAt = now + extra.frozenTimeRemaining;
+                    console.log(`[cleanupExpiredSigil] Unfreezing ${boost.source}/${boost.type}, restoring ${Math.round(extra.frozenTimeRemaining / 60000)}m`);
+                } else {
+                    // No frozen time stored - keep current expiresAt but remove flag
+                    console.log(`[cleanupExpiredSigil] Unfreezing ${boost.source}/${boost.type}, no frozen time stored`);
+                }
+                
+                // Remove the disabled flags
+                delete extra.sigilDisabled;
+                delete extra.frozenTimeRemaining;
+                
+                if (newExpiresAt) {
+                    await run(
+                        `UPDATE activeBoosts SET extra = ?, expiresAt = ? WHERE userId = ? AND type = ? AND source = ?`,
+                        [JSON.stringify(extra), newExpiresAt, boost.userId, boost.type, boost.source]
+                    );
+                } else {
+                    await run(
+                        `UPDATE activeBoosts SET extra = ? WHERE userId = ? AND type = ? AND source = ?`,
+                        [JSON.stringify(extra), boost.userId, boost.type, boost.source]
+                    );
+                }
             }
             
-            // Remove the disabled flags
-            delete extra.sigilDisabled;
-            delete extra.frozenTimeRemaining;
-            
-            if (newExpiresAt) {
-                await run(
-                    `UPDATE activeBoosts SET extra = ?, expiresAt = ? WHERE userId = ? AND type = ? AND source = ?`,
-                    [JSON.stringify(extra), newExpiresAt, boost.userId, boost.type, boost.source]
-                );
-            } else {
-                await run(
-                    `UPDATE activeBoosts SET extra = ? WHERE userId = ? AND type = ? AND source = ?`,
-                    [JSON.stringify(extra), boost.userId, boost.type, boost.source]
-                );
-            }
+            debugLog(`[SIGIL] Unfroze ${disabledBoosts.length} orphaned boosts for user ${userId}`);
+            return true;
         }
-        
-        debugLog(`[SIGIL] Cleaned up expired S!gil for user ${userId}`);
-        return true;
     }
     
-    return false;
+    return !!expiredSigil;
 }
 
 module.exports = {

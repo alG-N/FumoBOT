@@ -837,10 +837,12 @@ async function applyBlessingRewards(userId, rewards, config, rewardMult = 1) {
         const filteredFumos = prayFumos.filter(f => f.rarity === rewards.fumo.rarity);
         if (filteredFumos.length > 0) {
             const fumo = filteredFumos[Math.floor(Math.random() * filteredFumos.length)];
-            await run(
-                `INSERT INTO userInventory (userId, fumoName, rarity, quantity) VALUES (?, ?, ?, 1)`,
-                [userId, fumo.name, fumo.rarity]
-            );
+        await run(
+            `INSERT INTO userInventory (userId, fumoName, rarity, quantity) 
+             VALUES (?, ?, ?, 1)
+             ON CONFLICT(userId, fumoName) DO UPDATE SET quantity = quantity + 1`,
+            [userId, fumo.name, fumo.rarity]
+        );
             summary.push(`🎴 **${fumo.name}** (${fumo.rarity})`);
         }
     }

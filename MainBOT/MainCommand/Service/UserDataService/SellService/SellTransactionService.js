@@ -139,12 +139,26 @@ class SellTransactionService {
         try {
             await db.run('BEGIN TRANSACTION');
 
-            await db.run(
-                `DELETE FROM userInventory WHERE rowid IN (
-                    SELECT rowid FROM userInventory WHERE userId = ? AND fumoName = ? LIMIT ?
-                )`,
-                [userId, fumoName, quantity]
+            // Get current quantity
+            const current = await db.get(
+                'SELECT id, quantity FROM userInventory WHERE userId = ? AND fumoName = ?',
+                [userId, fumoName]
             );
+
+            if (current) {
+                const newQuantity = (current.quantity || 1) - quantity;
+                if (newQuantity <= 0) {
+                    await db.run(
+                        'DELETE FROM userInventory WHERE userId = ? AND fumoName = ?',
+                        [userId, fumoName]
+                    );
+                } else {
+                    await db.run(
+                        'UPDATE userInventory SET quantity = ? WHERE userId = ? AND fumoName = ?',
+                        [newQuantity, userId, fumoName]
+                    );
+                }
+            }
 
             await db.run(
                 'INSERT INTO userSales (userId, fumoName, quantity, timestamp) VALUES (?, ?, ?, ?)',
@@ -175,6 +189,7 @@ class SellTransactionService {
                 if (tag && !fumo.fumoName.endsWith(tag)) continue;
                 if (!tag && (fumo.fumoName.endsWith('[✨SHINY]') || fumo.fumoName.endsWith('[🌟alG]'))) continue;
 
+                // Delete entire fumo entry (all quantity)
                 await db.run(
                     'DELETE FROM userInventory WHERE userId = ? AND fumoName = ?',
                     [userId, fumo.fumoName]

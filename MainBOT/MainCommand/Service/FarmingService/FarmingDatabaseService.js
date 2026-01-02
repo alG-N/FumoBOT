@@ -119,8 +119,10 @@ async function removeFumoFromFarm(userId, fumoName, quantity = 1) {
         );
     } else {
         await run(
-            `INSERT INTO userInventory (userId, fumoName, quantity, rarity) VALUES (?, ?, ?, ?)`,
-            [userId, fumoName, actualRemove, rarity]
+            `INSERT INTO userInventory (userId, fumoName, quantity, rarity) 
+             VALUES (?, ?, ?, ?)
+             ON CONFLICT(userId, fumoName) DO UPDATE SET quantity = quantity + ?`,
+            [userId, fumoName, actualRemove, rarity, actualRemove]
         );
     }
 

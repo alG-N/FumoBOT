@@ -1,362 +1,214 @@
-const { EmbedBuilder, Colors } = require('discord.js');
-const { checkRestrictions } = require('../Middleware/restrictions');
-const path = require('path');
+const { EmbedBuilder } = require('discord.js');
+const { logToDiscord, LogLevel } = require('../Core/logger');
 
-const ERROR_CHANNEL_ID = '1367886953286205530';
-let errorCount = 0;
-const recentErrors = new Map();
+const ERROR_COUNTS = new Map();
+const ERROR_THRESHOLD = 5; // Errors per minute before alert
+const RECOVERY_STRATEGIES = new Map();
 
-function parseErrorLocation(error) {
-    if (!error.stack) {
-        return {
-            file: 'Unknown',
-            line: '?',
-            column: '?',
-            function: 'Unknown',
-            fullPath: 'Unknown'
-        };
-    }
-    
-    const stackLines = error.stack.split('\n');
-    
-    const relevantLine = stackLines.find(line => {
-        return line.includes(process.cwd()) && 
-               !line.includes('node_modules') &&
-               !line.includes('internal/');
+/**
+ * Initialize error handlers for the process
+ */
+function initializeErrorHandlers(client) {
+    // Unhandled promise rejections
+    process.on('unhandledRejection', async (reason, promise) => {
+        console.error('Unhandled Rejection:', reason);
+        await handleError(client, reason, 'UnhandledRejection');
     });
-    
-    if (!relevantLine) {
-        return {
-            file: 'Unknown',
-            line: '?',
-            column: '?',
-            function: 'Unknown',
-            fullPath: stackLines[1] || 'No stack trace'
-        };
-    }
-    
-    const match = relevantLine.match(/at\s+(?:(.+?)\s+\()?(.+):(\d+):(\d+)\)?/);
-    
-    if (!match) {
-        return {
-            file: 'Parse Error',
-            line: '?',
-            column: '?',
-            function: 'Unknown',
-            fullPath: relevantLine.trim()
-        };
-    }
-    
-    const [, functionName, fullPath, line, column] = match;
-    const file = path.relative(process.cwd(), fullPath);
-    
-    return {
-        file: file || path.basename(fullPath),
-        line: line || '?',
-        column: column || '?',
-        function: functionName?.trim() || 'Anonymous',
-        fullPath: fullPath
-    };
+
+    // Uncaught exceptions
+    process.on('uncaughtException', async (error) => {
+        console.error('Uncaught Exception:', error);
+        await handleError(client, error, 'UncaughtException');
+        
+        // Give time to log before potential crash
+        setTimeout(() => {
+            process.exit(1);
+        }, 3000);
+    });
+
+    // Warning handler
+    process.on('warning', (warning) => {
+        console.warn('Process Warning:', warning.name, warning.message);
+    });
+
+    // Graceful shutdown
+    process.on('SIGINT', async () => {
+        console.log('\n🛑 Received SIGINT. Graceful shutdown...');
+        await gracefulShutdown(client);
+    });
+
+    process.on('SIGTERM', async () => {
+        console.log('\n🛑 Received SIGTERM. Graceful shutdown...');
+        await gracefulShutdown(client);
+    });
+
+    console.log('✅ Error handlers initialized');
 }
 
-function formatEnhancedError(error) {
-    const location = parseErrorLocation(error);
-    
-    let formatted = `**Error Type:** ${error.name || 'Error'}\n`;
-    formatted += `**Message:** ${error.message || 'No message'}\n\n`;
-    
-    formatted += `**📍 Location:**\n`;
-    formatted += `• File: \`${location.file}\`\n`;
-    formatted += `• Line: \`${location.line}\` Column: \`${location.column}\`\n`;
-    formatted += `• Function: \`${location.function}\`\n\n`;
-    
-    if (error.stack) {
-        const stackLines = error.stack.split('\n').slice(1, 6); 
-        formatted += `**Stack Trace:**\n\`\`\`\n${stackLines.join('\n')}\n\`\`\``;
-    }
-    
-    return formatted;
-}
-
-function formatUptime(ms) {
-    const seconds = Math.floor(ms / 1000) % 60;
-    const minutes = Math.floor(ms / (1000 * 60)) % 60;
-    const hours = Math.floor(ms / (1000 * 60 * 60)) % 24;
-    const days = Math.floor(ms / (1000 * 60 * 60 * 24));
-    return `${days}d ${hours}h ${minutes}m ${seconds}s`;
-}
-
-function getMemoryUsage() {
-    const usage = process.memoryUsage();
-    return {
-        rss: `${(usage.rss / 1024 / 1024).toFixed(2)} MB`,
-        heapUsed: `${(usage.heapUsed / 1024 / 1024).toFixed(2)} MB`,
-        heapTotal: `${(usage.heapTotal / 1024 / 1024).toFixed(2)} MB`,
-        external: `${(usage.external / 1024 / 1024).toFixed(2)} MB`
-    };
-}
-
-function isDuplicateError(errorKey) {
+/**
+ * Handle and log errors with rate limiting
+ */
+async function handleError(client, error, context = 'Unknown') {
+    const errorKey = `${context}:${error?.message?.slice(0, 50) || 'unknown'}`;
     const now = Date.now();
-    const lastOccurrence = recentErrors.get(errorKey);
+
+    // Track error frequency
+    const errorData = ERROR_COUNTS.get(errorKey) || { count: 0, firstSeen: now, lastSeen: now };
+    errorData.count++;
+    errorData.lastSeen = now;
     
-    if (lastOccurrence && (now - lastOccurrence) < 300000) {
-        return true;
+    // Reset count if over a minute old
+    if (now - errorData.firstSeen > 60000) {
+        errorData.count = 1;
+        errorData.firstSeen = now;
     }
     
-    recentErrors.set(errorKey, now);
-    
-    for (const [key, timestamp] of recentErrors.entries()) {
-        if (now - timestamp > 300000) {
-            recentErrors.delete(key);
-        }
-    }
-    
-    return false;
-}
+    ERROR_COUNTS.set(errorKey, errorData);
 
-function logToConsole(prefix, error) {
-    const location = parseErrorLocation(error);
-    const timestamp = new Date().toISOString();
-    
-    console.error(`\n${'='.repeat(80)}`);
-    console.error(`🟥 [${timestamp}] ${prefix}`);
-    console.error(`${'='.repeat(80)}`);
-    console.error(`📍 Location: ${location.file}:${location.line}:${location.column}`);
-    console.error(`🔧 Function: ${location.function}`);
-    console.error(`⚠️  Error Type: ${error.name}`);
-    console.error(`💬 Message: ${error.message}`);
-    console.error(`\n📚 Stack Trace:`);
-    console.error(error.stack || 'No stack trace available');
-    console.error(`${'='.repeat(80)}\n`);
-}
-
-async function sendErrorEmbed(client, prefix, error, context = {}) {
-    try {
-        if (!client?.channels?.fetch) return;
-        
-        const location = parseErrorLocation(error);
-        const errorKey = `${location.file}:${location.line}:${error.message}`;
-        
-        if (isDuplicateError(errorKey)) {
-            console.log('⏭️  Skipping duplicate error notification');
-            return;
-        }
-
-        const channel = await client.channels.fetch(ERROR_CHANNEL_ID).catch(() => null);
-        if (!channel || !channel.isTextBased()) return;
-
-        const formatted = formatEnhancedError(error).slice(0, 4000);
-        const uptime = formatUptime(process.uptime() * 1000);
-        const memory = getMemoryUsage();
-        const guilds = client.guilds.cache.size;
-        const users = client.guilds.cache.reduce((acc, g) => acc + g.memberCount, 0);
-
-        const embed = new EmbedBuilder()
-            .setTitle(`🟥 ${prefix}`)
-            .setColor(Colors.Red)
-            .addFields(
-                {
-                    name: '📍 Error Location',
-                    value: `**File:** \`${location.file}\`\n**Line:** \`${location.line}:${location.column}\`\n**Function:** \`${location.function}\``,
-                    inline: false
-                },
-                {
-                    name: '⚠️ Error Details',
-                    value: `**Type:** ${error.name}\n**Message:** ${error.message.slice(0, 200)}`,
-                    inline: false
-                }
-            )
-            .setTimestamp()
-            .setFooter({ text: `Error #${errorCount} • ${client.user?.username || 'Bot'}` });
-        
-        if (error.stack) {
-            const stackPreview = error.stack.split('\n').slice(1, 4).join('\n');
-            if (stackPreview.length < 1000) {
-                embed.addFields({
-                    name: '📚 Stack Trace Preview',
-                    value: `\`\`\`js\n${stackPreview}\n\`\`\``,
-                    inline: false
-                });
-            }
-        }
-        
-        if (Object.keys(context).length > 0) {
-            const contextStr = Object.entries(context)
-                .map(([key, value]) => `• **${key}:** ${value}`)
-                .join('\n')
-                .slice(0, 1000);
-            
-            embed.addFields({
-                name: '🔍 Context',
-                value: contextStr,
-                inline: false
-            });
-        }
-        
-        embed.addFields(
-            {
-                name: '⏱️ System Info',
-                value: `**Uptime:** ${uptime}\n**Servers:** ${guilds.toLocaleString()}\n**Users:** ${users.toLocaleString()}`,
-                inline: true
-            },
-            {
-                name: '💾 Memory Usage',
-                value: `**Heap:** ${memory.heapUsed} / ${memory.heapTotal}\n**RSS:** ${memory.rss}`,
-                inline: true
-            }
-        );
-
-        await channel.send({ embeds: [embed] });
-
-    } catch (sendErr) {
-        console.error('🟥 Failed to send error embed to Discord:', sendErr.message);
-    }
-}
-
-function incrementErrorCount() {
-    errorCount++;
-}
-
-function getErrorCount() {
-    return errorCount;
-}
-
-function resetErrorCount() {
-    errorCount = 0;
-}
-
-function getErrorStats() {
-    return {
-        total: errorCount,
-        recentUnique: recentErrors.size,
-        memory: getMemoryUsage(),
-        uptime: formatUptime(process.uptime() * 1000)
-    };
-}
-
-function createErrorStatsEmbed() {
-    const stats = getErrorStats();
-    
+    // Create error embed
     const embed = new EmbedBuilder()
-        .setTitle('🟠 Error Statistics')
-        .setColor(Colors.Orange)
+        .setTitle(`❌ Error: ${context}`)
+        .setColor('#FF0000')
+        .setDescription(`\`\`\`${error?.stack?.slice(0, 1000) || error?.message || 'Unknown error'}\`\`\``)
         .addFields(
-            {
-                name: '📊 Error Counts',
-                value: `**Total since restart:** ${stats.total}\n**Unique recent errors:** ${stats.recentUnique}`,
-                inline: true
-            },
-            {
-                name: '⏱️ System Status',
-                value: `**Uptime:** ${stats.uptime}`,
-                inline: true
-            },
-            {
-                name: '💾 Memory Usage',
-                value: `**Heap Used:** ${stats.memory.heapUsed}\n**RSS:** ${stats.memory.rss}\n**External:** ${stats.memory.external}`,
-                inline: false
-            }
+            { name: 'Occurrences (1min)', value: `${errorData.count}`, inline: true },
+            { name: 'Memory Usage', value: `${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`, inline: true }
         )
-        .setFooter({ text: 'Error tracking system' })
         .setTimestamp();
+
+    // Alert if error frequency is high
+    if (errorData.count >= ERROR_THRESHOLD) {
+        embed.addFields({
+            name: '⚠️ HIGH FREQUENCY',
+            value: 'This error is occurring frequently!',
+            inline: false
+        });
+    }
+
+    try {
+        await logToDiscord(client, null, null, LogLevel.ERROR, embed);
+    } catch (logError) {
+        console.error('Failed to log error to Discord:', logError.message);
+    }
+
+    // Attempt recovery if strategy exists
+    await attemptRecovery(context, error, client);
+}
+
+/**
+ * Register a recovery strategy for a specific error type
+ */
+function registerRecoveryStrategy(errorContext, recoveryFn) {
+    RECOVERY_STRATEGIES.set(errorContext, recoveryFn);
+}
+
+/**
+ * Attempt to recover from an error
+ */
+async function attemptRecovery(context, error, client) {
+    const strategy = RECOVERY_STRATEGIES.get(context);
+    if (strategy) {
+        try {
+            console.log(`🔧 Attempting recovery for: ${context}`);
+            await strategy(error, client);
+            console.log(`✅ Recovery successful for: ${context}`);
+        } catch (recoveryError) {
+            console.error(`❌ Recovery failed for ${context}:`, recoveryError.message);
+        }
+    }
+}
+
+/**
+ * Graceful shutdown procedure
+ */
+async function gracefulShutdown(client) {
+    console.log('🔄 Starting graceful shutdown...');
     
+    try {
+        // Log shutdown
+        const embed = new EmbedBuilder()
+            .setTitle('🛑 Bot Shutting Down')
+            .setColor('#FFA500')
+            .setDescription('FumoBOT is shutting down gracefully.')
+            .setTimestamp();
+        
+        await logToDiscord(client, null, null, LogLevel.INFO, embed);
+        
+        // Stop intervals and queues
+        const { stopAllFarmingIntervals } = require('../Service/FarmingService/FarmingIntervalService');
+        await stopAllFarmingIntervals();
+        
+        // Close database connection
+        const db = require('../Core/Database/dbSetting');
+        await new Promise((resolve) => db.close(resolve));
+        
+        // Destroy client
+        await client.destroy();
+        
+        console.log('✅ Graceful shutdown complete');
+        process.exit(0);
+    } catch (error) {
+        console.error('❌ Error during shutdown:', error.message);
+        process.exit(1);
+    }
+}
+
+/**
+ * Create user-friendly error response
+ */
+function createUserErrorEmbed(error, suggestion = null) {
+    const embed = new EmbedBuilder()
+        .setTitle('⚠️ Something Went Wrong')
+        .setColor('#FF6600')
+        .setDescription('An error occurred while processing your request.');
+
+    if (suggestion) {
+        embed.addFields({
+            name: '💡 Suggestion',
+            value: suggestion,
+            inline: false
+        });
+    }
+
+    embed.setFooter({ text: 'If this persists, please use .report to notify the developers.' });
+
     return embed;
 }
 
-async function handleErrorStats(message) {
-    const ADMIN_IDS = ['1128296349566251068', '1362450043939979378'];
-    
-    if (!ADMIN_IDS.includes(message.author.id)) {
-        return message.reply('❌ You do not have permission to view error statistics.');
-    }
-
-    const embed = createErrorStatsEmbed();
-    await message.reply({ embeds: [embed] });
-}
-
-function initializeErrorHandlers(client) {
-    process.on('unhandledRejection', async (reason, promise) => {
-        incrementErrorCount();
-        logToConsole('Unhandled Promise Rejection', reason);
-        await sendErrorEmbed(client, 'Unhandled Promise Rejection', reason, {
-            'Promise': promise.toString().slice(0, 100)
-        });
-    });
-
-    process.on('uncaughtException', async (error) => {
-        incrementErrorCount();
-        logToConsole('Uncaught Exception', error);
-        await sendErrorEmbed(client, 'Uncaught Exception', error);
-        
-        setTimeout(() => {
-            console.error('💀 Exiting due to uncaught exception...');
-            process.exit(1);
-        }, 1000);
-    });
-
-    process.on('warning', (warning) => {
-        console.warn('⚠️  Node Warning:', warning.name);
-        console.warn('   Message:', warning.message);
-        console.warn('   Stack:', warning.stack);
-    });
-
-    client.on('messageCreate', async (message) => {
-        if (message.author.bot) return;
-        
-        const commands = ['.errorstats', '.errors', '.clearerrors'];
-        if (!commands.some(cmd => message.content.trim().startsWith(cmd))) return;
-        
-        const restriction = checkRestrictions(message.author.id);
-        if (restriction.blocked) {
-            return message.reply({ embeds: [restriction.embed] });
-        }
-        
-        const ADMIN_IDS = ['1128296349566251068', '1362450043939979378'];
-        if (!ADMIN_IDS.includes(message.author.id)) {
-            return message.reply('❌ You do not have permission to use admin commands.');
-        }
-        
-        if (message.content.trim() === '.errorstats' || message.content.trim() === '.errors') {
-            await handleErrorStats(message);
-        } else if (message.content.trim() === '.clearerrors') {
-            const oldCount = errorCount;
-            resetErrorCount();
-            recentErrors.clear();
+/**
+ * Wrap async command handlers with error handling
+ */
+function wrapCommandHandler(handler, commandName) {
+    return async (...args) => {
+        try {
+            return await handler(...args);
+        } catch (error) {
+            console.error(`Error in command ${commandName}:`, error);
             
-            return message.reply({
-                embeds: [
-                    new EmbedBuilder()
-                        .setTitle('✅ Error Stats Cleared')
-                        .setDescription(`Cleared ${oldCount} error records and ${recentErrors.size} recent error cache.`)
-                        .setColor(Colors.Green)
-                ]
-            });
+            // Try to respond to user
+            const interaction = args.find(a => a?.reply || a?.editReply);
+            const message = args.find(a => a?.channel?.send);
+            
+            const errorEmbed = createUserErrorEmbed(error, 'Please try again in a moment.');
+            
+            if (interaction?.deferred || interaction?.replied) {
+                await interaction.editReply({ embeds: [errorEmbed] }).catch(() => {});
+            } else if (interaction?.reply) {
+                await interaction.reply({ embeds: [errorEmbed], ephemeral: true }).catch(() => {});
+            } else if (message?.reply) {
+                await message.reply({ embeds: [errorEmbed] }).catch(() => {});
+            }
+
+            throw error; // Re-throw for logging
         }
-    });
-
-    console.log('✅ Enhanced error handlers initialized');
-    console.log(`   - Error channel: ${ERROR_CHANNEL_ID}`);
-    console.log(`   - File & line tracking: Enabled`);
-    console.log(`   - Duplicate prevention: Enabled (5min window)`);
-}
-
-async function logError(client, context, error, additionalContext = {}) {
-    incrementErrorCount();
-    logToConsole(context, error);
-    await sendErrorEmbed(client, context, error, additionalContext);
+    };
 }
 
 module.exports = {
     initializeErrorHandlers,
-    logError,
-    formatEnhancedError,
-    parseErrorLocation,
-    formatUptime,
-    getErrorCount,
-    resetErrorCount,
-    incrementErrorCount,
-    getErrorStats,
-    createErrorStatsEmbed,
-    ERROR_CHANNEL_ID
+    handleError,
+    registerRecoveryStrategy,
+    gracefulShutdown,
+    createUserErrorEmbed,
+    wrapCommandHandler
 };

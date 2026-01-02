@@ -11,7 +11,7 @@ const { meetsMinimumRarity, getRaritiesAbove } = require('../NormalGachaService/
 async function getEventUserBoosts(userId) {
     const now = Date.now();
 
-    const [ancientRelic, mysteriousCube, mysteriousDice, lumina, petBoosts, nullified, sanaeBoostMultiplier, sanaeTempLuck, sanaeData] = await Promise.all([
+    const [ancientRelic, mysteriousCube, mysteriousDice, lumina, petBoosts, nullified, sanaeBoostMultiplier, sanaeTempLuck, sanaeData, userData] = await Promise.all([
         get(`SELECT multiplier, expiresAt FROM activeBoosts WHERE userId = ? AND type = 'luck' AND source = 'AncientRelic'`, [userId]),
         get(`SELECT multiplier, expiresAt FROM activeBoosts WHERE userId = ? AND type = 'luck' AND source = 'MysteriousCube'`, [userId]),
         get(`SELECT multiplier, expiresAt, extra FROM activeBoosts WHERE userId = ? AND type = 'luck' AND source = 'MysteriousDice'`, [userId]),
@@ -20,8 +20,12 @@ async function getEventUserBoosts(userId) {
         get(`SELECT uses FROM activeBoosts WHERE userId = ? AND type = 'rarityOverride' AND source = 'Nullified'`, [userId]),
         getSanaeBoostMultiplier(userId),
         get(`SELECT multiplier, expiresAt FROM activeBoosts WHERE userId = ? AND type = 'luck' AND source = 'SanaeBlessing' AND expiresAt > ?`, [userId, now]),
-        get(`SELECT luckForRolls, luckForRollsAmount, guaranteedRarityRolls, guaranteedMinRarity FROM sanaeBlessings WHERE userId = ?`, [userId])
+        get(`SELECT luckForRolls, luckForRollsAmount, guaranteedRarityRolls, guaranteedMinRarity FROM sanaeBlessings WHERE userId = ?`, [userId]),
+        get(`SELECT luck FROM userCoins WHERE userId = ?`, [userId])
     ]);
+
+    // Get permanent luck value
+    const permanentLuck = userData?.luck || 0;
 
     const globalMultiplier = sanaeBoostMultiplier || 1;
 
@@ -59,7 +63,7 @@ async function getEventUserBoosts(userId) {
     const sanaeLuckBoost = sanaeData?.luckForRollsAmount || 0;
 
     // Build base boost lines
-    const baseLines = buildBoostLines(ancientLuckMultiplier, mysteriousLuckMultiplier, mysteriousDiceMultiplier, petBoost, !!lumina, sanaeTempLuckMultiplier, globalMultiplier, sanaeGuaranteedRolls, sanaeGuaranteedRarity, sanaeLuckRollsRemaining, sanaeLuckBoost);
+    const baseLines = buildBoostLines(ancientLuckMultiplier, mysteriousLuckMultiplier, mysteriousDiceMultiplier, petBoost, !!lumina, sanaeTempLuckMultiplier, globalMultiplier, sanaeGuaranteedRolls, sanaeGuaranteedRarity, sanaeLuckRollsRemaining, sanaeLuckBoost, permanentLuck);
     
     // Fetch and add trait boost lines (VOID/GLITCHED)
     const traitLines = await getTraitBoostDisplay(userId);
@@ -82,6 +86,7 @@ async function getEventUserBoosts(userId) {
         sanaeGuaranteedRarity,
         sanaeLuckRollsRemaining,
         sanaeLuckBoost,
+        permanentLuck,
         lines: baseLines
     };
 }
@@ -113,13 +118,19 @@ async function calculateEventDiceMultiplier(userId, diceBoost) {
     return currentHour.multiplier;
 }
 
-function buildBoostLines(ancient, mysterious, dice, pet, lumina, sanaeTempLuck = 1, globalMultiplier = 1, sanaeGuaranteedRolls = 0, sanaeGuaranteedRarity = null, sanaeLuckRolls = 0, sanaeLuckBoost = 0) {
+function buildBoostLines(ancient, mysterious, dice, pet, lumina, sanaeTempLuck = 1, globalMultiplier = 1, sanaeGuaranteedRolls = 0, sanaeGuaranteedRarity = null, sanaeLuckRolls = 0, sanaeLuckBoost = 0, permanentLuck = 0) {
     const lines = [];
     if (ancient > 1) lines.push(`🎇 AncientRelic x${ancient.toFixed(2)}`);
     if (mysterious > 1) lines.push(`🧊 MysteriousCube x${mysterious.toFixed(2)}`);
     if (dice !== 1) lines.push(`🎲 MysteriousDice x${dice.toFixed(4)}`);
     if (pet > 1) lines.push(`🐰 Pet x${pet.toFixed(4)}`);
     if (lumina) lines.push('🌟 Lumina (Every 10th roll x5)');
+    
+    // Permanent luck from Sanae Blessing
+    if (permanentLuck > 0) {
+        const cappedLuck = Math.min(permanentLuck, 5.0); // Cap at 500%
+        lines.push(`🍀 Base Luck: +${(cappedLuck * 100).toFixed(1)}% (permanent)`);
+    }
     
     // Sanae boosts
     if (sanaeTempLuck > 1) {

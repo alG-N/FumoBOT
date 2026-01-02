@@ -32,6 +32,12 @@ const { registerSigilInteractionHandler } = require('./MainCommand/Service/UserD
 const PetIntervalManager = require('./MainCommand/Service/PetService/PetIntervalManager');
 
 // ═══════════════════════════════════════════════════════════════
+// BOT HEALTH & IMAGE VALIDATION
+// ═══════════════════════════════════════════════════════════════
+const ConnectionMonitor = require('./MainCommand/Service/BotService/ConnectionHealthService/ConnectionMonitor');
+const { validateAllFumoImages } = require('./MainCommand/Service/BotService/ImageValidationService/ImageValidator');
+
+// ═══════════════════════════════════════════════════════════════
 // ADMINISTRATOR MODULE (Consolidated)
 // ═══════════════════════════════════════════════════════════════
 const {
@@ -56,6 +62,9 @@ console.log(`Maintenance mode is currently: ${maintenance}`);
 // ═══════════════════════════════════════════════════════════════
 const client = createClient();
 client.commands = new Collection();
+
+// Initialize connection monitor
+const connectionMonitor = new ConnectionMonitor(client);
 
 // Pre-initialize Lavalink before login
 const lavalinkService = require('./SubCommand/MusicFunction/Service/LavalinkService');
@@ -256,6 +265,21 @@ client.login(process.env.BOT_TOKEN);
 
 client.once('ready', async () => {
     console.log(`✅ Logged in as ${client.user.tag}`);
+    
+    // Start connection monitoring
+    connectionMonitor.start(30000); // Check every 30 seconds
+    
+    // Validate fumo images on startup (non-blocking)
+    setTimeout(async () => {
+        console.log('🖼️ Starting fumo image validation...');
+        try {
+            const fumos = FumoPool.getRaw();
+            const results = await validateAllFumoImages(fumos, client);
+            console.log(`✅ Image validation complete: ${results.valid} valid, ${results.broken.length} broken, ${results.missing.length} missing`);
+        } catch (error) {
+            console.error('❌ Image validation failed:', error.message);
+        }
+    }, 10000); // Start 10 seconds after ready
 
     // Auto-deploy slash commands (only if changed)
     await deployCommands();

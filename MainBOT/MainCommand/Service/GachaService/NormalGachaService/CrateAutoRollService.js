@@ -58,51 +58,48 @@ async function calculateAutoRollInterval(userId) {
     return interval;
 }
 
-async function performAutoSell(userId) {
-    const inventoryRows = await all(
-        `SELECT id, fumoName, quantity FROM userInventory WHERE userId = ? ORDER BY id DESC LIMIT 100`,
-        [userId]
-    );
-
+async function performAutoSell(userId, rolledFumos = []) {
+    // Sellable rarities for auto-sell (below EXCLUSIVE)
+    const SELLABLE_RARITIES = ['Common', 'UNCOMMON', 'RARE', 'EPIC', 'OTHERWORLDLY', 'LEGENDARY', 'MYTHICAL'];
+    
     let totalSell = 0;
-    const toDelete = [];
-    const toUpdate = [];
-
-    for (const row of inventoryRows) {
-        let rarity = null;
-        for (const r of Object.keys(SELL_REWARDS)) {
-            const regex = new RegExp(`\\b${r}\\b`, 'i');
-            if (regex.test(row.fumoName)) {
-                rarity = r;
-                break;
-            }
-        }
-
-        if (rarity && ['Common', 'UNCOMMON', 'RARE', 'EPIC', 'OTHERWORLDLY', 'LEGENDARY', 'MYTHICAL'].includes(rarity)) {
+    const toSell = {}; // Map of fumoName -> count to sell
+    
+    // Count how many of each sellable fumo was rolled
+    for (const fumo of rolledFumos) {
+        if (!fumo || !fumo.name) continue;
+        
+        const rarity = fumo.rarity;
+        if (rarity && SELLABLE_RARITIES.includes(rarity)) {
+            const key = fumo.name; // Full name like "Reimu(UNCOMMON)"
+            toSell[key] = (toSell[key] || 0) + 1;
+            
             let value = SELL_REWARDS[rarity] || 0;
-            if (row.fumoName.includes('[🌟alG]')) value *= SHINY_CONFIG.ALG_MULTIPLIER;
-            else if (row.fumoName.includes('[✨SHINY]')) value *= SHINY_CONFIG.SHINY_MULTIPLIER;
+            if (fumo.name.includes('[🌟alG]')) value *= SHINY_CONFIG.ALG_MULTIPLIER;
+            else if (fumo.name.includes('[✨SHINY]')) value *= SHINY_CONFIG.SHINY_MULTIPLIER;
+            
             totalSell += value;
-
-            if (row.quantity > 1) {
-                toUpdate.push({ id: row.id, quantity: row.quantity - 1 });
+        }
+    }
+    
+    // Now remove the sold fumos from inventory
+    for (const [fumoName, count] of Object.entries(toSell)) {
+        // Get current inventory entry
+        const row = await get(
+            `SELECT id, quantity FROM userInventory WHERE userId = ? AND fumoName = ?`,
+            [userId, fumoName]
+        );
+        
+        if (row) {
+            const newQuantity = (row.quantity || 1) - count;
+            if (newQuantity <= 0) {
+                await run(`DELETE FROM userInventory WHERE userId = ? AND id = ?`, [userId, row.id]);
             } else {
-                toDelete.push(row.id);
+                await run(`UPDATE userInventory SET quantity = ? WHERE userId = ? AND id = ?`, [newQuantity, userId, row.id]);
             }
         }
     }
-
-    for (const upd of toUpdate) {
-        await run(`UPDATE userInventory SET quantity = ? WHERE userId = ? AND id = ?`, [upd.quantity, userId, upd.id]);
-    }
-
-    if (toDelete.length > 0) {
-        await run(
-            `DELETE FROM userInventory WHERE userId = ? AND id IN (${toDelete.map(() => '?').join(',')})`,
-            [userId, ...toDelete]
-        );
-    }
-
+    
     if (totalSell > 0) {
         await run(`UPDATE userCoins SET coins = coins + ? WHERE userId = ?`, [totalSell, userId]);
     }
@@ -216,7 +213,7 @@ async function startAutoRoll(userId, fumos, autoSell = false) {
             }
 
             if (autoSell) {
-                await performAutoSell(userId);
+                await performAutoSell(userId, result.fumosBought || []);
             }
 
         } catch (error) {

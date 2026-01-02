@@ -105,15 +105,15 @@ class SellValidationService {
         }
 
         const row = await db.get(
-            'SELECT COUNT(*) as count FROM userInventory WHERE userId = ? AND fumoName = ?',
+            'SELECT SUM(quantity) as total FROM userInventory WHERE userId = ? AND fumoName = ?',
             [userId, fumoName]
         );
 
-        if (!row || row.count < quantity) {
+        if (!row || (row.total || 0) < quantity) {
             return {
                 valid: false,
                 error: 'INSUFFICIENT_FUMOS',
-                details: { fumoName, available: row?.count || 0, requested: quantity }
+                details: { fumoName, available: row?.total || 0, requested: quantity }
             };
         }
 
@@ -137,7 +137,7 @@ class SellValidationService {
             };
         }
 
-        let query = 'SELECT fumoName, COUNT(*) AS count FROM userInventory WHERE userId = ? AND fumoName LIKE ?';
+        let query = 'SELECT fumoName, SUM(quantity) AS count FROM userInventory WHERE userId = ? AND fumoName LIKE ?';
         let params = [userId, `%(${rarity})%`];
 
         if (tag) {

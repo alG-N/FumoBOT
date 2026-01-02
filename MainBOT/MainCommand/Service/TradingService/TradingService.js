@@ -303,12 +303,12 @@ async function executeTrade(sessionKey) {
             remaining -= toDeduct;
         }
         
-        operations.push({
-            sql: `INSERT INTO userInventory (userId, itemName, fumoName, quantity, type) 
-              VALUES (?, ?, ?, ?, 'fumo')
-              ON CONFLICT(userId, itemName) DO UPDATE SET quantity = quantity + ?`,
-            params: [user2.id, fumoName, fumoName, quantity, quantity]
-        });
+            operations.push({
+                sql: `INSERT INTO userInventory (userId, fumoName, itemName, quantity, type) 
+                  VALUES (?, ?, ?, ?, 'fumo')
+                  ON CONFLICT(userId, fumoName) DO UPDATE SET quantity = quantity + ?`,
+                params: [user2.id, fumoName, fumoName, quantity, quantity]
+            });
         
         operations.push({
             sql: `DELETE FROM userInventory WHERE userId = ? AND (fumoName = ? OR itemName = ?) AND quantity <= 0`,
@@ -338,12 +338,12 @@ async function executeTrade(sessionKey) {
             remaining -= toDeduct;
         }
         
-        operations.push({
-            sql: `INSERT INTO userInventory (userId, itemName, fumoName, quantity, type) 
-              VALUES (?, ?, ?, ?, 'fumo')
-              ON CONFLICT(userId, itemName) DO UPDATE SET quantity = quantity + ?`,
-            params: [user1.id, fumoName, fumoName, quantity, quantity]
-        });
+            operations.push({
+                sql: `INSERT INTO userInventory (userId, fumoName, itemName, quantity, type) 
+                  VALUES (?, ?, ?, ?, 'fumo')
+                  ON CONFLICT(userId, fumoName) DO UPDATE SET quantity = quantity + ?`,
+                params: [user1.id, fumoName, fumoName, quantity, quantity]
+            });
         
         operations.push({
             sql: `DELETE FROM userInventory WHERE userId = ? AND (fumoName = ? OR itemName = ?) AND quantity <= 0`,
