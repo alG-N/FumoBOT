@@ -4,37 +4,37 @@
       "name": "Marisa(Common)",
       "price": 125,
       "rarity": "Common",
+      "stock": 9,
+      "picture": null
+    },
+    {
+      "name": "Cirno(Common)",
+      "price": 125,
+      "rarity": "Common",
+      "stock": 9,
+      "picture": null
+    },
+    {
+      "name": "Sanae(Common)",
+      "price": 125,
+      "rarity": "Common",
       "stock": 6,
       "picture": null
     },
     {
-      "name": "Sakuya(UNCOMMON)",
+      "name": "Meiling(UNCOMMON)",
       "price": 200,
       "rarity": "UNCOMMON",
-      "stock": 4,
+      "stock": 6,
       "picture": null
     },
     {
-      "name": "Cheshire(ASTRAL)",
-      "price": 64150000,
+      "name": "Athena(ASTRAL)",
+      "price": 75940000,
       "rarity": "ASTRAL",
       "stock": 1,
       "picture": null
-    },
-    {
-      "name": "ImSorryOfficerFumo(???)",
-      "price": 54150000,
-      "rarity": "???",
-      "stock": 1,
-      "picture": null
-    },
-    {
-      "name": "Patchouli(UNCOMMON)",
-      "price": 215,
-      "rarity": "UNCOMMON",
-      "stock": 5,
-      "picture": null
     }
   ],
-  "resetTime": 1766941200000
+  "resetTime": 1767344400000
 }

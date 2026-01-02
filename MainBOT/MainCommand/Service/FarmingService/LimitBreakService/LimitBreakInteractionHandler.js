@@ -148,7 +148,11 @@ async function handleLimitBreakConfirm(interaction, userId, message, client) {
         if (checkRow) {
             await run(`UPDATE userUpgrades SET limitBreaks = limitBreaks + 1 WHERE userId = ?`, [userId]);
         } else {
-            await run(`INSERT INTO userUpgrades (userId, limitBreaks, fragmentUses) VALUES (?, 1, 0)`, [userId]);
+            await run(
+                `INSERT INTO userUpgrades (userId, limitBreaks, fragmentUses) VALUES (?, 1, 0)
+                 ON CONFLICT(userId) DO UPDATE SET limitBreaks = limitBreaks + 1`,
+                [userId]
+            );
         }
 
         clearRequirementForUser(userId);

@@ -4,51 +4,51 @@
       "name": "Remilia(RARE)",
       "price": 30,
       "rarity": "RARE",
-      "stock": 3,
-      "picture": null
-    },
-    {
-      "name": "Youmu(RARE)",
-      "price": 35,
-      "rarity": "RARE",
       "stock": 2,
-      "picture": null
-    },
-    {
-      "name": "Ran(EPIC)",
-      "price": 76,
-      "rarity": "EPIC",
-      "stock": 3,
-      "picture": null
-    },
-    {
-      "name": "Satori(EPIC)",
-      "price": 76,
-      "rarity": "EPIC",
-      "stock": 3,
       "picture": null
     },
     {
       "name": "Bocchi(OTHERWORLDLY)",
       "price": 950,
       "rarity": "OTHERWORLDLY",
+      "stock": 3,
+      "picture": null
+    },
+    {
+      "name": "Athena(ASTRAL)",
+      "price": 7594000,
+      "rarity": "ASTRAL",
       "stock": 1,
       "picture": null
     },
     {
-      "name": "Flandere(LEGENDARY)",
-      "price": 1750,
+      "name": "Yukari(LEGENDARY)",
+      "price": 1250,
       "rarity": "LEGENDARY",
-      "stock": 2,
+      "stock": 1,
       "picture": null
     },
     {
-      "name": "Kasen(EPIC)",
-      "price": 90,
-      "rarity": "EPIC",
-      "stock": 3,
+      "name": "ImSorryOfficerFumo(???)",
+      "price": 5415000,
+      "rarity": "???",
+      "stock": 1,
+      "picture": null
+    },
+    {
+      "name": "UltraKillV2(ETERNAL)",
+      "price": 15459000,
+      "rarity": "ETERNAL",
+      "stock": 1,
+      "picture": null
+    },
+    {
+      "name": "Yuuka(MYTHICAL)",
+      "price": 150000,
+      "rarity": "MYTHICAL",
+      "stock": 2,
       "picture": null
     }
   ],
-  "resetTime": 1766944800000
+  "resetTime": 1767355200000
 }

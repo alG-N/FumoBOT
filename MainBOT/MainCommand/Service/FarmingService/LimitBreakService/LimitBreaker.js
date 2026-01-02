@@ -281,7 +281,8 @@ module.exports = async (client) => {
                         );
                     } else {
                         await run(
-                            `INSERT INTO userUpgrades (userId, limitBreaks, fragmentUses) VALUES (?, 1, 0)`,
+                            `INSERT INTO userUpgrades (userId, limitBreaks, fragmentUses) VALUES (?, 1, 0)
+                             ON CONFLICT(userId) DO UPDATE SET limitBreaks = limitBreaks + 1`,
                             [userId]
                         );
                     }

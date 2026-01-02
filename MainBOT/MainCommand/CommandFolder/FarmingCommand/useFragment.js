@@ -107,8 +107,9 @@ module.exports = async (client) => {
                 );
             } else {
                 await db.runAsync(
-                    `INSERT INTO userUpgrades (userId, fragmentUses) VALUES (?, ?)`,
-                    [userId, amountToUse]
+                    `INSERT INTO userUpgrades (userId, fragmentUses) VALUES (?, ?)
+                     ON CONFLICT(userId) DO UPDATE SET fragmentUses = fragmentUses + ?`,
+                    [userId, amountToUse, amountToUse]
                 );
             }
 

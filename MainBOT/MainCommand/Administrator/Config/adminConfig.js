@@ -129,7 +129,9 @@ const ITEM_RARITIES = [
 const FUMO_TRAITS = [
     { label: 'Normal (no trait)', value: 'normal' },
     { label: '✨ SHINY', value: 'shiny', suffix: '[✨SHINY]' },
-    { label: '🌟 alG', value: 'alg', suffix: '[🌟alG]' }
+    { label: '🌟 alG', value: 'alg', suffix: '[🌟alG]' },
+    { label: '🌀 VOID', value: 'void', suffix: '[🌀VOID]' },
+    { label: '🔮 GLITCHED', value: 'glitched', suffix: '[🔮GLITCHED]' }
 ];
 
 const CURRENCY_TYPES = [

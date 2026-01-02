@@ -13,7 +13,8 @@ async function getUserRerollData(userId) {
         const now = Date.now();
         await run(
             `INSERT INTO userShopRerolls (userId, rerollCount, lastRerollReset, paidRerollCount) 
-             VALUES (?, ?, ?, ?)`,
+             VALUES (?, ?, ?, ?)
+             ON CONFLICT(userId) DO UPDATE SET rerollCount = excluded.rerollCount`,
             [userId, MAX_REROLLS, now, 0]
         );
         return { rerollCount: MAX_REROLLS, lastRerollReset: now, paidRerollCount: 0 };

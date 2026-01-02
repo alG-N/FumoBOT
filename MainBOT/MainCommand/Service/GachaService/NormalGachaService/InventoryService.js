@@ -344,23 +344,12 @@ async function selectAndAddFumo(userId, rarity, fumoPool) {
     // Apply variants to name
     finalName = applyVariantToName(finalName, baseVariant, specialVariant);
     
-    // Add to inventory - use check-then-insert pattern for compatibility
-    const existingFumo = await get(
-        `SELECT id, quantity FROM userInventory WHERE userId = ? AND fumoName = ?`,
-        [userId, finalName]
+    // Add to inventory using ON CONFLICT to prevent race conditions
+    await run(
+        `INSERT INTO userInventory (userId, fumoName, quantity, rarity) VALUES (?, ?, 1, ?)
+         ON CONFLICT(userId, fumoName) DO UPDATE SET quantity = quantity + 1`,
+        [userId, finalName, rarity]
     );
-    
-    if (existingFumo) {
-        await run(
-            `UPDATE userInventory SET quantity = quantity + 1 WHERE id = ?`,
-            [existingFumo.id]
-        );
-    } else {
-        await run(
-            `INSERT INTO userInventory (userId, fumoName, quantity, rarity) VALUES (?, ?, 1, ?)`,
-            [userId, finalName, rarity]
-        );
-    }
     
     // Track shiny for weekly stats
     if (baseVariant?.type === 'SHINY') {
@@ -469,7 +458,7 @@ async function selectAndAddMultipleFumos(userId, rarities, fumoPool) {
             existingMap.set(row.fumoName, row);
         }
         
-        // Batch updates and inserts
+        // Batch updates and inserts with ON CONFLICT to prevent race conditions
         for (const [fumoName, data] of fumoUpdates) {
             const existing = existingMap.get(fumoName);
             if (existing) {
@@ -479,8 +468,9 @@ async function selectAndAddMultipleFumos(userId, rarities, fumoPool) {
                 );
             } else {
                 await run(
-                    `INSERT INTO userInventory (userId, fumoName, quantity, rarity) VALUES (?, ?, ?, ?)`,
-                    [userId, fumoName, data.count, data.rarity]
+                    `INSERT INTO userInventory (userId, fumoName, quantity, rarity) VALUES (?, ?, ?, ?)
+                     ON CONFLICT(userId, fumoName) DO UPDATE SET quantity = quantity + ?`,
+                    [userId, fumoName, data.count, data.rarity, data.count]
                 );
             }
         }

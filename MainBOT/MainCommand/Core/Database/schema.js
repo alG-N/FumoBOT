@@ -691,8 +691,8 @@ function createIndexes() {
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 userId TEXT NOT NULL,
                 fumoName TEXT NOT NULL,
-                coinPrice INTEGER,
-                gemPrice INTEGER,
+                coinPrice TEXT,
+                gemPrice TEXT,
                 listedAt INTEGER NOT NULL,
                 CHECK (coinPrice IS NOT NULL OR gemPrice IS NOT NULL)
             )`, (err) => {
@@ -828,6 +828,7 @@ async function ensureColumnsExist() {
         // Ensure other tables have their additional columns
         await addColumnIfNotExists('activeBoosts', 'extra', "TEXT DEFAULT '{}'");
         await addColumnIfNotExists('petInventory', 'ability', 'TEXT');
+        console.log('✅ Ensured all required columns exist in tables');
     } catch (err) {
         console.error('Error ensuring columns exist:', err.message || err);
     }

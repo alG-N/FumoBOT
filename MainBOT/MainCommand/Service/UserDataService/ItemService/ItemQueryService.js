@@ -120,18 +120,22 @@ async function getInventoryStats(userId) {
             const quantity = parseInt(row.totalQuantity) || 0;
             if (quantity <= 0) continue;
 
-            stats.totalItems += quantity;
-            stats.totalUniqueItems++;
-
+            // Only count items that match a valid rarity suffix
             const rarityEntry = Object.entries(RARITY_SUFFIX_MAP).find(([suffix]) =>
                 row.itemName.endsWith(suffix)
             );
 
-            if (rarityEntry) {
-                const rarity = rarityEntry[1];
-                stats.byRarity[rarity].count += quantity;
-                stats.byRarity[rarity].uniqueCount++;
+            // Skip items without a recognized rarity - don't count them in totals
+            if (!rarityEntry) {
+                continue;
             }
+
+            stats.totalItems += quantity;
+            stats.totalUniqueItems++;
+
+            const rarity = rarityEntry[1];
+            stats.byRarity[rarity].count += quantity;
+            stats.byRarity[rarity].uniqueCount++;
         }
 
         return stats;

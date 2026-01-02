@@ -18,7 +18,7 @@
   },
   "1448912158367813662": {
     "normal": {
-      "rollCount": 7,
+      "rollCount": 10,
       "autoSell": true,
       "startTime": 1767258569163,
       "bestFumo": {
@@ -28,31 +28,14 @@
       },
       "bestFumoAt": "1/2/2026, 7:45:49 AM",
       "bestFumoRoll": 845,
-      "specialFumoCount": 355,
+      "specialFumoCount": 365,
       "specialFumoFirstAt": "1/1/2026, 4:11:29 PM",
       "specialFumoFirstRoll": 3
-    },
-    "event": {
-      "rollCount": 14,
-      "autoSell": true,
-      "startTime": 1767325204801,
-      "totalFumosRolled": 46800,
-      "totalCoinsFromSales": 74050,
-      "bestFumo": {
-        "name": "NewYearYukari(???)",
-        "rarity": "???",
-        "picture": "https://media.discordapp.net/attachments/1454788676549742613/1454793949175742648/image.png?ex=695261f2&is=69511072&hm=24bf8ee7ff9b814e5c2dfc6aa5e39ef5a41c55f8c286c7f1c076330f44b08576&=&format=webp&quality=lossless&width=618&height=585"
-      },
-      "bestFumoAt": "1/2/2026, 10:40:05 AM",
-      "bestFumoRoll": 1,
-      "specialFumoCount": 809,
-      "specialFumoFirstAt": "1/2/2026, 10:40:05 AM",
-      "specialFumoFirstRoll": 1
     }
   },
   "1128296349566251068": {
     "normal": {
-      "rollCount": 7,
+      "rollCount": 10,
       "autoSell": true,
       "startTime": 1767324975872,
       "bestFumo": {
@@ -62,25 +45,8 @@
       },
       "bestFumoAt": "1/2/2026, 10:49:19 AM",
       "bestFumoRoll": 14,
-      "specialFumoCount": 241,
+      "specialFumoCount": 286,
       "specialFumoFirstAt": "1/2/2026, 10:36:16 AM",
-      "specialFumoFirstRoll": 1
-    },
-    "event": {
-      "rollCount": 14,
-      "autoSell": true,
-      "startTime": 1767329938616,
-      "totalFumosRolled": 33800,
-      "totalCoinsFromSales": 72710,
-      "bestFumo": {
-        "name": "NewYearYukari(???)",
-        "rarity": "???",
-        "picture": "https://media.discordapp.net/attachments/1454788676549742613/1454793949175742648/image.png?ex=695261f2&is=69511072&hm=24bf8ee7ff9b814e5c2dfc6aa5e39ef5a41c55f8c286c7f1c076330f44b08576&=&format=webp&quality=lossless&width=618&height=585"
-      },
-      "bestFumoAt": "1/2/2026, 11:59:35 AM",
-      "bestFumoRoll": 1,
-      "specialFumoCount": 4666,
-      "specialFumoFirstAt": "1/2/2026, 11:59:35 AM",
       "specialFumoFirstRoll": 1
     }
   }

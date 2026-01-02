@@ -375,9 +375,18 @@ async function handlePriceModal(interaction) {
             });
         }
 
+        // Store prices in cache instead of customId to preserve large numbers
+        cached.pendingListing = {
+            variantIndex,
+            coinPrice,
+            gemPrice,
+            fumoName
+        };
+        listingDataCache.set(userId, cached);
+
         const confirmButtons = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
-                .setCustomId(`confirm_listing_${userId}_${variantIndex}_${coinPrice}_${gemPrice}`)
+                .setCustomId(`confirm_listing_${userId}`)
                 .setLabel('✅ Confirm')
                 .setStyle(ButtonStyle.Success),
             new ButtonBuilder()
@@ -409,19 +418,16 @@ async function handleConfirmListing(interaction) {
     try {
         const parts = interaction.customId.split('_');
         const userId = parts[2];
-        const variantIndex = parseInt(parts[3]);
-        const coinPrice = parseInt(parts[4]);
-        const gemPrice = parseInt(parts[5]);
 
         const cached = listingDataCache.get(userId);
-        if (!cached) {
+        if (!cached || !cached.pendingListing) {
             return interaction.update({
                 content: '❌ Session expired. Please start over.',
                 components: []
             });
         }
 
-        const fumoName = cached.variants[variantIndex].fumoName;
+        const { variantIndex, coinPrice, gemPrice, fumoName } = cached.pendingListing;
 
         // Verify fumo still exists in inventory
         const fumoCheck = await get(

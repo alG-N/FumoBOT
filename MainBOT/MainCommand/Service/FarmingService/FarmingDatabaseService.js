@@ -118,11 +118,11 @@ async function removeFumoFromFarm(userId, fumoName, quantity = 1) {
             [actualRemove, existingInv.id]
         );
     } else {
+        // Insert new inventory entry (no ON CONFLICT - fumoName column doesn't have unique constraint)
         await run(
             `INSERT INTO userInventory (userId, fumoName, quantity, rarity) 
-             VALUES (?, ?, ?, ?)
-             ON CONFLICT(userId, fumoName) DO UPDATE SET quantity = quantity + ?`,
-            [userId, fumoName, actualRemove, rarity, actualRemove]
+             VALUES (?, ?, ?, ?)`,
+            [userId, fumoName, actualRemove, rarity]
         );
     }
 
@@ -144,8 +144,49 @@ async function removeFumoFromFarm(userId, fumoName, quantity = 1) {
 }
 
 async function clearAllFarming(userId) {
+    // First, get all farming fumos to return them to inventory
+    const farmingFumos = await all(
+        `SELECT fumoName, quantity FROM farmingFumos WHERE userId = ?`,
+        [userId]
+    );
+
+    debugLog('FARMING', `[clearAllFarming] Found ${farmingFumos.length} fumos to return for user ${userId}`);
+
+    // Return each fumo to inventory
+    for (const fumo of farmingFumos) {
+        try {
+            const existingInv = await get(
+                `SELECT id, quantity as invQty FROM userInventory WHERE userId = ? AND fumoName = ?`,
+                [userId, fumo.fumoName]
+            );
+
+            const rarityMatch = fumo.fumoName.match(/\((.*?)\)/);
+            const rarity = rarityMatch ? rarityMatch[1] : 'Common';
+
+            if (existingInv) {
+                // Update existing inventory entry
+                await run(
+                    `UPDATE userInventory SET quantity = quantity + ? WHERE id = ?`,
+                    [fumo.quantity, existingInv.id]
+                );
+                debugLog('FARMING', `Returned ${fumo.quantity}x ${fumo.fumoName} to inventory (updated existing)`);
+            } else {
+                // Insert new inventory entry
+                await run(
+                    `INSERT INTO userInventory (userId, fumoName, quantity, rarity) 
+                     VALUES (?, ?, ?, ?)`,
+                    [userId, fumo.fumoName, fumo.quantity, rarity]
+                );
+                debugLog('FARMING', `Returned ${fumo.quantity}x ${fumo.fumoName} to inventory (inserted new)`);
+            }
+        } catch (error) {
+            console.error(`[clearAllFarming] ERROR returning ${fumo.fumoName} to inventory:`, error);
+        }
+    }
+
+    // Now delete all from farm
     await run(`DELETE FROM farmingFumos WHERE userId = ?`, [userId]);
-    debugLog('FARMING', `Cleared all farming for user ${userId}`);
+    debugLog('FARMING', `Cleared all farming for user ${userId} (${farmingFumos.length} fumos returned to inventory)`);
 }
 
 async function getUserInventoryFumo(userId, fumoName) {

@@ -84,28 +84,16 @@ function removePendingCurrency(adminId) {
  */
 function addItemToUser(userId, itemName, quantity) {
     return new Promise((resolve, reject) => {
-        db.get(
-            `SELECT * FROM userInventory WHERE userId = ? AND itemName = ?`,
-            [userId, itemName],
-            (err, row) => {
+        db.run(
+            `INSERT INTO userInventory (userId, itemName, quantity) VALUES (?, ?, ?)
+             ON CONFLICT(userId, itemName) DO UPDATE SET quantity = quantity + ?`,
+            [userId, itemName, quantity, quantity],
+            function(err) {
                 if (err) {
+                    console.error('Error adding item:', err);
                     return reject({ success: false, error: err.message });
                 }
-                
-                const query = row
-                    ? `UPDATE userInventory SET quantity = quantity + ? WHERE userId = ? AND itemName = ?`
-                    : `INSERT INTO userInventory (userId, itemName, quantity) VALUES (?, ?, ?)`;
-                
-                const params = row
-                    ? [quantity, userId, itemName]
-                    : [userId, itemName, quantity];
-                
-                db.run(query, params, function(err) {
-                    if (err) {
-                        return reject({ success: false, error: err.message });
-                    }
-                    resolve({ success: true, itemName, quantity });
-                });
+                resolve({ success: true, itemName, quantity });
             }
         );
     });
@@ -142,30 +130,51 @@ function buildItemName(baseName, rarity) {
  */
 function addFumoToUser(userId, fumoName, quantity) {
     return new Promise((resolve, reject) => {
-        const insertPromises = [];
+        // Extract rarity from fumo name
+        const rarityMatch = fumoName.match(/\((.*?)\)/);
+        const rarity = rarityMatch ? rarityMatch[1] : 'Common';
         
-        for (let i = 0; i < quantity; i++) {
-            insertPromises.push(
-                new Promise((res, rej) => {
+        // First check if this fumo already exists in user's inventory
+        db.get(
+            `SELECT id, quantity as existingQty FROM userInventory WHERE userId = ? AND fumoName = ?`,
+            [userId, fumoName],
+            (err, row) => {
+                if (err) {
+                    console.error('Error checking inventory:', err);
+                    return reject({ success: false, error: err.message });
+                }
+                
+                if (row) {
+                    // Fumo exists, update quantity
                     db.run(
-                        `INSERT INTO userInventory (userId, fumoName) VALUES (?, ?)`,
-                        [userId, fumoName],
-                        function(err) {
-                            if (err) {
-                                console.error('Error adding fumo:', err);
-                                rej(err);
+                        `UPDATE userInventory SET quantity = quantity + ? WHERE id = ?`,
+                        [quantity, row.id],
+                        function(updateErr) {
+                            if (updateErr) {
+                                console.error('Error updating fumo quantity:', updateErr);
+                                reject({ success: false, error: updateErr.message });
                             } else {
-                                res();
+                                resolve({ success: true, fumoName, quantity, action: 'updated' });
                             }
                         }
                     );
-                })
-            );
-        }
-        
-        Promise.all(insertPromises)
-            .then(() => resolve({ success: true, fumoName, quantity }))
-            .catch(err => reject({ success: false, error: err.message }));
+                } else {
+                    // Fumo doesn't exist, insert new row
+                    db.run(
+                        `INSERT INTO userInventory (userId, fumoName, quantity, rarity) VALUES (?, ?, ?, ?)`,
+                        [userId, fumoName, quantity, rarity],
+                        function(insertErr) {
+                            if (insertErr) {
+                                console.error('Error adding fumo:', insertErr);
+                                reject({ success: false, error: insertErr.message });
+                            } else {
+                                resolve({ success: true, fumoName, quantity, action: 'inserted' });
+                            }
+                        }
+                    );
+                }
+            }
+        );
     });
 }
 
@@ -230,29 +239,19 @@ function buildFumoName(baseName, rarity, trait) {
 function addCurrencyToUser(userId, currencyType, amount) {
     return new Promise((resolve, reject) => {
         const column = currencyType === 'coins' ? 'coins' : 'gems';
+        const coinValue = currencyType === 'coins' ? amount : 0;
+        const gemValue = currencyType === 'gems' ? amount : 0;
         
-        db.get(
-            `SELECT ${column} FROM userCoins WHERE userId = ?`,
-            [userId],
-            (err, row) => {
+        db.run(
+            `INSERT INTO userCoins (userId, coins, gems) VALUES (?, ?, ?)
+             ON CONFLICT(userId) DO UPDATE SET ${column} = ${column} + ?`,
+            [userId, coinValue, gemValue, amount],
+            function(err) {
                 if (err) {
+                    console.error('Error adding currency:', err);
                     return reject({ success: false, error: err.message });
                 }
-                
-                const query = row
-                    ? `UPDATE userCoins SET ${column} = ${column} + ? WHERE userId = ?`
-                    : `INSERT INTO userCoins (userId, coins, gems) VALUES (?, ?, ?)`;
-                
-                const params = row
-                    ? [amount, userId]
-                    : [userId, currencyType === 'coins' ? amount : 0, currencyType === 'gems' ? amount : 0];
-                
-                db.run(query, params, function(err) {
-                    if (err) {
-                        return reject({ success: false, error: err.message });
-                    }
-                    resolve({ success: true, currencyType, amount });
-                });
+                resolve({ success: true, currencyType, amount });
             }
         );
     });

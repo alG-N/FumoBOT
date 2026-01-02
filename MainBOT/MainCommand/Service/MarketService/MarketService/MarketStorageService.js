@@ -2,6 +2,10 @@ const { get, all, run } = require('../../../Core/database');
 const { formatNumber } = require('../../../Ultility/formatting');
 
 async function addGlobalListing(userId, fumoName, coinPrice, gemPrice) {
+    // Store prices as strings to preserve large numbers
+    const coinPriceStr = String(coinPrice);
+    const gemPriceStr = String(gemPrice);
+    
     const existing = await get(
         `SELECT id FROM globalMarket WHERE userId = ? AND fumoName = ?`,
         [userId, fumoName]
@@ -10,13 +14,13 @@ async function addGlobalListing(userId, fumoName, coinPrice, gemPrice) {
     if (existing) {
         await run(
             `UPDATE globalMarket SET coinPrice = ?, gemPrice = ?, listedAt = ? WHERE id = ?`,
-            [coinPrice, gemPrice, Date.now(), existing.id]
+            [coinPriceStr, gemPriceStr, Date.now(), existing.id]
         );
     } else {
         await run(
             `INSERT INTO globalMarket (userId, fumoName, coinPrice, gemPrice, listedAt)
              VALUES (?, ?, ?, ?, ?)`,
-            [userId, fumoName, coinPrice, gemPrice, Date.now()]
+            [userId, fumoName, coinPriceStr, gemPriceStr, Date.now()]
         );
     }
 }
@@ -29,17 +33,28 @@ async function removeGlobalListing(userId, listingId) {
 }
 
 async function getUserGlobalListings(userId) {
-    return await all(
+    const listings = await all(
         `SELECT * FROM globalMarket WHERE userId = ? ORDER BY listedAt DESC`,
         [userId]
     );
+    // Parse string prices back to numbers
+    return (listings || []).map(listing => ({
+        ...listing,
+        coinPrice: parseFloat(listing.coinPrice) || 0,
+        gemPrice: parseFloat(listing.gemPrice) || 0
+    }));
 }
 
 async function getAllGlobalListings() {
     const listings = await all(
         `SELECT * FROM globalMarket ORDER BY listedAt DESC`
     );
-    return listings || [];
+    // Parse string prices back to numbers
+    return (listings || []).map(listing => ({
+        ...listing,
+        coinPrice: parseFloat(listing.coinPrice) || 0,
+        gemPrice: parseFloat(listing.gemPrice) || 0
+    }));
 }
 
 async function purchaseGlobalListing(listingId, buyerId) {
@@ -52,7 +67,12 @@ async function purchaseGlobalListing(listingId, buyerId) {
     
     await run(`DELETE FROM globalMarket WHERE id = ?`, [listingId]);
     
-    return listing;
+    // Parse string prices back to numbers
+    return {
+        ...listing,
+        coinPrice: parseFloat(listing.coinPrice) || 0,
+        gemPrice: parseFloat(listing.gemPrice) || 0
+    };
 }
 
 async function notifySellerOfSale(client, sellerId, fumoName, coinPrice, gemPrice, buyerUsername) {
