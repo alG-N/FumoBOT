@@ -18,6 +18,7 @@ const {
 } = require('../../Service/PrayService/PrayUIService');
 const { consumeTicket, consumeShards, getPrayRelevantItems } = require('../../Service/PrayService/PrayDatabaseService');
 const { checkButtonOwnership } = require('../../Middleware/buttonOwnership');
+const { handlePrayFailed } = require('../../Service/PrayService/PrayFailedService');
 
 const { handleYuyuko } = require('../../Service/PrayService/CharacterHandlers/YuyukoHandler');
 const { handleYukari } = require('../../Service/PrayService/CharacterHandlers/YukariHandler');
@@ -123,6 +124,19 @@ module.exports = async (client) => {
                 if (action === 'basic' || action === 'enhanced') {
                     await interaction.deferUpdate();
 
+                    const enhancedMode = action === 'enhanced';
+                    
+                    // Select character FIRST (before consuming resources for pray failed check)
+                    const character = selectRandomCharacter(enhancedMode);
+
+                    // Check for pray failed BEFORE revealing character
+                    const prayFailedResult = await handlePrayFailed(
+                        userId, 
+                        message.channel, 
+                        character.rarity
+                    );
+
+                    // Always consume resources (even on pray fail - it's a risk mechanic)
                     const consumeOperations = [
                         consumeTicket(userId),
                         consumeShards(userId, BASIC_SHARDS)
@@ -138,11 +152,19 @@ module.exports = async (client) => {
                     }
 
                     await Promise.all(consumeOperations);
-
-                    const enhancedMode = action === 'enhanced';
                     trackUsage(userId);
 
-                    const character = selectRandomCharacter(enhancedMode);
+                    // If pray failed, stop here (don't show character)
+                    if (prayFailedResult.failed) {
+                        removeActiveSession(userId);
+                        
+                        // Disable original buttons
+                        const disabledRow = disableButtons(buttons);
+                        await interaction.editReply({ components: [disabledRow] });
+                        
+                        collector.stop('pray_failed');
+                        return;
+                    }
 
                     const characterEmbed = createCharacterEmbed(character, enhancedMode);
                     const characterButtons = createActionButtons(character.id, userId);

@@ -359,8 +359,8 @@ const PRAY_CHARACTERS = {
         id: 'sanae',
         name: 'Sanae',
         rarity: 'Divine',
-        weight: 2,
-        enhancedWeight: 12,
+        weight: 0.5,          // Nerfed from 2 to 0.5 (0.5% base chance)
+        enhancedWeight: 1.5,  // Nerfed from 12 to 1.5 (1.5% enhanced chance)
         picture: 'https://vignette.wikia.nocookie.net/the-outsider-who-loved-gensokyo/images/2/25/SanaeSmile.png/revision/latest?cb=20190504003049',
         description: 'The living goddess of the Moriya Shrine offers divine blessings through faith.',
         color: 0x00CED1,
@@ -616,6 +616,67 @@ const FUMO_PRICES = {
 };
 
 /**
+ * Pray Failed Mechanic Configuration
+ * When pray fails, user encounters a malevolent entity instead of the character
+ */
+const PRAY_FAILED_CONFIG = {
+    // Base chance for pray to fail (before character is revealed)
+    baseFailChance: 0.10, // 10%
+    
+    // Fail chance multiplier by character rarity (lower = less chance to fail)
+    rarityFailChanceModifiers: {
+        'Common': 1.0,      // 10% * 1.0 = 10%
+        'Rare': 1.0,        // 10% * 1.0 = 10%  
+        'Epic': 1.0,        // 10% * 1.0 = 10%
+        'Legendary': 0.75,  // 10% * 0.75 = 7.5%
+        'Mythical': 0.50,   // 10% * 0.50 = 5%
+        'Divine': 0.25      // 10% * 0.25 = 2.5%
+    },
+    
+    // Escape chance when pray fails (user can slip away)
+    escapeChance: 0.25, // 25% chance to escape penalties
+    
+    // Penalties when caught (75% chance after fail)
+    penalties: {
+        fumoLoss: {
+            min: 15,
+            max: 450
+        },
+        currencyLossPercent: 0.15, // 15% of total coins + gems
+        itemLoss: 350,             // Random items from inventory
+        fumoTokenLoss: 25
+    },
+    
+    // Entities that appear when pray fails
+    failEntities: [
+        { name: 'Mischievous Fairy', weight: 40, emoji: '🧚' },
+        { name: 'Hungry Youkai', weight: 30, emoji: '👹' },
+        { name: 'Wandering Spirit', weight: 15, emoji: '👻' },
+        { name: 'Boundary Anomaly', weight: 10, emoji: '🌀' },
+        { name: 'Chaos Incarnate', weight: 5, emoji: '💀' }
+    ],
+    
+    // Messages for different outcomes
+    messages: {
+        escaped: [
+            "The {entity} tried to grab you, but you slipped away!",
+            "You narrowly escaped the {entity}'s grasp!",
+            "Quick reflexes! The {entity} missed you entirely!"
+        ],
+        caught: [
+            "The {entity} caught you and ransacked your belongings!",
+            "You couldn't escape! The {entity} took everything it wanted!",
+            "The {entity} overwhelmed you and claimed its toll!"
+        ],
+        immuneBlocked: [
+            "Sanae's blessing shields you from the {entity}!",
+            "Divine protection! The {entity} cannot touch you!",
+            "Your pray immunity repels the {entity}!"
+        ]
+    }
+};
+
+/**
  * Calculate scaled pray cost based on user's total wealth
  * @param {object} character - The pray character config
  * @param {number} userCoins - User's total coins
@@ -767,6 +828,7 @@ module.exports = {
     RARITY_CONFIG,
     PRAY_LIMITS,
     FUMO_PRICES,
+    PRAY_FAILED_CONFIG,
     getCharacterPool,
     selectRandomCharacter,
     getRarityColor,

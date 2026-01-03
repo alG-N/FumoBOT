@@ -1,5 +1,6 @@
 const { EmbedBuilder } = require('discord.js');
 const { PRAY_CHARACTERS } = require('../../../Configuration/prayConfig');
+const { formatNumber } = require('../../../Ultility/formatting');
 const {
     getUserData,
     updateUserCoins,
@@ -8,6 +9,9 @@ const {
     updateUserRolls,
     incrementDailyPray
 } = require('../PrayDatabaseService');
+
+// Yuyuko Devour now takes percentage instead of flat amount
+const DEVOUR_PERCENT = 0.05; // 5% of coins and gems
 
 async function handleYuyuko(userId, channel) {
     const config = PRAY_CHARACTERS.YUYUKO;
@@ -39,7 +43,13 @@ async function handleDevourOutcome(userId, channel, user, currentLuck, config) {
     if (newLuck >= 1) bonusRolls = 10000;
     bonusRolls = Math.min(bonusRolls, 50000);
 
-    if (user.coins < 600000 || user.gems < 140000) {
+    // Calculate 5% of coins and gems
+    const coinsToTake = Math.floor((user.coins || 0) * DEVOUR_PERCENT);
+    const gemsToTake = Math.floor((user.gems || 0) * DEVOUR_PERCENT);
+    
+    // Check if user is too poor (less than 1000 coins AND 100 gems)
+    if (user.coins < 1000 && user.gems < 100) {
+        // User is broke - Yuyuko takes everything
         await updateUserCoins(userId, -user.coins, -user.gems);
         
         await channel.send({
@@ -50,7 +60,8 @@ async function handleDevourOutcome(userId, channel, user, currentLuck, config) {
                 .setTimestamp()]
         });
     } else {
-        await deductUserCurrency(userId, 600000, 140000);
+        // Deduct 5% of wealth
+        await deductUserCurrency(userId, coinsToTake, gemsToTake);
         
         bonusRolls = Math.floor(bonusRolls * 3);
         
@@ -64,8 +75,10 @@ async function handleDevourOutcome(userId, channel, user, currentLuck, config) {
             embeds: [new EmbedBuilder()
                 .setTitle('🍽️ Devoured! 🍽️')
                 .setDescription(
-                    `Yuyuko took 600k coins & 140k gems... but left ${bonusRolls.toLocaleString()} rolls` +
-                    `${bonusRolls === 30000 ? ' thanks to ShinyMark+!' : ' as a ghostly favor.'}\n\n` +
+                    `Yuyuko took **5%** of your wealth:\n` +
+                    `💰 -${formatNumber(coinsToTake)} coins\n` +
+                    `💎 -${formatNumber(gemsToTake)} gems\n\n` +
+                    `...but left **${bonusRolls.toLocaleString()} rolls** as a ghostly favor!\n\n` +
                     `✨ Luck boost has been massively increased!`
                 )
                 .setColor('#0099ff')

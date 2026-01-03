@@ -1,5 +1,5 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { getRarityColor, getRarityEmoji, PRAY_CHARACTERS } = require('../../Configuration/prayConfig');
+const { getRarityColor, getRarityEmoji, PRAY_CHARACTERS, PRAY_FAILED_CONFIG } = require('../../Configuration/prayConfig');
 
 function createRitualWelcomeEmbed(hasBasicShards, hasEnhancedShards) {
     const embed = new EmbedBuilder()
@@ -192,7 +192,7 @@ function createInfoEmbed(character) {
             detailsText = 
                 `**⚠️ WHAT YOU CAN LOSE:**\n` +
                 `• Normal: 50,000 coins + 10,000 gems + 2% of wealth\n` +
-                `• Devour: 600,000 coins + 140,000 gems\n` +
+                `• Devour: **5% of total coins + 5% of total gems**\n` +
                 `• ❌ If broke during Devour: **ALL COINS & GEMS GONE!**\n` +
                 `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
                 `**👻 Normal Offer (75% chance):**\n` +

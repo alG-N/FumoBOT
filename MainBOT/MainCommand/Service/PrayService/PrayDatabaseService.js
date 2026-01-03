@@ -875,5 +875,6 @@ module.exports = {
     clearInventoryCache,
     clearUserDataCache,
     applyPermanentLuck,
-    getActiveSanaeBoosts
+    getActiveSanaeBoosts,
+    invalidateUserCaches
 };
