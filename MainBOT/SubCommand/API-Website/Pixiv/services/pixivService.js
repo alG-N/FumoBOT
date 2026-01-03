@@ -362,9 +362,10 @@ class PixivService {
     }
 
     async getAutocompleteSuggestions(query) {
-        try {
+        // Use circuit breaker for autocomplete too
+        return circuitBreaker.withCircuitBreaker('pixiv-autocomplete', async () => {
             const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 2000); // Increased timeout
+            const timeout = setTimeout(() => controller.abort(), 2000);
 
             const url = `https://www.pixiv.net/rpc/cps.php?keyword=${encodeURIComponent(query)}&lang=en`;
 
@@ -383,9 +384,7 @@ class PixivService {
 
             const data = await res.json();
             return data?.candidates?.map(tag => tag.tag_name).filter(Boolean) || [];
-        } catch (err) {
-            return [];
-        }
+        }, []); // Return empty array on circuit open
     }
 
     async translateToJapanese(text) {

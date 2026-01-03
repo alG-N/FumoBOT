@@ -9,6 +9,7 @@ config.json
 
 # Database files
 *.db
+*.db-journal
 *.sqlite
 *.sqlite3
 Database/*.db
@@ -19,16 +20,19 @@ Database/*.db
 logs/
 *.log
 npm-debug.log*
+pm2-*.log
 
 # OS files
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+*.sublime-*
 
 # Build outputs
 dist/
@@ -43,7 +47,43 @@ temp/
 *.bak
 *.backup
 backup/
-
+OldBackUp/
 
 # Binary files
 yt-dlp-bin/
+
+# Sensitive data files (JSON with user/session data)
+**/activeSessions.json
+**/notificationPreferences.json
+**/unifiedAutoRollState.json
+**/eventTimer.json
+
+# Market data (regenerated)
+**/globalCoinMarket.json
+**/globalGemMarket.json
+
+# Keep structure but ignore content for data folders
+# !MainBOT/MainCommand/Data/.gitkeep
+
+# Large backup JSON files
+*.backup.*.json
+fumos.backup.*.json
+
+# Cache files
+.cache/
+*.cache
+.commands-hash.json
+
+# Test outputs
+coverage/
+.nyc_output/
+test-results/
+
+# FFmpeg/media processing temp
+*.part
+*.ytdl
+*.webm.part
+
+# Lavalink
+lavalink.jar
+application.yml

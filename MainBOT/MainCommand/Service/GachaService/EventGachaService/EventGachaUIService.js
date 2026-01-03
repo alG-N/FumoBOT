@@ -73,7 +73,7 @@ function createEventStatusEmbed(userData, boosts, chances, eventTimeRemaining, r
                 value: `⚪ Common - ${chances.common.toFixed(2)}%\n` +
                     `🟢 Uncommon - ${chances.uncommon.toFixed(2)}%\n` +
                     `🔵 Rare - ${chances.rare.toFixed(2)}%\n` +
-                    `❓ ??? - ${chances.question.toFixed(4)}%\n` +
+                    `❓ ??? - ${chances.question.toFixed(2)}%\n` +
                     `👑 Transcendent - 1 in ???`
             }
         ])
