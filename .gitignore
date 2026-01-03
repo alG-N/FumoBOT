@@ -62,8 +62,9 @@ yt-dlp-bin/
 **/globalCoinMarket.json
 **/globalGemMarket.json
 
-# Keep structure but ignore content for data folders
-# !MainBOT/MainCommand/Data/.gitkeep
+# Game data files (keep local, don't track)
+**/fumos.json
+**/limitBreakRequirements.json
 
 # Large backup JSON files
 *.backup.*.json
