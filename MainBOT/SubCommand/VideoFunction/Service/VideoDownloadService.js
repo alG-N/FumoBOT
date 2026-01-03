@@ -2,13 +2,12 @@ const path = require('path');
 const fs = require('fs');
 const { EventEmitter } = require('events');
 const cobaltService = require('./CobaltService');
-const ytDlpService = require('./YtdlpService');
 const ffmpegService = require('./FFmpegService');
 const videoConfig = require('../Configuration/videoConfig');
 
 /**
- * Enhanced VideoDownloadService with progress tracking and event emission
- * Aggregates events from all download services
+ * VideoDownloadService - Cobalt-only implementation
+ * Uses self-hosted Cobalt API for video downloads
  */
 class VideoDownloadService extends EventEmitter {
     constructor() {
@@ -28,10 +27,6 @@ class VideoDownloadService extends EventEmitter {
         cobaltService.on('complete', (data) => this.emit('downloadComplete', { ...data, method: 'Cobalt' }));
         cobaltService.on('error', (data) => this.emit('downloadError', { ...data, method: 'Cobalt' }));
 
-        // Forward yt-dlp events
-        ytDlpService.on('stage', (data) => this.emit('stage', { ...data, method: 'yt-dlp' }));
-        ytDlpService.on('progress', (data) => this.emit('progress', { ...data, method: 'yt-dlp' }));
-
         // Forward FFmpeg events
         ffmpegService.on('stage', (data) => this.emit('stage', { ...data, method: 'FFmpeg' }));
         ffmpegService.on('progress', (data) => this.emit('compressionProgress', data));
@@ -45,19 +40,12 @@ class VideoDownloadService extends EventEmitter {
             fs.mkdirSync(this.tempDir, { recursive: true });
         }
 
-        // FFmpeg is still needed for compression
+        // FFmpeg is needed for compression
         await ffmpegService.initialize();
-        
-        // Initialize yt-dlp (fallback method)
-        await ytDlpService.initialize();
         
         this.startCleanupInterval();
         
-        if (videoConfig.USE_COBALT) {
-            console.log(`✅ Video download service initialized (Cobalt: ${videoConfig.COBALT_INSTANCES[0]})`);
-        } else {
-            console.log('✅ Video download service initialized (using yt-dlp)');
-        }
+        console.log(`✅ Video download service initialized (Cobalt: ${videoConfig.COBALT_INSTANCES[0]})`);
     }
 
     /**
@@ -81,36 +69,11 @@ class VideoDownloadService extends EventEmitter {
             this.emit('stage', { stage: 'initializing', message: 'Initializing download...' });
             
             let videoPath;
-            let downloadMethod = 'Unknown';
 
-            // Try Cobalt first if enabled
-            if (videoConfig.USE_COBALT) {
-                try {
-                    console.log(`📥 Downloading via Cobalt (${videoConfig.COBALT_INSTANCES[0]})...`);
-                    this.emit('stage', { stage: 'connecting', message: 'Connecting to Cobalt...', method: 'Cobalt' });
-                    videoPath = await cobaltService.downloadVideo(url, this.tempDir);
-                    downloadMethod = 'Cobalt';
-                    console.log('✅ Cobalt download successful');
-                } catch (cobaltError) {
-                    console.error('⚠️ Cobalt failed:', cobaltError.message);
-                    this.emit('fallback', { from: 'Cobalt', to: 'yt-dlp', reason: cobaltError.message });
-                    
-                    if (videoConfig.USE_YTDLP_FALLBACK) {
-                        console.log('📥 Falling back to yt-dlp...');
-                        this.emit('stage', { stage: 'connecting', message: 'Falling back to yt-dlp...', method: 'yt-dlp' });
-                        videoPath = await ytDlpService.downloadVideo(url, this.tempDir);
-                        downloadMethod = 'yt-dlp';
-                    } else {
-                        throw cobaltError;
-                    }
-                }
-            } else {
-                // Use yt-dlp directly
-                console.log('📥 Downloading via yt-dlp...');
-                this.emit('stage', { stage: 'connecting', message: 'Connecting to yt-dlp...', method: 'yt-dlp' });
-                videoPath = await ytDlpService.downloadVideo(url, this.tempDir);
-                downloadMethod = 'yt-dlp';
-            }
+            console.log(`📥 Downloading via Cobalt (${videoConfig.COBALT_INSTANCES[0]})...`);
+            this.emit('stage', { stage: 'connecting', message: 'Connecting to Cobalt...', method: 'Cobalt' });
+            videoPath = await cobaltService.downloadVideo(url, this.tempDir);
+            console.log('✅ Cobalt download successful');
             
             // Get initial file size
             const initialStats = fs.statSync(videoPath);
@@ -143,7 +106,7 @@ class VideoDownloadService extends EventEmitter {
                 path: finalPath, 
                 size: finalSizeMB, 
                 format,
-                method: downloadMethod,
+                method: 'Cobalt',
                 wasCompressed,
                 originalSize: initialSizeMB
             };
@@ -165,7 +128,7 @@ class VideoDownloadService extends EventEmitter {
                 });
             }
             
-            throw new Error('Failed to download video. The link might be invalid, private, or the video source is not supported.');
+            throw new Error('Failed to download video. Make sure Cobalt is running and the link is valid.');
         } finally {
             // Remove temporary event listeners
             if (progressHandler) this.off('progress', progressHandler);
@@ -175,7 +138,7 @@ class VideoDownloadService extends EventEmitter {
 
     async getDirectUrl(url) {
         try {
-            // Try Cobalt first for direct URL
+            // Use Cobalt for direct URL
             const info = await cobaltService.getVideoInfo(url);
             
             if (info.url) {
@@ -185,28 +148,6 @@ class VideoDownloadService extends EventEmitter {
                     title: 'Video',
                     thumbnail: null
                 };
-            }
-
-            // Fallback to yt-dlp if available
-            if (videoConfig.USE_YTDLP_FALLBACK) {
-                const ytInfo = await ytDlpService.getVideoInfo(url);
-                const formats = ytInfo.formats || [];
-                
-                const suitableFormat = formats.find(f => 
-                    f.ext === 'mp4' && 
-                    f.filesize && 
-                    f.filesize < videoConfig.MAX_FILE_SIZE_MB * 1024 * 1024 &&
-                    f.url
-                );
-
-                if (suitableFormat) {
-                    return {
-                        directUrl: suitableFormat.url,
-                        size: (suitableFormat.filesize / (1024 * 1024)).toFixed(2),
-                        title: ytInfo.title,
-                        thumbnail: ytInfo.thumbnail
-                    };
-                }
             }
 
             return null;

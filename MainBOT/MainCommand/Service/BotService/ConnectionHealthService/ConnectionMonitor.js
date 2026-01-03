@@ -13,6 +13,13 @@ class ConnectionMonitor {
         this.checkInterval = null;
         this.LOG_CHANNEL_ID = '1411386632589807719';
         this.isReady = false;
+        
+        // Warning cooldown tracking (prevent spam)
+        this.lastWarnings = {
+            highLatency: 0,
+            slowDatabase: 0
+        };
+        this.WARNING_COOLDOWN = 5 * 60 * 1000; // 5 minutes between same warnings
     }
 
     /**
@@ -119,13 +126,27 @@ class ConnectionMonitor {
             console.error('❌ Database health check failed:', error.message);
         }
 
-        // Log warning if latency is high
+        // Log warning if latency is high (with cooldown to prevent spam)
+        const now = Date.now();
+        
         if (this.healthStatus.discord.latency > 500) {
-            console.warn(`⚠️ High Discord latency: ${this.healthStatus.discord.latency}ms`);
+            if (now - this.lastWarnings.highLatency > this.WARNING_COOLDOWN) {
+                console.warn(`⚠️ High Discord latency: ${this.healthStatus.discord.latency}ms`);
+                this.lastWarnings.highLatency = now;
+            }
+        } else {
+            // Reset cooldown when latency returns to normal
+            this.lastWarnings.highLatency = 0;
         }
 
         if (this.healthStatus.database.responseTime > 1000) {
-            console.warn(`⚠️ Slow database response: ${this.healthStatus.database.responseTime}ms`);
+            if (now - this.lastWarnings.slowDatabase > this.WARNING_COOLDOWN) {
+                console.warn(`⚠️ Slow database response: ${this.healthStatus.database.responseTime}ms`);
+                this.lastWarnings.slowDatabase = now;
+            }
+        } else {
+            // Reset cooldown when response time returns to normal
+            this.lastWarnings.slowDatabase = 0;
         }
     }
 

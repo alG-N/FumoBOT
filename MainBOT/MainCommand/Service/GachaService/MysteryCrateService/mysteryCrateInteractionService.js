@@ -144,6 +144,11 @@ async function handleCrateSession(message, userId, numCrates, betAmount, currenc
     });
 
     collector.on('end', collected => {
+        // Stop the block collector when main collector ends
+        if (blockCollector) {
+            blockCollector.stop();
+        }
+        
         if (collected.size === 0) {
             msg.edit({
                 embeds: [createErrorEmbed('TIMEOUT')],
@@ -160,6 +165,10 @@ async function handleCrateSession(message, userId, numCrates, betAmount, currenc
 
     blockCollector.on('collect', async (i) => {
         await i.reply({ content: "⛔ This isn't your Mystery Crate session!", ephemeral: true }).catch(() => {});
+    });
+    
+    blockCollector.on('end', () => {
+        // Cleanup - no action needed, just ensure proper garbage collection
     });
 }
 

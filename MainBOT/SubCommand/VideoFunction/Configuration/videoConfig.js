@@ -1,9 +1,7 @@
 module.exports = {
     // ═══════════════════════════════════════════════════
-    // Download Method Settings
+    // Download Method Settings (Cobalt Only)
     // ═══════════════════════════════════════════════════
-    USE_COBALT: true,           // Use self-hosted Cobalt API (primary)
-    USE_YTDLP_FALLBACK: true,   // Fall back to yt-dlp if Cobalt fails
     
     // Self-hosted Cobalt instance (Docker)
     COBALT_INSTANCES: [

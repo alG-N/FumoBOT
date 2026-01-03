@@ -76,6 +76,8 @@ async function handleInviteDecline(interaction, pending, pendingInvites) {
 }
 
 async function handleTradeSession(client, message, trade) {
+    let refreshInterval = null; // Declare here so collector.on('end') can access it
+    
     const collector = message.createMessageComponentCollector({
         time: TRADING_CONFIG.TRADE_SESSION_TIMEOUT
     });
@@ -102,6 +104,12 @@ async function handleTradeSession(client, message, trade) {
     });
 
     collector.on('end', () => {
+        // Always clear refresh interval when collector ends
+        if (refreshInterval) {
+            clearInterval(refreshInterval);
+            refreshInterval = null;
+        }
+        
         const currentTrade = require('./TradingService').getTradeSession(trade.sessionKey);
         if (currentTrade && currentTrade.state !== TRADING_CONFIG.STATES.COMPLETED) {
             cancelTrade(trade.sessionKey);
@@ -113,7 +121,7 @@ async function handleTradeSession(client, message, trade) {
         }
     });
 
-    const refreshInterval = setInterval(async () => {
+    refreshInterval = setInterval(async () => {
         const currentTrade = require('./TradingService').getTradeSession(trade.sessionKey);
         if (!currentTrade || currentTrade.state === TRADING_CONFIG.STATES.COMPLETED || 
             currentTrade.state === TRADING_CONFIG.STATES.CANCELLED) {

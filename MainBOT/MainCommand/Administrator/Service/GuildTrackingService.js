@@ -397,7 +397,11 @@ function initializeGuildTracking(client) {
         console.log(`   - Members: ${guild.memberCount}`);
         console.log(`   - Owner: ${guild.ownerId}`);
         
+        // Send notification to admin log channel
         await sendGuildNotification(client, guild, 'join');
+        
+        // Send welcome message to the server
+        await sendWelcomeMessage(guild);
     });
     
     client.on('guildDelete', async (guild) => {
@@ -408,6 +412,109 @@ function initializeGuildTracking(client) {
     
     console.log('✅ Guild tracking initialized');
     console.log(`   - Log channel: ${GUILD_LOG_CHANNEL_ID}`);
+}
+
+/**
+ * Create welcome embed for new servers
+ * @returns {EmbedBuilder} - Welcome embed
+ */
+function createWelcomeEmbed() {
+    return new EmbedBuilder()
+        .setTitle('🎉 Thanks for inviting FumoBOT!')
+        .setColor(0xFFB6C1) // Light pink - Fumo themed
+        .setDescription(
+            'Hello! I\'m **FumoBOT** - your gateway to collecting adorable Fumo plushies and more!\n\n' +
+            'Here\'s a quick guide to get you started:'
+        )
+        .addFields(
+            {
+                name: '🎴 __Main Commands (Fumo Collection)__',
+                value: 
+                    '`/start` - Begin your Fumo journey!\n' +
+                    '`/pray` - Pray for Fumos (free daily!)\n' +
+                    '`/collection` - View your Fumo collection\n' +
+                    '`/daily` - Claim daily rewards\n' +
+                    '`/shop` - Buy items and upgrades\n' +
+                    '`/trade` - Trade Fumos with others\n' +
+                    '`/craft` - Craft special items\n' +
+                    '`/library` - View all available Fumos',
+                inline: false
+            },
+            {
+                name: '🔧 __Sub Commands (Utilities)__',
+                value: 
+                    '`/pixiv` - Search Pixiv artwork\n' +
+                    '`/video` - Download videos (requires Cobalt)\n' +
+                    '`/music` - Play music in voice channels\n' +
+                    '`/avatar` - Get user avatars\n' +
+                    '`/serverinfo` - Server information',
+                inline: false
+            },
+            {
+                name: '💡 __Pro Tips__',
+                value: 
+                    '• Use `/tutorial` to learn the game mechanics\n' +
+                    '• Join events for exclusive limited Fumos!\n' +
+                    '• Complete quests for bonus rewards\n' +
+                    '• Farm coins with `/farm` commands',
+                inline: false
+            },
+            {
+                name: '🔗 __Links__',
+                value: 
+                    '[Support Server](https://discord.gg/fumobot) • ' +
+                    '[Invite Bot](https://discord.com/oauth2/authorize?client_id=YOUR_CLIENT_ID) • ' +
+                    '[GitHub](https://github.com/alG-N/FumoBOT)',
+                inline: false
+            }
+        )
+        .setImage('https://i.imgur.com/placeholder.png') // Replace with actual Fumo banner
+        .setFooter({ text: 'Use /help for full command list • Have fun collecting!' })
+        .setTimestamp();
+}
+
+/**
+ * Send welcome message to a newly joined guild
+ * @param {Guild} guild - Discord guild
+ */
+async function sendWelcomeMessage(guild) {
+    try {
+        // Try to find a suitable channel to send the welcome message
+        const systemChannel = guild.systemChannel;
+        const publicChannels = guild.channels.cache
+            .filter(c => 
+                c.type === 0 && // Text channel
+                c.permissionsFor(guild.members.me)?.has(['SendMessages', 'EmbedLinks'])
+            )
+            .sort((a, b) => a.position - b.position);
+        
+        // Priority: System channel > General-like channels > First available
+        let targetChannel = systemChannel;
+        
+        if (!targetChannel || !targetChannel.permissionsFor(guild.members.me)?.has(['SendMessages', 'EmbedLinks'])) {
+            // Look for common welcome/general channel names
+            const commonNames = ['general', 'chat', 'welcome', 'lobby', 'main', 'bot-commands', 'bots'];
+            targetChannel = publicChannels.find(c => 
+                commonNames.some(name => c.name.toLowerCase().includes(name))
+            );
+        }
+        
+        if (!targetChannel) {
+            targetChannel = publicChannels.first();
+        }
+        
+        if (!targetChannel) {
+            console.log(`⚠️ Could not find suitable channel to send welcome message in ${guild.name}`);
+            return;
+        }
+        
+        const welcomeEmbed = createWelcomeEmbed();
+        await targetChannel.send({ embeds: [welcomeEmbed] });
+        
+        console.log(`✅ Sent welcome message to ${guild.name} in #${targetChannel.name}`);
+    } catch (error) {
+        console.error(`❌ Failed to send welcome message to ${guild.name}:`, error.message);
+    }
 }
 
 module.exports = {
@@ -427,9 +534,11 @@ module.exports = {
     createGuildJoinEmbed,
     createGuildLeaveEmbed,
     createGuildStatsEmbed,
+    createWelcomeEmbed,
     
     // Notifications
     sendGuildNotification,
+    sendWelcomeMessage,
     
     // Statistics
     getGuildStatistics,
