@@ -3,6 +3,7 @@ const { SLOT_CONFIG, isValidCurrency, getMinBet } = require('../../../Configurat
 const { incrementDailyGamble } = require('../../../Ultility/weekly');
 const { parseBet } = require('../../../Ultility/formatting');
 const { debugLog } = require('../../../Core/logger');
+const QuestMiddleware = require('../../../Middleware/questMiddleware');
 
 async function getUserBalance(userId) {
     return await get(
@@ -96,6 +97,13 @@ async function performSlotSpin(userId, currency, bet, autoSpinCount = 1) {
         await incrementDailyGamble(userId);
     } catch (err) {
         debugLog('SLOT', `Gamble increment error: ${err.message}`);
+    }
+
+    // Track for quest progress
+    try {
+        await QuestMiddleware.trackGamble(userId);
+    } catch (err) {
+        debugLog('SLOT', `Quest tracking error: ${err.message}`);
     }
 
     let totalWin = 0;

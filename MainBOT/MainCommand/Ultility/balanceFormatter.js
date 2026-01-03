@@ -43,9 +43,13 @@ function getStreakDescription(streak) {
 }
 
 function formatProgressBar(current, max, length = 10) {
-    const filled = Math.floor((current / max) * length);
-    const empty = length - filled;
-    const percentage = Math.round((current / max) * 100);
+    // Clamp values to prevent negative or invalid counts
+    const safeCurrent = Math.max(0, current || 0);
+    const safeMax = Math.max(1, max || 1);
+    const ratio = Math.min(1, safeCurrent / safeMax);
+    const filled = Math.max(0, Math.min(length, Math.floor(ratio * length)));
+    const empty = Math.max(0, length - filled);
+    const percentage = Math.min(100, Math.round(ratio * 100));
     
     return `[${'▰'.repeat(filled)}${'▱'.repeat(empty)}] ${percentage}%`;
 }

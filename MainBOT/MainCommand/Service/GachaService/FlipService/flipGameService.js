@@ -8,6 +8,7 @@ const {
 } = require('../../../Configuration/flipConfig');
 const { incrementDailyGamble } = require('../../../Ultility/weekly');
 const { debugLog } = require('../../../Core/logger');
+const QuestMiddleware = require('../../../Middleware/questMiddleware');
 
 async function getOrCreateUser(userId) {
     debugLog('FLIP', `Getting user data for ${userId}`);
@@ -105,6 +106,13 @@ async function executeSingleFlip(userId, choice, currency, bet, multiplier) {
         }
     }
     
+    // Track for quest progress
+    try {
+        await QuestMiddleware.trackGamble(userId);
+    } catch (err) {
+        debugLog('FLIP', `Quest tracking error: ${err.message}`);
+    }
+    
     const updatedUser = await get(`SELECT ${currency}, wins, losses FROM userCoins WHERE userId = ?`, [userId]);
     
     return {
@@ -173,6 +181,15 @@ async function executeBatchFlips(userId, choice, currency, bet, multiplier, coun
             }
         } catch (err) {
         }
+    }
+    
+    // Track for quest progress (batch)
+    try {
+        for (let i = 0; i < count; i++) {
+            await QuestMiddleware.trackGamble(userId);
+        }
+    } catch (err) {
+        debugLog('FLIP', `Quest tracking error: ${err.message}`);
     }
     
     return {

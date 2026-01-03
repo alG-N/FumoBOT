@@ -5,7 +5,11 @@ const {
     getFarmingFumos, 
     getActiveBoosts, 
     getUserAchievements,
-    getUserActivity
+    getUserActivity,
+    getUserBuildings,
+    getUserPets,
+    getUserQuestSummary,
+    getCurrentWeather
 } = require('../../../Service/UserDataService/BalanceService/BalanceService');
 const { generateAllPages } = require('../../../Service/UserDataService/BalanceService/BalanceUIService');
 const { sendPaginatedBalance } = require('../../../Service/UserDataService/BalanceService/BalanceNavigationService');
@@ -43,11 +47,25 @@ async function handleBalanceCommand(message, targetUser) {
             return message.reply(response);
         }
         
-        const [farmingFumos, activeBoosts, achievements, activityData] = await Promise.all([
+        // Fetch all data in parallel for better performance
+        const [
+            farmingFumos, 
+            activeBoosts, 
+            achievements, 
+            activityData,
+            petData,
+            buildings,
+            questSummary,
+            weather
+        ] = await Promise.all([
             getFarmingFumos(targetUser.id),
             getActiveBoosts(targetUser.id),
             getUserAchievements(targetUser.id, userData),
-            getUserActivity(targetUser.id)
+            getUserActivity(targetUser.id),
+            getUserPets(targetUser.id),
+            getUserBuildings(targetUser.id),
+            getUserQuestSummary(targetUser.id),
+            getCurrentWeather(targetUser.id)
         ]);
         
         const pages = await generateAllPages(
@@ -56,18 +74,35 @@ async function handleBalanceCommand(message, targetUser) {
             farmingFumos,
             activeBoosts,
             achievements,
-            activityData
+            activityData,
+            petData,
+            buildings,
+            questSummary,
+            weather
         );
         
         const onUpdate = async () => {
             const freshData = await getUserData(targetUser.id, false);
             if (!freshData) return pages;
             
-            const [freshFarming, freshBoosts, freshAchievements, freshActivity] = await Promise.all([
+            const [
+                freshFarming, 
+                freshBoosts, 
+                freshAchievements, 
+                freshActivity,
+                freshPets,
+                freshBuildings,
+                freshQuests,
+                freshWeather
+            ] = await Promise.all([
                 getFarmingFumos(targetUser.id),
                 getActiveBoosts(targetUser.id),
                 getUserAchievements(targetUser.id, freshData),
-                getUserActivity(targetUser.id)
+                getUserActivity(targetUser.id),
+                getUserPets(targetUser.id),
+                getUserBuildings(targetUser.id),
+                getUserQuestSummary(targetUser.id),
+                getCurrentWeather(targetUser.id)
             ]);
             
             return await generateAllPages(
@@ -76,7 +111,11 @@ async function handleBalanceCommand(message, targetUser) {
                 freshFarming,
                 freshBoosts,
                 freshAchievements,
-                freshActivity
+                freshActivity,
+                freshPets,
+                freshBuildings,
+                freshQuests,
+                freshWeather
             );
         };
         

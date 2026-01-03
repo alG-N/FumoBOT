@@ -1,52 +1,73 @@
+/**
+ * Starter Pack System Configuration
+ * Reworked with path selection and welcome items
+ */
 const STARTER_CONFIG = {
-    REWARD_TIERS: [
-        {
-            chance: 70,
-            coins: 1000,
-            gems: 100,
-            description: '💠 "You got the **Common** gift, quite average, isn\'t it?" - alterSliver',
-            rarity: 'Common',
-            color: '#808080'
-        },
-        {
-            chance: 90,
-            coins: 2000,
-            gems: 200,
-            description: '🔷 "An **Uncommon** gift! Better than the common one, at least." - alterSliver',
-            rarity: 'Uncommon',
-            color: '#00FF00'
-        },
-        {
-            chance: 99,
+    // Starter paths - player chooses one
+    PATHS: {
+        gambler: {
+            id: 'gambler',
+            name: '🎲 The Gambler',
+            description: 'High risk, high reward! More coins to start gambling.',
+            color: '#FF4444',
             coins: 5000,
+            gems: 100,
+            spiritTokens: 3,
+            items: [
+                { name: 'MysteriousDice(M)', quantity: 1 },
+                { name: 'PrayTicket(B)', quantity: 3 }
+            ],
+            welcomeMessage: 'May luck be on your side, gambler!'
+        },
+        devotee: {
+            id: 'devotee',
+            name: '🙏 The Devotee',
+            description: 'Balanced start with prayer-focused items.',
+            color: '#9966FF',
+            coins: 2500,
+            gems: 250,
+            spiritTokens: 5,
+            items: [
+                { name: 'PrayTicket(B)', quantity: 5 },
+                { name: 'Incense(M)', quantity: 2 }
+            ],
+            welcomeMessage: 'The shrine awaits your prayers!'
+        },
+        farmer: {
+            id: 'farmer',
+            name: '🌾 The Farmer',
+            description: 'More gems for steady growth and crafting.',
+            color: '#44AA44',
+            coins: 1500,
             gems: 500,
-            description: '🔶 "A **Rare** gift! Luck is on your side today!" - alterSliver',
-            rarity: 'Rare',
-            color: '#0099FF'
-        },
-        {
-            chance: 99.9,
-            coins: 10000,
-            gems: 1000,
-            description: '✨ "Go buy a lottery ticket! This gift is 0.1% chance!" - alterSliver',
-            rarity: 'Epic',
-            color: '#9933FF'
-        },
-        {
-            chance: 100,
-            coins: 100000,
-            gems: 10000,
-            description: '💎 "The **Ultimate** gift! This was supposed to be impossible to obtain!" - alterSliver',
-            rarity: 'Legendary',
-            color: '#FFD700'
+            spiritTokens: 2,
+            items: [
+                { name: 'WeirdGrass(R)', quantity: 5 },
+                { name: 'FragmentOf1800s(R)', quantity: 3 }
+            ],
+            welcomeMessage: 'Time to grow your collection!'
         }
-    ],
+    },
     
-    MESSAGE_TIMEOUT: 30000,
+    // Universal welcome bonus (everyone gets this)
+    WELCOME_BONUS: {
+        coins: 500,
+        gems: 50,
+        items: [
+            { name: 'Welcome Gift Box', quantity: 1 }
+        ]
+    },
+    
+    // Selection timeout (30 seconds to choose)
+    SELECTION_TIMEOUT: 30000,
+    
+    // Message settings
+    MESSAGE_TIMEOUT: 60000,
     
     EMBED_CONFIG: {
-        title: '🎁 Starter Pack Reward 🎁',
-        footer: 'Welcome to FumoBOT! Use .daily to claim daily rewards.',
+        title: '🎁 Welcome to FumoBOT! 🎁',
+        selectionTitle: '🌟 Choose Your Path 🌟',
+        footer: 'Use .daily to claim daily rewards!',
         thumbnail: 'https://www.meme-arsenal.com/memes/64de2341d1ed532a646cc011ac582e1b.jpg'
     }
 };

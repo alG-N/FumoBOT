@@ -1,6 +1,6 @@
 const { checkRestrictions } = require('../../../Middleware/restrictions');
 const { checkAndSetCooldown } = require('../../../Middleware/rateLimiter');
-const { claimDaily, getDailyLeaderboard } = require('../../../Service/UserDataService/DailyService/DailyService');
+const { claimDaily, getDailyStatus, getDailyLeaderboard } = require('../../../Service/UserDataService/DailyService/DailyService');
 const { 
     createDailyEmbed, 
     createCooldownEmbed, 
@@ -25,6 +25,7 @@ module.exports = (client) => {
             return message.reply({ embeds: [restriction.embed] });
         }
         
+        // Leaderboard subcommand
         if (subcommand === 'leaderboard' || subcommand === 'lb') {
             try {
                 const leaderboard = await getDailyLeaderboard(10);
@@ -36,11 +37,39 @@ module.exports = (client) => {
             }
         }
         
+        // Status subcommand
+        if (subcommand === 'status' || subcommand === 's') {
+            try {
+                const status = await getDailyStatus(message.author.id);
+                
+                if (!status.exists) {
+                    return message.reply({ embeds: [createNoAccountEmbed()] });
+                }
+                
+                if (!status.canClaim) {
+                    const embed = createCooldownEmbed(
+                        status.timeRemaining,
+                        status.streak,
+                        status.nextMilestone,
+                        message.author.username
+                    );
+                    return message.reply({ embeds: [embed] });
+                }
+                
+                return message.reply({
+                    content: `✅ Your daily is ready to claim! Use \`.daily\` to get your rewards.\n🔥 Current streak: **${status.streak}** day${status.streak !== 1 ? 's' : ''}`
+                });
+            } catch (error) {
+                await logError(client, 'Daily Status Command', error, message.author.id);
+                return message.reply({ embeds: [createErrorEmbed(error)] });
+            }
+        }
+        
+        // Main claim command
         const cooldown = await checkAndSetCooldown(message.author.id, 'daily', 3000);
         if (cooldown.onCooldown) {
             return message.reply({
-                content: `⏱️ Please wait ${cooldown.remaining}s before using this command again.`,
-                ephemeral: true
+                content: `⏱️ Please wait ${cooldown.remaining}s before using this command again.`
             }).catch(() => {});
         }
         
@@ -59,9 +88,10 @@ module.exports = (client) => {
                     const embed = createCooldownEmbed(
                         result.timeRemaining, 
                         result.streak,
+                        result.nextMilestone,
                         message.author.username
                     );
-                    const msg = await message.channel.send({ embeds: [embed] });
+                    const msg = await message.reply({ embeds: [embed] });
                     setTimeout(() => msg.delete().catch(() => {}), DAILY_CONFIG.MESSAGE_TIMEOUT);
                     return;
                 }
@@ -69,13 +99,8 @@ module.exports = (client) => {
                 return message.reply({ embeds: [createErrorEmbed()] });
             }
             
-            const embed = createDailyEmbed(
-                result.reward, 
-                result.streak,
-                message.author.username
-            );
-            
-            const sentMsg = await message.channel.send({ embeds: [embed] });
+            const embed = createDailyEmbed(result, message.author.username);
+            const sentMsg = await message.reply({ embeds: [embed] });
             
             setTimeout(() => {
                 sentMsg.delete().catch(() => {});

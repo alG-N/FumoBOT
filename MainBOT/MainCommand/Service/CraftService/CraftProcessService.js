@@ -2,6 +2,7 @@ const { run, transaction, get, all, withUserLock, atomicDeductCurrency } = requi
 const { clearUserCache } = require('./CraftCacheService');
 const { getCraftTimer, CRAFT_CONFIG } = require('../../Configuration/craftConfig');
 const { incrementDailyCraft } = require('../../Ultility/weekly');
+const QuestMiddleware = require('../../Middleware/questMiddleware');
 const {
     checkCraftDiscount,
     checkFreeCrafts,
@@ -128,6 +129,13 @@ async function processCraft(userId, itemName, amount, craftType, recipe, totalCo
             clearUserCache(userId, craftType);
             incrementDailyCraft(userId);
             
+            // Track for quest progress
+            try {
+                await QuestMiddleware.trackCraft(userId);
+            } catch (err) {
+                // Silent fail for quest tracking
+            }
+            
             return { queued: false };
         }
     });
@@ -161,6 +169,13 @@ async function claimQueuedCraft(queueId, userId) {
     
     clearUserCache(userId, queueItem.craftType);
     incrementDailyCraft(userId);
+
+    // Track for quest progress
+    try {
+        await QuestMiddleware.trackCraft(userId);
+    } catch (err) {
+        // Silent fail for quest tracking
+    }
 
     return queueItem;
 }

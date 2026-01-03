@@ -3,6 +3,7 @@ const { getCoinMarket, getGemMarket, updateCoinMarketStock, updateGemMarketStock
 const { addFumoToInventory } = require('./MarketInventoryService');
 const { purchaseGlobalListing } = require('./MarketStorageService');
 const { calculateCoinPrice, calculateGemPrice, formatScaledPrice } = require('../WealthPricingService');
+const QuestMiddleware = require('../../../Middleware/questMiddleware');
 
 async function validateShopPurchase(userId, fumoIndex, amount, market, currency) {
     if (fumoIndex < 0 || fumoIndex >= market.market.length) {
@@ -167,6 +168,13 @@ async function processGlobalPurchase(buyerId, listing) {
         await addFumoToInventory(buyerId, fumoToAdd, shinyMarkValue);
         
         const removed = purchaseGlobalListing(listing.id, buyerId);
+        
+        // Track market sale for seller's quests
+        try {
+            await QuestMiddleware.trackMarketSale(listing.userId);
+        } catch (err) {
+            // Silent fail for quest tracking
+        }
         
         return { 
             remainingCoins: userRow?.coins || 0,

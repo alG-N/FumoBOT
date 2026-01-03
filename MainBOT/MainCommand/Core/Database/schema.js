@@ -282,9 +282,18 @@ function createIndexes() {
                 hasFantasyBook INTEGER DEFAULT 0,
                 yukariMark INTEGER DEFAULT 0,
                 reimuPityCount INTEGER DEFAULT 0,
-                timeclockLastUsed INTEGER DEFAULT 0
+                timeclockLastUsed INTEGER DEFAULT 0,
+                starterPath TEXT DEFAULT NULL
             )`, (err) => {
                 if (err) console.error('Error creating userCoins table:', err.message);
+                res();
+            });
+        }));
+
+        // Migration: Add starterPath column if not exists
+        tables.push(new Promise((res) => {
+            db.run(`ALTER TABLE userCoins ADD COLUMN starterPath TEXT DEFAULT NULL`, (err) => {
+                // Ignore error if column already exists
                 res();
             });
         }));

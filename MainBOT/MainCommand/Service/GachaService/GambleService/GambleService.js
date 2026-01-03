@@ -1,6 +1,7 @@
 const { get, run } = require('../../../Core/database');
 const { doesCounter, validateBet, GAMBLE_CONFIG } = require('../../../Configuration/gambleConfig');
 const { incrementDailyGamble } = require('../../../Ultility/weekly');
+const QuestMiddleware = require('../../../Middleware/questMiddleware');
 
 async function validateGambleRequest(user1Id, user2Id, currency, amount) {
     const betValidation = validateBet(currency, amount);
@@ -159,7 +160,9 @@ async function incrementBothQuests(user1Id, user2Id) {
     try {
         await Promise.all([
             incrementDailyGamble(user1Id),
-            incrementDailyGamble(user2Id)
+            incrementDailyGamble(user2Id),
+            QuestMiddleware.trackGamble(user1Id),
+            QuestMiddleware.trackGamble(user2Id)
         ]);
     } catch (error) {
         console.error('Error incrementing gamble quests:', error);

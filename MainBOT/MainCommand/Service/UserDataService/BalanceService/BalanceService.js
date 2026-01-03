@@ -68,6 +68,99 @@ async function getActiveBoosts(userId) {
     );
 }
 
+async function getUserBuildings(userId) {
+    try {
+        const building = await db.get(
+            `SELECT coinBoostLevel, gemBoostLevel, criticalFarmingLevel, eventBoostLevel 
+             FROM userBuildings 
+             WHERE userId = ?`,
+            [userId]
+        );
+        return building || { coinBoostLevel: 0, gemBoostLevel: 0, criticalFarmingLevel: 0, eventBoostLevel: 0 };
+    } catch (error) {
+        console.error('[BalanceService] Error fetching buildings:', error);
+        return { coinBoostLevel: 0, gemBoostLevel: 0, criticalFarmingLevel: 0, eventBoostLevel: 0 };
+    }
+}
+
+async function getUserPets(userId) {
+    try {
+        const [pets, hatchingEggs] = await Promise.all([
+            db.all(
+                `SELECT petId, type, name, petName, level, quality, weight, age, hunger, rarity, ability 
+                 FROM petInventory 
+                 WHERE userId = ? AND type = 'pet'
+                 ORDER BY level DESC`,
+                [userId]
+            ),
+            db.all(
+                `SELECT id, eggName, startedAt, hatchAt 
+                 FROM hatchingEggs 
+                 WHERE userId = ?`,
+                [userId]
+            )
+        ]);
+        
+        return {
+            owned: pets || [],
+            hatching: hatchingEggs || []
+        };
+    } catch (error) {
+        console.error('[BalanceService] Error fetching pets:', error);
+        return { owned: [], hatching: [] };
+    }
+}
+
+async function getUserQuestSummary(userId) {
+    try {
+        const date = new Date().toISOString().slice(0, 10);
+        const { getWeekIdentifier } = require('../../../Ultility/timeUtils');
+        const week = getWeekIdentifier();
+        
+        const [dailyProgress, weeklyProgress, achievements] = await Promise.all([
+            db.all(
+                `SELECT questId, progress, completed 
+                 FROM dailyQuestProgress 
+                 WHERE userId = ? AND date = ?`,
+                [userId, date]
+            ),
+            db.all(
+                `SELECT questId, progress, completed 
+                 FROM weeklyQuestProgress 
+                 WHERE userId = ? AND week = ?`,
+                [userId, week]
+            ),
+            db.all(
+                `SELECT achievementId, progress, claimed 
+                 FROM achievementProgress 
+                 WHERE userId = ?`,
+                [userId]
+            )
+        ]);
+        
+        const dailyCompleted = (dailyProgress || []).filter(q => q.completed === 1).length;
+        const weeklyCompleted = (weeklyProgress || []).filter(q => q.completed === 1).length;
+        
+        return {
+            daily: { completed: dailyCompleted, total: 5, progress: dailyProgress || [] },
+            weekly: { completed: weeklyCompleted, total: 7, progress: weeklyProgress || [] },
+            achievements: achievements || []
+        };
+    } catch (error) {
+        console.error('[BalanceService] Error fetching quest summary:', error);
+        return {
+            daily: { completed: 0, total: 5, progress: [] },
+            weekly: { completed: 0, total: 7, progress: [] },
+            achievements: []
+        };
+    }
+}
+
+async function getCurrentWeather(userId) {
+    // Weather system not implemented yet - return null
+    return null;
+}
+
 async function getUserAchievements(userId, row) {
     const { ACHIEVEMENTS } = require('../../../Configuration/balanceConfig');
     
@@ -177,6 +270,10 @@ module.exports = {
     getBatchUserData,
     getFarmingFumos,
     getActiveBoosts,
+    getUserBuildings,
+    getUserPets,
+    getUserQuestSummary,
+    getCurrentWeather,
     getUserAchievements,
     getUserActivity,
     invalidateCache,

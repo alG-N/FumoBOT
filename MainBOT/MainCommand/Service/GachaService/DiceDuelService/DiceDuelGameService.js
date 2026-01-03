@@ -1,6 +1,7 @@
 const { getUserBalance, updateUserBalance } = require('./diceDuelStorageService');
 const { getDiceResult } = require('../../../Configuration/diceDuelConfig');
 const { incrementDailyGamble } = require('../../../Ultility/weekly');
+const QuestMiddleware = require('../../../Middleware/questMiddleware');
 
 async function validateDiceRequest(userId, betAmount, currency) {
     try {
@@ -65,6 +66,13 @@ async function processDiceResult(userId, result, betAmount, currency, balance) {
             incrementDailyGamble(userId);
         } catch (err) {
             console.error('[Dice Duel] Quest update error:', err);
+        }
+
+        // Track for quest progress
+        try {
+            await QuestMiddleware.trackGamble(userId);
+        } catch (err) {
+            console.error('[Dice Duel] Quest tracking error:', err);
         }
         
         const newBalance = balance + result.netChange;

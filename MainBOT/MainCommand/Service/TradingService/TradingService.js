@@ -1,5 +1,6 @@
 const { get, all, run, transaction, withUserLock } = require('../../Core/database');
 const TRADING_CONFIG = require('../../Configuration/tradingConfig');
+const QuestMiddleware = require('../../Middleware/questMiddleware');
 
 const activeTrades = new Map();
 const tradeLocks = new Set(); // Prevent double-trading same items
@@ -457,6 +458,17 @@ async function executeTrade(sessionKey) {
                 try {
                     await transaction(operations);
                     trade.state = TRADING_CONFIG.STATES.COMPLETED;
+                    
+                    // Track trade completion for both users
+                    try {
+                        await Promise.all([
+                            QuestMiddleware.trackTrade(user1.id),
+                            QuestMiddleware.trackTrade(user2.id)
+                        ]);
+                    } catch (err) {
+                        // Silent fail for quest tracking
+                    }
+                    
                     return { success: true, trade };
                 } catch (error) {
                     return { success: false, error: 'TRANSACTION_FAILED', details: error.message };

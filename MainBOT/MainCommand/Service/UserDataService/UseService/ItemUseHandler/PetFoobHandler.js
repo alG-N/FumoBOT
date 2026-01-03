@@ -1,4 +1,5 @@
 const { get, all, run, transaction } = require('../../../../Core/database');
+const QuestMiddleware = require('../../../../Middleware/questMiddleware');
 
 function getMaxHunger(rarity) {
     const hungerMap = {
@@ -148,6 +149,15 @@ async function handlePetFoob(message, itemName, quantity, userId) {
         // Execute all updates in single transaction
         if (operations.length > 0) {
             await transaction(operations);
+        }
+
+        // Track for quest progress (per pet fed)
+        try {
+            for (let i = 0; i < fedPets.length; i++) {
+                await QuestMiddleware.trackPetFeed(userId);
+            }
+        } catch (err) {
+            // Silent fail for quest tracking
         }
 
         console.log(`\n✅ Successfully fed ${fedPets.length} pets`);

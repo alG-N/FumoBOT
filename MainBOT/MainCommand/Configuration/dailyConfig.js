@@ -1,65 +1,87 @@
+/**
+ * Daily Reward System Configuration
+ * Reworked with milestone system, streak protection, and better scaling
+ */
 const DAILY_CONFIG = {
-    COOLDOWN: 24 * 60 * 60 * 1000,
+    // Timing
+    COOLDOWN: 24 * 60 * 60 * 1000,           // 24 hours
+    STREAK_GRACE_PERIOD: 48 * 60 * 60 * 1000, // 48 hours before streak resets
     
-    STREAK_LOSS_THRESHOLD: 48 * 60 * 60 * 1000,
+    // Base rewards (before multipliers)
+    BASE_REWARDS: {
+        coins: 2000,
+        gems: 200,
+        spiritTokens: 1
+    },
     
-    MAX_STREAK_DISPLAY: 7,
+    // Streak multiplier: reward * (1 + streakBonus * min(streak, maxEffectiveStreak))
+    STREAK_SCALING: {
+        bonusPerDay: 0.05,      // 5% increase per day
+        maxEffectiveStreak: 30, // Cap scaling at 30 days (150% max bonus)
+        maxMultiplier: 2.5      // Maximum 2.5x rewards
+    },
     
-    REWARD_TIERS: [
-        {
-            chance: 0.5,
-            baseCoins: 1500,
-            baseGems: 150,
-            streakBonus: 150,
-            spiritTokens: 1,
-            description: '🎁 **Daily Bonus!** 🎁\n\nA solid reward to keep your journey going!',
-            rarity: 'Common',
-            color: '#0099ff',
-            thumbnail: 'https://www.meme-arsenal.com/memes/64de2341d1ed532a646cc011ac582e1b.jpg'
+    // Milestones give special bonuses
+    MILESTONES: {
+        7: {
+            name: 'Week Warrior',
+            emoji: '🔥',
+            bonusCoins: 5000,
+            bonusGems: 500,
+            bonusItem: { name: 'PrayTicket(B)', quantity: 50 },
+            message: 'A full week of dedication!'
         },
-        {
-            chance: 0.8,
-            baseCoins: 3000,
-            baseGems: 300,
-            streakBonus: 300,
-            spiritTokens: 2,
-            description: '🎉 **Daily Bonus!** 🎉\n\nA generous bonus from the bot!',
-            rarity: 'Uncommon',
-            color: '#33cc33'
+        14: {
+            name: 'Fortnight Fighter',
+            emoji: '⭐',
+            bonusCoins: 15000,
+            bonusGems: 1500,
+            bonusItem: { name: 'MysteriousDice(M)', quantity: 10 },
+            message: 'Two weeks strong!'
         },
-        {
-            chance: 0.95,
-            baseCoins: 7000,
-            baseGems: 700,
-            streakBonus: 700,
-            spiritTokens: 3,
-            description: '💰 **Daily Bonus!** 💰\n\nJackpot! Your luck is shining bright today!',
-            rarity: 'Rare',
-            color: '#ffcc00'
+        30: {
+            name: 'Monthly Master',
+            emoji: '👑',
+            bonusCoins: 50000,
+            bonusGems: 5000,
+            bonusItem: { name: 'Nullified(?)', quantity: 10 },
+            message: 'A whole month! Incredible dedication!'
         },
-        {
-            chance: 0.99,
-            baseCoins: 15000,
-            baseGems: 1500,
-            streakBonus: 1500,
-            spiritTokens: 5,
-            description: '🎊 **Daily Bonus!** 🎊\n\nAn unexpected windfall!',
-            rarity: 'Epic',
-            color: '#ff66ff'
+        60: {
+            name: 'Devoted Collector',
+            emoji: '💎',
+            bonusCoins: 150000,
+            bonusGems: 15000,
+            bonusItem: { name: 'LuckyCharm(?)', quantity: 1 },
+            message: 'Two months of unwavering commitment!'
         },
-        {
-            chance: 1.0,
-            baseCoins: 200000,
-            baseGems: 20000,
-            streakBonus: 0,
-            spiritTokens: 10,
-            description: '👑 **Daily Bonus!** 👑\n\nIncredible! You\'ve hit the ultimate jackpot!',
-            rarity: 'Legendary',
-            color: '#ff0000'
+        100: {
+            name: 'Legendary Streak',
+            emoji: '🏆',
+            bonusCoins: 500000,
+            bonusGems: 50000,
+            bonusItem: { name: 'alGShard(P)', quantity: 5 },
+            message: 'THE LEGENDARY 100 DAY STREAK!'
         }
-    ],
+    },
     
+    // Lucky bonus chance (extra rewards)
+    LUCKY_BONUS: {
+        chance: 0.1, // 10% chance
+        multiplier: 2, // Double rewards
+        message: '🍀 **LUCKY BONUS!** Your rewards were doubled!'
+    },
+    
+    // Weekend bonus
+    WEEKEND_BONUS: {
+        enabled: true,
+        multiplier: 1.5,
+        message: '🎉 **Weekend Bonus!** 1.5x rewards!'
+    },
+    
+    // Display settings
     MESSAGE_TIMEOUT: 30000,
+    MAX_STREAK_DISPLAY: 7,
     
     DEFAULT_THUMBNAIL: 'https://www.meme-arsenal.com/memes/64de2341d1ed532a646cc011ac582e1b.jpg',
     

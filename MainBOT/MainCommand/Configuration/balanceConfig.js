@@ -1,23 +1,34 @@
 module.exports = {
     CACHE_TTL: 30000,
     
-    INTERACTION_TIMEOUT: 120000,
+    INTERACTION_TIMEOUT: 180000,
     
     PAGES: {
         OVERVIEW: 0,
-        PRAYER: 1,
-        STATS: 2,
-        ACHIEVEMENTS: 3,
-        PROGRESSION: 4,
-        ACTIVITY: 5
+        ECONOMY: 1,
+        PRAYER: 2,
+        STATS: 3,
+        PETS: 4,
+        BUILDINGS: 5,
+        BOOSTS: 6,
+        PITY: 7,
+        QUESTS: 8,
+        ACTIVITY: 9
     },
+    
+    TOTAL_PAGES: 10,
     
     COLORS: {
         DEFAULT: 0xffcc00,
         SUCCESS: 0x2ecc71,
         WARNING: 0xf39c12,
         ERROR: 0xe74c3c,
-        INFO: 0x3498db
+        INFO: 0x3498db,
+        PETS: 0xff9ff3,
+        BUILDINGS: 0x54a0ff,
+        BOOSTS: 0x5f27cd,
+        QUESTS: 0x00d2d3,
+        ECONOMY: 0x10ac84
     },
     
     THRESHOLDS: {
@@ -84,8 +95,41 @@ module.exports = {
             id: 'high_level',
             name: '📈 High Level',
             check: (row) => row.level >= 50
+        },
+        {
+            id: 'pet_collector',
+            name: '🐾 Pet Collector',
+            check: (row) => (row.totalPets || 0) >= 5
+        },
+        {
+            id: 'builder',
+            name: '🏗️ Master Builder',
+            check: (row) => (row.totalBuildingLevels || 0) >= 50
+        },
+        {
+            id: 'market_tycoon',
+            name: '📈 Market Tycoon',
+            check: (row) => (row.totalSales || 0) >= 100
+        },
+        {
+            id: 'lucky_roller',
+            name: '🍀 Lucky Roller',
+            check: (row) => (row.mythicalPulls || 0) >= 10
         }
     ],
+    
+    PAGE_INFO: {
+        0: { name: 'Overview', emoji: '🏠', desc: 'Main profile summary' },
+        1: { name: 'Economy', emoji: '💰', desc: 'Wealth & income details' },
+        2: { name: 'Prayer', emoji: '🙏', desc: 'Prayer & devotion stats' },
+        3: { name: 'Statistics', emoji: '📊', desc: 'Gacha & progression' },
+        4: { name: 'Pets', emoji: '🐾', desc: 'Pet collection & bonuses' },
+        5: { name: 'Buildings', emoji: '🏗️', desc: 'Building upgrades' },
+        6: { name: 'Boosts', emoji: '⚡', desc: 'Active boost effects' },
+        7: { name: 'Pity', emoji: '🎰', desc: 'Pity progression' },
+        8: { name: 'Quests', emoji: '📜', desc: 'Quest progress summary' },
+        9: { name: 'Activity', emoji: '📋', desc: 'Recent activity log' }
+    },
     
     DESCRIPTIONS: {
         COIN: {

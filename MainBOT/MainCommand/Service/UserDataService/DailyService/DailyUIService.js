@@ -4,79 +4,121 @@ const { formatNumber } = require('../../../Ultility/formatting');
 const { formatDuration } = require('../../../Ultility/balanceFormatter');
 
 function createProgressBar(current, max = 7) {
-    const filled = Math.min(current, max);
-    const empty = Math.max(0, max - current);
-    return '■'.repeat(filled) + '□'.repeat(empty);
+    const filled = Math.max(0, Math.min(current, max));
+    const empty = Math.max(0, max - filled);
+    return '█'.repeat(filled) + '░'.repeat(empty);
 }
 
-function getStreakText(streak) {
-    const { MAX_STREAK_DISPLAY } = DAILY_CONFIG;
+function getStreakEmoji(streak) {
+    if (streak >= 100) return '🏆';
+    if (streak >= 60) return '💎';
+    if (streak >= 30) return '👑';
+    if (streak >= 14) return '⭐';
+    if (streak >= 7) return '🔥';
+    return '✨';
+}
+
+function createDailyEmbed(result, username) {
+    const { rewards, streak, milestone, nextMilestone, streakReset } = result;
+    const streakEmoji = getStreakEmoji(streak);
     
-    if (streak >= MAX_STREAK_DISPLAY) {
-        return `MAX Streak (${streak} days) 🔥`;
+    const embed = new EmbedBuilder()
+        .setTitle(`🎁 ${username}'s Daily Bonus 🎁`)
+        .setColor(milestone ? '#FFD700' : '#00AAFF')
+        .setThumbnail(DAILY_CONFIG.DEFAULT_THUMBNAIL)
+        .setTimestamp();
+    
+    // Build description
+    let description = '';
+    
+    if (streakReset) {
+        description += `⚠️ *Your streak was reset due to missed days!*\n\n`;
     }
     
-    return `${streak}/${MAX_STREAK_DISPLAY} days\nKeep going for even better rewards!`;
-}
-
-function createDailyEmbed(reward, streak, username) {
-    const progressBar = createProgressBar(streak);
-    const streakText = getStreakText(streak);
+    if (rewards.luckyBonus) {
+        description += `${DAILY_CONFIG.LUCKY_BONUS.message}\n\n`;
+    }
     
-    return new EmbedBuilder()
-        .setTitle(`🎁 ${username}'s Daily Bonus 🎁`)
-        .setDescription(reward.description)
-        .addFields(
-            { 
-                name: '💰 Coins', 
-                value: `${formatNumber(reward.coins)} coins`, 
-                inline: true 
-            },
-            { 
-                name: '💎 Gems', 
-                value: `${formatNumber(reward.gems)} gems`, 
-                inline: true 
-            },
-            { 
-                name: '🪙 Spirit Tokens', 
-                value: `${reward.spiritTokens} token${reward.spiritTokens > 1 ? 's' : ''}`, 
-                inline: true 
-            },
-            { 
-                name: '🔥 Daily Streak', 
-                value: `[${progressBar}] ${streakText}`, 
-                inline: false 
-            }
-        )
-        .setColor(reward.color || Colors.Blue)
-        .setThumbnail(reward.thumbnail)
-        .setFooter({ text: 'Remember to claim your daily bonus every day to maximize your rewards!' })
-        .setTimestamp();
+    if (rewards.weekendBonus) {
+        description += `${DAILY_CONFIG.WEEKEND_BONUS.message}\n\n`;
+    }
+    
+    description += `**Rewards Received:**`;
+    embed.setDescription(description);
+    
+    // Reward fields
+    embed.addFields(
+        { name: '💰 Coins', value: `+${formatNumber(rewards.coins)}`, inline: true },
+        { name: '💎 Gems', value: `+${formatNumber(rewards.gems)}`, inline: true },
+        { name: '🪙 Spirit Tokens', value: `+${rewards.spiritTokens}`, inline: true }
+    );
+    
+    // Milestone celebration
+    if (milestone) {
+        embed.addFields({
+            name: `${milestone.emoji} ${milestone.name} Achieved!`,
+            value: `${milestone.message}\n` +
+                   `**Bonus:** +${formatNumber(milestone.bonusCoins)} coins, +${formatNumber(milestone.bonusGems)} gems` +
+                   (milestone.bonusItem ? `\n🎁 **${milestone.bonusItem.name}** x${milestone.bonusItem.quantity}` : ''),
+            inline: false
+        });
+    }
+    
+    // Streak display
+    const progressMax = nextMilestone ? nextMilestone.day : 100;
+    const progressCurrent = Math.min(streak, progressMax);
+    const progressBar = createProgressBar(progressCurrent % 7 || 7, 7);
+    
+    let streakText = `${streakEmoji} **${streak} day${streak !== 1 ? 's' : ''}**`;
+    if (nextMilestone) {
+        streakText += ` (${progressCurrent}/${nextMilestone.day} to ${nextMilestone.name})`;
+    }
+    
+    embed.addFields({
+        name: '🔥 Daily Streak',
+        value: `[${progressBar}] ${streakText}\n` +
+               `📈 Multiplier: **${rewards.multiplier.toFixed(2)}x**`,
+        inline: false
+    });
+    
+    embed.setFooter({ text: 'Claim daily rewards every day to build your streak!' });
+    
+    return embed;
 }
 
-function createCooldownEmbed(timeRemaining, streak, username) {
+function createCooldownEmbed(timeRemaining, streak, nextMilestone, username) {
     const hours = Math.floor(timeRemaining / (60 * 60 * 1000));
     const minutes = Math.floor((timeRemaining % (60 * 60 * 1000)) / (60 * 1000));
     const seconds = Math.floor((timeRemaining % (60 * 1000)) / 1000);
     
-    const timerMessage = 
-        `You have already claimed your daily bonus today. ` +
-        `Please wait **${hours}h ${minutes}m ${seconds}s** until you can claim it again.\n\n` +
-        `Remember: Tomorrow's rewards will be even better if you maintain your streak!`;
+    const streakEmoji = getStreakEmoji(streak);
+    const progressBar = createProgressBar(streak % 7 || 7, 7);
     
-    const progressBar = createProgressBar(streak);
-    
-    return new EmbedBuilder()
-        .setTitle(`⏳ ${username}, you have already claimed your daily bonus! ⏳`)
-        .setDescription(timerMessage)
+    const embed = new EmbedBuilder()
+        .setTitle(`⏳ ${username}, Already Claimed! ⏳`)
+        .setDescription(
+            `You've already claimed your daily bonus today.\n` +
+            `**Come back in:** \`${hours}h ${minutes}m ${seconds}s\`\n\n` +
+            `*Don't break your streak! Claim within 48h of your last claim.*`
+        )
+        .setColor(Colors.Orange)
         .addFields({
             name: '🔥 Current Streak',
-            value: `[${progressBar}] ${streak} day${streak !== 1 ? 's' : ''}`,
+            value: `[${progressBar}] ${streakEmoji} **${streak} day${streak !== 1 ? 's' : ''}**`,
             inline: false
         })
-        .setColor(Colors.Red)
         .setFooter(DAILY_CONFIG.COOLDOWN_FOOTER)
         .setTimestamp();
+    
+    if (nextMilestone) {
+        embed.addFields({
+            name: `${nextMilestone.emoji} Next Milestone`,
+            value: `**${nextMilestone.name}** in ${nextMilestone.day - streak} day${nextMilestone.day - streak !== 1 ? 's' : ''}`,
+            inline: false
+        });
+    }
+    
+    return embed;
 }
 
 function createNoAccountEmbed() {
@@ -111,7 +153,8 @@ function createLeaderboardEmbed(leaderboard, client) {
         const medal = medals[index] || `**${entry.rank}.**`;
         const user = client.users.cache.get(entry.userId);
         const username = user ? user.username : `User ${entry.userId.slice(0, 8)}`;
-        return `${medal} **${username}** - ${entry.streak} day${entry.streak !== 1 ? 's' : ''}`;
+        const emoji = getStreakEmoji(entry.streak);
+        return `${medal} **${username}** - ${emoji} ${entry.streak} day${entry.streak !== 1 ? 's' : ''}`;
     }).join('\n');
     
     return new EmbedBuilder()
@@ -129,5 +172,5 @@ module.exports = {
     createErrorEmbed,
     createLeaderboardEmbed,
     createProgressBar,
-    getStreakText
+    getStreakEmoji
 };

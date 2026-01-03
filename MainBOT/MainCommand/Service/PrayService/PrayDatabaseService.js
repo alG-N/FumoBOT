@@ -1,5 +1,6 @@
 const { get, all, run, transaction, withUserLock, atomicDeductCurrency } = require('../../Core/database');
 const { getWeekIdentifier } = require('../../Ultility/weekly');
+const QuestMiddleware = require('../../Middleware/questMiddleware');
 
 // ========== CACHE WITH LRU AND SIZE LIMITS ==========
 const MAX_CACHE_SIZE = 5000; // Max entries per cache
@@ -248,30 +249,8 @@ async function incrementDailyPray(userId) {
     const today = new Date().toISOString().split('T')[0];
     const weekKey = getWeekIdentifier();
     
-    await transaction([
-        {
-            sql: `INSERT INTO dailyQuestProgress (userId, questId, progress, completed, date)
-                  VALUES (?, 'pray_5', 1, 0, ?)
-                  ON CONFLICT(userId, questId, date) DO UPDATE SET 
-                  progress = MIN(dailyQuestProgress.progress + 1, 5),
-                  completed = CASE WHEN dailyQuestProgress.progress + 1 >= 5 THEN 1 ELSE 0 END`,
-            params: [userId, today]
-        },
-        {
-            sql: `INSERT INTO weeklyQuestProgress (userId, questId, progress, completed, week)
-                  VALUES (?, 'pray_success_25', 1, 0, ?)
-                  ON CONFLICT(userId, questId, week) DO UPDATE SET 
-                  progress = MIN(weeklyQuestProgress.progress + 1, 25),
-                  completed = CASE WHEN weeklyQuestProgress.progress + 1 >= 25 THEN 1 ELSE 0 END`,
-            params: [userId, weekKey]
-        },
-        {
-            sql: `INSERT INTO achievementProgress (userId, achievementId, progress, claimed)
-                  VALUES (?, 'total_prays', 1, 0)
-                  ON CONFLICT(userId, achievementId) DO UPDATE SET progress = progress + 1`,
-            params: [userId]
-        }
-    ]);
+    // Use QuestMiddleware for tracking
+    await QuestMiddleware.trackPray(userId, true);
 }
 
 async function updateYukariData(userId, coinsAdded, gemsAdded, newMark) {

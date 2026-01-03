@@ -4,6 +4,7 @@ const { incrementWeeklyShiny } = require('../../../Ultility/weekly');
 const { debugLog } = require('../../../Core/logger');
 const { STORAGE_CONFIG } = require('../../../Configuration/storageConfig');
 const StorageLimitService = require('../../UserDataService/StorageService/StorageLimitService');
+const QuestMiddleware = require('../../../Middleware/questMiddleware');
 
 // Define ASTRAL+ rarities for duplicate blocking (if not in rarity config)
 const ASTRAL_PLUS = ASTRAL_PLUS_RARITIES || ['ASTRAL', 'CELESTIAL', 'INFINITE', 'ETERNAL', 'TRANSCENDENT'];
@@ -338,10 +339,14 @@ async function selectAndAddFumo(userId, rarity, fumoPool) {
         [userId, finalName, rarity]
     );
     
-    // Track shiny for weekly stats
+    // Track shiny for weekly stats and quest progress
     if (baseVariant?.type === 'SHINY') {
         await incrementWeeklyShiny(userId);
+        await QuestMiddleware.trackShiny(userId);
     }
+    
+    // Track fumo obtained for quest achievements
+    await QuestMiddleware.trackFumoObtained(userId, rarity);
     
     return {
         success: true,

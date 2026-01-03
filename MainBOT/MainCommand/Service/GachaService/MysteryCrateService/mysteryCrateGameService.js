@@ -8,6 +8,7 @@ const {
     validateBetAmount
 } = require('../../../Configuration/mysteryCrateConfig');
 const { incrementDailyGamble } = require('../../../Ultility/weekly');
+const QuestMiddleware = require('../../../Middleware/questMiddleware');
 
 async function validateCrateRequest(userId, numCrates, betAmount, currency) {
     try {
@@ -111,6 +112,13 @@ async function processCrateSelection(userId, selectedIndex, crateResults, betAmo
             incrementDailyGamble(userId);
         } catch (err) {
             console.error('[Mystery Crate] Quest update error:', err);
+        }
+
+        // Track for quest progress
+        try {
+            await QuestMiddleware.trackGamble(userId);
+        } catch (err) {
+            console.error('[Mystery Crate] Quest tracking error:', err);
         }
         
         const newBalance = balance + netChange;

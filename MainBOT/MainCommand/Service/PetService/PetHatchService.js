@@ -2,6 +2,7 @@ const { v4: uuidv4 } = require('uuid');
 const { EGG_DATA, EGG_POOLS } = require('../../Configuration/petConfig');
 const PetDatabase = require('./PetDatabaseService');
 const PetStats = require('./PetStatsService');
+const QuestMiddleware = require('../../Middleware/questMiddleware');
 
 async function startHatching(userId, eggName) {
     const now = Date.now();
@@ -62,6 +63,13 @@ async function hatchEgg(userId, eggName) {
     }
 
     await PetDatabase.insertPet(petData);
+    
+    // Track for quest progress
+    try {
+        await QuestMiddleware.trackPetHatch(userId);
+    } catch (err) {
+        // Silent fail for quest tracking
+    }
     
     return {
         pet: petData,

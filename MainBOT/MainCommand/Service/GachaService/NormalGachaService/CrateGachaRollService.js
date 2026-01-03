@@ -6,38 +6,14 @@ const { ASTRAL_PLUS_RARITIES, isRarer } = require('../../../Configuration/rarity
 const { incrementWeeklyAstral } = require('../../../Ultility/weekly');
 const { debugLog } = require('../../../Core/logger');
 const StorageLimitService = require('../../UserDataService/StorageService/StorageLimitService');
+const QuestMiddleware = require('../../../Middleware/questMiddleware');
 
 // Maximum pity counter value to prevent integer overflow
 const MAX_PITY = 2147483647;
 
 async function updateQuestsAndAchievements(userId, rollCount) {
-    const { getWeekIdentifier } = require('../../../Ultility/weekly');
-    const weekId = getWeekIdentifier();
-
-    await Promise.all([
-        run(
-            `INSERT INTO dailyQuestProgress (userId, questId, progress, completed, date) 
-             VALUES (?, 'roll_1000', ?, 0, DATE('now')) 
-             ON CONFLICT(userId, questId, date) DO UPDATE SET 
-             progress = MIN(progress + ?, 1000), 
-             completed = CASE WHEN progress + ? >= 1000 THEN 1 ELSE completed END`,
-            [userId, rollCount, rollCount, rollCount]
-        ),
-        run(
-            `INSERT INTO weeklyQuestProgress (userId, questId, progress, completed, week) 
-             VALUES (?, 'roll_15000', ?, 0, ?) 
-             ON CONFLICT(userId, questId, week) DO UPDATE SET 
-             progress = MIN(progress + ?, 15000), 
-             completed = CASE WHEN progress + ? >= 15000 THEN 1 ELSE completed END`,
-            [userId, rollCount, weekId, rollCount, rollCount]
-        ),
-        run(
-            `INSERT INTO achievementProgress (userId, achievementId, progress, claimed) 
-             VALUES (?, 'total_rolls', ?, 0) 
-             ON CONFLICT(userId, achievementId) DO UPDATE SET progress = progress + ?`,
-            [userId, rollCount, rollCount]
-        )
-    ]);
+    // Use the new QuestMiddleware for tracking
+    await QuestMiddleware.trackRoll(userId, rollCount);
 }
 
 async function getUserRollData(userId) {
