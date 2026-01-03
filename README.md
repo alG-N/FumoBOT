@@ -26,7 +26,7 @@ It's one of my first projects when I was still learning at FPT Polytechnic Schoo
 1. **Invite FumoBOT:** [Invite Link](https://discord.com/oauth2/authorize?client_id=1254962096924397569&permissions=182273&integration_type=0&scope=bot)
 2. **Configure:** Use settings or commands to customize.
 3. **Type `.help`:** See all commands and categories.
-4. **Join the Community:** [Discord Server](https://discord.gg/3vJEyCCdaA) for support and updates.
+4. **Join the Community:** [Discord Server](https://discord.gg/3vJEyCCdaA) for support and updates alongside with cool community.
 
 ### Step-by-Step Setup
 
