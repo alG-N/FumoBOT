@@ -4,10 +4,30 @@ const { logToDiscord, LogLevel } = require('../../../Core/logger');
 const { 
     getRequirementForUser, 
     clearRequirementForUser,
-    validateUserHasFumos 
+    validateUserHasFumos,
+    getTierInfo,
+    getMilestoneInfo,
+    getNextMilestone,
+    calculateResourceRequirements,
+    MAX_LIMIT_BREAKS,
+    TIER_CONFIG,
+    TRAIT_TAGS,
+    TRAIT_HIERARCHY
 } = require('./LimitBreakRequirement');
 
-const MAX_LIMIT_BREAKS = 150;
+// ============================================================
+// TIER COLORS FOR UI
+// ============================================================
+const TIER_COLORS = {
+    NOVICE: 0x90EE90,      // Light green
+    ADEPT: 0x4169E1,       // Royal blue
+    EXPERT: 0xFF6347,      // Tomato red
+    MASTER: 0x9932CC,      // Dark orchid
+    GRANDMASTER: 0xFFD700, // Gold
+    TRANSCENDENT: 0xFF00FF // Magenta/cosmic
+};
+
+const MILESTONE_COLOR = 0xFF1493; // Deep pink for milestones
 
 async function handleLimitBreakerInteraction(interaction, userId, message, client) {
     const { customId } = interaction;
@@ -95,7 +115,7 @@ async function getLimitBreakerData(userId) {
     const fragmentUses = userRow?.fragmentUses || 0;
 
     const requirementData = getRequirementForUser(userId, currentBreaks + 1);
-    const requirements = calculateRequirements(currentBreaks);
+    const requirements = calculateResourceRequirements(currentBreaks); // Use the new function
 
     const fumoValidation = await validateUserHasFumos(userId, requirementData.requirements.fumos);
 
@@ -132,7 +152,7 @@ async function handleLimitBreakConfirm(interaction, userId, message, client) {
         }
 
         const requirementData = getRequirementForUser(userId, breaks + 1);
-        const reqs = calculateRequirements(breaks);
+        const reqs = calculateResourceRequirements(breaks); // Use the new function
         
         const validation = await validateResources(userId, reqs, requirementData.requirements.fumos);
 
@@ -229,94 +249,159 @@ async function consumeResources(userId, reqs, fumoIds) {
     }
 }
 
-function calculateRequirements(currentBreaks) {
-    const baseFragments = 10;
-    const baseNullified = 1;
+/**
+ * Create a visual progress bar
+ */
+function createProgressBar(current, max, length = 10) {
+    const percentage = current / max;
+    const filled = Math.round(percentage * length);
+    const empty = length - filled;
     
-    const fragmentIncrease = Math.floor(currentBreaks / 10) * 3;
-    const nullifiedIncrease = Math.floor(currentBreaks / 25);
+    const filledChar = '█';
+    const emptyChar = '░';
     
-    return {
-        fragments: baseFragments + fragmentIncrease,
-        nullified: baseNullified + nullifiedIncrease
-    };
+    return `${filledChar.repeat(filled)}${emptyChar.repeat(empty)} ${(percentage * 100).toFixed(1)}%`;
 }
 
 function createLimitBreakerEmbed(data) {
     const { currentBreaks, fragmentUses, requirements, requiredFumos, fumoValidation, inventory } = data;
     const nextBreakNumber = currentBreaks + 1;
     const canBreak = currentBreaks < MAX_LIMIT_BREAKS;
+    
+    // Get tier and milestone info
+    const tier = getTierInfo(nextBreakNumber);
+    const milestone = getMilestoneInfo(nextBreakNumber);
+    const nextMilestone = getNextMilestone(nextBreakNumber);
+    
+    const embedColor = milestone ? MILESTONE_COLOR : (TIER_COLORS[tier.key] || 0xFFD700);
 
     const embed = new EmbedBuilder()
-        .setTitle('⚡ Limit Breaker System')
-        .setColor(canBreak ? 0xFFD700 : 0xFF0000)
-        .setDescription(
-            canBreak 
-                ? '**Break through your farming limits!**\n\nSacrifice specific items to gain additional farming slots beyond the fragment limit.\n\n**Current Progress:**'
-                : '**Maximum Limit Breaks Reached!**\n\nYou have reached the maximum of 150 limit breaks.'
+        .setTitle(milestone ? `🌟 MILESTONE: ${milestone.name}` : `⚡ Limit Breaker - ${tier.emoji} ${tier.name} Tier`)
+        .setColor(canBreak ? embedColor : 0xFF0000);
+    
+    if (!canBreak) {
+        embed.setDescription(
+            '**🏆 MAXIMUM LIMIT BREAKS REACHED!**\n\n' +
+            'You have achieved the ultimate transcendence!\n' +
+            `Your total farm limit is now: **${5 + fragmentUses + currentBreaks}**`
         );
+        return embed;
+    }
+    
+    // Build description
+    let description = '';
+    if (milestone) {
+        description += `**${milestone.bonus}**\n\n`;
+    }
+    description += `*${tier.description}*\n\n`;
+    description += '**Break through your farming limits!**\n';
+    description += 'Sacrifice specific items to gain additional farming slots.\n';
+    
+    embed.setDescription(description);
 
-    if (canBreak) {
-        const hasFragments = inventory.fragments >= requirements.fragments;
-        const hasNullified = inventory.nullified >= requirements.nullified;
+    // Status with progress bar
+    const progressBar = createProgressBar(currentBreaks, MAX_LIMIT_BREAKS, 15);
+    
+    embed.addFields({
+        name: '📊 Limit Break Status',
+        value: 
+            `**Progress:** ${currentBreaks} / ${MAX_LIMIT_BREAKS}\n` +
+            `${progressBar}\n` +
+            `**Current Tier:** ${tier.emoji} ${tier.name}\n` +
+            `**Total Farm Limit:** ${5 + fragmentUses + currentBreaks}`,
+        inline: false
+    });
 
-        let fumoRequirementText = '';
-        for (let i = 0; i < requiredFumos.length; i++) {
-            const req = requiredFumos[i];
-            const validation = fumoValidation[i];
-            const status = validation.found ? '✅' : '❌';
-            
-            let displayName = req.name;
-            if (req.allowAnyTrait) {
-                displayName = req.name.replace(/\[.*?\]/g, '') + ' (any variant)';
-            }
-            
-            fumoRequirementText += `${status} **1x** ${displayName}\n`;
+    // Resource requirements
+    const hasFragments = inventory.fragments >= requirements.fragments;
+    const hasNullified = inventory.nullified >= requirements.nullified;
+    
+    embed.addFields({
+        name: `💎 Resource Requirements (#${nextBreakNumber})`,
+        value: 
+            `${hasFragments ? '✅' : '❌'} **${requirements.fragments}x** FragmentOf1800s(R)\n` +
+            `${hasNullified ? '✅' : '❌'} **${requirements.nullified}x** Nullified(?)`,
+        inline: true
+    });
+
+    // Fumo requirements with trait info
+    let fumoRequirementText = '';
+    for (let i = 0; i < requiredFumos.length; i++) {
+        const req = requiredFumos[i];
+        const validation = fumoValidation[i];
+        const status = validation?.found ? '✅' : '❌';
+        
+        let displayName = req.name;
+        if (req.allowAnyTrait) {
+            displayName += ' *(any trait)*';
+        } else if (req.allowHigherTrait) {
+            displayName += ' *(or higher trait)*';
         }
+        
+        fumoRequirementText += `${status} **1x** ${displayName}\n`;
+    }
 
-        embed.addFields(
-            {
-                name: '📊 Limit Break Status',
-                value: `Current Breaks: **${currentBreaks} / ${MAX_LIMIT_BREAKS}**\n` +
-                       `Total Farm Limit: **${5 + fragmentUses + currentBreaks}**\n` +
-                       `Next Stage: **${getStageDescription(nextBreakNumber)}**`,
+    embed.addFields({
+        name: `🎭 Fumo Sacrifice${requiredFumos.length > 1 ? 's' : ''}`,
+        value: fumoRequirementText || 'None required',
+        inline: true
+    });
+
+    // User inventory
+    embed.addFields({
+        name: '📦 Your Resources',
+        value: 
+            `Fragments: **${inventory.fragments}**\n` +
+            `Nullified: **${inventory.nullified}**`,
+        inline: false
+    });
+
+    // Next milestone info
+    if (nextMilestone && nextMilestone !== nextBreakNumber) {
+        const milestoneInfo = getMilestoneInfo(nextMilestone);
+        if (milestoneInfo) {
+            embed.addFields({
+                name: '🎯 Next Milestone',
+                value: `**Stage ${nextMilestone}:** ${milestoneInfo.name}\n*${milestoneInfo.bonus}*`,
                 inline: false
-            },
-            {
-                name: `💎 Next Break Requirements (#${nextBreakNumber})`,
-                value: 
-                    `${hasFragments ? '✅' : '❌'} **${requirements.fragments}x** FragmentOf1800s(R)\n` +
-                    `${hasNullified ? '✅' : '❌'} **${requirements.nullified}x** Nullified(?)\n` +
-                    fumoRequirementText,
-                inline: false
-            },
-            {
-                name: '📦 Your Inventory',
-                value: 
-                    `Fragments: **${inventory.fragments}**\n` +
-                    `Nullified: **${inventory.nullified}**`,
-                inline: false
-            }
-        );
-    } else {
+            });
+        }
+    }
+
+    // Tier progression info
+    if (!milestone) {
+        const [min, max] = tier.range;
+        const stagesInTier = nextBreakNumber - min;
+        const totalInTier = max - min + 1;
+        const tierKeys = Object.keys(TIER_CONFIG);
+        const currentIdx = tierKeys.indexOf(tier.key);
+        const nextTier = currentIdx < tierKeys.length - 1 ? TIER_CONFIG[tierKeys[currentIdx + 1]] : null;
+        
+        let progressText = `**In ${tier.name}:** ${stagesInTier + 1}/${totalInTier} stages`;
+        if (nextTier) {
+            const stagesToNext = max - nextBreakNumber + 1;
+            progressText += `\n**Next tier (${nextTier.emoji} ${nextTier.name}):** ${stagesToNext} stages away`;
+        }
+        
         embed.addFields({
-            name: '🏆 Achievement Unlocked',
-            value: `You have maxed out the Limit Breaker system!\nYour total farm limit is now: **${5 + fragmentUses + currentBreaks}**`,
+            name: '📈 Tier Progression',
+            value: progressText,
             inline: false
         });
     }
 
     embed.setFooter({ 
-        text: canBreak ? '⚡ Click the button below to perform a Limit Break' : '🎉 Congratulations on reaching the maximum!' 
+        text: `⚡ ${tier.emoji} ${tier.name} Tier | Stage ${nextBreakNumber}/${MAX_LIMIT_BREAKS}` 
     });
+    
+    embed.setTimestamp();
 
     return embed;
 }
 
 function getStageDescription(stage) {
-    if (stage <= 50) return 'Easy (1 Fumo, any variant)';
-    if (stage <= 100) return 'Medium (1 Higher Rarity Fumo, any variant)';
-    return 'Hard (1 Fumo with trait required)';
+    const tier = getTierInfo(stage);
+    return `${tier.emoji} ${tier.name} - ${tier.description}`;
 }
 
 function createLimitBreakerButtons(userId, data) {
@@ -352,22 +437,46 @@ function createLimitBreakerButtons(userId, data) {
 
 function createSuccessEmbed(newBreaks, totalLimit, reqs, requiredFumos) {
     const fumoList = requiredFumos.map(f => `• 1x ${f.name}`).join('\n');
+    const tier = getTierInfo(newBreaks);
+    const milestone = getMilestoneInfo(newBreaks);
+    const previousTier = getTierInfo(newBreaks - 1);
+    const tierAdvanced = tier.key !== previousTier.key;
     
-    return new EmbedBuilder()
-        .setTitle('⚡ LIMIT BREAK SUCCESSFUL!')
-        .setColor(0x00FF00)
+    const embed = new EmbedBuilder()
+        .setTitle(milestone ? `🌟 MILESTONE ACHIEVED: ${milestone.name}!` : '⚡ LIMIT BREAK SUCCESSFUL!')
+        .setColor(milestone ? MILESTONE_COLOR : (TIER_COLORS[tier.key] || 0x00FF00))
         .setDescription(
             `**Congratulations!** You've broken through your limits!\n\n` +
+            `${tier.emoji} **Tier:** ${tier.name}\n` +
             `**Limit Break:** #${newBreaks}\n` +
-            `**New Farm Limit:** ${totalLimit} slots\n` +
-            `**Stage:** ${getStageDescription(newBreaks)}\n\n` +
+            `**New Farm Limit:** ${totalLimit} slots\n\n` +
             `**Items Consumed:**\n` +
             `• ${reqs.fragments}x FragmentOf1800s(R)\n` +
             `• ${reqs.nullified}x Nullified(?)\n` +
             fumoList
         )
-        .setFooter({ text: `Progress: ${newBreaks} / ${MAX_LIMIT_BREAKS}` })
+        .setFooter({ text: `Progress: ${newBreaks} / ${MAX_LIMIT_BREAKS} | ${tier.emoji} ${tier.name} Tier` })
         .setTimestamp();
+    
+    // Add milestone bonus info
+    if (milestone) {
+        embed.addFields({
+            name: '🎯 Milestone Bonus',
+            value: milestone.bonus,
+            inline: false
+        });
+    }
+    
+    // Add tier advancement notification
+    if (tierAdvanced) {
+        embed.addFields({
+            name: '🎉 TIER ADVANCEMENT!',
+            value: `${previousTier.emoji} ${previousTier.name} → ${tier.emoji} ${tier.name}`,
+            inline: false
+        });
+    }
+    
+    return embed;
 }
 
 module.exports = {

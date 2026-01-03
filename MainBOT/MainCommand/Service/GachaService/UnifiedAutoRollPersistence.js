@@ -79,6 +79,7 @@ function saveUnifiedAutoRollState(normalAutoRollMap, eventAutoRollMap) {
                     specialFumoCount: state.specialFumoCount || 0,
                     specialFumoFirstAt: state.specialFumoFirstAt || null,
                     specialFumoFirstRoll: state.specialFumoFirstRoll || null,
+                    sanaeGuaranteedUsed: state.sanaeGuaranteedUsed || 0
                 };
             }
             
@@ -100,6 +101,7 @@ function saveUnifiedAutoRollState(normalAutoRollMap, eventAutoRollMap) {
                     specialFumoCount: state.specialFumoCount || 0,
                     specialFumoFirstAt: state.specialFumoFirstAt || null,
                     specialFumoFirstRoll: state.specialFumoFirstRoll || null,
+                    sanaeGuaranteedUsed: state.sanaeGuaranteedUsed || 0
                 };
             }
             

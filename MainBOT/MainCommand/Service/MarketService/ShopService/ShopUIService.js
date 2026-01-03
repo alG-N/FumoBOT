@@ -4,6 +4,7 @@ const { formatNumber } = require('../../../Ultility/formatting');
 const { getUserShopTimeLeft } = require('./ShopCacheService');
 const { getRerollData, getRerollCooldownRemaining, formatTimeRemaining, getPaidRerollCost, canUseGemReroll } = require('./ShopRerollService');
 const { isDoubleLuckDay, isGuaranteedMysteryBlock, isGuaranteedUnknownBlock, isGuaranteedPrimeBlock } = require('./ShopGenerationService');
+const { calculateCoinPrice, calculateGemPrice, formatScaledPrice, getWealthTierInfo, getUserWealth } = require('../WealthPricingService');
 
 const RARITY_PAGES = [
     ['Basic', 'Common', 'Rare', 'Epic', 'Legendary'],  
@@ -24,6 +25,11 @@ async function createShopEmbed(userId, userShop, page = 0) {
             .setColor(Colors.Red);
     }
 
+    // Get user's wealth tier info for display
+    const wealth = await getUserWealth(userId);
+    const coinTier = getWealthTierInfo(wealth.coins, 'coins');
+    const gemTier = getWealthTierInfo(wealth.gems, 'gems');
+
     const categorizedItems = { 
         Basic: [], 
         Common: [], 
@@ -37,22 +43,33 @@ async function createShopEmbed(userId, userShop, page = 0) {
         Prime: []
     };
 
-    Object.keys(userShop).forEach(itemName => {
+    // Calculate scaled prices for all items
+    for (const itemName of Object.keys(userShop)) {
         const item = userShop[itemName];
         
-        if (item.stock === 0) return;
+        if (item.stock === 0) continue;
         
         const stockText = formatStockText(item.stock, item.message);
-        if (!stockText) return;
+        if (!stockText) continue;
+        
+        // Calculate wealth-scaled price
+        const priceCalc = item.currency === 'coins' 
+            ? await calculateCoinPrice(userId, item.cost, 'itemShop')
+            : await calculateGemPrice(userId, item.cost, 'itemShop');
         
         const priceLabel = item.priceTag === 'SALE' ? '🔥 SALE' : 
                            item.priceTag === 'SURGE' ? '📈 Surge' : '';
+        
+        // Show scaled price with indicator if different from base
+        const priceDisplay = priceCalc.scaled 
+            ? `~~${formatNumber(item.cost)}~~ **${formatNumber(priceCalc.finalPrice)}** ${item.currency} 💰` 
+            : `**${formatNumber(item.cost)} ${item.currency}**`;
 
         categorizedItems[item.rarity].push(
-            `\`${itemName}\` — **${formatNumber(item.cost)} ${item.currency}** ` +
+            `\`${itemName}\` — ${priceDisplay} ` +
             `(${stockText}${priceLabel ? ` • ${priceLabel}` : ''})`
         );
-    });
+    }
 
     const timeUntilNextReset = getUserShopTimeLeft();
     const rerollData = await getRerollData(userId);
@@ -66,6 +83,11 @@ async function createShopEmbed(userId, userShop, page = 0) {
     if (isGuaranteedMysteryBlock()) specialMessages.push('⬛ **Guaranteed ??? item in this shop!**');
     if (isGuaranteedUnknownBlock()) specialMessages.push('🌀 **Guaranteed Unknown item in this shop!**');
     if (isGuaranteedPrimeBlock()) specialMessages.push('👑 **Guaranteed Prime item in this shop!**');
+    
+    // Show wealth tier warning if multiplier > 1
+    const wealthWarning = coinTier.multiplier > 1 || gemTier.multiplier > 1
+        ? `\n\n💰 **Wealth Tax Active:** Coins ${coinTier.multiplier}x | Gems ${gemTier.multiplier}x`
+        : '';
 
     const shopEmbed = new EmbedBuilder()
         .setTitle(`✨ Your Magical Shop View ✨ (Page ${page + 1}/${totalPages})`)
@@ -77,7 +99,8 @@ async function createShopEmbed(userId, userShop, page = 0) {
             `🔄 **Shop resets in:** ${timeUntilNextReset}\n` +
             `🎁 **Your Free Rerolls:** ${rerollData.count}/5 ` +
             `(Reset in: ${formatTimeRemaining(cooldownRemaining)})` +
-            (specialMessages.length > 0 ? '\n' + specialMessages.join('\n') : '')
+            (specialMessages.length > 0 ? '\n' + specialMessages.join('\n') : '') +
+            wealthWarning
         )
         .setColor(Colors.Blue)
         .setThumbnail('https://img1.picmix.com/output/stamp/normal/6/1/0/7/2577016_a2c58.png')
@@ -169,7 +192,7 @@ async function createShopButtons(userId, rerollCount, page = 0) {
     return rows;
 }
 
-function createSearchResultsEmbed(searchQuery, userShop) {
+async function createSearchResultsEmbed(searchQuery, userShop, userId) {
     const categorizedItems = { 
         Basic: [], 
         Common: [], 
@@ -183,22 +206,32 @@ function createSearchResultsEmbed(searchQuery, userShop) {
         Prime: []
     };
 
-    Object.keys(userShop).forEach(itemName => {
+    for (const itemName of Object.keys(userShop)) {
         const item = userShop[itemName];
-        if (!itemName.toLowerCase().includes(searchQuery)) return;
-        if (item.stock === 0) return;
+        if (!itemName.toLowerCase().includes(searchQuery)) continue;
+        if (item.stock === 0) continue;
 
         const stockText = formatStockText(item.stock, item.message);
-        if (!stockText) return;
+        if (!stockText) continue;
+        
+        // Calculate wealth-scaled price
+        const priceCalc = item.currency === 'coins' 
+            ? await calculateCoinPrice(userId, item.cost, 'itemShop')
+            : await calculateGemPrice(userId, item.cost, 'itemShop');
         
         const priceLabel = item.priceTag === 'SALE' ? '🔥 SALE' : 
                            item.priceTag === 'SURGE' ? '📈 Surge' : '';
+        
+        // Show scaled price with indicator if different from base
+        const priceDisplay = priceCalc.scaled 
+            ? `~~${formatNumber(item.cost)}~~ **${formatNumber(priceCalc.finalPrice)}** ${item.currency} 💰` 
+            : `**${formatNumber(item.cost)} ${item.currency}**`;
 
         categorizedItems[item.rarity].push(
-            `${RARITY_ICONS[item.rarity]} \`${itemName}\` — **${formatNumber(item.cost)} ${item.currency}** ` +
+            `${RARITY_ICONS[item.rarity]} \`${itemName}\` — ${priceDisplay} ` +
             `(${stockText}${priceLabel ? ` • ${priceLabel}` : ''})`
         );
-    });
+    }
 
     const searchEmbed = new EmbedBuilder()
         .setTitle("🔍 Search Results")
@@ -222,35 +255,65 @@ function createSearchResultsEmbed(searchQuery, userShop) {
     return searchEmbed;
 }
 
-function createPurchaseConfirmationEmbed(quantity, itemName, totalCost, currency) {
+function createPurchaseConfirmationEmbed(quantity, itemName, totalCost, currency, baseCost = null, isScaled = false) {
+    const priceDisplay = isScaled && baseCost !== null && baseCost !== totalCost
+        ? `~~${formatNumber(baseCost)}~~ **${formatNumber(totalCost)}** ${currency} 💰`
+        : `**${formatNumber(totalCost)} ${currency}**`;
+    
+    const wealthTaxNote = isScaled ? '\n\n💰 *Wealth tax applied to your purchase*' : '';
+    
     return new EmbedBuilder()
         .setTitle("🛒 Confirm Purchase")
         .setDescription(
             `Are you sure you want to buy **${quantity} ${itemName}(s)** ` +
-            `for **${formatNumber(totalCost)} ${currency}**?`
+            `for ${priceDisplay}?${wealthTaxNote}`
         )
         .setColor(Colors.Blue);
 }
 
-function createBuyAllConfirmationEmbed(userShop) {
+async function createBuyAllConfirmationEmbed(userShop, userId) {
     const itemsList = [];
     let totalCoins = 0;
     let totalGems = 0;
+    let baseTotalCoins = 0;
+    let baseTotalGems = 0;
 
     for (const [itemName, itemData] of Object.entries(userShop)) {
         if (itemData.stock === 0) continue;
 
         const quantity = itemData.stock === 'unlimited' ? 100 : itemData.stock;
-        const cost = itemData.cost * quantity;
+        const baseCost = itemData.cost * quantity;
+        
+        // Calculate wealth-scaled price
+        const priceCalc = itemData.currency === 'coins' 
+            ? await calculateCoinPrice(userId, itemData.cost, 'itemShop')
+            : await calculateGemPrice(userId, itemData.cost, 'itemShop');
+        
+        const scaledCost = priceCalc.finalPrice * quantity;
+        
+        const costDisplay = priceCalc.scaled 
+            ? `~~${formatNumber(baseCost)}~~ ${formatNumber(scaledCost)} 💰`
+            : formatNumber(scaledCost);
 
-        itemsList.push(`• ${quantity}x ${itemName} - ${formatNumber(cost)} ${itemData.currency}`);
+        itemsList.push(`• ${quantity}x ${itemName} - ${costDisplay} ${itemData.currency}`);
 
         if (itemData.currency === 'coins') {
-            totalCoins += cost;
+            totalCoins += scaledCost;
+            baseTotalCoins += baseCost;
         } else {
-            totalGems += cost;
+            totalGems += scaledCost;
+            baseTotalGems += baseCost;
         }
     }
+    
+    const coinDisplay = totalCoins > baseTotalCoins 
+        ? `~~${formatNumber(baseTotalCoins)}~~ **${formatNumber(totalCoins)}** 💰`
+        : formatNumber(totalCoins);
+    const gemDisplay = totalGems > baseTotalGems 
+        ? `~~${formatNumber(baseTotalGems)}~~ **${formatNumber(totalGems)}** 💰`
+        : formatNumber(totalGems);
+    
+    const hasWealthTax = totalCoins > baseTotalCoins || totalGems > baseTotalGems;
 
     return new EmbedBuilder()
         .setTitle("🛒 Confirm Bulk Purchase")
@@ -259,8 +322,9 @@ function createBuyAllConfirmationEmbed(userShop) {
             `**Items to purchase:**\n${itemsList.slice(0, 10).join('\n')}` +
             `${itemsList.length > 10 ? `\n...and ${itemsList.length - 10} more` : ''}\n\n` +
             `**Total Cost:**\n` +
-            `💰 ${formatNumber(totalCoins)} coins\n` +
-            `💎 ${formatNumber(totalGems)} gems\n\n` +
+            `💰 ${coinDisplay} coins\n` +
+            `💎 ${gemDisplay} gems\n\n` +
+            (hasWealthTax ? '💰 *Wealth tax applied*\n\n' : '') +
             `*Note: Unlimited stock items limited to 100 each*`
         )
         .setColor(Colors.Gold);

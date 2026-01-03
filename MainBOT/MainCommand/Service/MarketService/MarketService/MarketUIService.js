@@ -2,6 +2,7 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelect
 const { get } = require('../../../Core/database');
 const { rarityLevels, gemShopRarityLevels, GLOBAL_SHOP_CONFIG } = require('../../../Configuration/marketConfig');
 const { formatNumber } = require('../../../Ultility/formatting');
+const { calculateCoinPrice, calculateGemPrice, getWealthTierInfo, getUserWealth } = require('../WealthPricingService');
 
 async function createMainShopEmbed(userId) {
     const row = await get(`SELECT coins, gems FROM userCoins WHERE userId = ?`, [userId]);
@@ -35,11 +36,18 @@ async function createCoinShopEmbed(userId, market, resetTime) {
     const remainingTime = Math.max(Math.floor((resetTime - Date.now()) / 60000), 0);
     const row = await get(`SELECT coins FROM userCoins WHERE userId = ?`, [userId]);
     
+    // Get wealth tier info
+    const wealth = await getUserWealth(userId);
+    const coinTier = getWealthTierInfo(wealth.coins, 'coins');
+    const wealthWarning = coinTier.multiplier > 1 
+        ? `\n💰 **Wealth Tax: ${coinTier.multiplier}x prices**` 
+        : '';
+    
     const embed = new EmbedBuilder()
         .setTitle("🪙 Coin Shop")
         .setDescription(
             `Premium fumos available for coins • Select from dropdown below\n` +
-            `⏰ Refreshes in **${remainingTime}** minutes\n\n` +
+            `⏰ Refreshes in **${remainingTime}** minutes${wealthWarning}\n\n` +
             `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
         )
         .setColor('#FFD700');
@@ -55,17 +63,24 @@ async function createCoinShopEmbed(userId, market, resetTime) {
         }
     });
     
-    Object.entries(groupedByRarity).forEach(([rarityName, data]) => {
-        const fumoList = data.fumos.map(fumo => 
-            `▸ **${fumo.name}**\n  └ 💰 ${formatNumber(fumo.price)} · 📦 ${fumo.stock} in stock`
-        ).join('\n');
+    // Calculate scaled prices for each fumo
+    for (const [rarityName, data] of Object.entries(groupedByRarity)) {
+        const fumoListPromises = data.fumos.map(async fumo => {
+            const priceCalc = await calculateCoinPrice(userId, fumo.price, 'coinMarket');
+            const priceDisplay = priceCalc.scaled 
+                ? `💰 ~~${formatNumber(fumo.price)}~~ **${formatNumber(priceCalc.finalPrice)}**`
+                : `💰 ${formatNumber(fumo.price)}`;
+            return `▸ **${fumo.name}**\n  └ ${priceDisplay} · 📦 ${fumo.stock} in stock`;
+        });
+        
+        const fumoList = (await Promise.all(fumoListPromises)).join('\n');
         
         embed.addFields({ 
             name: `${data.emoji} ${rarityName}`, 
             value: fumoList,
             inline: false 
         });
-    });
+    }
     
     if (row) {
         embed.setFooter({ text: `Your Balance: ${formatNumber(row.coins)} coins` });
@@ -79,11 +94,18 @@ async function createGemShopEmbed(userId, market, resetTime) {
     const remainingMinutes = Math.max(Math.floor(((resetTime - Date.now()) % 3600000) / 60000), 0);
     const row = await get(`SELECT gems FROM userCoins WHERE userId = ?`, [userId]);
     
+    // Get wealth tier info
+    const wealth = await getUserWealth(userId);
+    const gemTier = getWealthTierInfo(wealth.gems, 'gems');
+    const wealthWarning = gemTier.multiplier > 1 
+        ? `\n💰 **Wealth Tax: ${gemTier.multiplier}x prices**` 
+        : '';
+    
     const embed = new EmbedBuilder()
         .setTitle("💎 Gem Shop")
         .setDescription(
             `Exclusive fumos for premium currency • Select from dropdown below\n` +
-            `⏰ Refreshes in **${remainingHours}h ${remainingMinutes}m**\n\n` +
+            `⏰ Refreshes in **${remainingHours}h ${remainingMinutes}m**${wealthWarning}\n\n` +
             `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
         )
         .setColor('#9B59B6');
@@ -99,17 +121,24 @@ async function createGemShopEmbed(userId, market, resetTime) {
         }
     });
     
-    Object.entries(groupedByRarity).forEach(([rarityName, data]) => {
-        const fumoList = data.fumos.map(fumo => 
-            `▸ **${fumo.name}**\n  └ 💎 ${formatNumber(fumo.price)} · 📦 ${fumo.stock} in stock`
-        ).join('\n');
+    // Calculate scaled prices for each fumo
+    for (const [rarityName, data] of Object.entries(groupedByRarity)) {
+        const fumoListPromises = data.fumos.map(async fumo => {
+            const priceCalc = await calculateGemPrice(userId, fumo.price, 'gemMarket');
+            const priceDisplay = priceCalc.scaled 
+                ? `💎 ~~${formatNumber(fumo.price)}~~ **${formatNumber(priceCalc.finalPrice)}**`
+                : `💎 ${formatNumber(fumo.price)}`;
+            return `▸ **${fumo.name}**\n  └ ${priceDisplay} · 📦 ${fumo.stock} in stock`;
+        });
+        
+        const fumoList = (await Promise.all(fumoListPromises)).join('\n');
         
         embed.addFields({ 
             name: `${data.emoji} ${rarityName}`, 
             value: fumoList,
             inline: false 
         });
-    });
+    }
     
     if (row) {
         embed.setFooter({ text: `Your Balance: ${formatNumber(row.gems)} gems` });
@@ -252,9 +281,22 @@ function createGlobalShopButtons(userId) {
     );
 }
 
-function createPurchaseConfirmEmbed(fumo, amount, totalPrice, currency) {
+function createPurchaseConfirmEmbed(fumo, amount, totalPrice, currency, basePrice = null) {
     const currencyEmoji = currency === 'coins' ? '🪙' : '💎';
     const currencyName = currency === 'coins' ? 'Coins' : 'Gems';
+    
+    // Calculate base total and unit price for display
+    const actualBasePrice = basePrice || fumo.price;
+    const baseTotal = actualBasePrice * amount;
+    const isScaled = totalPrice > baseTotal;
+    
+    const unitPriceDisplay = isScaled 
+        ? `${currencyEmoji} ~~${formatNumber(actualBasePrice)}~~ **${formatNumber(Math.ceil(totalPrice / amount))}**`
+        : `${currencyEmoji} ${formatNumber(actualBasePrice)}`;
+    
+    const totalDisplay = isScaled
+        ? `${currencyEmoji} ~~${formatNumber(baseTotal)}~~ **${formatNumber(totalPrice)}** 💰`
+        : `${currencyEmoji} **${formatNumber(totalPrice)}**`;
     
     return new EmbedBuilder()
         .setTitle('🛒 Confirm Purchase')
@@ -263,9 +305,10 @@ function createPurchaseConfirmEmbed(fumo, amount, totalPrice, currency) {
             `**${fumo.name}**\n\n` +
             `┌─ **Transaction Details** ──────┐\n` +
             `│ Quantity: **${amount}x**\n` +
-            `│ Unit Price: ${currencyEmoji} ${formatNumber(fumo.price)}\n` +
-            `│ Total Cost: ${currencyEmoji} **${formatNumber(totalPrice)}**\n` +
-            `└────────────────────────────────┘\n\n` +
+            `│ Unit Price: ${unitPriceDisplay}\n` +
+            `│ Total Cost: ${totalDisplay}\n` +
+            `└────────────────────────────────┘\n` +
+            (isScaled ? '\n💰 *Wealth tax applied*\n\n' : '\n') +
             `Click **Confirm** to complete your purchase.`
         )
         .setColor('#2ECC71');

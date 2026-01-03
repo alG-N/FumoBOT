@@ -1,125 +1,211 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
 const { checkRestrictions } = require('../../../Middleware/restrictions');
 const { checkButtonOwnership } = require('../../../Middleware/buttonOwnership');
-const { get, run } = require('../../../Core/database');
+const { get, run, all } = require('../../../Core/database');
 const { logToDiscord, LogLevel } = require('../../../Core/logger');
+const {
+    getRequirementForUser,
+    clearRequirementForUser,
+    validateUserHasFumos,
+    getTierInfo,
+    getMilestoneInfo,
+    getNextMilestone,
+    calculateResourceRequirements,
+    MAX_LIMIT_BREAKS,
+    TIER_CONFIG,
+    MILESTONE_STAGES,
+    TRAIT_TAGS,
+    extractTraitFromName,
+    getBaseNameWithoutTrait
+} = require('./LimitBreakRequirement');
 
-const LIMIT_BREAK_FUMO_POOL = [
-    'Reimu(Common)',
-    'Marisa(Common)',
-    'Cirno(Common)',
-    'Sanae(Common)',
-    'Sakuya(UNCOMMON)',
-    'Meiling(UNCOMMON)',
-    'Patchouli(UNCOMMON)',
-    'Remilia(RARE)',
-    'Youmu(RARE)',
-    'Ran(EPIC)',
-    'Satori(EPIC)',
-    'Kasen(EPIC)'
-];
+// ============================================================
+// TIER COLORS AND EMOJIS
+// ============================================================
+const TIER_COLORS = {
+    NOVICE: 0x90EE90,      // Light green
+    ADEPT: 0x4169E1,       // Royal blue
+    EXPERT: 0xFF6347,      // Tomato red
+    MASTER: 0x9932CC,      // Dark orchid
+    GRANDMASTER: 0xFFD700, // Gold
+    TRANSCENDENT: 0xFF00FF // Magenta/cosmic
+};
 
-const MAX_LIMIT_BREAKS = 150;
+const MILESTONE_COLOR = 0xFF1493; // Deep pink for milestones
+
+/**
+ * Calculate requirements using the new exponential scaling system
+ */
 function calculateRequirements(currentBreaks) {
-    const baseFragments = 15;
-    const baseNullified = 1;
-    
-    const fragmentIncrease = Math.floor(currentBreaks / 10) * 5;
-    
-    const nullifiedIncrease = Math.floor(currentBreaks / 20);
-    
-    return {
-        fragments: baseFragments + fragmentIncrease,
-        nullified: baseNullified + nullifiedIncrease
-    };
+    return calculateResourceRequirements(currentBreaks);
 }
 
-function getRandomRequiredFumo() {
-    return LIMIT_BREAK_FUMO_POOL[Math.floor(Math.random() * LIMIT_BREAK_FUMO_POOL.length)];
+/**
+ * Format fumo requirement for display
+ */
+function formatFumoRequirement(fumoReq, hasIt) {
+    const icon = hasIt ? '✅' : '❌';
+    let display = `${icon} **1x** ${fumoReq.name}`;
+    
+    if (fumoReq.allowAnyTrait) {
+        display += ' *(any trait ok)*';
+    } else if (fumoReq.allowHigherTrait) {
+        display += ' *(or higher trait)*';
+    }
+    
+    return display;
 }
 
-function createLimitBreakerEmbed(userId, currentBreaks, requirements, requiredFumo, userInventory) {
+/**
+ * Create the main limit breaker embed with tier information
+ */
+function createLimitBreakerEmbed(userId, currentBreaks, requirements, userRequirement, userInventory, fumoValidation) {
     const nextBreakNumber = currentBreaks + 1;
     const canBreak = currentBreaks < MAX_LIMIT_BREAKS;
+    const tier = getTierInfo(nextBreakNumber);
+    const milestone = getMilestoneInfo(nextBreakNumber);
+    const nextMilestone = getNextMilestone(nextBreakNumber);
+    
+    const embedColor = milestone ? MILESTONE_COLOR : (TIER_COLORS[tier.key] || 0xFFD700);
     
     const embed = new EmbedBuilder()
-        .setTitle('⚡ Limit Breaker System')
-        .setColor(canBreak ? 0xFFD700 : 0xFF0000)
-        .setDescription(
-            canBreak 
-                ? '**Break through your farming limits!**\n\n' +
-                  'Sacrifice specific items to gain additional farming slots beyond the fragment limit.\n\n' +
-                  '**Current Progress:**'
-                : '**Maximum Limit Breaks Reached!**\n\n' +
-                  'You have reached the maximum of 100 limit breaks.'
+        .setTitle(milestone ? `🌟 MILESTONE: ${milestone.name}` : `⚡ Limit Breaker - ${tier.emoji} ${tier.name} Tier`)
+        .setColor(canBreak ? embedColor : 0xFF0000);
+    
+    if (!canBreak) {
+        embed.setDescription(
+            '**🏆 MAXIMUM LIMIT BREAKS REACHED!**\n\n' +
+            'You have achieved the ultimate transcendence!\n' +
+            `Your total farm limit is now: **${5 + (userInventory.fragmentUses || 0) + currentBreaks}**`
         );
-
-    if (canBreak) {
-        const hasFragments = userInventory.fragments >= requirements.fragments;
-        const hasNullified = userInventory.nullified >= requirements.nullified;
-        const hasFumo = userInventory.hasFumo;
-
-        embed.addFields(
-            {
-                name: '📊 Limit Break Status',
-                value: `Current Breaks: **${currentBreaks} / ${MAX_LIMIT_BREAKS}**\n` +
-                       `Total Farm Limit: **${5 + (userInventory.fragmentUses || 0) + currentBreaks}**`,
-                inline: false
-            },
-            {
-                name: `💎 Next Break Requirements (#${nextBreakNumber})`,
-                value: 
-                    `${hasFragments ? '✅' : '❌'} **${requirements.fragments}x** FragmentOf1800s(R)\n` +
-                    `${hasNullified ? '✅' : '❌'} **${requirements.nullified}x** Nullified(?)\n` +
-                    `${hasFumo ? '✅' : '❌'} **1x** ${requiredFumo}`,
-                inline: false
-            },
-            {
-                name: '📦 Your Inventory',
-                value: 
-                    `Fragments: **${userInventory.fragments}**\n` +
-                    `Nullified: **${userInventory.nullified}**\n` +
-                    `${requiredFumo}: **${hasFumo ? '✓' : 'None'}**`,
-                inline: false
-            }
-        );
-
-        if (currentBreaks > 0) {
-            const nextFragmentMilestone = Math.ceil((currentBreaks + 1) / 10) * 10;
-            const nextNullifiedMilestone = Math.ceil((currentBreaks + 1) / 20) * 20;
-            
-            let milestoneText = '**Upcoming Milestones:**\n';
-            if (currentBreaks < nextFragmentMilestone) {
-                const nextFragReq = calculateRequirements(nextFragmentMilestone).fragments;
-                milestoneText += `• Break #${nextFragmentMilestone}: Fragments increase to ${nextFragReq}\n`;
-            }
-            if (currentBreaks < nextNullifiedMilestone) {
-                const nextNullReq = calculateRequirements(nextNullifiedMilestone).nullified;
-                milestoneText += `• Break #${nextNullifiedMilestone}: Nullified increase to ${nextNullReq}\n`;
-            }
-            
-            embed.addFields({
-                name: '🎯 Progression',
-                value: milestoneText,
-                inline: false
-            });
-        }
-    } else {
+        return embed;
+    }
+    
+    // Build description
+    let description = '';
+    if (milestone) {
+        description += `**${milestone.bonus}**\n\n`;
+    }
+    description += `*${tier.description}*\n\n`;
+    description += '**Break through your farming limits!**\n';
+    description += 'Sacrifice specific items to gain additional farming slots.\n';
+    
+    embed.setDescription(description);
+    
+    // Status field
+    const progressBar = createProgressBar(currentBreaks, MAX_LIMIT_BREAKS, 15);
+    embed.addFields({
+        name: '📊 Limit Break Status',
+        value: 
+            `**Progress:** ${currentBreaks} / ${MAX_LIMIT_BREAKS}\n` +
+            `${progressBar}\n` +
+            `**Current Tier:** ${tier.emoji} ${tier.name}\n` +
+            `**Total Farm Limit:** ${5 + (userInventory.fragmentUses || 0) + currentBreaks}`,
+        inline: false
+    });
+    
+    // Resource requirements
+    const hasFragments = userInventory.fragments >= requirements.fragments;
+    const hasNullified = userInventory.nullified >= requirements.nullified;
+    
+    embed.addFields({
+        name: `💎 Resource Requirements (#${nextBreakNumber})`,
+        value: 
+            `${hasFragments ? '✅' : '❌'} **${requirements.fragments}x** FragmentOf1800s(R)\n` +
+            `${hasNullified ? '✅' : '❌'} **${requirements.nullified}x** Nullified(?)`,
+        inline: true
+    });
+    
+    // Fumo requirements
+    const fumoReqText = userRequirement.requirements.fumos.map((fumo, idx) => {
+        const validation = fumoValidation[idx];
+        return formatFumoRequirement(fumo, validation?.found);
+    }).join('\n');
+    
+    embed.addFields({
+        name: `🎭 Fumo Sacrifice${userRequirement.requirements.fumos.length > 1 ? 's' : ''}`,
+        value: fumoReqText || 'None required',
+        inline: true
+    });
+    
+    // User inventory
+    embed.addFields({
+        name: '📦 Your Resources',
+        value: 
+            `Fragments: **${userInventory.fragments}**\n` +
+            `Nullified: **${userInventory.nullified}**`,
+        inline: false
+    });
+    
+    // Next milestone info
+    if (nextMilestone && nextMilestone !== nextBreakNumber) {
+        const milestoneInfo = MILESTONE_STAGES[nextMilestone];
         embed.addFields({
-            name: '🏆 Achievement Unlocked',
-            value: 'You have maxed out the Limit Breaker system!\n' +
-                   `Your total farm limit is now: **${5 + (userInventory.fragmentUses || 0) + currentBreaks}**`,
+            name: '🎯 Next Milestone',
+            value: `**Stage ${nextMilestone}:** ${milestoneInfo.name}\n*${milestoneInfo.bonus}*`,
             inline: false
         });
     }
-
+    
+    // Tier progression info
+    if (!milestone) {
+        const tierProgress = getTierProgressText(nextBreakNumber);
+        if (tierProgress) {
+            embed.addFields({
+                name: '📈 Tier Progression',
+                value: tierProgress,
+                inline: false
+            });
+        }
+    }
+    
     embed.setFooter({ 
         text: canBreak 
-            ? '⚡ Click the button below to perform a Limit Break' 
-            : '🎉 Congratulations on reaching the maximum!' 
+            ? `⚡ ${tier.emoji} ${tier.name} Tier | Stage ${nextBreakNumber}/${MAX_LIMIT_BREAKS}` 
+            : '🎉 Maximum achieved!' 
     });
+    
+    embed.setTimestamp();
 
     return embed;
+}
+
+/**
+ * Create a visual progress bar
+ */
+function createProgressBar(current, max, length = 10) {
+    const percentage = current / max;
+    const filled = Math.round(percentage * length);
+    const empty = length - filled;
+    
+    const filledChar = '█';
+    const emptyChar = '░';
+    
+    return `${filledChar.repeat(filled)}${emptyChar.repeat(empty)} ${(percentage * 100).toFixed(1)}%`;
+}
+
+/**
+ * Get tier progression text
+ */
+function getTierProgressText(stage) {
+    const tier = getTierInfo(stage);
+    const [min, max] = tier.range;
+    const stagesInTier = stage - min;
+    const totalInTier = max - min + 1;
+    
+    // Check for next tier
+    const tierKeys = Object.keys(TIER_CONFIG);
+    const currentIdx = tierKeys.indexOf(tier.key);
+    const nextTier = currentIdx < tierKeys.length - 1 ? TIER_CONFIG[tierKeys[currentIdx + 1]] : null;
+    
+    let text = `**In ${tier.name}:** ${stagesInTier + 1}/${totalInTier} stages`;
+    
+    if (nextTier) {
+        const stagesToNext = max - stage + 1;
+        text += `\n**Next tier (${nextTier.emoji} ${nextTier.name}):** ${stagesToNext} stages away`;
+    }
+    
+    return text;
 }
 
 module.exports = async (client) => {
@@ -135,6 +221,7 @@ module.exports = async (client) => {
         const userId = message.author.id;
 
         try {
+            // Get user's current limit break status
             const userRow = await get(
                 `SELECT limitBreaks, fragmentUses FROM userUpgrades WHERE userId = ?`,
                 [userId]
@@ -143,9 +230,11 @@ module.exports = async (client) => {
             const currentBreaks = userRow?.limitBreaks || 0;
             const fragmentUses = userRow?.fragmentUses || 0;
 
-            const requiredFumo = getRandomRequiredFumo();
+            // Get or generate requirement for user's current stage
+            const userRequirement = getRequirementForUser(userId, currentBreaks + 1);
             const requirements = calculateRequirements(currentBreaks);
 
+            // Get user's resources
             const fragmentRow = await get(
                 `SELECT quantity FROM userInventory WHERE userId = ? AND itemName = ?`,
                 [userId, 'FragmentOf1800s(R)']
@@ -156,30 +245,38 @@ module.exports = async (client) => {
                 [userId, 'Nullified(?)']
             );
 
-            const fumoRow = await get(
-                `SELECT COUNT(*) as count FROM userInventory WHERE userId = ? AND fumoName = ?`,
-                [userId, requiredFumo]
-            );
+            // Validate fumo requirements
+            const fumoValidation = await validateUserHasFumos(userId, userRequirement.requirements.fumos);
 
             const userInventory = {
                 fragments: fragmentRow?.quantity || 0,
                 nullified: nullifiedRow?.quantity || 0,
-                hasFumo: (fumoRow?.count || 0) > 0,
                 fragmentUses
             };
 
-            // Create embed and button
-            const embed = createLimitBreakerEmbed(userId, currentBreaks, requirements, requiredFumo, userInventory);
+            // Create embed with new tier system
+            const embed = createLimitBreakerEmbed(
+                userId, 
+                currentBreaks, 
+                requirements, 
+                userRequirement,
+                userInventory,
+                fumoValidation
+            );
 
-            const canBreak = currentBreaks < MAX_LIMIT_BREAKS &&
-                           userInventory.fragments >= requirements.fragments &&
-                           userInventory.nullified >= requirements.nullified &&
-                           userInventory.hasFumo;
+            // Check if user can perform limit break
+            const hasAllResources = userInventory.fragments >= requirements.fragments &&
+                                   userInventory.nullified >= requirements.nullified;
+            const hasAllFumos = fumoValidation.every(v => v.found);
+            const canBreak = currentBreaks < MAX_LIMIT_BREAKS && hasAllResources && hasAllFumos;
 
+            // Encode fumo data for button (limit to prevent overflow)
+            const fumoData = fumoValidation.map(v => v.id).filter(Boolean).join(',');
+            
             const row = new ActionRowBuilder()
                 .addComponents(
                     new ButtonBuilder()
-                        .setCustomId(`limitbreak_${userId}_${requiredFumo}`)
+                        .setCustomId(`limitbreak_${userId}_${fumoData}`)
                         .setLabel('⚡ Perform Limit Break')
                         .setStyle(ButtonStyle.Danger)
                         .setDisabled(!canBreak)
@@ -200,9 +297,7 @@ module.exports = async (client) => {
                 try {
                     await interaction.deferUpdate();
 
-                    const parts = interaction.customId.split('_');
-                    const fumoToConsume = parts.slice(2).join('_');
-
+                    // Re-validate everything at time of click (prevent race conditions)
                     const checkRow = await get(
                         `SELECT limitBreaks, fragmentUses FROM userUpgrades WHERE userId = ?`,
                         [userId]
@@ -217,8 +312,11 @@ module.exports = async (client) => {
                         });
                     }
 
+                    // Re-get requirements (stage might have changed)
+                    const currentRequirement = getRequirementForUser(userId, breaks + 1);
                     const reqs = calculateRequirements(breaks);
 
+                    // Re-validate resources
                     const fragCheck = await get(
                         `SELECT quantity FROM userInventory WHERE userId = ? AND itemName = ?`,
                         [userId, 'FragmentOf1800s(R)']
@@ -229,14 +327,8 @@ module.exports = async (client) => {
                         [userId, 'Nullified(?)']
                     );
 
-                    const fumoCheck = await get(
-                        `SELECT id FROM userInventory WHERE userId = ? AND fumoName = ? LIMIT 1`,
-                        [userId, fumoToConsume]
-                    );
-
                     const frags = fragCheck?.quantity || 0;
                     const nulls = nullCheck?.quantity || 0;
-                    const hasFumoCheck = !!fumoCheck;
 
                     if (frags < reqs.fragments) {
                         return interaction.followUp({
@@ -252,28 +344,44 @@ module.exports = async (client) => {
                         });
                     }
 
-                    if (!hasFumoCheck) {
+                    // Re-validate fumo requirements
+                    const fumoRevalidation = await validateUserHasFumos(userId, currentRequirement.requirements.fumos);
+                    
+                    const missingFumos = fumoRevalidation.filter(v => !v.found);
+                    if (missingFumos.length > 0) {
                         return interaction.followUp({
-                            content: `❌ You don't have ${fumoToConsume} in your inventory!`,
+                            content: `❌ Missing required fumo(s):\n${missingFumos.map(f => `• ${f.required}`).join('\n')}`,
                             ephemeral: true
                         });
                     }
 
+                    // === PERFORM THE LIMIT BREAK ===
+                    
+                    // Consume fragments
                     await run(
                         `UPDATE userInventory SET quantity = quantity - ? WHERE userId = ? AND itemName = ?`,
                         [reqs.fragments, userId, 'FragmentOf1800s(R)']
                     );
 
+                    // Consume nullified
                     await run(
                         `UPDATE userInventory SET quantity = quantity - ? WHERE userId = ? AND itemName = ?`,
                         [reqs.nullified, userId, 'Nullified(?)']
                     );
 
-                    await run(
-                        `DELETE FROM userInventory WHERE id = ?`,
-                        [fumoCheck.id]
-                    );
+                    // Consume fumos
+                    const consumedFumos = [];
+                    for (const validation of fumoRevalidation) {
+                        if (validation.id) {
+                            await run(
+                                `DELETE FROM userInventory WHERE id = ?`,
+                                [validation.id]
+                            );
+                            consumedFumos.push(validation.actualName || validation.required);
+                        }
+                    }
 
+                    // Update limit breaks
                     if (checkRow) {
                         await run(
                             `UPDATE userUpgrades SET limitBreaks = limitBreaks + 1 WHERE userId = ?`,
@@ -287,30 +395,56 @@ module.exports = async (client) => {
                         );
                     }
 
+                    // Clear the requirement so next stage generates new one
+                    clearRequirementForUser(userId);
+
                     const newBreaks = breaks + 1;
                     const totalLimit = 5 + (checkRow?.fragmentUses || 0) + newBreaks;
+                    const tier = getTierInfo(newBreaks);
+                    const milestone = getMilestoneInfo(newBreaks);
 
                     await logToDiscord(
                         client,
-                        `User ${message.author.tag} performed Limit Break #${newBreaks}`,
+                        `User ${message.author.tag} performed Limit Break #${newBreaks} (${tier.name} Tier)`,
                         null,
                         LogLevel.ACTIVITY
                     );
 
+                    // Create success embed
                     const successEmbed = new EmbedBuilder()
-                        .setTitle('⚡ LIMIT BREAK SUCCESSFUL!')
-                        .setColor(0x00FF00)
+                        .setTitle(milestone ? `🌟 MILESTONE ACHIEVED: ${milestone.name}!` : '⚡ LIMIT BREAK SUCCESSFUL!')
+                        .setColor(milestone ? MILESTONE_COLOR : (TIER_COLORS[tier.key] || 0x00FF00))
                         .setDescription(
                             `**Congratulations!** You've broken through your limits!\n\n` +
+                            `${tier.emoji} **Tier:** ${tier.name}\n` +
                             `**Limit Break:** #${newBreaks}\n` +
                             `**New Farm Limit:** ${totalLimit} slots\n\n` +
                             `**Items Consumed:**\n` +
                             `• ${reqs.fragments}x FragmentOf1800s(R)\n` +
                             `• ${reqs.nullified}x Nullified(?)\n` +
-                            `• 1x ${fumoToConsume}`
+                            consumedFumos.map(f => `• 1x ${f}`).join('\n')
                         )
-                        .setFooter({ text: `Progress: ${newBreaks} / ${MAX_LIMIT_BREAKS}` })
+                        .setFooter({ text: `Progress: ${newBreaks} / ${MAX_LIMIT_BREAKS} | ${tier.emoji} ${tier.name} Tier` })
                         .setTimestamp();
+
+                    // Add milestone bonus info if applicable
+                    if (milestone) {
+                        successEmbed.addFields({
+                            name: '🎯 Milestone Bonus',
+                            value: milestone.bonus,
+                            inline: false
+                        });
+                    }
+
+                    // Check for tier advancement
+                    const previousTier = getTierInfo(newBreaks - 1);
+                    if (tier.key !== previousTier.key) {
+                        successEmbed.addFields({
+                            name: '🎉 TIER ADVANCEMENT!',
+                            value: `${previousTier.emoji} ${previousTier.name} → ${tier.emoji} ${tier.name}`,
+                            inline: false
+                        });
+                    }
 
                     await interaction.editReply({
                         embeds: [successEmbed],

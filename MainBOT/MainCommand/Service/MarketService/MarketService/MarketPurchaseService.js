@@ -2,6 +2,7 @@ const { get, run, withUserLock, atomicDeductCoins, atomicDeductGems, atomicDeduc
 const { getCoinMarket, getGemMarket, updateCoinMarketStock, updateGemMarketStock } = require('./MarketCacheService');
 const { addFumoToInventory } = require('./MarketInventoryService');
 const { purchaseGlobalListing } = require('./MarketStorageService');
+const { calculateCoinPrice, calculateGemPrice, formatScaledPrice } = require('../WealthPricingService');
 
 async function validateShopPurchase(userId, fumoIndex, amount, market, currency) {
     if (fumoIndex < 0 || fumoIndex >= market.market.length) {
@@ -22,7 +23,15 @@ async function validateShopPurchase(userId, fumoIndex, amount, market, currency)
         };
     }
     
-    const totalPrice = fumo.price * amount;
+    // Calculate wealth-scaled price
+    const shopType = currency === 'coins' ? 'coinMarket' : 'gemMarket';
+    const priceCalc = currency === 'coins'
+        ? await calculateCoinPrice(userId, fumo.price, shopType)
+        : await calculateGemPrice(userId, fumo.price, shopType);
+    
+    const scaledUnitPrice = priceCalc.finalPrice;
+    const totalPrice = scaledUnitPrice * amount;
+    
     const userRow = await get(`SELECT ${currency} FROM userCoins WHERE userId = ?`, [userId]);
     
     if (!userRow) {
@@ -37,7 +46,9 @@ async function validateShopPurchase(userId, fumoIndex, amount, market, currency)
             valid: false, 
             error: currency === 'coins' ? 'INSUFFICIENT_COINS' : 'INSUFFICIENT_GEMS',
             required: totalPrice,
-            current: userRow[currency]
+            baseRequired: fumo.price * amount,
+            current: userRow[currency],
+            scaled: priceCalc.scaled
         };
     }
     
@@ -45,6 +56,9 @@ async function validateShopPurchase(userId, fumoIndex, amount, market, currency)
         valid: true, 
         fumo, 
         totalPrice,
+        basePrice: fumo.price * amount,
+        priceScaled: priceCalc.scaled,
+        multiplier: priceCalc.multiplier,
         currentBalance: userRow[currency]
     };
 }

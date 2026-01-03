@@ -38,7 +38,7 @@ const ConnectionMonitor = require('./MainCommand/Service/BotService/ConnectionHe
 const { validateAllFumoImages } = require('./MainCommand/Service/BotService/ImageValidationService/ImageValidator');
 
 // ═══════════════════════════════════════════════════════════════
-// ADMINISTRATOR MODULE (Consolidated)
+// ADMINISTRATOR MODULE
 // ═══════════════════════════════════════════════════════════════
 const {
     registerAdminCommands,

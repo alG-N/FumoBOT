@@ -4,7 +4,6 @@ const {
     EVENT_AUTO_ROLL_INTERVAL, 
     EVENT_AUTO_ROLL_INTERVAL_BOOSTED,
     EVENT_AUTO_ROLL_BATCH_SIZE,
-    EVENT_ROLL_LIMIT,
     isWindowExpired,
     isEventActive
 } = require('../../../Configuration/eventConfig');
@@ -117,7 +116,7 @@ async function performEventAutoSell(userId, rolledFumos = []) {
     return totalCoins;
 }
 
-async function startEventAutoRoll(userId, autoSell = false) {
+async function startEventAutoRoll(userId, autoSell = false, skipSave = false) {
     if (eventAutoRollMap.has(userId)) {
         return { success: false, error: 'ALREADY_RUNNING' };
     }
@@ -160,18 +159,8 @@ async function startEventAutoRoll(userId, autoSell = false) {
                 rollsInCurrentWindow = 0;
             }
 
-            if (rollsInCurrentWindow >= EVENT_ROLL_LIMIT) {
-                const auto = eventAutoRollMap.get(userId);
-                if (auto) {
-                    auto.stoppedReason = 'LIMIT_REACHED';
-                }
-                stopped = true;
-                stopEventAutoRoll(userId);
-                return;
-            }
-
-            const rollsRemaining = EVENT_ROLL_LIMIT - rollsInCurrentWindow;
-            const batchSize = Math.min(EVENT_AUTO_ROLL_BATCH_SIZE, rollsRemaining);
+            // No roll limit - use full batch size
+            const batchSize = EVENT_AUTO_ROLL_BATCH_SIZE;
 
             const result = await performEventSummon(userId, batchSize);
 
@@ -271,9 +260,12 @@ async function startEventAutoRoll(userId, autoSell = false) {
 
     eventAutoRollLoop();
 
-    const { getAutoRollMap } = require('../NormalGachaService/CrateAutoRollService');
-    const autoRollMap = getAutoRollMap();
-    saveUnifiedAutoRollState(autoRollMap, eventAutoRollMap);
+    // Only save if not restoring (to avoid overwriting restored values)
+    if (!skipSave) {
+        const { getAutoRollMap } = require('../NormalGachaService/CrateAutoRollService');
+        const autoRollMap = getAutoRollMap();
+        saveUnifiedAutoRollState(autoRollMap, eventAutoRollMap);
+    }
 
     return { success: true, interval: initialInterval };
 }
@@ -341,16 +333,7 @@ async function restoreEventAutoRolls(client, options = {}) {
                 continue;
             }
 
-            let { rollsInCurrentWindow, lastRollTime } = data;
-            if (isWindowExpired(lastRollTime)) {
-                rollsInCurrentWindow = 0;
-            }
-
-            if (rollsInCurrentWindow >= EVENT_ROLL_LIMIT) {
-                failureReasons[userId] = 'ROLL_LIMIT_REACHED';
-                failed++;
-                continue;
-            }
+            // No longer checking roll limits - unlimited rolling allowed
 
             if (!isEventActive()) {
                 failureReasons[userId] = 'EVENT_INACTIVE';
@@ -358,7 +341,8 @@ async function restoreEventAutoRolls(client, options = {}) {
                 continue;
             }
 
-            const result = await startEventAutoRoll(userId, saved.autoSell);
+            // Pass skipSave=true to prevent overwriting saved state before restoration
+            const result = await startEventAutoRoll(userId, saved.autoSell, true);
 
             if (result.success) {
                 const current = eventAutoRollMap.get(userId);

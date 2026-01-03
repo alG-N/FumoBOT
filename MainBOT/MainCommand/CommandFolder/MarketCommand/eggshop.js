@@ -26,7 +26,7 @@ module.exports = async (client) => {
         const userId = message.author.id;
         const { eggs } = getGlobalShop();
 
-        const embed = createShopEmbed(userId, eggs);
+        const embed = await createShopEmbed(userId, eggs);
         const buttonRows = createButtonRows(userId, eggs);
 
         const sent = await message.reply({ 
@@ -63,7 +63,9 @@ module.exports = async (client) => {
                 const successEmbed = createPurchaseSuccessEmbed(
                     result.egg,
                     result.remainingCoins,
-                    result.remainingGems
+                    result.remainingGems,
+                    result.paidCoins,
+                    result.paidGems
                 );
                 
                 await interaction.reply({ 

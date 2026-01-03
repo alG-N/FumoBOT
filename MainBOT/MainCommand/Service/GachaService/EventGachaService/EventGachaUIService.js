@@ -1,7 +1,6 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Colors } = require('discord.js');
 const { formatNumber } = require('../../../Ultility/formatting');
 const { PITY_THRESHOLDS } = require('../../../Configuration/rarity');
-const { EVENT_ROLL_LIMIT } = require('../../../Configuration/eventConfig');
 
 function createEventShopEmbed(userData, boosts, chances, eventTimeRemaining) {
     const { gems, rollsInCurrentWindow, rollsSinceLastQuestionMark, rollsLeft } = userData;
@@ -27,7 +26,7 @@ function createEventShopEmbed(userData, boosts, chances, eventTimeRemaining) {
                     `⚪ Common - ${chances.common.toFixed(2)}%\n` +
                     `🟢 Uncommon - ${chances.uncommon.toFixed(2)}%\n` +
                     `🔵 Rare - ${chances.rare.toFixed(2)}%\n` +
-                    `❓ ??? - ${chances.question.toFixed(4)}%\n` +
+                    `❓ ??? - ${chances.question.toFixed(2)}%\n` +
                     `👑 Transcendent - 1 in ???`
             },
             { 
@@ -36,8 +35,8 @@ function createEventShopEmbed(userData, boosts, chances, eventTimeRemaining) {
                 inline: true 
             },
             { 
-                name: '🔄 Roll Limit', 
-                value: `${rollsInCurrentWindow} / ${EVENT_ROLL_LIMIT} rolls`, 
+                name: '🎲 Total Rolls', 
+                value: `${formatNumber(rollsInCurrentWindow || 0)} rolls this window`, 
                 inline: true 
             },
             { 
@@ -60,7 +59,7 @@ function createEventStatusEmbed(userData, boosts, chances, eventTimeRemaining, r
         .setTitle('🎍 New Year 2026 Event Status')
         .addFields([
             { name: 'Gems', value: formatNumber(gems), inline: true },
-            { name: 'Rolls in Window', value: `${rollsInCurrentWindow || 0} / ${EVENT_ROLL_LIMIT}`, inline: true },
+            { name: 'Total Rolls', value: formatNumber(rollsInCurrentWindow || 0), inline: true },
             { name: 'Window Reset', value: rollResetTime, inline: true },
             { 
                 name: 'Pity', 
@@ -83,28 +82,27 @@ function createEventStatusEmbed(userData, boosts, chances, eventTimeRemaining, r
     return embed;
 }
 
-function createEventShopButtons(userId, rollLimitReached, isAutoRollActive = false) {
+function createEventShopButtons(userId, isAutoRollActive = false) {
     return new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId(`eventbuy1fumo_${userId}`)
             .setLabel('Summon 1')
             .setStyle(ButtonStyle.Primary)
-            .setDisabled(rollLimitReached || isAutoRollActive),
+            .setDisabled(isAutoRollActive),
         new ButtonBuilder()
             .setCustomId(`eventbuy10fumos_${userId}`)
             .setLabel('Summon 10')
             .setStyle(ButtonStyle.Secondary)
-            .setDisabled(rollLimitReached || isAutoRollActive),
+            .setDisabled(isAutoRollActive),
         new ButtonBuilder()
             .setCustomId(`eventbuy100fumos_${userId}`)
             .setLabel('Summon 100')
             .setStyle(ButtonStyle.Success)
-            .setDisabled(rollLimitReached || isAutoRollActive),
+            .setDisabled(isAutoRollActive),
         new ButtonBuilder()
             .setCustomId(isAutoRollActive ? `stopEventAuto_${userId}` : `startEventAuto_${userId}`)
             .setLabel(isAutoRollActive ? '🛑 Stop Auto' : '🤖 Auto Roll')
             .setStyle(isAutoRollActive ? ButtonStyle.Danger : ButtonStyle.Success)
-            .setDisabled(rollLimitReached && !isAutoRollActive)
     );
 }
 
@@ -149,8 +147,8 @@ function createEventResultEmbed(result, numSummons, rollsInCurrentWindow, rollRe
                 value: `${rollsSinceLastQuestionMark} / ${PITY_THRESHOLDS.EVENT_QUESTION}` 
             },
             { 
-                name: '🔄 Roll Limit', 
-                value: `${rollsInCurrentWindow} / ${EVENT_ROLL_LIMIT} rolls. ${rollResetTime} until reset.` 
+                name: '🎲 Session Rolls', 
+                value: `${formatNumber(rollsInCurrentWindow)} rolls this session` 
             }
         ])
         .setColor(Colors.Gold)
@@ -163,13 +161,12 @@ function createEventResultEmbed(result, numSummons, rollsInCurrentWindow, rollRe
     return embed;
 }
 
-function createContinueButton(userId, numSummons, rollLimitReached) {
+function createContinueButton(userId, numSummons) {
     return new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId(`continue${numSummons}_${userId}`)
             .setLabel('Continue')
             .setStyle(ButtonStyle.Success)
-            .setDisabled(rollLimitReached)
     );
 }
 
@@ -215,9 +212,7 @@ function createEventAutoRollSummary(summary, userId) {
     });
 
     const gemsSpent = summary.totalFumosRolled * 100;
-    const stopReason = summary.stoppedReason === 'LIMIT_REACHED' 
-        ? '⚠️ Stopped: Roll limit reached (50,000)'
-        : summary.stoppedReason === 'INSUFFICIENT_GEMS'
+    const stopReason = summary.stoppedReason === 'INSUFFICIENT_GEMS'
         ? '⚠️ Stopped: Ran out of gems'
         : summary.stoppedReason === 'ERROR'
         ? '⚠️ Stopped: Error occurred'
@@ -245,7 +240,7 @@ function createEventAutoRollSummary(summary, userId) {
         .setTitle('🛑 New Year Event Auto Roll Stopped!')
         .setDescription('Your event auto roll session has ended.\n\nHere\'s your summary:')
         .addFields([{ name: '📊 Results', value: statsField }])
-        .setColor(summary.stoppedReason === 'LIMIT_REACHED' ? 0xFFA500 : 0xCC3300)
+        .setColor(0xCC3300)
         .setFooter({ text: 'New Year 2026 Event Auto Roll Summary' })
         .setTimestamp();
 
@@ -256,7 +251,6 @@ function createEventAutoRollSummary(summary, userId) {
             .setCustomId(`startEventAuto_${userId}`)
             .setLabel('🔄 Restart Auto Roll')
             .setStyle(ButtonStyle.Success)
-            .setDisabled(summary.stoppedReason === 'LIMIT_REACHED')
     );
 
     let components = [row];

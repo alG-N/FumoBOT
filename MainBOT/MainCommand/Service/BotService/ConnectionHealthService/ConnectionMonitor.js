@@ -20,6 +20,16 @@ class ConnectionMonitor {
             slowDatabase: 0
         };
         this.WARNING_COOLDOWN = 5 * 60 * 1000; // 5 minutes between same warnings
+
+        // Health metrics for advanced monitoring
+        this.healthMetrics = {
+            responseTimes: [], // Track response times for latency analysis
+            errors: [],        // Track errors for error rate calculation
+            uptime: 0,         // Total uptime
+            lastUptime: null,  // Last recorded uptime timestamp
+            averageResponseTime: 0, // Average response time
+            errorRate: 0       // Error rate percentage
+        };
     }
 
     /**
@@ -127,8 +137,6 @@ class ConnectionMonitor {
         }
 
         // Log warning if latency is high (with cooldown to prevent spam)
-        const now = Date.now();
-        
         if (this.healthStatus.discord.latency > 500) {
             if (now - this.lastWarnings.highLatency > this.WARNING_COOLDOWN) {
                 console.warn(`⚠️ High Discord latency: ${this.healthStatus.discord.latency}ms`);
@@ -147,6 +155,71 @@ class ConnectionMonitor {
         } else {
             // Reset cooldown when response time returns to normal
             this.lastWarnings.slowDatabase = 0;
+        }
+
+        this._updateHealthMetrics({
+            healthy: this.healthStatus.discord.status === 'connected' && this.healthStatus.database.status === 'connected',
+            responseTime: this.healthStatus.database.responseTime,
+            status: this.healthStatus.database.status
+        });
+    }
+
+    /**
+     * Update health metrics for advanced monitoring
+     */
+    _updateHealthMetrics(result) {
+        const now = Date.now();
+        
+        // อัปเดต response times
+        this.healthMetrics.responseTimes.push({
+            timestamp: now,
+            duration: result.responseTime
+        });
+        
+        // เก็บแค่ 100 รายการล่าสุด
+        if (this.healthMetrics.responseTimes.length > 100) {
+            this.healthMetrics.responseTimes.shift();
+        }
+        
+        // อัปเดต error rate
+        if (!result.healthy) {
+            this.healthMetrics.errors.push({
+                timestamp: now,
+                type: result.status
+            });
+        }
+        
+        // ลบ errors ที่เก่ากว่า 1 ชั่วโมง
+        const oneHourAgo = now - 3600000;
+        this.healthMetrics.errors = this.healthMetrics.errors.filter(
+            e => e.timestamp > oneHourAgo
+        );
+        
+        // คำนวณ error rate
+        const recentChecks = this.healthMetrics.responseTimes.filter(
+            r => r.timestamp > oneHourAgo
+        );
+        
+        if (recentChecks.length > 0) {
+            const recentErrors = this.healthMetrics.errors.length;
+            this.healthMetrics.errorRate = (recentErrors / recentChecks.length) * 100;
+        }
+        
+        // อัปเดต uptime
+        if (result.healthy) {
+            if (!this.healthMetrics.lastUptime) {
+                this.healthMetrics.lastUptime = now;
+            }
+            this.healthMetrics.uptime = now - this.healthMetrics.lastUptime;
+        }
+        
+        // คำนวณ average response time
+        if (this.healthMetrics.responseTimes.length > 0) {
+            const sum = this.healthMetrics.responseTimes.reduce(
+                (acc, r) => acc + r.duration, 0
+            );
+            this.healthMetrics.averageResponseTime = 
+                sum / this.healthMetrics.responseTimes.length;
         }
     }
 
@@ -212,7 +285,8 @@ class ConnectionMonitor {
         return {
             ...this.healthStatus,
             uptime: process.uptime(),
-            memoryUsage: process.memoryUsage()
+            memoryUsage: process.memoryUsage(),
+            healthMetrics: this.healthMetrics // Include health metrics in status
         };
     }
 

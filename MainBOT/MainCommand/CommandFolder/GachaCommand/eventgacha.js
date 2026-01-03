@@ -9,7 +9,6 @@ const {
     getRemainingTime,
     isWindowExpired,
     getRollResetTime,
-    EVENT_ROLL_LIMIT,
     EVENT_COST_PER_ROLL
 } = require('../../Configuration/eventConfig');
 const {
@@ -131,7 +130,6 @@ module.exports = (client) => {
                 );
             }
 
-            const rollLimitReached = rollsInCurrentWindow >= EVENT_ROLL_LIMIT;
             const rollsLeft = userData.rollsLeft || 0;
             const boosts = await getEventUserBoosts(message.author.id);
             const isBoostActive = boosts.ancient > 1 || boosts.mysterious > 1 || boosts.pet > 1;
@@ -153,7 +151,6 @@ module.exports = (client) => {
             const isAutoRollActive = isEventAutoRollActive(message.author.id);
             const rowButtons = createEventShopButtons(
                 message.author.id,
-                rollLimitReached,
                 isAutoRollActive
             );
 
@@ -228,9 +225,9 @@ module.exports = (client) => {
                         '→ Keeps all fumos\n\n' +
                         '**Enable AutoSell:**\n' +
                         '→ Rolls 100 fumos every 30 seconds\n' +
-                        '→ **Automatically sells all EPIC and LEGENDARY fumos for coins**\n' +
-                        '→ Keeps MYTHICAL, ???, and TRANSCENDENT\n\n' +
-                        '⚠️ Both modes will stop automatically at 50,000 roll limit'
+                        '→ **Automatically sells Common, Uncommon, Rare fumos for coins**\n' +
+                        '→ Keeps ??? and TRANSCENDENT\n\n' +
+                        '💎 Will continue until you run out of gems or stop manually'
                     )
                     .setColor(Colors.Blue);
 
@@ -271,13 +268,13 @@ module.exports = (client) => {
                             title: autoSell ? '🤖 Event Auto Roll + AutoSell Started!' : '🤖 Event Auto Roll Started!',
                             description: autoSell
                                 ? `Rolling **100 fumos every ${result.interval / 1000} seconds**\n` +
-                                `💰 Auto-selling all **EPIC** and **LEGENDARY** fumos for coins\n` +
-                                `📦 Keeping: MYTHICAL, ???, TRANSCENDENT\n\n` +
+                                `💰 Auto-selling all **Common**, **Uncommon**, and **Rare** fumos for coins\n` +
+                                `📦 Keeping: ???, TRANSCENDENT\n\n` +
                                 `Use the 🛑 Stop button to cancel.`
-                                : `Rolling **100 fumos every ${result.interval / 1000} seconds** until limit reached (50,000 rolls).\n\n` +
+                                : `Rolling **100 fumos every ${result.interval / 1000} seconds** until you run out of gems.\n\n` +
                                 `Use the 🛑 Stop button to cancel.`,
                             color: autoSell ? 0x00AA00 : 0x00FF00,
-                            footer: { text: autoSell ? 'Auto-sell: EPIC & LEGENDARY only' : 'Auto-roll will stop at 50k limit' }
+                            footer: { text: autoSell ? 'Auto-sell: Common, Uncommon, Rare' : 'No roll limit - rolls until stopped or out of gems' }
                         }],
                         ephemeral: true
                     });
@@ -367,13 +364,6 @@ module.exports = (client) => {
                 );
             }
 
-            if (rollsInCurrentWindow >= EVENT_ROLL_LIMIT) {
-                return interaction.reply({
-                    content: `You have reached your roll limit. Please wait ${getRollResetTime(lastRollTime)} before rolling again.`,
-                    ephemeral: true
-                });
-            }
-
             await interaction.deferReply({ ephemeral: true });
 
             let numSummons;
@@ -403,8 +393,7 @@ module.exports = (client) => {
 
             const continueButton = createContinueButton(
                 userId,
-                numSummons,
-                (rollsInCurrentWindow + numSummons) >= EVENT_ROLL_LIMIT
+                numSummons
             );
 
             await interaction.editReply({ embeds: [embed], components: [continueButton] });

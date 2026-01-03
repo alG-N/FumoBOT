@@ -135,8 +135,8 @@ async function performAutoSell(userId, rolledFumos = []) {
     return totalSell;
 }
 
-async function startAutoRoll(userId, fumos, autoSell = false) {
-    debugLog('AUTO_ROLL', `Starting auto-roll for user ${userId}, autoSell: ${autoSell}`);
+async function startAutoRoll(userId, fumos, autoSell = false, skipSave = false) {
+    debugLog('AUTO_ROLL', `Starting auto-roll for user ${userId}, autoSell: ${autoSell}, skipSave: ${skipSave}`);
 
     if (autoRollMap.has(userId)) {
         return { success: false, error: 'ALREADY_RUNNING' };
@@ -263,9 +263,12 @@ async function startAutoRoll(userId, fumos, autoSell = false) {
     autoRollMap.set(userId, state);
     autoRollLoop();
 
-    const { getEventAutoRollMap } = require('../EventGachaService/EventAutoRollService');
-    const eventAutoRollMap = getEventAutoRollMap();
-    saveUnifiedAutoRollState(autoRollMap, eventAutoRollMap);
+    // Only save state if not restoring (skipSave prevents overwriting loaded state)
+    if (!skipSave) {
+        const { getEventAutoRollMap } = require('../EventGachaService/EventAutoRollService');
+        const eventAutoRollMap = getEventAutoRollMap();
+        saveUnifiedAutoRollState(autoRollMap, eventAutoRollMap);
+    }
 
     return { success: true, interval: initialInterval };
 }
@@ -334,7 +337,7 @@ async function restoreAutoRolls(client, fumoPool, options = {}) {
                 continue;
             }
 
-            const result = await startAutoRoll(userId, fumoPool, autoSell);
+            const result = await startAutoRoll(userId, fumoPool, autoSell, true);
             
             if (result.success) {
                 const current = autoRollMap.get(userId);

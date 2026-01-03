@@ -5,6 +5,7 @@ const { formatNumber } = require('../../Ultility/formatting');
 const { getUserShop, forceRerollUserShop } = require('../../Service/MarketService/ShopService/ShopCacheService');
 const { useReroll, getRerollData, getRerollCooldownRemaining, formatTimeRemaining, getPaidRerollCost } = require('../../Service/MarketService/ShopService/ShopRerollService');
 const purchaseService = require('../../Service/MarketService/ShopService/ShopPurchaseService');
+const { calculateCoinPrice, calculateGemPrice } = require('../../Service/MarketService/WealthPricingService');
 const {
     createShopEmbed,
     createShopButtons,
@@ -194,7 +195,7 @@ module.exports = async (client) => {
             if (command === 'buy') {
                 await handleBuyCommand(message, args, userId, userShop);
             } else if (command === 'search') {
-                await handleSearchCommand(message, args, userShop);
+                await handleSearchCommand(message, args, userShop, userId);
             } else {
                 await handleDisplayShop(message, userId, userShop);
             }
@@ -219,11 +220,21 @@ module.exports = async (client) => {
             });
         }
 
+        // Calculate wealth-scaled price for confirmation
+        const priceCalc = itemCost.currency === 'coins' 
+            ? await calculateCoinPrice(userId, itemCost.cost, 'itemShop')
+            : await calculateGemPrice(userId, itemCost.cost, 'itemShop');
+        
+        const scaledTotalCost = priceCalc.finalPrice * quantity;
+        const baseTotalCost = itemCost.cost * quantity;
+
         const confirmationEmbed = createPurchaseConfirmationEmbed(
             quantity,
             itemName,
-            itemCost.cost * quantity,
-            itemCost.currency
+            scaledTotalCost,
+            itemCost.currency,
+            baseTotalCost,
+            priceCalc.scaled
         );
         const buttonRow = createPurchaseButtons();
 
@@ -293,7 +304,7 @@ module.exports = async (client) => {
         const userId = interaction.user.id;
         const userShop = await getUserShop(userId);
 
-        const confirmationEmbed = createBuyAllConfirmationEmbed(userShop);
+        const confirmationEmbed = await createBuyAllConfirmationEmbed(userShop, userId);
         const buttonRow = createPurchaseButtons('buyall');
 
         await interaction.reply({
@@ -348,9 +359,9 @@ module.exports = async (client) => {
         });
     }
 
-    async function handleSearchCommand(message, args, userShop) {
+    async function handleSearchCommand(message, args, userShop, userId) {
         const searchQuery = args.slice(2).join(' ').toLowerCase();
-        const searchEmbed = createSearchResultsEmbed(searchQuery, userShop);
+        const searchEmbed = await createSearchResultsEmbed(searchQuery, userShop, userId);
         message.reply({ embeds: [searchEmbed], ephemeral: true });
     }
 

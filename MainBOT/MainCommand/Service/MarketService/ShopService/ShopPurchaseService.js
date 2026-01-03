@@ -2,6 +2,7 @@ const { getUserCurrency, deductCurrency, addItemToInventory, batchProcessPurchas
 const { updateUserStock, getUserShop } = require('./ShopCacheService');
 const { debugLog } = require('../../../Core/logger');
 const { withUserLock } = require('../../../Core/database');
+const { calculateCoinPrice, calculateGemPrice, formatScaledPrice } = require('../WealthPricingService');
 
 async function validatePurchase(userId, itemName, itemData, quantity) {
     if (!itemData) {
@@ -29,19 +30,33 @@ async function validatePurchase(userId, itemName, itemData, quantity) {
     }
 
     const currency = await getUserCurrency(userId);
-    const totalCost = itemData.cost * quantity;
+    
+    // Calculate wealth-scaled price
+    const priceCalc = itemData.currency === 'coins' 
+        ? await calculateCoinPrice(userId, itemData.cost, 'itemShop')
+        : await calculateGemPrice(userId, itemData.cost, 'itemShop');
+    
+    const scaledUnitPrice = priceCalc.finalPrice;
+    const totalCost = scaledUnitPrice * quantity;
 
     if (!currency || currency[itemData.currency] < totalCost) {
+        const priceDisplay = priceCalc.scaled 
+            ? `${totalCost.toLocaleString()} (scaled from ${(itemData.cost * quantity).toLocaleString()})`
+            : totalCost.toLocaleString();
         return { 
             valid: false, 
             error: 'INSUFFICIENT_FUNDS',
-            message: `💸 You need ${totalCost} ${itemData.currency} but only have ${currency[itemData.currency] || 0}.`
+            message: `💸 You need ${priceDisplay} ${itemData.currency} but only have ${(currency[itemData.currency] || 0).toLocaleString()}.`
         };
     }
 
     return { 
         valid: true, 
         totalCost,
+        basePrice: itemData.cost * quantity,
+        scaledPrice: totalCost,
+        priceScaled: priceCalc.scaled,
+        multiplier: priceCalc.multiplier,
         currency: itemData.currency
     };
 }
@@ -106,17 +121,22 @@ async function processBuyAll(userId, userShop) {
                 quantity = parseInt(itemData.stock);
             }
 
-            const totalCost = itemData.cost * quantity;
+            // Calculate wealth-scaled price for buy all
+            const priceCalc = itemData.currency === 'coins' 
+                ? await calculateCoinPrice(userId, itemData.cost, 'itemShop')
+                : await calculateGemPrice(userId, itemData.cost, 'itemShop');
+            
+            const totalCost = priceCalc.finalPrice * quantity;
 
             if (itemData.currency === 'coins' && availableCoins >= totalCost) {
-                purchases.push({ itemName, itemData, quantity, totalCost });
+                purchases.push({ itemName, itemData, quantity, totalCost, basePrice: itemData.cost * quantity });
                 availableCoins -= totalCost;
                 
                 if (itemData.stock !== 'unlimited') {
                     stockUpdates.push({ itemName, newStock: 0 });
                 }
             } else if (itemData.currency === 'gems' && availableGems >= totalCost) {
-                purchases.push({ itemName, itemData, quantity, totalCost });
+                purchases.push({ itemName, itemData, quantity, totalCost, basePrice: itemData.cost * quantity });
                 availableGems -= totalCost;
                 
                 if (itemData.stock !== 'unlimited') {

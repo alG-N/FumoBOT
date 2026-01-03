@@ -2,6 +2,7 @@ const { get, run, withUserLock, atomicDeductCurrency } = require('../../../Core/
 const { hasUserPurchased, markEggPurchased } = require('./EggShopCacheService');
 const { debugLog } = require('../../../Core/logger');
 const { formatNumber } = require('../../../Ultility/formatting');
+const { calculateDualPrice } = require('../WealthPricingService');
 
 async function validatePurchase(userId, eggIndex, egg) {
     if (hasUserPurchased(userId, eggIndex)) {
@@ -25,22 +26,41 @@ async function validatePurchase(userId, eggIndex, egg) {
         };
     }
 
-    if (userRow.coins < egg.price.coins || userRow.gems < egg.price.gems) {
+    // Calculate wealth-scaled prices for both currencies
+    const priceCalc = await calculateDualPrice(userId, egg.price.coins, egg.price.gems, 'eggShop');
+    
+    const scaledCoinPrice = priceCalc.coins.finalPrice;
+    const scaledGemPrice = priceCalc.gems.finalPrice;
+
+    if (userRow.coins < scaledCoinPrice || userRow.gems < scaledGemPrice) {
+        const coinDisplay = priceCalc.coins.scaled 
+            ? `${formatNumber(scaledCoinPrice)} (scaled)` 
+            : formatNumber(scaledCoinPrice);
+        const gemDisplay = priceCalc.gems.scaled 
+            ? `${formatNumber(scaledGemPrice)} (scaled)` 
+            : formatNumber(scaledGemPrice);
+        
         return {
             valid: false,
             error: 'INSUFFICIENT_FUNDS',
-            message: `You need <a:coin:1130479446263644260> **${formatNumber(egg.price.coins)}** and <a:gem:1130479444305707139> **${formatNumber(egg.price.gems)}**.`
+            message: `You need <a:coin:1130479446263644260> **${coinDisplay}** and <a:gem:1130479444305707139> **${gemDisplay}**.`
         };
     }
 
     return {
         valid: true,
         currentCoins: userRow.coins,
-        currentGems: userRow.gems
+        currentGems: userRow.gems,
+        scaledCoinPrice,
+        scaledGemPrice,
+        baseCoinPrice: egg.price.coins,
+        baseGemPrice: egg.price.gems,
+        priceScaled: priceCalc.totalScaled
     };
 }
 
 async function processPurchase(userId, eggIndex, egg) {
+    // First validate with base egg price to check if already purchased
     const validation = await validatePurchase(userId, eggIndex, egg);
     
     if (!validation.valid) {
@@ -50,8 +70,8 @@ async function processPurchase(userId, eggIndex, egg) {
     // FIXED: Use user lock and atomic currency deduction to prevent race conditions
     return await withUserLock(userId, 'egg_purchase', async () => {
         try {
-            // Atomic currency deduction
-            const deductResult = await atomicDeductCurrency(userId, egg.price.coins, egg.price.gems);
+            // Use the scaled prices for actual deduction
+            const deductResult = await atomicDeductCurrency(userId, validation.scaledCoinPrice, validation.scaledGemPrice);
             if (!deductResult.success) {
                 return {
                     success: false,
@@ -73,13 +93,16 @@ async function processPurchase(userId, eggIndex, egg) {
 
             markEggPurchased(userId, eggIndex);
 
-            debugLog('EGG_PURCHASE', `${userId} bought ${egg.name} for ${egg.price.coins} coins, ${egg.price.gems} gems`);
+            debugLog('EGG_PURCHASE', `${userId} bought ${egg.name} for ${validation.scaledCoinPrice} coins (base: ${egg.price.coins}), ${validation.scaledGemPrice} gems (base: ${egg.price.gems})`);
 
             return {
                 success: true,
                 egg,
-                remainingCoins: validation.currentCoins - egg.price.coins,
-                remainingGems: validation.currentGems - egg.price.gems
+                remainingCoins: validation.currentCoins - validation.scaledCoinPrice,
+                remainingGems: validation.currentGems - validation.scaledGemPrice,
+                paidCoins: validation.scaledCoinPrice,
+                paidGems: validation.scaledGemPrice,
+                priceScaled: validation.priceScaled
             };
 
         } catch (error) {

@@ -2,6 +2,7 @@ const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBui
 const { getCoinMarket, getGemMarket } = require('../MarketCacheService');
 const { validateShopPurchase, processShopPurchase } = require('../MarketPurchaseService');
 const { createPurchaseConfirmEmbed, createPurchaseSuccessEmbed, createErrorEmbed } = require('../MarketUIService');
+const { calculateCoinPrice, calculateGemPrice } = require('../../WealthPricingService');
 
 async function handleFumoSelection(interaction, shopType) {
     try {
@@ -51,7 +52,14 @@ async function handleFumoSelection(interaction, shopType) {
         }
 
         const currency = shopType === 'coin' ? 'coins' : 'gems';
-        const totalPrice = fumo.price * amount;
+        
+        // Calculate wealth-scaled price for confirmation display
+        const shopTypeMap = { coin: 'coinMarket', gem: 'gemMarket' };
+        const priceCalc = currency === 'coins' 
+            ? await calculateCoinPrice(interaction.user.id, fumo.price, shopTypeMap[shopType])
+            : await calculateGemPrice(interaction.user.id, fumo.price, shopTypeMap[shopType]);
+        
+        const totalPrice = priceCalc.finalPrice * amount;
         const confirmEmbed = createPurchaseConfirmEmbed(fumo, amount, totalPrice, currency);
 
         const row = new ActionRowBuilder().addComponents(
