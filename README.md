@@ -45,7 +45,7 @@ It's one of my first projects when I was still learning at FPT Polytechnic Schoo
    - Use `.help` in Discord to see all available commands and categories
    - Use `.tutorialHelp` for a guided walkthrough of features
 5. **Join the Community:**
-   - [Discord Server](https://discord.gg/xhmbQCHs) for support, updates, and feedback
+   - [Discord Server](https://discord.gg/3vJEyCCdaA) for support, updates, and feedback
 
 ### Advanced Configuration
 
