@@ -1,4 +1,4 @@
-const { get, run, withUserLock, atomicDeductCurrency } = require('../../../Core/database');
+const { get, run, withUserLock, transaction } = require('../../../Core/database');
 const { hasUserPurchased, markEggPurchased } = require('./EggShopCacheService');
 const { debugLog } = require('../../../Core/logger');
 const { formatNumber } = require('../../../Ultility/formatting');
@@ -60,26 +60,42 @@ async function validatePurchase(userId, eggIndex, egg) {
 }
 
 async function processPurchase(userId, eggIndex, egg) {
+    console.log(`[EGGSHOP] Starting purchase for ${userId}, egg ${eggIndex}`);
+    
     // First validate with base egg price to check if already purchased
     const validation = await validatePurchase(userId, eggIndex, egg);
+    console.log(`[EGGSHOP] Validation result:`, validation.valid ? 'VALID' : validation.error);
     
     if (!validation.valid) {
         return validation;
     }
 
-    // FIXED: Use user lock and atomic currency deduction to prevent race conditions
+    console.log(`[EGGSHOP] Acquiring lock for ${userId}...`);
+    // Use user lock to prevent race conditions
     return await withUserLock(userId, 'egg_purchase', async () => {
+        console.log(`[EGGSHOP] Lock acquired for ${userId}`);
         try {
-            // Use the scaled prices for actual deduction
-            const deductResult = await atomicDeductCurrency(userId, validation.scaledCoinPrice, validation.scaledGemPrice);
-            if (!deductResult.success) {
-                return {
-                    success: false,
-                    error: deductResult.error,
-                    message: `Insufficient ${deductResult.error === 'INSUFFICIENT_COINS' ? 'coins' : 'gems'}.`
-                };
+            // Re-verify balance inside lock (in case it changed)
+            const user = await get(`SELECT coins, gems FROM userCoins WHERE userId = ?`, [userId]);
+            if (!user) {
+                return { success: false, error: 'NO_ACCOUNT', message: "You don't have any coins or gems yet." };
+            }
+            if (user.coins < validation.scaledCoinPrice) {
+                return { success: false, error: 'INSUFFICIENT_COINS', message: 'Insufficient coins.' };
+            }
+            if (user.gems < validation.scaledGemPrice) {
+                return { success: false, error: 'INSUFFICIENT_GEMS', message: 'Insufficient gems.' };
             }
 
+            // Direct deduction without nested lock
+            console.log(`[EGGSHOP] Deducting ${validation.scaledCoinPrice} coins, ${validation.scaledGemPrice} gems`);
+            await run(
+                `UPDATE userCoins SET coins = coins - ?, gems = gems - ? WHERE userId = ?`,
+                [validation.scaledCoinPrice, validation.scaledGemPrice, userId]
+            );
+            console.log(`[EGGSHOP] Deduct complete`);
+
+            console.log(`[EGGSHOP] Inserting egg into petInventory...`);
             await run(
                 `INSERT INTO petInventory (petId, userId, type, name, timestamp) 
                  VALUES (?, ?, 'egg', ?, ?)`,
@@ -90,11 +106,13 @@ async function processPurchase(userId, eggIndex, egg) {
                     Date.now()
                 ]
             );
+            console.log(`[EGGSHOP] Egg inserted successfully`);
 
             markEggPurchased(userId, eggIndex);
 
             debugLog('EGG_PURCHASE', `${userId} bought ${egg.name} for ${validation.scaledCoinPrice} coins (base: ${egg.price.coins}), ${validation.scaledGemPrice} gems (base: ${egg.price.gems})`);
 
+            console.log(`[EGGSHOP] Purchase complete for ${userId}`);
             return {
                 success: true,
                 egg,

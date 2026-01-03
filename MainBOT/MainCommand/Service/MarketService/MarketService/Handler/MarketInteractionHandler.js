@@ -21,34 +21,44 @@ const CATEGORIES = [
 
 async function handleCoinShop(interaction) {
     try {
+        await interaction.deferUpdate();
+        
         const market = getCoinMarket(interaction.user.id);
         const embed = await createCoinShopEmbed(interaction.user.id, market.market, market.resetTime);
         const selectMenu = createShopSelectMenu(interaction.user.id, market.market, 'coin');
         const backButton = createBackButton(interaction.user.id);
 
-        await interaction.update({ embeds: [embed], components: [selectMenu, backButton] });
+        await interaction.editReply({ embeds: [embed], components: [selectMenu, backButton] });
     } catch (error) {
         console.error('Coin shop error:', error);
-        await interaction.reply({ content: '❌ Failed to load coin shop.', ephemeral: true });
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({ content: '❌ Failed to load coin shop.', ephemeral: true }).catch(() => {});
+        }
     }
 }
 
 async function handleGemShop(interaction) {
     try {
+        await interaction.deferUpdate();
+        
         const market = getGemMarket(interaction.user.id);
         const embed = await createGemShopEmbed(interaction.user.id, market.market, market.resetTime);
         const selectMenu = createShopSelectMenu(interaction.user.id, market.market, 'gem');
         const backButton = createBackButton(interaction.user.id);
 
-        await interaction.update({ embeds: [embed], components: [selectMenu, backButton] });
+        await interaction.editReply({ embeds: [embed], components: [selectMenu, backButton] });
     } catch (error) {
         console.error('Gem shop error:', error);
-        await interaction.reply({ content: '❌ Failed to load gem shop.', ephemeral: true });
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({ content: '❌ Failed to load gem shop.', ephemeral: true }).catch(() => {});
+        }
     }
 }
 
 async function handleGlobalShop(interaction) {
     try {
+        await interaction.deferUpdate();
+        
         const allListings = await getAllGlobalListings();
         const shuffled = allListings.sort(() => Math.random() - 0.5);
         const display = shuffled.slice(0, 5);
@@ -83,18 +93,22 @@ async function handleGlobalShop(interaction) {
 
         const selectRow = new ActionRowBuilder().addComponents(selectMenu);
 
-        await interaction.update({ embeds: [embed], components: [selectRow, buttons] });
+        await interaction.editReply({ embeds: [embed], components: [selectRow, buttons] });
     } catch (error) {
         console.error('Global shop error:', error);
-        await interaction.reply({ content: '❌ Failed to load global shop.', ephemeral: true });
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({ content: '❌ Failed to load global shop.', ephemeral: true }).catch(() => {});
+        }
     }
 }
 
 async function handleBackToMain(interaction) {
     try {
+        await interaction.deferUpdate();
+        
         const embed = await createMainShopEmbed(interaction.user.id);
         const buttons = createMainShopButtons(interaction.user.id);
-        await interaction.update({ embeds: [embed], components: [buttons] });
+        await interaction.editReply({ embeds: [embed], components: [buttons] });
     } catch (error) {
         console.error('Back to main error:', error);
     }
@@ -102,6 +116,8 @@ async function handleBackToMain(interaction) {
 
 async function handleRefreshGlobal(interaction) {
     try {
+        await interaction.deferUpdate();
+        
         const allListings = await getAllGlobalListings();
         const shuffled = allListings.sort(() => Math.random() - 0.5);
         const display = shuffled.slice(0, 5);
@@ -136,11 +152,11 @@ async function handleRefreshGlobal(interaction) {
 
         const selectRow = new ActionRowBuilder().addComponents(selectMenu);
 
-        await interaction.update({ embeds: [embed], components: [selectRow, buttons] });
+        await interaction.editReply({ embeds: [embed], components: [selectRow, buttons] });
     } catch (error) {
         console.error('Refresh global error:', error);
         if (!interaction.replied && !interaction.deferred) {
-            await interaction.reply({ content: '❌ Failed to refresh.', ephemeral: true });
+            await interaction.reply({ content: '❌ Failed to refresh.', ephemeral: true }).catch(() => {});
         }
     }
 }

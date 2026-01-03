@@ -303,11 +303,10 @@ function createPurchaseConfirmEmbed(fumo, amount, totalPrice, currency, basePric
         .setDescription(
             `You're about to purchase:\n\n` +
             `**${fumo.name}**\n\n` +
-            `┌─ **Transaction Details** ──────┐\n` +
-            `│ Quantity: **${amount}x**\n` +
-            `│ Unit Price: ${unitPriceDisplay}\n` +
-            `│ Total Cost: ${totalDisplay}\n` +
-            `└────────────────────────────────┘\n` +
+            `**Transaction Details**\n` +
+            `Quantity: **${amount}x**\n` +
+            `Unit Price: ${unitPriceDisplay}\n` +
+            `Total Cost: ${totalDisplay}\n` +
             (isScaled ? '\n💰 *Wealth tax applied*\n\n' : '\n') +
             `Click **Confirm** to complete your purchase.`
         )

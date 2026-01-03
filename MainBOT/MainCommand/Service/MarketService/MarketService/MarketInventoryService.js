@@ -268,9 +268,11 @@ async function addFumoToInventory(userId, fumo, shinyMarkValue = 0) {
     // Build final fumo name with all variants
     const fumoName = applyMarketVariants(fumo.name, baseTag, specialVariant);
 
+    // Use INSERT OR UPDATE to handle duplicate entries (user already owns this exact fumo)
     await run(
-        `INSERT INTO userInventory(userId, fumoName) VALUES(?, ?)`,
-        [userId, fumoName]
+        `INSERT INTO userInventory (userId, fumoName, quantity, rarity) VALUES (?, ?, 1, ?)
+         ON CONFLICT(userId, fumoName) DO UPDATE SET quantity = quantity + 1`,
+        [userId, fumoName, fumo.rarity || 'Common']
     );
 
     debugLog('MARKET_INV', `Added ${fumoName} to ${userId}'s inventory`);

@@ -40,47 +40,58 @@ module.exports = async (client) => {
         });
 
         collector.on("collect", async (interaction) => {
+            // Defer immediately to prevent timeout
+            try {
+                await interaction.deferReply({ ephemeral: true });
+            } catch (e) {
+                console.error('[EGGSHOP] Failed to defer:', e);
+                return;
+            }
+
             if (!verifyButtonOwnership(interaction)) {
-                return interaction.reply({ 
-                    content: "This shop was opened by someone else!", 
-                    ephemeral: true 
-                });
+                return interaction.editReply({ 
+                    content: "This shop was opened by someone else!"
+                }).catch(() => {});
             }
 
             const parts = interaction.customId.split('_');
             const eggIndex = parseInt(parts[2]);
 
             if (isNaN(eggIndex) || eggIndex < 0 || eggIndex >= eggs.length) {
-                return interaction.reply({ 
-                    content: "Invalid egg selected.", 
-                    ephemeral: true 
-                });
+                return interaction.editReply({ 
+                    content: "Invalid egg selected."
+                }).catch(() => {});
             }
 
-            const result = await processPurchase(userId, eggIndex, eggs[eggIndex]);
+            try {
+                const result = await processPurchase(userId, eggIndex, eggs[eggIndex]);
 
-            if (result.success) {
-                const successEmbed = createPurchaseSuccessEmbed(
-                    result.egg,
-                    result.remainingCoins,
-                    result.remainingGems,
-                    result.paidCoins,
-                    result.paidGems
-                );
-                
-                await interaction.reply({ 
-                    embeds: [successEmbed], 
-                    ephemeral: true 
-                });
+                if (result.success) {
+                    const successEmbed = createPurchaseSuccessEmbed(
+                        result.egg,
+                        result.remainingCoins,
+                        result.remainingGems,
+                        result.paidCoins,
+                        result.paidGems
+                    );
+                    
+                    await interaction.editReply({ 
+                        embeds: [successEmbed]
+                    });
 
-                const updatedButtons = createButtonRows(userId, eggs);
-                sent.edit({ components: updatedButtons }).catch(() => {});
-            } else {
-                const errorEmbed = createErrorEmbed(result.error, result.message);
-                await interaction.reply({ 
-                    embeds: [errorEmbed], 
-                    ephemeral: true 
-                });
+                    const updatedButtons = createButtonRows(userId, eggs);
+                    sent.edit({ components: updatedButtons }).catch(() => {});
+                } else {
+                    const errorEmbed = createErrorEmbed(result.error, result.message);
+                    await interaction.editReply({ 
+                        embeds: [errorEmbed]
+                    });
+                }
+            } catch (error) {
+                console.error('[EGGSHOP] Purchase error:', error);
+                await interaction.editReply({ 
+                    content: '❌ An error occurred while processing your purchase.'
+                }).catch(() => {});
             }
         });
 
