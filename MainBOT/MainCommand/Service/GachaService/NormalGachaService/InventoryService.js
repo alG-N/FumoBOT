@@ -362,8 +362,15 @@ async function selectAndAddFumo(userId, rarity, fumoPool) {
 
 /**
  * Select and add multiple fumos - OPTIMIZED for batch operations
+ * @param {string} userId - User ID
+ * @param {string[]} rarities - Array of rarities for each roll
+ * @param {Object|Array} fumoPool - Pool of fumos to select from
+ * @param {Object} options - Optional configuration
+ * @param {boolean} options.sigilAstralBlock - If true, block ASTRAL+ duplicates within this batch (S!gil feature)
  */
-async function selectAndAddMultipleFumos(userId, rarities, fumoPool) {
+async function selectAndAddMultipleFumos(userId, rarities, fumoPool, options = {}) {
+    const { sigilAstralBlock = false } = options;
+    
     // Check storage once at the start
     const storageCheck = await StorageLimitService.canAddFumos(userId, rarities.length);
     if (!storageCheck.canAdd) {
@@ -373,6 +380,10 @@ async function selectAndAddMultipleFumos(userId, rarities, fumoPool) {
     const results = [];
     const fumoUpdates = new Map(); // Track fumo name -> {count, rarity, fumoData}
     let shinyCount = 0;
+    
+    // Track ASTRAL+ base names within this batch for S!gil duplicate blocking
+    const astralPlusBaseNamesInBatch = new Set();
+    let blockedDuplicates = 0;
     
     // First pass: determine all fumos and variants without DB writes
     for (const rarity of rarities) {
@@ -390,7 +401,31 @@ async function selectAndAddMultipleFumos(userId, rarities, fumoPool) {
         }
         
         // Select base fumo
-        const baseFumo = rarityPool[Math.floor(Math.random() * rarityPool.length)];
+        let baseFumo = rarityPool[Math.floor(Math.random() * rarityPool.length)];
+        
+        // S!gil ASTRAL+ duplicate blocking within batch
+        // Only applies to ASTRAL+ rarities during S!gil nullified rolls
+        if (sigilAstralBlock && ASTRAL_PLUS.includes(rarity)) {
+            // Extract base name (without variants) for comparison
+            const baseName = baseFumo.name.replace(/\[.*?\]/g, '').trim();
+            
+            if (astralPlusBaseNamesInBatch.has(baseName)) {
+                // Already have this ASTRAL+ fumo in this batch - skip it
+                blockedDuplicates++;
+                debugLog('[SIGIL]', `Blocked ASTRAL+ duplicate in batch: ${baseName} (rarity: ${rarity})`);
+                results.push({ 
+                    success: false, 
+                    reason: 'astral_duplicate_blocked',
+                    blockedFumo: baseName,
+                    rarity
+                });
+                continue;
+            }
+            
+            // Add to tracking set
+            astralPlusBaseNamesInBatch.add(baseName);
+        }
+        
         let finalName = baseFumo.name;
         
         // OPTIMIZED: Roll for variants in parallel
@@ -430,6 +465,11 @@ async function selectAndAddMultipleFumos(userId, rarities, fumoPool) {
                 isVoid: specialVariant?.type === 'VOID'
             }
         });
+    }
+    
+    // Log blocked duplicates if any
+    if (blockedDuplicates > 0) {
+        debugLog('[SIGIL]', `Total ASTRAL+ duplicates blocked in batch: ${blockedDuplicates}`);
     }
     
     // Second pass: batch update database

@@ -113,7 +113,27 @@ async function calculateRarity(userId, boosts, row, hasFantasyBook) {
         }
     }
 
-    // Check Nullified item override (equal chance for all rarities)
+    // Check S!gil nullified rolls first (has ASTRAL+ duplicate blocking)
+    if (boosts.sigilNullifiedRolls > 0) {
+        const rarities = hasFantasyBook
+            ? ['TRANSCENDENT', 'ETERNAL', 'INFINITE', 'CELESTIAL', 'ASTRAL', '???', 'EXCLUSIVE', 'MYTHICAL', 'LEGENDARY', 'OTHERWORLDLY', 'EPIC', 'RARE', 'UNCOMMON', 'Common']
+            : ['???', 'EXCLUSIVE', 'MYTHICAL', 'LEGENDARY', 'EPIC', 'RARE', 'UNCOMMON', 'Common'];
+
+        const rarity = rarities[Math.floor(Math.random() * rarities.length)];
+
+        // Consume S!gil nullified roll (stored in extra.remaining)
+        const newRemaining = boosts.sigilNullifiedRolls - 1;
+        await run(
+            `UPDATE activeBoosts SET extra = json_set(COALESCE(extra, '{}'), '$.remaining', ?) 
+             WHERE userId = ? AND type = 'nullifiedRolls' AND source = 'S!gil'`,
+            [newRemaining, userId]
+        );
+
+        // Return with sigilNullified flag for ASTRAL+ duplicate blocking
+        return { rarity, nullifiedUsed: true, sigilNullified: true };
+    }
+
+    // Check regular Nullified item override (equal chance for all rarities, no ASTRAL+ blocking)
     if (boosts.nullifiedUses > 0) {
         const rarities = hasFantasyBook
             ? ['TRANSCENDENT', 'ETERNAL', 'INFINITE', 'CELESTIAL', 'ASTRAL', '???', 'EXCLUSIVE', 'MYTHICAL', 'LEGENDARY', 'OTHERWORLDLY', 'EPIC', 'RARE', 'UNCOMMON', 'Common']
@@ -128,7 +148,7 @@ async function calculateRarity(userId, boosts, row, hasFantasyBook) {
             await run(`DELETE FROM activeBoosts WHERE userId = ? AND type = 'rarityOverride' AND source = 'Nullified'`, [userId]);
         }
 
-        return { rarity, nullifiedUsed: true };
+        return { rarity, nullifiedUsed: true, sigilNullified: false };
     }
 
     // Calculate total luck multiplier - now including base luck from row

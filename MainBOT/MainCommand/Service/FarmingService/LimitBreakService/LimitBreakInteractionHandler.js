@@ -1,4 +1,4 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const { get, run } = require('../../../Core/database');
 const { logToDiscord, LogLevel } = require('../../../Core/logger');
 const { 
@@ -16,6 +16,13 @@ const {
 } = require('./LimitBreakRequirement');
 
 // ============================================================
+// CONSTANTS
+// ============================================================
+const MAX_FRAGMENT_USES = 30;
+const FRAGMENT_NAME = 'FragmentOf1800s(R)';
+const BASE_FARM_LIMIT = 5;
+
+// ============================================================
 // TIER COLORS FOR UI
 // ============================================================
 const TIER_COLORS = {
@@ -28,6 +35,7 @@ const TIER_COLORS = {
 };
 
 const MILESTONE_COLOR = 0xFF1493; // Deep pink for milestones
+const FRAGMENT_COLOR = 0x9370DB;  // Medium purple for fragment phase
 
 async function handleLimitBreakerInteraction(interaction, userId, message, client) {
     const { customId } = interaction;
@@ -40,6 +48,12 @@ async function handleLimitBreakerInteraction(interaction, userId, message, clien
     }
     else if (customId.startsWith('limitbreak_back_')) {
         await handleLimitBreakBack(interaction, userId);
+    }
+    else if (customId.startsWith('fragment_use_')) {
+        await handleFragmentUse(interaction, userId, client);
+    }
+    else if (customId.startsWith('fragment_use_multi_')) {
+        await showFragmentModal(interaction, userId);
     }
 }
 
@@ -115,14 +129,19 @@ async function getLimitBreakerData(userId) {
     const fragmentUses = userRow?.fragmentUses || 0;
 
     const requirementData = getRequirementForUser(userId, currentBreaks + 1);
-    const requirements = calculateResourceRequirements(currentBreaks); // Use the new function
+    const requirements = calculateResourceRequirements(currentBreaks);
 
     const fumoValidation = await validateUserHasFumos(userId, requirementData.requirements.fumos);
 
     const [fragmentRow, nullifiedRow] = await Promise.all([
-        get(`SELECT quantity FROM userInventory WHERE userId = ? AND itemName = ?`, [userId, 'FragmentOf1800s(R)']),
+        get(`SELECT quantity FROM userInventory WHERE userId = ? AND itemName = ?`, [userId, FRAGMENT_NAME]),
         get(`SELECT quantity FROM userInventory WHERE userId = ? AND itemName = ?`, [userId, 'Nullified(?)'])
     ]);
+
+    const fragmentsOwned = fragmentRow?.quantity || 0;
+    const fragmentsRemaining = MAX_FRAGMENT_USES - fragmentUses;
+    const isFragmentPhase = fragmentUses < MAX_FRAGMENT_USES;
+    const canUseFragment = isFragmentPhase && fragmentsOwned > 0;
 
     return {
         currentBreaks,
@@ -131,9 +150,15 @@ async function getLimitBreakerData(userId) {
         requiredFumos: requirementData.requirements.fumos,
         fumoValidation,
         inventory: {
-            fragments: fragmentRow?.quantity || 0,
+            fragments: fragmentsOwned,
             nullified: nullifiedRow?.quantity || 0
-        }
+        },
+        // Fragment phase data
+        isFragmentPhase,
+        canUseFragment,
+        fragmentsRemaining,
+        maxFragmentUses: MAX_FRAGMENT_USES,
+        totalFarmLimit: BASE_FARM_LIMIT + fragmentUses + currentBreaks
     };
 }
 
@@ -264,7 +289,10 @@ function createProgressBar(current, max, length = 10) {
 }
 
 function createLimitBreakerEmbed(data) {
-    const { currentBreaks, fragmentUses, requirements, requiredFumos, fumoValidation, inventory } = data;
+    const { 
+        currentBreaks, fragmentUses, requirements, requiredFumos, fumoValidation, inventory,
+        isFragmentPhase, fragmentsRemaining, maxFragmentUses, totalFarmLimit 
+    } = data;
     const nextBreakNumber = currentBreaks + 1;
     const canBreak = currentBreaks < MAX_LIMIT_BREAKS;
     
@@ -273,20 +301,90 @@ function createLimitBreakerEmbed(data) {
     const milestone = getMilestoneInfo(nextBreakNumber);
     const nextMilestone = getNextMilestone(nextBreakNumber);
     
-    const embedColor = milestone ? MILESTONE_COLOR : (TIER_COLORS[tier.key] || 0xFFD700);
+    // Use fragment color if in fragment phase
+    const embedColor = isFragmentPhase 
+        ? FRAGMENT_COLOR 
+        : (milestone ? MILESTONE_COLOR : (TIER_COLORS[tier.key] || 0xFFD700));
 
     const embed = new EmbedBuilder()
-        .setTitle(milestone ? `🌟 MILESTONE: ${milestone.name}` : `⚡ Limit Breaker - ${tier.emoji} ${tier.name} Tier`)
+        .setTitle(
+            isFragmentPhase 
+                ? '🔮 Fragment Enhancement Phase' 
+                : (milestone ? `🌟 MILESTONE: ${milestone.name}` : `⚡ Limit Breaker - ${tier.emoji} ${tier.name} Tier`)
+        )
         .setColor(canBreak ? embedColor : 0xFF0000);
     
-    if (!canBreak) {
+    if (!canBreak && !isFragmentPhase) {
         embed.setDescription(
             '**🏆 MAXIMUM LIMIT BREAKS REACHED!**\n\n' +
             'You have achieved the ultimate transcendence!\n' +
-            `Your total farm limit is now: **${5 + fragmentUses + currentBreaks}**`
+            `Your total farm limit is now: **${totalFarmLimit}**`
         );
         return embed;
     }
+
+    // ============================================================
+    // FRAGMENT PHASE UI
+    // ============================================================
+    if (isFragmentPhase) {
+        const fragmentProgressBar = createProgressBar(fragmentUses, maxFragmentUses, 15);
+        
+        embed.setDescription(
+            '**🔮 Use Fragments to increase your farm limit!**\n\n' +
+            'Before performing Limit Breaks, you must first use all your Fragment enhancements.\n' +
+            'Each fragment permanently increases your farm limit by 1 slot.\n\n' +
+            '*Once you reach maximum fragments, Limit Breaking will unlock!*'
+        );
+
+        embed.addFields({
+            name: '📊 Fragment Progress',
+            value: 
+                `**Used:** ${fragmentUses} / ${maxFragmentUses}\n` +
+                `${fragmentProgressBar}\n` +
+                `**Remaining Slots:** ${fragmentsRemaining}`,
+            inline: true
+        });
+
+        embed.addFields({
+            name: '📦 Your Fragments',
+            value: 
+                `**Available:** ${inventory.fragments}x FragmentOf1800s(R)\n` +
+                `**Can Use:** ${Math.min(inventory.fragments, fragmentsRemaining)}`,
+            inline: true
+        });
+
+        embed.addFields({
+            name: '🏡 Current Farm Limit',
+            value: `**${totalFarmLimit}** slots (Base: ${BASE_FARM_LIMIT} + Fragments: ${fragmentUses} + Breaks: ${currentBreaks})`,
+            inline: false
+        });
+
+        // Preview next limit break requirements
+        if (currentBreaks < MAX_LIMIT_BREAKS) {
+            const nextReqs = requirements;
+            embed.addFields({
+                name: '🔮 Next Phase: Limit Breaking',
+                value: 
+                    `After using all ${maxFragmentUses} fragments, you'll unlock Limit Breaking!\n` +
+                    `**First Limit Break requires:**\n` +
+                    `• ${nextReqs.fragments}x FragmentOf1800s(R)\n` +
+                    `• ${nextReqs.nullified}x Nullified(?)\n` +
+                    `• 1x Specific Fumo (random requirement)`,
+                inline: false
+            });
+        }
+
+        embed.setFooter({ 
+            text: `🔮 Fragment Phase | ${fragmentsRemaining} slots remaining` 
+        });
+        
+        embed.setTimestamp();
+        return embed;
+    }
+    
+    // ============================================================
+    // LIMIT BREAK PHASE UI (existing logic)
+    // ============================================================
     
     // Build description
     let description = '';
@@ -308,7 +406,7 @@ function createLimitBreakerEmbed(data) {
             `**Progress:** ${currentBreaks} / ${MAX_LIMIT_BREAKS}\n` +
             `${progressBar}\n` +
             `**Current Tier:** ${tier.emoji} ${tier.name}\n` +
-            `**Total Farm Limit:** ${5 + fragmentUses + currentBreaks}`,
+            `**Total Farm Limit:** ${totalFarmLimit}`,
         inline: false
     });
 
@@ -405,18 +503,48 @@ function getStageDescription(stage) {
 }
 
 function createLimitBreakerButtons(userId, data) {
-    const { currentBreaks, requirements, fumoValidation, inventory } = data;
+    const { 
+        currentBreaks, requirements, fumoValidation, inventory,
+        isFragmentPhase, canUseFragment, fragmentsRemaining 
+    } = data;
     
-    const hasFragments = inventory.fragments >= requirements.fragments;
-    const hasNullified = inventory.nullified >= requirements.nullified;
-    const hasFumos = fumoValidation.every(v => v.found);
-    
-    const canBreak = currentBreaks < MAX_LIMIT_BREAKS && hasFragments && hasNullified && hasFumos;
+    const rows = [];
+    const row1 = new ActionRowBuilder();
 
-    const row = new ActionRowBuilder();
-    
-    if (currentBreaks < MAX_LIMIT_BREAKS) {
-        row.addComponents(
+    // ============================================================
+    // FRAGMENT PHASE BUTTONS
+    // ============================================================
+    if (isFragmentPhase) {
+        // Single use fragment button
+        row1.addComponents(
+            new ButtonBuilder()
+                .setCustomId(`fragment_use_${userId}`)
+                .setLabel('🔮 Use Fragment (+1 Slot)')
+                .setStyle(ButtonStyle.Primary)
+                .setDisabled(!canUseFragment)
+        );
+
+        // Multi-use fragment button (if user has many fragments)
+        if (inventory.fragments > 1 && fragmentsRemaining > 1) {
+            row1.addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`fragment_use_multi_${userId}`)
+                    .setLabel(`📦 Use Multiple (Max: ${Math.min(inventory.fragments, fragmentsRemaining)})`)
+                    .setStyle(ButtonStyle.Secondary)
+                    .setDisabled(!canUseFragment)
+            );
+        }
+    } 
+    // ============================================================
+    // LIMIT BREAK PHASE BUTTONS
+    // ============================================================
+    else if (currentBreaks < MAX_LIMIT_BREAKS) {
+        const hasFragments = inventory.fragments >= requirements.fragments;
+        const hasNullified = inventory.nullified >= requirements.nullified;
+        const hasFumos = fumoValidation.every(v => v.found);
+        const canBreak = hasFragments && hasNullified && hasFumos;
+
+        row1.addComponents(
             new ButtonBuilder()
                 .setCustomId(`limitbreak_confirm_${userId}`)
                 .setLabel('⚡ Perform Limit Break')
@@ -425,14 +553,16 @@ function createLimitBreakerButtons(userId, data) {
         );
     }
     
-    row.addComponents(
+    // Back button always present
+    row1.addComponents(
         new ButtonBuilder()
             .setCustomId(`limitbreak_back_${userId}`)
             .setLabel('◀️ Back to Farm')
             .setStyle(ButtonStyle.Secondary)
     );
 
-    return [row];
+    rows.push(row1);
+    return rows;
 }
 
 function createSuccessEmbed(newBreaks, totalLimit, reqs, requiredFumos) {
@@ -479,8 +609,284 @@ function createSuccessEmbed(newBreaks, totalLimit, reqs, requiredFumos) {
     return embed;
 }
 
+// ============================================================
+// FRAGMENT HANDLING FUNCTIONS
+// ============================================================
+
+/**
+ * Handle single fragment use
+ */
+async function handleFragmentUse(interaction, userId, client) {
+    await interaction.deferUpdate();
+
+    try {
+        // Re-validate at time of click (prevent race conditions)
+        const userRow = await get(`SELECT fragmentUses FROM userUpgrades WHERE userId = ?`, [userId]);
+        const currentUses = userRow?.fragmentUses || 0;
+
+        if (currentUses >= MAX_FRAGMENT_USES) {
+            return interaction.followUp({
+                content: '✅ You have already used all your fragment slots! You can now perform Limit Breaks.',
+                ephemeral: true
+            });
+        }
+
+        // Check fragment availability
+        const fragRow = await get(
+            `SELECT quantity FROM userInventory WHERE userId = ? AND itemName = ?`,
+            [userId, FRAGMENT_NAME]
+        );
+        const availableFragments = fragRow?.quantity || 0;
+
+        if (availableFragments < 1) {
+            return interaction.followUp({
+                content: `❌ You don't have any **${FRAGMENT_NAME}** to use!`,
+                ephemeral: true
+            });
+        }
+
+        // Consume fragment
+        await run(
+            `UPDATE userInventory SET quantity = quantity - 1 WHERE userId = ? AND itemName = ?`,
+            [userId, FRAGMENT_NAME]
+        );
+
+        // Update fragment uses
+        if (userRow) {
+            await run(`UPDATE userUpgrades SET fragmentUses = fragmentUses + 1 WHERE userId = ?`, [userId]);
+        } else {
+            await run(
+                `INSERT INTO userUpgrades (userId, fragmentUses, limitBreaks) VALUES (?, 1, 0)
+                 ON CONFLICT(userId) DO UPDATE SET fragmentUses = fragmentUses + 1`,
+                [userId]
+            );
+        }
+
+        const newUses = currentUses + 1;
+        const newLimit = BASE_FARM_LIMIT + newUses;
+        const reachedMax = newUses >= MAX_FRAGMENT_USES;
+
+        // Log the action
+        if (client) {
+            await logToDiscord(
+                client,
+                `User ${interaction.user.username} used a fragment (${newUses}/${MAX_FRAGMENT_USES})`,
+                null,
+                LogLevel.ACTIVITY
+            );
+        }
+
+        // Refresh the menu
+        const updatedData = await getLimitBreakerData(userId);
+        const updatedEmbed = createLimitBreakerEmbed(updatedData);
+        const updatedButtons = createLimitBreakerButtons(userId, updatedData);
+
+        await interaction.editReply({
+            embeds: [updatedEmbed],
+            components: updatedButtons
+        });
+
+        // Success message
+        const successEmbed = new EmbedBuilder()
+            .setTitle(reachedMax ? '🎉 Fragment Phase Complete!' : '🔮 Fragment Used!')
+            .setColor(reachedMax ? 0x00FF00 : FRAGMENT_COLOR)
+            .setDescription(
+                reachedMax
+                    ? `**Congratulations!** You've used all ${MAX_FRAGMENT_USES} fragments!\n\n` +
+                      `🏡 **New Farm Limit:** ${newLimit} slots\n\n` +
+                      `⚡ **Limit Breaking is now unlocked!**\n` +
+                      `Continue upgrading by performing Limit Breaks.`
+                    : `**Fragment consumed!**\n\n` +
+                      `🔮 **Progress:** ${newUses} / ${MAX_FRAGMENT_USES}\n` +
+                      `🏡 **New Farm Limit:** ${newLimit} slots\n` +
+                      `📦 **Fragments remaining:** ${availableFragments - 1}`
+            )
+            .setTimestamp();
+
+        await interaction.followUp({
+            embeds: [successEmbed],
+            ephemeral: true
+        });
+
+    } catch (error) {
+        console.error('Error using fragment:', error);
+        await interaction.followUp({
+            content: '❌ An error occurred while using the fragment.',
+            ephemeral: true
+        });
+    }
+}
+
+/**
+ * Show modal for using multiple fragments
+ */
+async function showFragmentModal(interaction, userId) {
+    try {
+        // Get current state for validation
+        const userRow = await get(`SELECT fragmentUses FROM userUpgrades WHERE userId = ?`, [userId]);
+        const currentUses = userRow?.fragmentUses || 0;
+        const remaining = MAX_FRAGMENT_USES - currentUses;
+
+        const fragRow = await get(
+            `SELECT quantity FROM userInventory WHERE userId = ? AND itemName = ?`,
+            [userId, FRAGMENT_NAME]
+        );
+        const available = fragRow?.quantity || 0;
+        const maxUsable = Math.min(available, remaining);
+
+        const modal = new ModalBuilder()
+            .setCustomId(`fragment_modal_${userId}`)
+            .setTitle('Use Multiple Fragments');
+
+        const quantityInput = new TextInputBuilder()
+            .setCustomId('fragment_quantity')
+            .setLabel(`How many fragments to use? (Max: ${maxUsable})`)
+            .setStyle(TextInputStyle.Short)
+            .setPlaceholder(`Enter 1-${maxUsable}`)
+            .setRequired(true)
+            .setMinLength(1)
+            .setMaxLength(3);
+
+        const row = new ActionRowBuilder().addComponents(quantityInput);
+        modal.addComponents(row);
+
+        await interaction.showModal(modal);
+    } catch (error) {
+        console.error('Error showing fragment modal:', error);
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({
+                content: '❌ Failed to open fragment quantity selector.',
+                ephemeral: true
+            });
+        }
+    }
+}
+
+/**
+ * Handle modal submission for multiple fragments
+ */
+async function handleFragmentModalSubmit(interaction, userId, client) {
+    await interaction.deferUpdate();
+
+    try {
+        const quantityStr = interaction.fields.getTextInputValue('fragment_quantity');
+        const quantity = parseInt(quantityStr, 10);
+
+        if (isNaN(quantity) || quantity <= 0) {
+            return interaction.followUp({
+                content: '❌ Please enter a valid positive number.',
+                ephemeral: true
+            });
+        }
+
+        // Re-validate at time of submission
+        const userRow = await get(`SELECT fragmentUses FROM userUpgrades WHERE userId = ?`, [userId]);
+        const currentUses = userRow?.fragmentUses || 0;
+        const remaining = MAX_FRAGMENT_USES - currentUses;
+
+        if (currentUses >= MAX_FRAGMENT_USES) {
+            return interaction.followUp({
+                content: '✅ You have already used all your fragment slots!',
+                ephemeral: true
+            });
+        }
+
+        const fragRow = await get(
+            `SELECT quantity FROM userInventory WHERE userId = ? AND itemName = ?`,
+            [userId, FRAGMENT_NAME]
+        );
+        const available = fragRow?.quantity || 0;
+
+        if (quantity > available) {
+            return interaction.followUp({
+                content: `❌ You only have **${available}** fragments, but tried to use **${quantity}**.`,
+                ephemeral: true
+            });
+        }
+
+        if (quantity > remaining) {
+            return interaction.followUp({
+                content: `❌ You can only use **${remaining}** more fragments (max ${MAX_FRAGMENT_USES}).`,
+                ephemeral: true
+            });
+        }
+
+        // Consume fragments
+        await run(
+            `UPDATE userInventory SET quantity = quantity - ? WHERE userId = ? AND itemName = ?`,
+            [quantity, userId, FRAGMENT_NAME]
+        );
+
+        // Update fragment uses
+        if (userRow) {
+            await run(`UPDATE userUpgrades SET fragmentUses = fragmentUses + ? WHERE userId = ?`, [quantity, userId]);
+        } else {
+            await run(
+                `INSERT INTO userUpgrades (userId, fragmentUses, limitBreaks) VALUES (?, ?, 0)
+                 ON CONFLICT(userId) DO UPDATE SET fragmentUses = fragmentUses + ?`,
+                [userId, quantity, quantity]
+            );
+        }
+
+        const newUses = currentUses + quantity;
+        const newLimit = BASE_FARM_LIMIT + newUses;
+        const reachedMax = newUses >= MAX_FRAGMENT_USES;
+
+        // Log the action
+        if (client) {
+            await logToDiscord(
+                client,
+                `User ${interaction.user.username} used ${quantity} fragments (${newUses}/${MAX_FRAGMENT_USES})`,
+                null,
+                LogLevel.ACTIVITY
+            );
+        }
+
+        // Refresh the menu
+        const updatedData = await getLimitBreakerData(userId);
+        const updatedEmbed = createLimitBreakerEmbed(updatedData);
+        const updatedButtons = createLimitBreakerButtons(userId, updatedData);
+
+        await interaction.editReply({
+            embeds: [updatedEmbed],
+            components: updatedButtons
+        });
+
+        // Success message
+        const successEmbed = new EmbedBuilder()
+            .setTitle(reachedMax ? '🎉 Fragment Phase Complete!' : '🔮 Fragments Used!')
+            .setColor(reachedMax ? 0x00FF00 : FRAGMENT_COLOR)
+            .setDescription(
+                reachedMax
+                    ? `**Congratulations!** You've used all ${MAX_FRAGMENT_USES} fragments!\n\n` +
+                      `🔮 **Fragments Used:** ${quantity}\n` +
+                      `🏡 **New Farm Limit:** ${newLimit} slots\n\n` +
+                      `⚡ **Limit Breaking is now unlocked!**`
+                    : `**${quantity} Fragment(s) consumed!**\n\n` +
+                      `🔮 **Progress:** ${newUses} / ${MAX_FRAGMENT_USES}\n` +
+                      `🏡 **New Farm Limit:** ${newLimit} slots\n` +
+                      `📦 **Fragments remaining:** ${available - quantity}`
+            )
+            .setTimestamp();
+
+        await interaction.followUp({
+            embeds: [successEmbed],
+            ephemeral: true
+        });
+
+    } catch (error) {
+        console.error('Error processing fragment modal:', error);
+        await interaction.followUp({
+            content: '❌ An error occurred while using fragments.',
+            ephemeral: true
+        });
+    }
+}
+
 module.exports = {
     handleLimitBreakerInteraction,
     openLimitBreakerMenu,
-    handleLimitBreakConfirm
+    handleLimitBreakConfirm,
+    handleFragmentUse,
+    handleFragmentModalSubmit
 };

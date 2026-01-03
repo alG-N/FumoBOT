@@ -2,7 +2,7 @@
 const { getUserCraftData } = require('../CraftService/CraftCacheService');
 const { getAllRecipes } = require('../CraftService/CraftRecipeService');
 const { validateFullCraft } = require('../CraftService/CraftValidationService');
-const { processCraft, getQueueItems, claimQueuedCraft } = require('../CraftService/CraftProcessService');
+const { processCraft, getQueueItems, claimQueuedCraft, calculateCraftCost } = require('../CraftService/CraftProcessService');
 const { CRAFT_CATEGORIES, CRAFT_CONFIG } = require('../../Configuration/craftConfig');
 const { checkButtonOwnership, parseCustomId } = require('../../Middleware/buttonOwnership');
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
@@ -278,7 +278,24 @@ async function handleModalSubmit(interaction, client) {
         return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
     }
 
-    const confirmEmbed = createConfirmEmbed(modalData.itemName, amount, validation.recipe, validation.totalCoins, validation.totalGems, userData, modalData.craftType);
+    // Calculate costs with Sanae blessings applied (free crafts, discounts)
+    const baseCoinCost = validation.totalCoins;
+    const baseGemCost = validation.totalGems;
+    const sanaeCost = await calculateCraftCost(userId, baseCoinCost, baseGemCost);
+    
+    // Use the blessed costs (free = 0, or discounted)
+    const finalCoins = sanaeCost.coinCost;
+    const finalGems = sanaeCost.gemCost;
+
+    const confirmEmbed = createConfirmEmbed(modalData.itemName, amount, validation.recipe, finalCoins, finalGems, userData, modalData.craftType);
+    
+    // Add Sanae blessing indicator to embed if active
+    if (sanaeCost.freeCraft) {
+        confirmEmbed.setFooter({ text: '🆓 Sanae\'s Blessing: FREE CRAFT (no cost!)' });
+    } else if (sanaeCost.discount > 0) {
+        confirmEmbed.setFooter({ text: `🔨 Sanae's Blessing: ${sanaeCost.discount}% DISCOUNT applied!` });
+    }
+    
     const confirmButtons = createConfirmButtons(userId, modalData.itemName, amount);
 
     client.craftConfirmData = client.craftConfirmData || new Map();
@@ -286,9 +303,10 @@ async function handleModalSubmit(interaction, client) {
         itemName: modalData.itemName,
         amount,
         recipe: validation.recipe,
-        totalCoins: validation.totalCoins,
-        totalGems: validation.totalGems,
-        craftType: modalData.craftType
+        totalCoins: finalCoins,
+        totalGems: finalGems,
+        craftType: modalData.craftType,
+        sanaeBlessingApplied: sanaeCost.freeCraft || sanaeCost.discount > 0
     });
 
     await interaction.reply({ embeds: [confirmEmbed], components: [confirmButtons], ephemeral: true });

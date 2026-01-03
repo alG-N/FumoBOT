@@ -151,7 +151,6 @@ const commandModules = {
     equipPet: () => require('./MainCommand/CommandFolder/PetCommand/equipPet'),
     
     // Farming Commands
-    useFragment: () => require('./MainCommand/CommandFolder/FarmingCommand/useFragment'),
     addFarm: () => require('./MainCommand/CommandFolder/FarmingCommand/AddFarm'),
     addBest: () => require('./MainCommand/CommandFolder/FarmingCommand/AddBest'),
     endFarm: () => require('./MainCommand/CommandFolder/FarmingCommand/EndFarm'),

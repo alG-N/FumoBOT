@@ -44,7 +44,7 @@ async function getUserBoosts(userId) {
 
     const now = Date.now();
     
-    const [ancientRelic, mysteriousCube, mysteriousDice, lumina, timeBlessing, timeClock, petBoosts, nullified, sanaeBoostMultiplier, sanaeData] = await Promise.all([
+    const [ancientRelic, mysteriousCube, mysteriousDice, lumina, timeBlessing, timeClock, petBoosts, nullified, sigilNullified, sanaeBoostMultiplier, sanaeData] = await Promise.all([
         get(`SELECT multiplier, expiresAt FROM activeBoosts WHERE userId = ? AND type = 'luck' AND source = 'AncientRelic'`, [userId]),
         get(`SELECT multiplier, expiresAt FROM activeBoosts WHERE userId = ? AND type = 'luck' AND source = 'MysteriousCube'`, [userId]),
         get(`SELECT multiplier, expiresAt, extra FROM activeBoosts WHERE userId = ? AND type = 'luck' AND source = 'MysteriousDice'`, [userId]),
@@ -53,9 +53,19 @@ async function getUserBoosts(userId) {
         get(`SELECT multiplier FROM activeBoosts WHERE userId = ? AND type = 'summonSpeed' AND source = 'TimeClock' AND expiresAt > ?`, [userId, now]),
         all(`SELECT multiplier, source FROM activeBoosts WHERE userId = ? AND type = 'luck' AND source NOT IN ('SanaeBlessing', 'S!gil', 'AncientRelic', 'MysteriousCube', 'MysteriousDice') AND expiresAt > ?`, [userId, now]),
         get(`SELECT uses FROM activeBoosts WHERE userId = ? AND type = 'rarityOverride' AND source = 'Nullified'`, [userId]),
+        get(`SELECT extra FROM activeBoosts WHERE userId = ? AND type = 'nullifiedRolls' AND source = 'S!gil' AND (expiresAt IS NULL OR expiresAt > ?)`, [userId, now]),
         getSanaeBoostMultiplier(userId),
         get(`SELECT luckForRolls, luckForRollsAmount, guaranteedRarityRolls, guaranteedMinRarity FROM sanaeBlessings WHERE userId = ?`, [userId])
     ]);
+
+    // Parse S!gil nullified rolls from extra JSON
+    let sigilNullifiedRolls = 0;
+    if (sigilNullified?.extra) {
+        try {
+            const extra = JSON.parse(sigilNullified.extra);
+            sigilNullifiedRolls = extra.remaining || 0;
+        } catch {}
+    }
 
     // Get Sanae temporary luck boost from activeBoosts (this is different from the roll-based luck)
     const sanaeTempLuck = await get(
@@ -152,6 +162,7 @@ async function getUserBoosts(userId) {
         petBoost,
         luminaActive: !!lumina,
         nullifiedUses: nullified?.uses || 0,
+        sigilNullifiedRolls,  // S!gil nullified rolls (separate from regular Nullified item)
         sanaeTempLuckMultiplier: sanaeLuckMultiplier,
         sanaeGlobalMultiplier: globalMultiplier,
         sanaeGuaranteedRolls,

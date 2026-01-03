@@ -247,10 +247,14 @@ async function performMultiRoll(userId, fumos, rollCount, isAutoRoll = false) {
             const rarities = [];
             let currentRolls = row.totalRolls;
             let sanaeGuaranteedUsed = 0;
+            let sigilNullifiedUsedInBatch = false; // Track if any S!gil nullified rolls were used
 
             // Check how many guaranteed rolls we have
             let sanaeGuaranteedRemaining = boosts.sanaeGuaranteedRolls || 0;
             const sanaeMinRarity = boosts.sanaeGuaranteedRarity || null;
+            
+            // Track S!gil nullified rolls locally to avoid re-fetching
+            let sigilNullifiedRemaining = boosts.sigilNullifiedRolls || 0;
 
             for (let i = 0; i < rollCount; i++) {
                 currentRolls++;
@@ -263,7 +267,15 @@ async function performMultiRoll(userId, fumos, rollCount, isAutoRoll = false) {
                     ...pities
                 };
 
-                let { rarity } = await calculateRarity(userId, boosts, tempRow, hasFantasyBook);
+                // Pass the local count to avoid stale data
+                const tempBoosts = { ...boosts, sigilNullifiedRolls: sigilNullifiedRemaining };
+                let { rarity, sigilNullified } = await calculateRarity(userId, tempBoosts, tempRow, hasFantasyBook);
+
+                // Track if S!gil nullified was used this roll
+                if (sigilNullified) {
+                    sigilNullifiedUsedInBatch = true;
+                    sigilNullifiedRemaining = Math.max(0, sigilNullifiedRemaining - 1);
+                }
 
                 // Check if we should use Sanae guaranteed rarity
                 if (sanaeGuaranteedRemaining > 0 && sanaeMinRarity) {
@@ -298,7 +310,10 @@ async function performMultiRoll(userId, fumos, rollCount, isAutoRoll = false) {
                 boostRollsRemaining = boostUpdate.boostRollsRemaining;
             }
 
-            const fumoResults = await selectAndAddMultipleFumos(userId, rarities, fumos);
+            // Pass S!gil astral blocking flag if any nullified rolls used S!gil
+            const fumoResults = await selectAndAddMultipleFumos(userId, rarities, fumos, {
+                sigilAstralBlock: sigilNullifiedUsedInBatch
+            });
             
             // Check if we hit storage limit - refund remaining cost
             const storageError = fumoResults.find(r => !r.success && r.reason === 'storage_full');
@@ -318,6 +333,11 @@ async function performMultiRoll(userId, fumos, rollCount, isAutoRoll = false) {
             
             // Extract successful fumos
             const fumoArray = fumoResults.filter(r => r.success).map(r => r.fumo);
+            
+            // Track ASTRAL+ duplicates that were blocked by S!gil
+            const blockedAstralDuplicates = fumoResults
+                .filter(r => !r.success && r.reason === 'astral_duplicate_blocked')
+                .map(r => ({ blockedFumo: r.blockedFumo, rarity: r.rarity }));
             
             let bestFumo = null;
             if (fumoArray.length > 0) {
@@ -373,7 +393,9 @@ async function performMultiRoll(userId, fumos, rollCount, isAutoRoll = false) {
                 fumosBought: fumoArray, 
                 bestFumo,
                 storageWarning,
-                sanaeGuaranteedUsed
+                sanaeGuaranteedUsed,
+                blockedAstralDuplicates: blockedAstralDuplicates.length > 0 ? blockedAstralDuplicates : null,
+                sigilNullifiedUsed: sigilNullifiedUsedInBatch
             };
         } catch (error) {
             // Refund coins on error

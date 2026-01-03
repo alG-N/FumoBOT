@@ -4,7 +4,7 @@ const { checkButtonOwnership } = require('../../Middleware/buttonOwnership');
 const { createErrorEmbed } = require('../../Service/FarmingService/FarmingUIService');
 const { getFarmStatusData, createFarmStatusEmbed } = require('../../Service/FarmingService/FarmStatusHelper');
 const { handleBuildingInteraction } = require('../../Service/FarmingService/BuildingService/BuildingInteractionHandler');
-const { handleLimitBreakerInteraction } = require('../../Service/FarmingService/LimitBreakService/LimitBreakInteractionHandler');
+const { handleLimitBreakerInteraction, handleFragmentModalSubmit } = require('../../Service/FarmingService/LimitBreakService/LimitBreakInteractionHandler');
 
 module.exports = async (client) => {
     client.on('messageCreate', async (message) => {
@@ -44,6 +44,23 @@ module.exports = async (client) => {
             });
         }
     });
+
+    // Handle fragment modal submissions
+    client.on('interactionCreate', async (interaction) => {
+        if (!interaction.isModalSubmit()) return;
+        if (!interaction.customId.startsWith('fragment_modal_')) return;
+
+        const userId = interaction.customId.split('_')[2];
+        
+        if (interaction.user.id !== userId) {
+            return interaction.reply({
+                content: '❌ This modal is not for you!',
+                ephemeral: true
+            });
+        }
+
+        await handleFragmentModalSubmit(interaction, userId, client);
+    });
 };
 
 function createMainButtons(userId) {
@@ -74,7 +91,11 @@ function setupInteractionCollector(msg, userId, message, client) {
             if (customId.startsWith('open_buildings_') || customId.startsWith('upgrade_') || customId.startsWith('building_close_')) {
                 await handleBuildingInteraction(interaction, userId, client);
             } 
-            else if (customId.startsWith('open_limitbreaker_') || customId.startsWith('limitbreak_')) {
+            else if (
+                customId.startsWith('open_limitbreaker_') || 
+                customId.startsWith('limitbreak_') ||
+                customId.startsWith('fragment_use_')
+            ) {
                 await handleLimitBreakerInteraction(interaction, userId, message, client);
             }
             else if (customId.startsWith('limitbreak_back_')) {
