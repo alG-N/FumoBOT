@@ -1,6 +1,9 @@
 const { get } = require('../../Core/database');
 const { PRAY_LIMITS } = require('../../Configuration/prayConfig');
 
+// ========== BOUNDED MAPS WITH LRU-LIKE CLEANUP ==========
+const MAX_TRACKER_SIZE = 10000;
+
 const usageTracker = new Map();
 const activePrayers = new Set();
 const sessionTimestamps = new Map();
@@ -8,7 +11,34 @@ const ticketCache = new Map();
 
 const SESSION_TIMEOUT = 120000;
 const TICKET_CACHE_TTL = 5000;
+const USAGE_TRACKER_CLEANUP_INTERVAL = 300000; // 5 minutes
 
+// Cleanup function for bounded maps
+function cleanupBoundedMap(map, maxSize, ageField = null, maxAge = null) {
+    // Remove expired entries if age tracking is enabled
+    if (ageField && maxAge) {
+        const now = Date.now();
+        for (const [key, value] of map.entries()) {
+            const age = typeof value === 'object' ? value[ageField] : value;
+            if (now - age > maxAge) {
+                map.delete(key);
+            }
+        }
+    }
+    
+    // If still over max size, remove oldest entries
+    if (map.size > maxSize) {
+        const toDelete = map.size - maxSize;
+        let deleted = 0;
+        for (const key of map.keys()) {
+            if (deleted >= toDelete) break;
+            map.delete(key);
+            deleted++;
+        }
+    }
+}
+
+// Session cleanup interval
 setInterval(() => {
     const now = Date.now();
     for (const [userId, timestamp] of sessionTimestamps.entries()) {
@@ -16,8 +46,28 @@ setInterval(() => {
             removeActiveSession(userId);
         }
     }
+    
+    // Cleanup bounded trackers
+    cleanupBoundedMap(usageTracker, MAX_TRACKER_SIZE);
+    cleanupBoundedMap(sessionTimestamps, MAX_TRACKER_SIZE);
 }, 60000);
 
+// Periodic deep cleanup for usage tracker (remove old hourly data)
+setInterval(() => {
+    const now = Date.now();
+    const oneHour = 60 * 60 * 1000;
+    
+    for (const [userId, timestamps] of usageTracker.entries()) {
+        const validTimestamps = timestamps.filter(ts => now - ts < oneHour);
+        if (validTimestamps.length === 0) {
+            usageTracker.delete(userId);
+        } else {
+            usageTracker.set(userId, validTimestamps);
+        }
+    }
+}, USAGE_TRACKER_CLEANUP_INTERVAL);
+
+// Ticket cache cleanup
 setInterval(() => {
     const now = Date.now();
     for (const [userId, cached] of ticketCache.entries()) {
@@ -25,6 +75,7 @@ setInterval(() => {
             ticketCache.delete(userId);
         }
     }
+    cleanupBoundedMap(ticketCache, MAX_TRACKER_SIZE);
 }, 30000);
 
 function checkActiveSession(userId) {

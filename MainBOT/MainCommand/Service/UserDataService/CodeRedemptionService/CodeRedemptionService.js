@@ -1,6 +1,9 @@
 const { VALID_CODES, CODE_LIMITS, CODE_MESSAGES } = require('../../../Configuration/codeConfig');
 const CodeRepository = require('./CodeRepository');
-const { run, get } = require('../../../Core/database');
+const { run, get, withUserLock, transaction } = require('../../../Core/database');
+
+// Lock for code redemption to prevent race conditions on max uses
+const codeRedemptionLocks = new Map();
 
 class CodeRedemptionService {
     static async validateCode(code, userId) {
@@ -36,45 +39,80 @@ class CodeRedemptionService {
     }
 
     static async redeemCode(code, userId) {
-        const validation = await this.validateCode(code, userId);
-        
-        if (!validation.valid) {
-            return { success: false, error: validation.error, message: validation.message };
-        }
-        
-        const codeData = validation.codeData;
-        const currentDate = new Date().toISOString();
-        
-        try {
-            await run('BEGIN TRANSACTION');
-            
-            if (codeData.coins || codeData.gems) {
-                await this.grantCurrency(userId, codeData.coins || 0, codeData.gems || 0, currentDate);
+        // Use user lock to prevent race conditions
+        return await withUserLock(userId, `redeemCode_${code}`, async () => {
+            // Acquire code-level lock for maxUses check
+            const codeLockKey = `code_${code}`;
+            while (codeRedemptionLocks.has(codeLockKey)) {
+                await new Promise(resolve => setTimeout(resolve, 50));
             }
+            codeRedemptionLocks.set(codeLockKey, Date.now());
             
-            if (codeData.items && Array.isArray(codeData.items)) {
-                await this.grantItems(userId, codeData.items);
+            try {
+                // Validate AFTER acquiring locks
+                const validation = await this.validateCode(code, userId);
+                
+                if (!validation.valid) {
+                    return { success: false, error: validation.error, message: validation.message };
+                }
+                
+                const codeData = validation.codeData;
+                const currentDate = new Date().toISOString();
+                
+                // Use transaction for atomicity
+                const operations = [];
+                
+                if (codeData.coins || codeData.gems) {
+                    const userRow = await get(`SELECT * FROM userCoins WHERE userId = ?`, [userId]);
+                    
+                    if (userRow) {
+                        operations.push({
+                            sql: `UPDATE userCoins SET coins = coins + ?, gems = gems + ? WHERE userId = ?`,
+                            params: [codeData.coins || 0, codeData.gems || 0, userId]
+                        });
+                    } else {
+                        operations.push({
+                            sql: `INSERT INTO userCoins (userId, coins, gems, joinDate) VALUES (?, ?, ?, ?)`,
+                            params: [userId, codeData.coins || 0, codeData.gems || 0, currentDate]
+                        });
+                    }
+                }
+                
+                if (codeData.items && Array.isArray(codeData.items)) {
+                    for (const { item, quantity } of codeData.items) {
+                        operations.push({
+                            sql: `INSERT INTO userInventory (userId, itemName, quantity, type) VALUES (?, ?, ?, 'item')
+                                  ON CONFLICT(userId, itemName) DO UPDATE SET quantity = quantity + ?`,
+                            params: [userId, item, quantity, quantity]
+                        });
+                    }
+                }
+                
+                // Mark as redeemed in same transaction
+                operations.push({
+                    sql: `INSERT INTO redeemedCodes (userId, code, redeemedAt) VALUES (?, ?, ?)`,
+                    params: [userId, code, currentDate]
+                });
+                
+                await transaction(operations);
+                
+                return { 
+                    success: true, 
+                    rewards: codeData,
+                    message: CODE_MESSAGES.SUCCESS
+                };
+                
+            } catch (error) {
+                console.error('[CODE_REDEMPTION] Error:', error);
+                return { 
+                    success: false, 
+                    error: 'REDEMPTION_FAILED', 
+                    message: 'Something went wrong. Please try again later.' 
+                };
+            } finally {
+                codeRedemptionLocks.delete(codeLockKey);
             }
-            
-            await CodeRepository.markAsRedeemed(userId, code);
-            
-            await run('COMMIT');
-            
-            return { 
-                success: true, 
-                rewards: codeData,
-                message: CODE_MESSAGES.SUCCESS
-            };
-            
-        } catch (error) {
-            await run('ROLLBACK').catch(() => {});
-            console.error('[CODE_REDEMPTION] Error:', error);
-            return { 
-                success: false, 
-                error: 'REDEMPTION_FAILED', 
-                message: 'Something went wrong. Please try again later.' 
-            };
-        }
+        });
     }
 
     static async grantCurrency(userId, coins, gems, currentDate) {

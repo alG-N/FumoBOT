@@ -1,4 +1,4 @@
-const { get, all, run, transaction } = require('../../Core/database');
+const { get, all, run, transaction, withUserLock } = require('../../Core/database');
 const { debugLog } = require('../../Core/logger');
 
 function getBaseFumoNameWithRarity(fumoName) {
@@ -49,70 +49,73 @@ async function getUserFarmingFumos(userId) {
 }
 
 async function addFumoToFarm(userId, fumoName, coinsPerMin, gemsPerMin, quantity = 1) {
-    // First, get ALL inventory rows for this fumo (there may be multiple)
-    const inventoryRows = await all(
-        `SELECT id, COALESCE(quantity, 1) as invQty FROM userInventory WHERE userId = ? AND fumoName = ? ORDER BY quantity DESC`,
-        [userId, fumoName]
-    );
-    
-    // Calculate total available
-    const totalAvailable = inventoryRows.reduce((sum, row) => sum + (parseInt(row.invQty) || 0), 0);
-    
-    if (totalAvailable < quantity) {
-        debugLog('FARMING', `[addFumoToFarm] Insufficient inventory: has ${totalAvailable}, need ${quantity}`);
-        return false;
-    }
-    
-    // Check if already farming this fumo
-    const existing = await get(
-        `SELECT id, COALESCE(quantity, 1) as quantity FROM farmingFumos WHERE userId = ? AND fumoName = ?`,
-        [userId, fumoName]
-    );
-    
-    // OPTIMIZED: Build all operations and execute in single transaction
-    const operations = [];
-    
-    // Deduct from inventory rows starting from largest
-    let remaining = quantity;
-    for (const row of inventoryRows) {
-        if (remaining <= 0) break;
+    // Use lock to prevent race conditions
+    return await withUserLock(userId, `addFumoToFarm_${fumoName}`, async () => {
+        // First, get ALL inventory rows for this fumo (there may be multiple)
+        const inventoryRows = await all(
+            `SELECT id, COALESCE(quantity, 1) as invQty FROM userInventory WHERE userId = ? AND fumoName = ? ORDER BY quantity DESC`,
+            [userId, fumoName]
+        );
         
-        const rowQty = parseInt(row.invQty) || 0;
-        const toDeduct = Math.min(remaining, rowQty);
+        // Calculate total available
+        const totalAvailable = inventoryRows.reduce((sum, row) => sum + (parseInt(row.invQty) || 0), 0);
         
-        if (toDeduct >= rowQty) {
+        if (totalAvailable < quantity) {
+            debugLog('FARMING', `[addFumoToFarm] Insufficient inventory: has ${totalAvailable}, need ${quantity}`);
+            return false;
+        }
+        
+        // Check if already farming this fumo
+        const existing = await get(
+            `SELECT id, COALESCE(quantity, 1) as quantity FROM farmingFumos WHERE userId = ? AND fumoName = ?`,
+            [userId, fumoName]
+        );
+        
+        // OPTIMIZED: Build all operations and execute in single transaction
+        const operations = [];
+        
+        // Deduct from inventory rows starting from largest
+        let remaining = quantity;
+        for (const row of inventoryRows) {
+            if (remaining <= 0) break;
+            
+            const rowQty = parseInt(row.invQty) || 0;
+            const toDeduct = Math.min(remaining, rowQty);
+            
+            if (toDeduct >= rowQty) {
+                operations.push({
+                    sql: `DELETE FROM userInventory WHERE id = ?`,
+                    params: [row.id]
+                });
+            } else {
+                operations.push({
+                    sql: `UPDATE userInventory SET quantity = quantity - ? WHERE id = ?`,
+                    params: [toDeduct, row.id]
+                });
+            }
+            
+            remaining -= toDeduct;
+        }
+        
+        // Add or update farming entry
+        if (existing) {
             operations.push({
-                sql: `DELETE FROM userInventory WHERE id = ?`,
-                params: [row.id]
+                sql: `UPDATE farmingFumos SET quantity = quantity + ? WHERE id = ?`,
+                params: [quantity, existing.id]
             });
         } else {
             operations.push({
-                sql: `UPDATE userInventory SET quantity = quantity - ? WHERE id = ?`,
-                params: [toDeduct, row.id]
+                sql: `INSERT INTO farmingFumos (userId, fumoName, coinsPerMin, gemsPerMin, quantity) VALUES (?, ?, ?, ?, ?)`,
+                params: [userId, fumoName, coinsPerMin, gemsPerMin, quantity]
             });
         }
         
-        remaining -= toDeduct;
-    }
-    
-    // Add or update farming entry
-    if (existing) {
-        operations.push({
-            sql: `UPDATE farmingFumos SET quantity = quantity + ? WHERE id = ?`,
-            params: [quantity, existing.id]
-        });
-    } else {
-        operations.push({
-            sql: `INSERT INTO farmingFumos (userId, fumoName, coinsPerMin, gemsPerMin, quantity) VALUES (?, ?, ?, ?, ?)`,
-            params: [userId, fumoName, coinsPerMin, gemsPerMin, quantity]
-        });
-    }
-    
-    // Execute all in single transaction
-    await transaction(operations);
-    
-    debugLog('FARMING', `Added ${quantity}x ${fumoName} to farm for user ${userId}`);
-    return true;
+        // Execute all in single transaction
+        await transaction(operations);
+        
+        debugLog('FARMING', `Added ${quantity}x ${fumoName} to farm for user ${userId}`);
+        return true;
+    });
 }
 
 async function removeFumoFromFarm(userId, fumoName, quantity = 1) {

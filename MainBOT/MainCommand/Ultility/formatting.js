@@ -1,5 +1,8 @@
 const { RARITY_PRIORITY, compareFumos, isRarer } = require('../Configuration/rarity');
 
+// Maximum safe integer for financial operations (prevent precision loss)
+const MAX_SAFE_CURRENCY = Number.MAX_SAFE_INTEGER; // 9,007,199,254,740,991
+
 const SUFFIXES = [
     { value: 1e63, suffix: 'Vg' },  
     { value: 1e60, suffix: 'Nd' }, 
@@ -57,6 +60,18 @@ function formatNumber(number, useAbbreviation = true, decimals = 2) {
     return num.toLocaleString();
 }
 
+/**
+ * Safely clamp a number to prevent overflow/precision loss
+ * @param {number} num - Number to clamp
+ * @param {number} min - Minimum value (default 0)
+ * @param {number} max - Maximum value (default MAX_SAFE_CURRENCY)
+ * @returns {number} Clamped number
+ */
+function safeCurrency(num, min = 0, max = MAX_SAFE_CURRENCY) {
+    if (typeof num !== 'number' || isNaN(num)) return 0;
+    return Math.min(Math.max(Math.floor(num), min), max);
+}
+
 function parseBet(str) {
     if (!str) return NaN;
     
@@ -66,26 +81,31 @@ function parseBet(str) {
         if (str.endsWith(suffix)) {
             const numPart = str.slice(0, -suffix.length);
             const num = parseFloat(numPart);
-            return isNaN(num) ? NaN : Math.floor(num * multiplier);
+            if (isNaN(num)) return NaN;
+            const result = num * multiplier;
+            // Cap at safe integer to prevent precision loss
+            return safeCurrency(result);
         }
     }
     
     const match = str.match(/^(\d+(\.\d+)?)([kmb])?$/);
     if (!match) return NaN;
     const multipliers = { k: 1e3, m: 1e6, b: 1e9 };
-    return Math.floor(parseFloat(match[1]) * (multipliers[match[3]] || 1));
+    const result = parseFloat(match[1]) * (multipliers[match[3]] || 1);
+    return safeCurrency(result);
 }
 
 function parseAmount(str, userBalance) {
     if (!str) return NaN;
     str = str.replace(/,/g, '').toLowerCase();
-    if (str === 'all') return userBalance;
+    if (str === 'all') return safeCurrency(userBalance);
     
     for (const [suffix, multiplier] of Object.entries(SUFFIX_MULTIPLIERS)) {
         if (str.endsWith(suffix)) {
             const numPart = str.slice(0, -suffix.length);
             const num = parseFloat(numPart);
-            return isNaN(num) ? NaN : Math.floor(num * multiplier);
+            if (isNaN(num)) return NaN;
+            return safeCurrency(num * multiplier);
         }
     }
     
@@ -99,7 +119,7 @@ function parseAmount(str, userBalance) {
     const multiplier = multipliers[suffix] || 1;
     const num = parseFloat(multiplier > 1 ? str.slice(0, -1) : str);
     
-    return isNaN(num) ? NaN : Math.floor(num * multiplier);
+    return isNaN(num) ? NaN : safeCurrency(num * multiplier);
 }
 
 function obscureChance(boostedChance) {
@@ -140,5 +160,7 @@ module.exports = {
     SUFFIXES,
     SUFFIX_MULTIPLIERS,
     formatDuration,
-    formatPercentage
+    formatPercentage,
+    safeCurrency,
+    MAX_SAFE_CURRENCY
 };

@@ -1,4 +1,4 @@
-const { get, run, all, transaction } = require('../../../Core/database');
+const { get, run, all, transaction, withUserLock, atomicDeductCoins, atomicDeductGems } = require('../../../Core/database');
 const { debugLog } = require('../../../Core/logger');
 const { MAX_REROLLS } = require('../../../Configuration/shopConfig');
 
@@ -63,10 +63,24 @@ async function getUserCurrency(userId) {
 }
 
 async function deductCurrency(userId, currency, amount) {
-    await run(
-        `UPDATE userCoins SET ${currency} = ${currency} - ? WHERE userId = ?`,
-        [amount, userId]
-    );
+    // FIXED: Use atomic deduction to prevent race conditions
+    if (currency === 'coins') {
+        const result = await atomicDeductCoins(userId, amount);
+        if (!result.success) {
+            throw new Error(`INSUFFICIENT_${currency.toUpperCase()}`);
+        }
+    } else if (currency === 'gems') {
+        const result = await atomicDeductGems(userId, amount);
+        if (!result.success) {
+            throw new Error(`INSUFFICIENT_${currency.toUpperCase()}`);
+        }
+    } else {
+        // Fallback for other currencies
+        await run(
+            `UPDATE userCoins SET ${currency} = ${currency} - ? WHERE userId = ? AND ${currency} >= ?`,
+            [amount, userId, amount]
+        );
+    }
     debugLog('SHOP', `Deducted ${amount} ${currency} from ${userId}`);
 }
 

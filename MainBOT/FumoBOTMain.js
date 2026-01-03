@@ -66,6 +66,10 @@ client.commands = new Collection();
 // Initialize connection monitor
 const connectionMonitor = new ConnectionMonitor(client);
 
+// Integrate with diagnostics
+const { setConnectionMonitor } = require('./MainCommand/Ultility/diagnostics');
+setConnectionMonitor(connectionMonitor);
+
 // Pre-initialize Lavalink before login
 const lavalinkService = require('./SubCommand/MusicFunction/Service/LavalinkService');
 console.log('[Lavalink] Pre-initializing before client login...');
@@ -653,6 +657,7 @@ client.on('messageCreate', message => {
 process.on('SIGINT', handleShutdown);
 process.on('SIGTERM', handleShutdown);
 process.on('uncaughtException', handleCrash);
+process.on('unhandledRejection', handleUnhandledRejection);
 
 async function handleShutdown(signal) {
     console.log(`\n🛑 Received ${signal || 'shutdown'} signal, saving state...`);
@@ -680,4 +685,18 @@ function handleCrash(error) {
     }
 
     process.exit(1);
+}
+
+function handleUnhandledRejection(reason, promise) {
+    console.error('❌ CRITICAL: Unhandled Promise Rejection:');
+    console.error('Reason:', reason);
+    console.error('Promise:', promise);
+    
+    // Log stack trace if available
+    if (reason instanceof Error) {
+        console.error('Stack:', reason.stack);
+    }
+    
+    // In production, you might want to exit or attempt recovery
+    // For now, just log and continue (Node.js 15+ will exit by default)
 }

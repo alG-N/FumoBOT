@@ -2,6 +2,20 @@ const fetch = require('node-fetch');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
+// Import circuit breaker for API protection
+let withCircuitBreaker, recordFailure, recordSuccess;
+try {
+    const circuitBreaker = require('../../../../MainCommand/Ultility/circuitBreaker');
+    withCircuitBreaker = circuitBreaker.withCircuitBreaker;
+    recordFailure = circuitBreaker.recordFailure;
+    recordSuccess = circuitBreaker.recordSuccess;
+} catch (e) {
+    // Fallback if circuit breaker not available
+    withCircuitBreaker = async (name, fn) => fn();
+    recordFailure = () => {};
+    recordSuccess = () => {};
+}
+
 class PixivService {
     constructor() {
         this.auth = {
@@ -26,37 +40,40 @@ class PixivService {
             return this.auth.accessToken;
         }
 
-        try {
-            const response = await fetch('https://oauth.secure.pixiv.net/auth/token', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'User-Agent': this.baseHeaders['User-Agent']
-                },
-                body: new URLSearchParams({
-                    client_id: this.clientId,
-                    client_secret: this.clientSecret,
-                    grant_type: 'refresh_token',
-                    refresh_token: this.auth.refreshToken,
-                    include_policy: 'true'
-                })
-            });
+        // Use circuit breaker for authentication
+        return await withCircuitBreaker('pixiv_auth', async () => {
+            try {
+                const response = await fetch('https://oauth.secure.pixiv.net/auth/token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'User-Agent': this.baseHeaders['User-Agent']
+                    },
+                    body: new URLSearchParams({
+                        client_id: this.clientId,
+                        client_secret: this.clientSecret,
+                        grant_type: 'refresh_token',
+                        refresh_token: this.auth.refreshToken,
+                        include_policy: 'true'
+                    })
+                });
 
-            const data = await response.json();
+                const data = await response.json();
 
-            if (!data.access_token) {
-                throw new Error('Failed to authenticate with Pixiv');
+                if (!data.access_token) {
+                    throw new Error('Failed to authenticate with Pixiv');
+                }
+
+                this.auth.accessToken = data.access_token;
+                this.auth.refreshToken = data.refresh_token;
+                this.auth.expiresAt = Date.now() + (data.expires_in * 1000) - 60000;
+
+                return data.access_token;
+            } catch (error) {
+                console.error('[Pixiv Auth Error]', error);
+                throw error;
             }
-
-            this.auth.accessToken = data.access_token;
-            this.auth.refreshToken = data.refresh_token;
-            this.auth.expiresAt = Date.now() + (data.expires_in * 1000) - 60000;
-
-            return data.access_token;
-        } catch (error) {
-            console.error('[Pixiv Auth Error]', error);
-            throw error;
-        }
+        }, { timeout: 15000, fallback: () => { throw new Error('Pixiv authentication service unavailable'); } });
     }
 
     async search(query, options = {}) {
@@ -72,42 +89,45 @@ class PixivService {
             fetchMultiple = true
         } = options;
 
-        const token = await this.authenticate();
-        const isNovel = contentType === 'novel';
+        // Use circuit breaker for search
+        return await withCircuitBreaker('pixiv_search', async () => {
+            const token = await this.authenticate();
+            const isNovel = contentType === 'novel';
 
-        // Determine how many pages to fetch per search
-        const pagesToFetch = (showNsfw && fetchMultiple) ? 3 : 1;
-        let allItems = [];
-        let lastNextUrl = null;
+            // Determine how many pages to fetch per search
+            const pagesToFetch = (showNsfw && fetchMultiple) ? 3 : 1;
+            let allItems = [];
+            let lastNextUrl = null;
 
-        console.log(`[Pixiv Search] Query: "${query}" | Offset: ${offset} | NSFW: ${showNsfw} | R18Only: ${r18Only}`);
+            console.log(`[Pixiv Search] Query: "${query}" | Offset: ${offset} | NSFW: ${showNsfw} | R18Only: ${r18Only}`);
 
-        if (r18Only) {
-            const results = await this._searchUnfiltered(query, { offset, contentType, sort, pagesToFetch, token, isNovel });
-            allItems = results.items.filter(item => item.x_restrict > 0);
-            lastNextUrl = results.nextUrl;
-            console.log(`[Pixiv R18 Only] Extracted ${allItems.length} R18 items from ${results.items.length} total`);
-        } else if (showNsfw) {
-            const results = await this._searchUnfiltered(query, { offset, contentType, sort, pagesToFetch, token, isNovel });
-            allItems = results.items;
-            lastNextUrl = results.nextUrl;
-        } else {
-            const sfwResults = await this._searchSFW(query, { offset, contentType, sort, pagesToFetch, token, isNovel });
-            allItems = sfwResults.items;
-            lastNextUrl = sfwResults.nextUrl;
-        }
+            if (r18Only) {
+                const results = await this._searchUnfiltered(query, { offset, contentType, sort, pagesToFetch, token, isNovel });
+                allItems = results.items.filter(item => item.x_restrict > 0);
+                lastNextUrl = results.nextUrl;
+                console.log(`[Pixiv R18 Only] Extracted ${allItems.length} R18 items from ${results.items.length} total`);
+            } else if (showNsfw) {
+                const results = await this._searchUnfiltered(query, { offset, contentType, sort, pagesToFetch, token, isNovel });
+                allItems = results.items;
+                lastNextUrl = results.nextUrl;
+            } else {
+                const sfwResults = await this._searchSFW(query, { offset, contentType, sort, pagesToFetch, token, isNovel });
+                allItems = sfwResults.items;
+                lastNextUrl = sfwResults.nextUrl;
+            }
 
-        if (allItems.length > 0) {
-            const r18Count = allItems.filter(i => i.x_restrict > 0).length;
-            const sfwCount = allItems.filter(i => i.x_restrict === 0).length;
-            const aiCount = allItems.filter(i => i.illust_ai_type === 2).length;
-            console.log(`[Pixiv Search] Total: ${allItems.length} items | ${r18Count} R18 | ${sfwCount} SFW | ${aiCount} AI`);
-        }
-        
-        return this._filterResults(
-            { illusts: allItems, novels: allItems, next_url: lastNextUrl }, 
-            contentType, showNsfw, aiFilter, qualityFilter, minBookmarks, r18Only
-        );
+            if (allItems.length > 0) {
+                const r18Count = allItems.filter(i => i.x_restrict > 0).length;
+                const sfwCount = allItems.filter(i => i.x_restrict === 0).length;
+                const aiCount = allItems.filter(i => i.illust_ai_type === 2).length;
+                console.log(`[Pixiv Search] Total: ${allItems.length} items | ${r18Count} R18 | ${sfwCount} SFW | ${aiCount} AI`);
+            }
+            
+            return this._filterResults(
+                { illusts: allItems, novels: allItems, next_url: lastNextUrl }, 
+                contentType, showNsfw, aiFilter, qualityFilter, minBookmarks, r18Only
+            );
+        }, { timeout: 30000, fallback: () => ({ items: [], error: 'Pixiv search service temporarily unavailable' }) });
     }
 
     async _searchUnfiltered(query, { offset, contentType, sort, pagesToFetch, token, isNovel }) {

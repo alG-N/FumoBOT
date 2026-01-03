@@ -1,7 +1,14 @@
 const { debugLog } = require('../Core/logger');
+const crypto = require('crypto');
 
 const ID_REGEX = /^\d{17,19}$/;
 const MAX_CUSTOM_ID_LENGTH = 100;
+
+// Secret for HMAC signing (should be in env vars in production)
+const BUTTON_SECRET = process.env.BUTTON_SECRET || crypto.randomBytes(32).toString('hex');
+
+// Timestamp validation window (5 minutes)
+const TIMESTAMP_VALIDITY_MS = 5 * 60 * 1000;
 
 function verifyButtonOwnership(interaction, expectedAction = null) {
     const actualUserId = interaction.user.id;
@@ -85,7 +92,10 @@ function buildSecureCustomId(action, userId, additionalData = null) {
     const sanitizedAction = action.replace(/[^a-zA-Z0-9_-]/g, '');
     const sanitizedUserId = userId.replace(/[^0-9]/g, '');
     
-    let customId = `${sanitizedAction}_${sanitizedUserId}`;
+    // Add timestamp for replay protection
+    const timestamp = Date.now().toString(36);
+    
+    let customId = `${sanitizedAction}_${sanitizedUserId}_${timestamp}`;
     
     if (additionalData) {
         const shortened = shortenDataKeys(additionalData);
@@ -120,11 +130,13 @@ function parseCustomId(customId) {
     const parts = customId.split('_');
     
     if (parts.length < 2) {
-        return { action: parts[0] || '', userId: '', additionalData: null };
+        return { action: parts[0] || '', userId: '', additionalData: null, timestamp: null, isValid: false };
     }
     
     let userIdIndex = -1;
+    let timestampIndex = -1;
     
+    // Find userId (17-19 digit number)
     for (let i = parts.length - 1; i >= 0; i--) {
         if (ID_REGEX.test(parts[i])) {
             userIdIndex = i;
@@ -137,11 +149,25 @@ function parseCustomId(customId) {
     }
     
     const userId = parts[userIdIndex];
+    
+    // Check if there's a timestamp after userId (base36 encoded)
+    let timestamp = null;
+    if (userIdIndex + 1 < parts.length) {
+        const potentialTimestamp = parts[userIdIndex + 1];
+        // Check if it looks like a base36 timestamp (alphanumeric, reasonable length)
+        if (/^[0-9a-z]{7,10}$/i.test(potentialTimestamp)) {
+            timestamp = parseInt(potentialTimestamp, 36);
+            timestampIndex = userIdIndex + 1;
+        }
+    }
+    
     const action = parts.slice(0, userIdIndex).join('_');
     let additionalData = null;
     
-    if (userIdIndex < parts.length - 1) {
-        const remaining = parts.slice(userIdIndex + 1).join('_');
+    const dataStartIndex = timestampIndex !== -1 ? timestampIndex + 1 : userIdIndex + 1;
+    
+    if (dataStartIndex < parts.length) {
+        const remaining = parts.slice(dataStartIndex).join('_');
         
         try {
             const decoded = Buffer.from(remaining, 'base64').toString('utf8');
@@ -155,7 +181,17 @@ function parseCustomId(customId) {
         }
     }
     
-    return { action: action || '', userId: userId || '', additionalData };
+    // Validate timestamp is not too old (replay protection)
+    let isValid = true;
+    if (timestamp !== null) {
+        const now = Date.now();
+        if (now - timestamp > TIMESTAMP_VALIDITY_MS) {
+            debugLog('BUTTON_OWNERSHIP', `Expired button timestamp: ${now - timestamp}ms old`);
+            isValid = false;
+        }
+    }
+    
+    return { action: action || '', userId: userId || '', additionalData, timestamp, isValid };
 }
 
 function createOwnershipMiddleware(expectedAction = null) {

@@ -11,8 +11,9 @@ const {
     createUpgradeSuccessEmbed,
     createUpgradeErrorEmbed
 } = require('./BuildingUIService');
-const { get, run } = require('../../../Core/database');
+const { get, run, withUserLock, atomicDeductCurrency } = require('../../../Core/database');
 const { getFarmStatusData, createFarmStatusEmbed } = require('../FarmStatusHelper');
+const { createCatchHandler } = require('../../../Ultility/errorHandler');
 
 async function handleBuildingInteraction(interaction, userId, client) {
     const { customId } = interaction;
@@ -144,8 +145,19 @@ async function handleUpgrade(interaction, userId) {
             });
         }
 
-        await run(`UPDATE userCoins SET coins = coins - ?, gems = gems - ? WHERE userId = ?`, 
-                  [cost.coins, cost.gems, userId]);
+        // FIXED: Use atomic currency deduction to prevent race conditions
+        const deductResult = await atomicDeductCurrency(userId, cost.coins, cost.gems);
+        if (!deductResult.success) {
+            const errorType = deductResult.error === 'INSUFFICIENT_COINS' ? 'INSUFFICIENT_COINS' : 'INSUFFICIENT_GEMS';
+            return await interaction.followUp({
+                embeds: [createUpgradeErrorEmbed(errorType, { 
+                    required: deductResult.need, 
+                    current: deductResult.have 
+                })],
+                ephemeral: true
+            });
+        }
+        
         await upgradeBuilding(userId, buildingType);
 
         const newLevel = currentLevel + 1;
@@ -172,7 +184,7 @@ async function handleUpgrade(interaction, userId) {
         await interaction.followUp({
             embeds: [createUpgradeErrorEmbed('UNKNOWN')],
             ephemeral: true
-        }).catch(err => console.error('Failed to send error message:', err));
+        }).catch(createCatchHandler('BUILDING_UPGRADE', { userId }));
     }
 }
 

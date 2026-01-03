@@ -2,7 +2,60 @@ const db = require('./Database/dbSetting');
 
 const queryCache = new Map();
 const CACHE_TTL = 5000;
+const MAX_CACHE_SIZE = 10000; // Prevent unbounded cache growth
 
+// ========== USER LOCKS FOR RACE CONDITION PREVENTION ==========
+const userLocks = new Map();
+const LOCK_TIMEOUT = 30000; // 30 second max lock duration
+
+/**
+ * Acquire a lock for a user to prevent race conditions
+ * @param {string} userId - User ID to lock
+ * @param {string} operation - Operation name for debugging
+ * @returns {Promise<Function>} Release function
+ */
+async function acquireUserLock(userId, operation = 'unknown') {
+    const lockKey = `lock_${userId}`;
+    
+    // Wait for existing lock to release
+    while (userLocks.has(lockKey)) {
+        const existingLock = userLocks.get(lockKey);
+        // Check for stale lock
+        if (Date.now() - existingLock.timestamp > LOCK_TIMEOUT) {
+            console.warn(`[DB] Releasing stale lock for user ${userId} (operation: ${existingLock.operation})`);
+            userLocks.delete(lockKey);
+            break;
+        }
+        await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    
+    // Acquire lock
+    userLocks.set(lockKey, { timestamp: Date.now(), operation });
+    
+    // Return release function
+    return () => {
+        userLocks.delete(lockKey);
+    };
+}
+
+/**
+ * Execute an operation with user lock protection
+ * Prevents race conditions in currency/inventory operations
+ * @param {string} userId - User ID to lock
+ * @param {string} operation - Operation name for debugging
+ * @param {Function} callback - Async function to execute while locked
+ * @returns {Promise<any>} Result of callback
+ */
+async function withUserLock(userId, operation, callback) {
+    const release = await acquireUserLock(userId, operation);
+    try {
+        return await callback();
+    } finally {
+        release();
+    }
+}
+
+// Cache cleanup with size limit
 setInterval(() => {
     const now = Date.now();
     const toDelete = [];
@@ -14,6 +67,16 @@ setInterval(() => {
     }
     
     toDelete.forEach(key => queryCache.delete(key));
+    
+    // Enforce max cache size by removing oldest entries
+    if (queryCache.size > MAX_CACHE_SIZE) {
+        const entries = Array.from(queryCache.entries());
+        entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
+        const removeCount = queryCache.size - MAX_CACHE_SIZE;
+        for (let i = 0; i < removeCount; i++) {
+            queryCache.delete(entries[i][0]);
+        }
+    }
 }, 10000);
 
 function getCacheKey(sql, params = []) {
@@ -153,6 +216,170 @@ async function transaction(operations) {
         }
         throw error;
     }
+}
+
+// ========== ATOMIC CURRENCY OPERATIONS ==========
+// These prevent race conditions by using atomic SQL operations
+
+/**
+ * Atomically deduct coins if user has enough balance
+ * Returns { success: true, newBalance } or { success: false, error: 'INSUFFICIENT_COINS' }
+ */
+async function atomicDeductCoins(userId, amount) {
+    if (amount <= 0) return { success: true, newBalance: null };
+    
+    const result = await run(
+        `UPDATE userCoins SET coins = coins - ? 
+         WHERE userId = ? AND coins >= ?`,
+        [amount, userId, amount]
+    );
+    
+    if (result.changes === 0) {
+        const user = await get(`SELECT coins FROM userCoins WHERE userId = ?`, [userId]);
+        return { 
+            success: false, 
+            error: 'INSUFFICIENT_COINS',
+            have: user?.coins || 0,
+            need: amount
+        };
+    }
+    
+    const updated = await get(`SELECT coins FROM userCoins WHERE userId = ?`, [userId]);
+    return { success: true, newBalance: updated?.coins || 0 };
+}
+
+/**
+ * Atomically deduct gems if user has enough balance
+ */
+async function atomicDeductGems(userId, amount) {
+    if (amount <= 0) return { success: true, newBalance: null };
+    
+    const result = await run(
+        `UPDATE userCoins SET gems = gems - ? 
+         WHERE userId = ? AND gems >= ?`,
+        [amount, userId, amount]
+    );
+    
+    if (result.changes === 0) {
+        const user = await get(`SELECT gems FROM userCoins WHERE userId = ?`, [userId]);
+        return { 
+            success: false, 
+            error: 'INSUFFICIENT_GEMS',
+            have: user?.gems || 0,
+            need: amount
+        };
+    }
+    
+    const updated = await get(`SELECT gems FROM userCoins WHERE userId = ?`, [userId]);
+    return { success: true, newBalance: updated?.gems || 0 };
+}
+
+/**
+ * Atomically deduct both coins and gems in a transaction
+ */
+async function atomicDeductCurrency(userId, coins, gems) {
+    return await withUserLock(userId, 'deductCurrency', async () => {
+        // First verify both balances
+        const user = await get(`SELECT coins, gems FROM userCoins WHERE userId = ?`, [userId]);
+        if (!user) return { success: false, error: 'USER_NOT_FOUND' };
+        if (user.coins < coins) return { success: false, error: 'INSUFFICIENT_COINS', have: user.coins, need: coins };
+        if (user.gems < gems) return { success: false, error: 'INSUFFICIENT_GEMS', have: user.gems, need: gems };
+        
+        // Deduct in transaction
+        await transaction([{
+            sql: `UPDATE userCoins SET coins = coins - ?, gems = gems - ? WHERE userId = ?`,
+            params: [coins, gems, userId]
+        }]);
+        
+        return { success: true };
+    });
+}
+
+/**
+ * Atomically deduct from inventory if user has enough quantity
+ * Returns { success: true } or { success: false, error: 'INSUFFICIENT_QUANTITY' }
+ */
+async function atomicDeductInventory(userId, itemName, quantity, isFumo = false) {
+    const field = isFumo ? 'fumoName' : 'itemName';
+    
+    const result = await run(
+        `UPDATE userInventory SET quantity = quantity - ? 
+         WHERE userId = ? AND ${field} = ? AND quantity >= ?`,
+        [quantity, userId, itemName, quantity]
+    );
+    
+    if (result.changes === 0) {
+        const item = await get(
+            `SELECT quantity FROM userInventory WHERE userId = ? AND ${field} = ?`,
+            [userId, itemName]
+        );
+        return { 
+            success: false, 
+            error: 'INSUFFICIENT_QUANTITY',
+            have: item?.quantity || 0,
+            need: quantity
+        };
+    }
+    
+    // Clean up zero quantity items
+    await run(
+        `DELETE FROM userInventory WHERE userId = ? AND ${field} = ? AND quantity <= 0`,
+        [userId, itemName]
+    );
+    
+    return { success: true };
+}
+
+/**
+ * Safe transfer of items between users with validation
+ * Uses transaction to ensure atomicity
+ */
+async function atomicTransferItem(fromUserId, toUserId, itemName, quantity, rarity = null, isFumo = false) {
+    const field = isFumo ? 'fumoName' : 'itemName';
+    
+    return await withUserLock(fromUserId, `transfer_${itemName}`, async () => {
+        // Verify sender has item
+        const senderItem = await get(
+            `SELECT quantity FROM userInventory WHERE userId = ? AND ${field} = ?`,
+            [fromUserId, itemName]
+        );
+        
+        if (!senderItem || senderItem.quantity < quantity) {
+            return { 
+                success: false, 
+                error: 'INSUFFICIENT_QUANTITY',
+                have: senderItem?.quantity || 0,
+                need: quantity
+            };
+        }
+        
+        const operations = [
+            // Deduct from sender
+            {
+                sql: `UPDATE userInventory SET quantity = quantity - ? WHERE userId = ? AND ${field} = ?`,
+                params: [quantity, fromUserId, itemName]
+            },
+            // Add to receiver
+            {
+                sql: isFumo
+                    ? `INSERT INTO userInventory (userId, fumoName, quantity, rarity) VALUES (?, ?, ?, ?)
+                       ON CONFLICT(userId, fumoName) DO UPDATE SET quantity = quantity + ?`
+                    : `INSERT INTO userInventory (userId, itemName, quantity) VALUES (?, ?, ?)
+                       ON CONFLICT(userId, itemName) DO UPDATE SET quantity = quantity + ?`,
+                params: isFumo 
+                    ? [toUserId, itemName, quantity, rarity, quantity]
+                    : [toUserId, itemName, quantity, quantity]
+            },
+            // Clean up zero quantity
+            {
+                sql: `DELETE FROM userInventory WHERE userId = ? AND ${field} = ? AND quantity <= 0`,
+                params: [fromUserId, itemName]
+            }
+        ];
+        
+        await transaction(operations);
+        return { success: true };
+    });
 }
 
 async function batchInsert(table, rows, columns) {
@@ -476,5 +703,13 @@ module.exports = {
     bulkInsert,
     clearCache,
     getCacheStats,
+    // New atomic operations for race condition prevention
+    acquireUserLock,
+    withUserLock,
+    atomicDeductCoins,
+    atomicDeductGems,
+    atomicDeductCurrency,
+    atomicDeductInventory,
+    atomicTransferItem,
     raw: db
 };

@@ -1,6 +1,7 @@
 const { getUserCurrency, deductCurrency, addItemToInventory, batchProcessPurchases } = require('./ShopDatabaseService');
 const { updateUserStock, getUserShop } = require('./ShopCacheService');
 const { debugLog } = require('../../../Core/logger');
+const { withUserLock } = require('../../../Core/database');
 
 async function validatePurchase(userId, itemName, itemData, quantity) {
     if (!itemData) {
@@ -52,33 +53,36 @@ async function processPurchase(userId, itemName, itemData, quantity) {
         return validation;
     }
 
-    try {
-        await deductCurrency(userId, validation.currency, validation.totalCost);
-        await addItemToInventory(userId, itemName, quantity);
+    // FIXED: Use user lock to prevent race conditions
+    return await withUserLock(userId, 'shop_purchase', async () => {
+        try {
+            await deductCurrency(userId, validation.currency, validation.totalCost);
+            await addItemToInventory(userId, itemName, quantity);
 
-        if (itemData.stock !== 'unlimited') {
-            const newStock = itemData.stock - quantity;
-            await updateUserStock(userId, itemName, newStock);
+            if (itemData.stock !== 'unlimited') {
+                const newStock = itemData.stock - quantity;
+                await updateUserStock(userId, itemName, newStock);
+            }
+
+            debugLog('SHOP_PURCHASE', `${userId} bought ${quantity}x ${itemName} for ${validation.totalCost} ${validation.currency}`);
+
+            return {
+                success: true,
+                itemName,
+                quantity,
+                totalCost: validation.totalCost,
+                currency: validation.currency
+            };
+
+        } catch (error) {
+            console.error('[SHOP_PURCHASE] Purchase processing error:', error);
+            return {
+                success: false,
+                error: 'PROCESSING_ERROR',
+                message: '❌ Purchase failed. Please try again.'
+            };
         }
-
-        debugLog('SHOP_PURCHASE', `${userId} bought ${quantity}x ${itemName} for ${validation.totalCost} ${validation.currency}`);
-
-        return {
-            success: true,
-            itemName,
-            quantity,
-            totalCost: validation.totalCost,
-            currency: validation.currency
-        };
-
-    } catch (error) {
-        console.error('[SHOP_PURCHASE] Purchase processing error:', error);
-        return {
-            success: false,
-            error: 'PROCESSING_ERROR',
-            message: '❌ Purchase failed. Please try again.'
-        };
-    }
+    });
 }
 
 async function processBuyAll(userId, userShop) {

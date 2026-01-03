@@ -1,7 +1,8 @@
-const { get, all, run, transaction } = require('../../Core/database');
+const { get, all, run, transaction, withUserLock } = require('../../Core/database');
 const TRADING_CONFIG = require('../../Configuration/tradingConfig');
 
 const activeTrades = new Map();
+const tradeLocks = new Set(); // Prevent double-trading same items
 
 function createSessionKey(userId1, userId2) {
     return [userId1, userId2].sort().join('_');
@@ -252,18 +253,31 @@ async function executeTrade(sessionKey) {
     if (!trade) return { success: false, error: 'TRADE_NOT_FOUND' };
 
     const { user1, user2 } = trade;
+    
+    // Create unique lock key for this trade
+    const lockKey = `trade_${sessionKey}`;
+    if (tradeLocks.has(lockKey)) {
+        return { success: false, error: 'TRADE_IN_PROGRESS' };
+    }
+    
+    tradeLocks.add(lockKey);
+    
+    try {
+        // Acquire locks for both users to prevent concurrent modifications
+        return await withUserLock(user1.id, `trade_with_${user2.id}`, async () => {
+            return await withUserLock(user2.id, `trade_with_${user1.id}`, async () => {
+                // Re-validate AFTER acquiring locks
+                const validate1 = await validateUserResources(
+                    user1.id, user1.coins, user1.gems, user1.items, user1.pets, user1.fumos
+                );
+                if (!validate1.valid) return validate1;
 
-    const validate1 = await validateUserResources(
-        user1.id, user1.coins, user1.gems, user1.items, user1.pets, user1.fumos
-    );
-    if (!validate1.valid) return validate1;
+                const validate2 = await validateUserResources(
+                    user2.id, user2.coins, user2.gems, user2.items, user2.pets, user2.fumos
+                );
+                if (!validate2.valid) return validate2;
 
-    const validate2 = await validateUserResources(
-        user2.id, user2.coins, user2.gems, user2.items, user2.pets, user2.fumos
-    );
-    if (!validate2.valid) return validate2;
-
-    const operations = [];
+                const operations = [];
 
     if (user1.coins > 0 || user1.gems > 0) {
         operations.push({
@@ -440,12 +454,17 @@ async function executeTrade(sessionKey) {
         });
     }
 
-    try {
-        await transaction(operations);
-        trade.state = TRADING_CONFIG.STATES.COMPLETED;
-        return { success: true, trade };
-    } catch (error) {
-        return { success: false, error: 'TRANSACTION_FAILED', details: error.message };
+                try {
+                    await transaction(operations);
+                    trade.state = TRADING_CONFIG.STATES.COMPLETED;
+                    return { success: true, trade };
+                } catch (error) {
+                    return { success: false, error: 'TRANSACTION_FAILED', details: error.message };
+                }
+            }); // End user2 lock
+        }); // End user1 lock
+    } finally {
+        tradeLocks.delete(lockKey);
     }
 }
 

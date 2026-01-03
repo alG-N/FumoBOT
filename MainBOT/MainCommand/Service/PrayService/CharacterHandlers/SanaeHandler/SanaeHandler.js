@@ -9,7 +9,7 @@ const {
 } = require('../../../../Configuration/prayConfig');
 const { formatNumber } = require('../../../../Ultility/formatting');
 const FumoPool = require('../../../../Data/FumoPool');
-const { run, all, get } = require('../../../../Core/database');
+const { run, all, get, withUserLock } = require('../../../../Core/database');
 const { isSigilActive } = require('../../../GachaService/NormalGachaService/BoostService');
 const {
     getUserData,
@@ -25,6 +25,7 @@ const {
     getFumoTokens,
     deductFumoTokens
 } = require('../../PrayDatabaseService');
+const { createCatchHandler } = require('../../../../Ultility/errorHandler');
 
 const activeSanaeSessions = new Map();
 
@@ -392,7 +393,7 @@ async function sendDonationOptions(userId, channel, user, config, sanaeData) {
         } catch (error) {
             console.error('[Sanae] Button handler error:', error);
             if (!interaction.replied && !interaction.deferred) {
-                await interaction.reply({ content: '❌ An error occurred.', ephemeral: true }).catch(() => {});
+                await interaction.reply({ content: '❌ An error occurred.', ephemeral: true }).catch(createCatchHandler('SANAE_ERROR_REPLY', { userId }));
             }
         }
     });
@@ -400,7 +401,7 @@ async function sendDonationOptions(userId, channel, user, config, sanaeData) {
     collector.on('end', (collected, reason) => {
         if (reason === 'time') {
             activeSanaeSessions.delete(userId);
-            msg.edit({ components: [] }).catch(() => {});
+            msg.edit({ components: [] }).catch(createCatchHandler('SANAE_COLLECTOR_END', { userId }));
         }
     });
 }
@@ -500,7 +501,7 @@ async function handleDonation(interaction, userId, option, config, collector, ms
         await showBlessingOptions(interaction, userId, config, newFaithPoints, miracleSurge, consumedItems, faithGained, costDescription);
     } catch (error) {
         console.error('[Sanae] Donation error:', error);
-        await interaction.followUp({ content: '❌ An error occurred during donation.', ephemeral: true }).catch(() => {});
+        await interaction.followUp({ content: '❌ An error occurred during donation.', ephemeral: true }).catch(createCatchHandler('SANAE_DONATION_ERROR', { userId }));
     }
 }
 
@@ -721,7 +722,7 @@ async function handleBlessingSelection(interaction, userId, blessingIndex, confi
         await incrementDailyPray(userId);
     } catch (error) {
         console.error('[Sanae] Blessing application error:', error);
-        await interaction.followUp({ content: '❌ Error applying blessing rewards.', ephemeral: true }).catch(() => {});
+        await interaction.followUp({ content: '❌ Error applying blessing rewards.', ephemeral: true }).catch(createCatchHandler('SANAE_BLESSING_ERROR', { userId }));
     }
 }
 

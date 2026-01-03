@@ -204,11 +204,110 @@ function wrapCommandHandler(handler, commandName) {
     };
 }
 
+/**
+ * Safe interaction reply that handles already replied interactions
+ * @param {object} interaction - Discord interaction
+ * @param {object} options - Reply options
+ * @param {string} context - Context for error logging
+ */
+async function safeReply(interaction, options, context = 'INTERACTION') {
+    try {
+        if (interaction.replied || interaction.deferred) {
+            return await interaction.followUp(options);
+        } else {
+            return await interaction.reply(options);
+        }
+    } catch (error) {
+        console.error(`[${context}] Safe reply failed:`, error.message);
+        return null;
+    }
+}
+
+/**
+ * Safe message edit that handles deleted messages
+ * @param {object} message - Discord message
+ * @param {object} options - Edit options
+ * @param {string} context - Context for error logging
+ */
+async function safeEdit(message, options, context = 'MESSAGE_EDIT') {
+    try {
+        return await message.edit(options);
+    } catch (error) {
+        // Only log if it's not a "Unknown Message" error (message was deleted)
+        if (!error.message?.includes('Unknown Message')) {
+            console.error(`[${context}] Safe edit failed:`, error.message);
+        }
+        return null;
+    }
+}
+
+/**
+ * Safe JSON parse with error handling
+ * @param {string} str - String to parse
+ * @param {any} fallback - Fallback value on error
+ * @param {string} context - Context for error logging
+ * @returns {any} Parsed object or fallback
+ */
+function safeJsonParse(str, fallback = null, context = 'JSON_PARSE') {
+    try {
+        return JSON.parse(str);
+    } catch (error) {
+        console.error(`[${context}] JSON parse failed:`, error.message);
+        return fallback;
+    }
+}
+
+/**
+ * Create an error handler for catch blocks that logs instead of swallowing
+ * @param {string} context - Context identifier
+ * @param {object} metadata - Additional metadata to log
+ * @returns {Function} Error handler function
+ */
+function createCatchHandler(context, metadata = {}) {
+    return (error) => {
+        const metaStr = Object.keys(metadata).length > 0 
+            ? ` | ${JSON.stringify(metadata)}` 
+            : '';
+        console.error(`[${context}] Caught error${metaStr}:`, error.message);
+    };
+}
+
+/**
+ * Get error statistics
+ * @returns {object} Error stats
+ */
+function getErrorStats() {
+    const stats = {
+        total: 0,
+        uniqueErrors: ERROR_COUNTS.size,
+        topErrors: []
+    };
+    
+    const now = Date.now();
+    for (const [key, data] of ERROR_COUNTS) {
+        // Only count recent errors (last minute)
+        if (now - data.firstSeen <= 60000) {
+            stats.total += data.count;
+            stats.topErrors.push({ error: key, count: data.count });
+        }
+    }
+    
+    stats.topErrors.sort((a, b) => b.count - a.count);
+    stats.topErrors = stats.topErrors.slice(0, 5);
+    
+    return stats;
+}
+
 module.exports = {
     initializeErrorHandlers,
     handleError,
     registerRecoveryStrategy,
     gracefulShutdown,
     createUserErrorEmbed,
-    wrapCommandHandler
+    wrapCommandHandler,
+    safeReply,
+    safeEdit,
+    safeJsonParse,
+    createCatchHandler,
+    getErrorStats
 };

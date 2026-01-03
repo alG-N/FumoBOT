@@ -1,4 +1,4 @@
-const { run, transaction, get, all } = require('../../Core/database');
+const { run, transaction, get, all, withUserLock, atomicDeductCurrency } = require('../../Core/database');
 const { clearUserCache } = require('./CraftCacheService');
 const { getCraftTimer, CRAFT_CONFIG } = require('../../Configuration/craftConfig');
 const { incrementDailyCraft } = require('../../Ultility/weekly');
@@ -86,45 +86,51 @@ async function logCraftHistory(userId, craftType, itemName, amount) {
 }
 
 async function processCraft(userId, itemName, amount, craftType, recipe, totalCoins, totalGems) {
-    // OPTIMIZED: Deduct resources and materials in single transaction
-    const operations = [
-        {
-            sql: `UPDATE userCoins SET coins = coins - ?, gems = gems - ? WHERE userId = ?`,
-            params: [totalCoins, totalGems, userId]
+    // FIXED: Use user lock to prevent race conditions on craft operations
+    return await withUserLock(userId, 'craft_process', async () => {
+        // First, atomically deduct currency to prevent double-spending
+        if (totalCoins > 0 || totalGems > 0) {
+            const deductResult = await atomicDeductCurrency(userId, totalCoins, totalGems);
+            if (!deductResult.success) {
+                throw new Error(deductResult.error);
+            }
         }
-    ];
-    
-    // Add material deductions to same transaction
-    for (const [reqItem, reqQty] of Object.entries(recipe.requires)) {
-        operations.push({
-            sql: `UPDATE userInventory SET quantity = quantity - ? WHERE userId = ? AND itemName = ?`,
-            params: [reqQty * amount, userId, reqItem]
-        });
-    }
-    
-    await transaction(operations);
-
-    // FIX: Pass amount to getCraftTimer here too
-    const timerDuration = getCraftTimer(craftType, itemName, amount);
-
-    if (timerDuration > 0) {
-        // Add to queue with timer
-        const queueData = await addToQueue(userId, craftType, itemName, amount);
-        clearUserCache(userId, craftType);
         
-        return {
-            queued: true,
-            ...queueData
-        };
-    } else {
-        // Instant craft
-        await addCraftedItem(userId, itemName, amount);
-        await logCraftHistory(userId, craftType, itemName, amount);
-        clearUserCache(userId, craftType);
-        incrementDailyCraft(userId);
+        // Then deduct materials in a transaction
+        const materialOperations = [];
+        for (const [reqItem, reqQty] of Object.entries(recipe.requires)) {
+            materialOperations.push({
+                sql: `UPDATE userInventory SET quantity = quantity - ? WHERE userId = ? AND itemName = ? AND quantity >= ?`,
+                params: [reqQty * amount, userId, reqItem, reqQty * amount]
+            });
+        }
         
-        return { queued: false };
-    }
+        if (materialOperations.length > 0) {
+            await transaction(materialOperations);
+        }
+
+        // FIX: Pass amount to getCraftTimer here too
+        const timerDuration = getCraftTimer(craftType, itemName, amount);
+
+        if (timerDuration > 0) {
+            // Add to queue with timer
+            const queueData = await addToQueue(userId, craftType, itemName, amount);
+            clearUserCache(userId, craftType);
+            
+            return {
+                queued: true,
+                ...queueData
+            };
+        } else {
+            // Instant craft
+            await addCraftedItem(userId, itemName, amount);
+            await logCraftHistory(userId, craftType, itemName, amount);
+            clearUserCache(userId, craftType);
+            incrementDailyCraft(userId);
+            
+            return { queued: false };
+        }
+    });
 }
 
 async function claimQueuedCraft(queueId, userId) {

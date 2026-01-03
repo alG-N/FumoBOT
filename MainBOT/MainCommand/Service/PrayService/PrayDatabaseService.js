@@ -1,18 +1,67 @@
-const { get, all, run, transaction } = require('../../Core/database');
+const { get, all, run, transaction, withUserLock, atomicDeductCurrency } = require('../../Core/database');
 const { getWeekIdentifier } = require('../../Ultility/weekly');
 
+// ========== CACHE WITH LRU AND SIZE LIMITS ==========
+const MAX_CACHE_SIZE = 5000; // Max entries per cache
 const inventoryCache = new Map();
 const userDataCache = new Map();
 const prayItemCache = new Map();
 const sanaeCache = new Map();
+const sakuyaUsageCache = new Map();
+
 const INVENTORY_CACHE_TTL = 5000;
 const USER_DATA_CACHE_TTL = 3000;
 const PRAY_ITEM_CACHE_TTL = 10000;
 const SANAE_CACHE_TTL = 5000;
+const SAKUYA_CACHE_TTL = 5000;
+
+// Cache cleanup with size limits
+function cleanupCache(cache, ttl, maxSize = MAX_CACHE_SIZE) {
+    const now = Date.now();
+    const toDelete = [];
+    
+    for (const [key, { timestamp }] of cache.entries()) {
+        if (now - timestamp > ttl) {
+            toDelete.push(key);
+        }
+    }
+    
+    toDelete.forEach(key => cache.delete(key));
+    
+    // If still over max size, remove oldest entries
+    if (cache.size > maxSize) {
+        const entries = Array.from(cache.entries());
+        entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
+        const removeCount = cache.size - maxSize;
+        for (let i = 0; i < removeCount; i++) {
+            cache.delete(entries[i][0]);
+        }
+    }
+}
+
+// Periodic cleanup for all caches
+setInterval(() => {
+    cleanupCache(inventoryCache, INVENTORY_CACHE_TTL);
+    cleanupCache(userDataCache, USER_DATA_CACHE_TTL);
+    cleanupCache(prayItemCache, PRAY_ITEM_CACHE_TTL);
+    cleanupCache(sanaeCache, SANAE_CACHE_TTL);
+    cleanupCache(sakuyaUsageCache, SAKUYA_CACHE_TTL);
+}, 30000);
+
+// ========== GLOBAL CACHE INVALIDATION ==========
+/**
+ * Invalidate all caches for a user - call this after any inventory/currency change
+ */
+function invalidateUserCaches(userId) {
+    inventoryCache.delete(userId);
+    userDataCache.delete(userId);
+    prayItemCache.delete(userId);
+    sanaeCache.delete(userId);
+    sakuyaUsageCache.delete(userId);
+}
 
 async function consumeTicket(userId) {
-    inventoryCache.delete(userId);
-    prayItemCache.delete(userId);
+    invalidateUserCaches(userId);
     await run(
         `UPDATE userInventory SET quantity = quantity - 1 WHERE userId = ? AND itemName = ?`,
         [userId, 'PrayTicket(R)']
@@ -20,8 +69,7 @@ async function consumeTicket(userId) {
 }
 
 async function consumeShards(userId, shardNames) {
-    inventoryCache.delete(userId);
-    prayItemCache.delete(userId);
+    invalidateUserCaches(userId);
     const placeholders = shardNames.map(() => '?').join(',');
     await run(
         `UPDATE userInventory 
@@ -101,7 +149,7 @@ async function getUserData(userId) {
 }
 
 async function updateUserCoins(userId, coins, gems) {
-    userDataCache.delete(userId);
+    invalidateUserCaches(userId);
     await run(
         `UPDATE userCoins SET coins = coins + ?, gems = gems + ? WHERE userId = ?`,
         [coins, gems, userId]
@@ -109,15 +157,17 @@ async function updateUserCoins(userId, coins, gems) {
 }
 
 async function deductUserCurrency(userId, coins, gems) {
-    userDataCache.delete(userId);
-    await run(
-        `UPDATE userCoins SET coins = coins - ?, gems = gems - ? WHERE userId = ?`,
-        [coins, gems, userId]
-    );
+    invalidateUserCaches(userId);
+    // FIXED: Use atomic currency deduction to prevent race conditions
+    const result = await atomicDeductCurrency(userId, coins, gems);
+    if (!result.success) {
+        throw new Error(result.error);
+    }
+    return result;
 }
 
 async function updateUserLuck(userId, luckAmount) {
-    userDataCache.delete(userId);
+    invalidateUserCaches(userId);
     
     const MAX_PERMANENT_LUCK = 5.0; // 500% cap
     
@@ -133,7 +183,7 @@ async function updateUserLuck(userId, luckAmount) {
 }
 
 async function updateUserRolls(userId, rollsToAdd) {
-    userDataCache.delete(userId);
+    invalidateUserCaches(userId);
     await run(
         `UPDATE userCoins SET rollsLeft = rollsLeft + ? WHERE userId = ?`,
         [rollsToAdd, userId]
@@ -157,7 +207,7 @@ async function getFumoTokens(userId) {
  * @returns {boolean} Success status
  */
 async function deductFumoTokens(userId, amount) {
-    userDataCache.delete(userId);
+    invalidateUserCaches(userId);
     await run(
         `UPDATE userCoins SET spiritTokens = MAX(0, spiritTokens - ?) WHERE userId = ?`,
         [amount, userId]
@@ -166,8 +216,7 @@ async function deductFumoTokens(userId, amount) {
 }
 
 async function addToInventory(userId, itemName, quantity = 1) {
-    inventoryCache.delete(userId);
-    prayItemCache.delete(userId);
+    invalidateUserCaches(userId);
     
     await run(
         `INSERT INTO userInventory (userId, itemName, quantity) VALUES (?, ?, ?)
@@ -177,7 +226,7 @@ async function addToInventory(userId, itemName, quantity = 1) {
 }
 
 async function deleteFumoFromInventory(userId, fumoId, quantity = 1) {
-    inventoryCache.delete(userId);
+    invalidateUserCaches(userId);
     const existing = await get(
         `SELECT quantity FROM userInventory WHERE id = ?`,
         [fumoId]
@@ -226,7 +275,7 @@ async function incrementDailyPray(userId) {
 }
 
 async function updateYukariData(userId, coinsAdded, gemsAdded, newMark) {
-    userDataCache.delete(userId);
+    invalidateUserCaches(userId);
     await run(
         `UPDATE userCoins 
         SET coins = coins + ?, 
@@ -240,7 +289,7 @@ async function updateYukariData(userId, coinsAdded, gemsAdded, newMark) {
 }
 
 async function updateReimuData(userId, updates) {
-    userDataCache.delete(userId);
+    invalidateUserCaches(userId);
     const fields = [];
     const values = [];
 
@@ -258,7 +307,7 @@ async function updateReimuData(userId, updates) {
 }
 
 async function updateMarisaData(userId, donationCount, prayedStatus) {
-    userDataCache.delete(userId);
+    invalidateUserCaches(userId);
     await run(
         `UPDATE userCoins 
          SET marisaDonationCount = ?, 
@@ -267,9 +316,6 @@ async function updateMarisaData(userId, donationCount, prayedStatus) {
         [donationCount, prayedStatus, userId]
     );
 }
-
-const sakuyaUsageCache = new Map();
-const SAKUYA_CACHE_TTL = 5000;
 
 async function getSakuyaUsage(userId) {
     const cached = sakuyaUsageCache.get(userId);
@@ -287,7 +333,7 @@ async function getSakuyaUsage(userId) {
 }
 
 async function updateSakuyaUsage(userId, data) {
-    sakuyaUsageCache.delete(userId);
+    invalidateUserCaches(userId);
     const existing = await getSakuyaUsage(userId);
     
     if (existing) {
@@ -314,6 +360,14 @@ async function updateSakuyaUsage(userId, data) {
     }
 }
 
+async function addSpiritTokens(userId, amount) {
+    invalidateUserCaches(userId);
+    await run(
+        `UPDATE userCoins SET spiritTokens = COALESCE(spiritTokens, 0) + ? WHERE userId = ?`,
+        [amount, userId]
+    );
+}
+
 async function getFarmingFumos(userId) {
     return await all(`SELECT * FROM farmingFumos WHERE userId = ?`, [userId], true);
 }
@@ -324,14 +378,6 @@ async function getActiveBoosts(userId, currentTime) {
          WHERE userId = ? AND (expiresAt IS NULL OR expiresAt > ?)`,
         [userId, currentTime],
         true
-    );
-}
-
-async function addSpiritTokens(userId, amount) {
-    userDataCache.delete(userId);
-    await run(
-        `UPDATE userCoins SET spiritTokens = COALESCE(spiritTokens, 0) + ? WHERE userId = ?`,
-        [amount, userId]
     );
 }
 
