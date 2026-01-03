@@ -224,7 +224,7 @@ async function createSearchResultsEmbed(searchQuery, userShop, userId) {
         
         // Show scaled price with indicator if different from base
         const priceDisplay = priceCalc.scaled 
-            ? `~~${formatNumber(item.cost)}~~ **${formatNumber(priceCalc.finalPrice)}** ${item.currency} 💰` 
+            ? `~~${formatNumber(item.cost)}~~ **${formatNumber(priceCalc.finalPrice)}** ${item.currency}` 
             : `**${formatNumber(item.cost)} ${item.currency}**`;
 
         categorizedItems[item.rarity].push(
@@ -292,7 +292,7 @@ async function createBuyAllConfirmationEmbed(userShop, userId) {
         const scaledCost = priceCalc.finalPrice * quantity;
         
         const costDisplay = priceCalc.scaled 
-            ? `~~${formatNumber(baseCost)}~~ ${formatNumber(scaledCost)} 💰`
+            ? `~~${formatNumber(baseCost)}~~ ${formatNumber(scaledCost)}`
             : formatNumber(scaledCost);
 
         itemsList.push(`• ${quantity}x ${itemName} - ${costDisplay} ${itemData.currency}`);
@@ -307,10 +307,10 @@ async function createBuyAllConfirmationEmbed(userShop, userId) {
     }
     
     const coinDisplay = totalCoins > baseTotalCoins 
-        ? `~~${formatNumber(baseTotalCoins)}~~ **${formatNumber(totalCoins)}** 💰`
+        ? `~~${formatNumber(baseTotalCoins)}~~ **${formatNumber(totalCoins)}**`
         : formatNumber(totalCoins);
     const gemDisplay = totalGems > baseTotalGems 
-        ? `~~${formatNumber(baseTotalGems)}~~ **${formatNumber(totalGems)}** 💰`
+        ? `~~${formatNumber(baseTotalGems)}~~ **${formatNumber(totalGems)}**`
         : formatNumber(totalGems);
     
     const hasWealthTax = totalCoins > baseTotalCoins || totalGems > baseTotalGems;

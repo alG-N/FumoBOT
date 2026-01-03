@@ -1,14 +1,4 @@
-/**
- * Wealth-Based Dynamic Pricing Configuration
- * 
- * Formula: FinalPrice = (BasePrice + WealthAddition) × WealthMultiplier
- * Where: WealthAddition = min(BasePrice × MaxWealthCap, Wealth × PercentRate)
- * 
- * This prevents nonillionaires from trivializing shops while keeping
- * prices fair for normal players.
- */
-
-// Coin wealth multiplier tiers - AGGRESSIVE punishment for rich players
+// Wealth pricing configuration for MarketService and ShopService
 const COIN_WEALTH_TIERS = [
     { threshold: 1_000_000_000_000_000_000_000n, multiplier: 1000.0 },
     { threshold: 1_000_000_000_000_000_000n, multiplier: 500.0 },
@@ -23,7 +13,6 @@ const COIN_WEALTH_TIERS = [
     { threshold: 0n, multiplier: 1.0 }                   
 ];
 
-// Gem wealth multiplier tiers - AGGRESSIVE punishment for rich players
 const GEM_WEALTH_TIERS = [
     { threshold: 1_000_000_000_000_000_000n, multiplier: 1000.0 },
     { threshold: 1_000_000_000_000_000n, multiplier: 500.0 },
@@ -40,15 +29,15 @@ const GEM_WEALTH_TIERS = [
 
 // Wealth percentage rates (how much of wealth adds to price) - AGGRESSIVE
 const WEALTH_PERCENT_RATES = {
-    coins: 0.00001,     // 0.001% of coin wealth (10x more aggressive)
-    gems: 0.0001        // 0.01% of gem wealth (10x more aggressive)
+    coins: 0.001,    // 0.1% of coin wealth
+    gems: 0.0005     // 0.05% of gem wealth
 };
 
 // Max wealth addition caps (as multiplier of base price)
 // Higher caps = more punishment for extreme wealth
 const MAX_WEALTH_CAPS = {
-    coins: 50,          // Wealth addition capped at 50x base price (was 10x)
-    gems: 25            // Wealth addition capped at 25x base price (was 5x)
+    coins: 100,
+    gems: 50
 };
 
 // Enable/disable wealth pricing per shop type
