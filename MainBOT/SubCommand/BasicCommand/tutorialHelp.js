@@ -21,7 +21,8 @@ module.exports = {
                     '`/pixiv [query]` - Search Pixiv artwork (SFW/NSFW filters)\n' +
                     '`/reddit [subreddit]` - Fetch posts from Reddit\n' +
                     '`/anime [name]` - Search anime information\n' +
-                    '`/steam` - Check Steam sales', inline: false },
+                    '`/steam` - Check Steam sales\n' +
+                    '`/rule34 search [tag]` - Search Rule34 images', inline: false },
                 { name: '🎵 Music Commands', value: 
                     '`/music play [query]` - Play music in voice channel\n' +
                     '`/music queue` - View the queue\n' +

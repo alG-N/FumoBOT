@@ -211,7 +211,7 @@ module.exports = {
       inline: false
     },
     {
-      name: '🔧 `.otherCMD`',
+      name: '🔧 `/otherCMD`',
       value: 'View additional hidden commands.',
       inline: false
     },
