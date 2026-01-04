@@ -71,6 +71,17 @@ async function processDiceResult(userId, result, betAmount, currency, balance) {
         // Track for quest progress
         try {
             await QuestMiddleware.trackGamble(userId);
+            
+            // Track win and coins/gems earned
+            if (result.netChange > 0) {
+                await QuestMiddleware.trackGambleWin(userId, result.netChange);
+                
+                if (currency === 'coins') {
+                    await QuestMiddleware.trackCoinsEarned(userId, result.netChange);
+                } else if (currency === 'gems') {
+                    await QuestMiddleware.trackGemsEarned(userId, result.netChange);
+                }
+            }
         } catch (err) {
             console.error('[Dice Duel] Quest tracking error:', err);
         }

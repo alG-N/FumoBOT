@@ -612,6 +612,62 @@ function createIndexes() {
             )`, () => res());
         }));
 
+        // User Active Quests Table (for dynamic quest system)
+        tables.push(new Promise((res) => {
+            db.run(`CREATE TABLE IF NOT EXISTS userActiveQuests (
+                userId TEXT,
+                questType TEXT,
+                period TEXT,
+                questId TEXT,
+                uniqueQuestId TEXT,
+                trackingType TEXT,
+                questData TEXT,
+                goal INTEGER,
+                PRIMARY KEY (userId, questType, questId)
+            )`, () => res());
+        }));
+
+        // Add columns if they don't exist (for existing databases)
+        tables.push(new Promise((res) => {
+            db.run(`ALTER TABLE userActiveQuests ADD COLUMN uniqueQuestId TEXT`, () => res());
+        }));
+        tables.push(new Promise((res) => {
+            db.run(`ALTER TABLE userActiveQuests ADD COLUMN trackingType TEXT`, () => res());
+        }));
+        
+        // Add claimedMilestones column for milestone-based achievement tracking
+        tables.push(new Promise((res) => {
+            db.run(`ALTER TABLE achievementProgress ADD COLUMN claimedMilestones TEXT DEFAULT '[]'`, () => res());
+        }));
+
+        // Create index for trackingType queries
+        tables.push(new Promise((res) => {
+            db.run(`CREATE INDEX IF NOT EXISTS idx_activeQuests_trackingType 
+                    ON userActiveQuests(userId, trackingType, questType, period)`, () => res());
+        }));
+
+        // Quest Rerolls Table
+        tables.push(new Promise((res) => {
+            db.run(`CREATE TABLE IF NOT EXISTS questRerolls (
+                userId TEXT,
+                questType TEXT,
+                period TEXT,
+                rerollCount INTEGER DEFAULT 0,
+                PRIMARY KEY (userId, questType, period)
+            )`, () => res());
+        }));
+
+        // Quest Chain Progress Table
+        tables.push(new Promise((res) => {
+            db.run(`CREATE TABLE IF NOT EXISTS questChainProgress (
+                userId TEXT,
+                chainId TEXT,
+                currentStep INTEGER DEFAULT 0,
+                completedAt INTEGER,
+                PRIMARY KEY (userId, chainId)
+            )`, () => res());
+        }));
+
         // Pet Inventory Table
         tables.push(new Promise((res) => {
             db.run(`CREATE TABLE IF NOT EXISTS petInventory (
@@ -837,6 +893,16 @@ async function ensureColumnsExist() {
         // Ensure other tables have their additional columns
         await addColumnIfNotExists('activeBoosts', 'extra', "TEXT DEFAULT '{}'");
         await addColumnIfNotExists('petInventory', 'ability', 'TEXT');
+        
+        // Ensure quest progress tables have claimed column
+        await addColumnIfNotExists('dailyQuestProgress', 'claimed', 'INTEGER DEFAULT 0');
+        await addColumnIfNotExists('weeklyQuestProgress', 'claimed', 'INTEGER DEFAULT 0');
+        
+        // Ensure userCoins has dailyStreak column
+        if (!existingCoinsColumns.includes('dailyStreak')) {
+            await addColumnIfNotExists('userCoins', 'dailyStreak', 'INTEGER DEFAULT 0');
+        }
+        
         console.log('✅ Ensured all required columns exist in tables');
     } catch (err) {
         console.error('Error ensuring columns exist:', err.message || err);

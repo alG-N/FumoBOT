@@ -1,341 +1,375 @@
+const db = require('../Core/Database/dbSetting');
+const { getWeekIdentifier } = require('../Ultility/timeUtils');
+
 /**
- * ═══════════════════════════════════════════════════════════════════
- * QUEST MIDDLEWARE v2.0 - Automatic Quest Progress Tracking
- * ═══════════════════════════════════════════════════════════════════
- * 
- * This middleware hooks into various bot actions to track quest progress.
- * Import and call the appropriate method when an action occurs.
+ * Universal tracking function that updates progress for any active quest
+ * matching the given trackingType
  */
-
-const QuestProgressService = require('../Service/UserDataService/QuestService/QuestProgressService');
-
-// Helper to get current date string
-function getCurrentDate() {
-    return new Date().toISOString().slice(0, 10);
+async function track(userId, trackingType, increment = 1) {
+    const date = new Date().toISOString().slice(0, 10);
+    const week = getWeekIdentifier();
+    
+    try {
+        // Get user's active quests that match this trackingType
+        const activeQuests = await new Promise((resolve, reject) => {
+            db.all(
+                `SELECT uniqueQuestId, questType, goal FROM userActiveQuests 
+                 WHERE userId = ? AND trackingType = ? 
+                 AND ((questType = 'daily' AND period = ?) OR (questType = 'weekly' AND period = ?))`,
+                [userId, trackingType, date, week],
+                (err, rows) => err ? reject(err) : resolve(rows || [])
+            );
+        });
+        
+        // Update progress for each matching quest and check for new completions
+        for (const quest of activeQuests) {
+            const table = quest.questType === 'daily' ? 'dailyQuestProgress' : 'weeklyQuestProgress';
+            const timeField = quest.questType === 'daily' ? 'date' : 'week';
+            const timeValue = quest.questType === 'daily' ? date : week;
+            
+            // Get current progress BEFORE update to detect completion
+            const currentProgress = await new Promise((resolve, reject) => {
+                db.get(
+                    `SELECT progress, completed FROM ${table} WHERE userId = ? AND questId = ? AND ${timeField} = ?`,
+                    [userId, quest.uniqueQuestId, timeValue],
+                    (err, row) => err ? reject(err) : resolve(row)
+                );
+            });
+            
+            const wasCompleted = currentProgress?.completed === 1;
+            const oldProgress = currentProgress?.progress || 0;
+            
+            await new Promise((resolve, reject) => {
+                db.run(
+                    `INSERT INTO ${table} (userId, questId, ${timeField}, progress, completed, claimed)
+                     VALUES (?, ?, ?, ?, 0, 0)
+                     ON CONFLICT(userId, questId, ${timeField}) DO UPDATE SET
+                         progress = MIN(${table}.progress + ?, ?),
+                         completed = CASE 
+                             WHEN ${table}.progress + ? >= ? THEN 1
+                             ELSE ${table}.completed
+                         END`,
+                    [userId, quest.uniqueQuestId, timeValue, increment, increment, quest.goal, increment, quest.goal],
+                    (err) => err ? reject(err) : resolve()
+                );
+            });
+            
+            // If quest JUST got completed, track it for "complete X quests" meta quest
+            // BUT only if we're not already tracking 'quests_completed' (prevent infinite loop)
+            if (!wasCompleted && (oldProgress + increment) >= quest.goal && trackingType !== 'quests_completed') {
+                await track(userId, 'quests_completed', 1);
+            }
+        }
+        
+        // Also track achievements
+        await trackAchievement(userId, trackingType, increment);
+        
+    } catch (error) {
+        console.error(`[QuestMiddleware] Failed to track ${trackingType} for ${userId}:`, error);
+    }
 }
 
-// Helper to get week identifier
-function getWeekIdentifier() {
-    const now = new Date();
-    const yearStart = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
-    const weekNumber = Math.ceil((((now - yearStart) / 86400000) + yearStart.getUTCDay() + 1) / 7);
-    return `${now.getUTCFullYear()}-W${weekNumber.toString().padStart(2, '0')}`;
+/**
+ * Track achievement progress based on trackingType
+ */
+async function trackAchievement(userId, trackingType, increment = 1) {
+    // Map trackingType to achievement IDs
+    const achievementMap = {
+        'rolls': 'total_rolls',
+        'multi_rolls': 'total_rolls',
+        'prays': 'total_prays',
+        'shinies': 'total_shinies',
+        'coins_earned': 'lifetime_coins',
+        'crafts': 'total_crafts',
+        'pet_hatches': 'total_pet_hatches',
+        'building_upgrades': 'total_building_upgrades',
+        'gambles': 'total_gambles',
+        'trades': 'total_trades',
+        'limit_breaks': 'total_limit_breaks'
+    };
+    
+    const achievementId = achievementMap[trackingType];
+    if (!achievementId) return;
+    
+    try {
+        await new Promise((resolve, reject) => {
+            db.run(
+                `INSERT INTO achievementProgress (userId, achievementId, progress, claimed)
+                 VALUES (?, ?, ?, 0)
+                 ON CONFLICT(userId, achievementId) DO UPDATE SET
+                     progress = achievementProgress.progress + ?`,
+                [userId, achievementId, increment, increment],
+                (err) => err ? reject(err) : resolve()
+            );
+        });
+    } catch (error) {
+        console.error(`[QuestMiddleware] Failed to track achievement for ${userId}:`, error);
+    }
 }
 
 class QuestMiddleware {
-    // ═══════════════════════════════════════════════════════════════════
-    // GACHA TRACKING (Rolls)
-    // ═══════════════════════════════════════════════════════════════════
-    
+    // ─── Gacha Tracking ───
     static async trackRoll(userId, increment = 1) {
-        try {
-            await Promise.all([
-                // Daily: daily_rolls (100 rolls goal)
-                QuestProgressService.updateDailyProgress(userId, 'daily_rolls', increment, 100),
-                // Weekly: weekly_rolls (1000 rolls goal)
-                QuestProgressService.updateWeeklyProgress(userId, 'weekly_rolls', increment, 1000),
-                // Achievement: total rolls
-                QuestProgressService.incrementAchievementProgress(userId, 'total_rolls', increment)
-            ]);
-        } catch (error) {
-            console.error(`[QuestMiddleware] Failed to track roll for ${userId}:`, error);
-        }
+        await track(userId, 'rolls', increment);
+    }
+
+    static async trackMultiRoll(userId, increment = 1) {
+        await track(userId, 'multi_rolls', increment);
+        await track(userId, 'rolls', increment * 10); // Multi-roll = 10 rolls
     }
 
     static async batchTrackRolls(userId, count) {
         await this.trackRoll(userId, count);
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // PRAYER TRACKING
-    // ═══════════════════════════════════════════════════════════════════
-    
-    static async trackPray(userId, success = true) {
-        if (!success) return;
-        
+    static async trackBannerVariety(userId, bannerId) {
+        const date = new Date().toISOString().slice(0, 10);
         try {
-            await Promise.all([
-                // Daily: daily_prayers (5 prayers goal)
-                QuestProgressService.updateDailyProgress(userId, 'daily_prayers', 1, 5),
-                // Weekly: weekly_prayers (35 prayers goal)
-                QuestProgressService.updateWeeklyProgress(userId, 'weekly_prayers', 1, 35),
-                // Achievement: total prays
-                QuestProgressService.incrementAchievementProgress(userId, 'total_prays', 1)
-            ]);
+            // Track unique banners rolled today
+            await new Promise((resolve, reject) => {
+                db.run(
+                    `INSERT OR IGNORE INTO userBannerVariety (userId, bannerId, date) VALUES (?, ?, ?)`,
+                    [userId, bannerId, date],
+                    (err) => err ? reject(err) : resolve()
+                );
+            });
+            
+            // Get count of unique banners
+            const result = await new Promise((resolve, reject) => {
+                db.get(
+                    `SELECT COUNT(DISTINCT bannerId) as count FROM userBannerVariety WHERE userId = ? AND date = ?`,
+                    [userId, date],
+                    (err, row) => err ? reject(err) : resolve(row)
+                );
+            });
+            
+            // Update quest progress with current count
+            await updateQuestProgressDirect(userId, 'banner_variety', result?.count || 1, 'daily');
         } catch (error) {
-            console.error(`[QuestMiddleware] Failed to track pray for ${userId}:`, error);
+            console.error(`[QuestMiddleware] Failed to track banner variety for ${userId}:`, error);
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // GAMBLING TRACKING (Flip, Slots, Dice Duel)
-    // ═══════════════════════════════════════════════════════════════════
-    
+    // ─── Prayer Tracking ───
+    static async trackPray(userId, success = true) {
+        if (!success) return;
+        await track(userId, 'prays', 1);
+    }
+
+    static async trackPrayStreak(userId, streak) {
+        await updateQuestProgressDirect(userId, 'pray_streak', streak, 'daily');
+    }
+
+    // ─── Gambling Tracking ───
     static async trackGamble(userId) {
-        try {
-            await Promise.all([
-                // Daily: daily_gambles (10 gambles goal)
-                QuestProgressService.updateDailyProgress(userId, 'daily_gambles', 1, 10),
-                // Weekly: weekly_gambles (50 gambles goal)
-                QuestProgressService.updateWeeklyProgress(userId, 'weekly_gambles', 1, 50),
-                // Achievement: total gambles
-                QuestProgressService.incrementAchievementProgress(userId, 'total_gambles', 1)
-            ]);
-        } catch (error) {
-            console.error(`[QuestMiddleware] Failed to track gamble for ${userId}:`, error);
-        }
+        await track(userId, 'gambles', 1);
     }
 
     static async trackGambleWin(userId, amount = 0) {
-        try {
-            await Promise.all([
-                // Daily: win_gamble (1 win goal)
-                QuestProgressService.updateDailyProgress(userId, 'daily_gamble_wins', 1, 3),
-                // Weekly: big_win (win 500k total)
-                QuestProgressService.updateWeeklyProgress(userId, 'weekly_gamble_profit', amount, 500000)
-            ]);
-        } catch (error) {
-            console.error(`[QuestMiddleware] Failed to track gamble win for ${userId}:`, error);
+        await track(userId, 'gamble_wins', 1);
+        await track(userId, 'gamble_profit', amount);
+    }
+
+    static async trackFlipStreak(userId, streak) {
+        await updateQuestProgressDirect(userId, 'flip_streak', streak, 'daily');
+    }
+
+    // ─── Crafting Tracking ───
+    static async trackCraft(userId, rarity = 'common') {
+        await track(userId, 'crafts', 1);
+        
+        const rareRarities = ['rare', 'epic', 'legendary', 'mythic', 'astral'];
+        if (rareRarities.includes(rarity?.toLowerCase())) {
+            await track(userId, 'craft_rare', 1);
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // CRAFTING TRACKING
-    // ═══════════════════════════════════════════════════════════════════
-    
-    static async trackCraft(userId) {
-        try {
-            await Promise.all([
-                // Daily: daily_crafts (3 crafts goal)
-                QuestProgressService.updateDailyProgress(userId, 'daily_crafts', 1, 3),
-                // Weekly: weekly_crafts (15 crafts goal)
-                QuestProgressService.updateWeeklyProgress(userId, 'weekly_crafts', 1, 15),
-                // Achievement: total crafts
-                QuestProgressService.incrementAchievementProgress(userId, 'total_crafts', 1)
-            ]);
-        } catch (error) {
-            console.error(`[QuestMiddleware] Failed to track craft for ${userId}:`, error);
-        }
-    }
-
-    // ═══════════════════════════════════════════════════════════════════
-    // PET TRACKING
-    // ═══════════════════════════════════════════════════════════════════
-    
+    // ─── Pet Tracking ───
     static async trackPetFeed(userId) {
-        try {
-            await Promise.all([
-                // Daily: daily_pet_feeds (5 feeds goal)
-                QuestProgressService.updateDailyProgress(userId, 'daily_pet_feeds', 1, 5),
-                // Achievement: pet interactions
-                QuestProgressService.incrementAchievementProgress(userId, 'pet_interactions', 1)
-            ]);
-        } catch (error) {
-            console.error(`[QuestMiddleware] Failed to track pet feed for ${userId}:`, error);
-        }
+        await track(userId, 'pet_feeds', 1);
+    }
+
+    static async trackPetPlay(userId) {
+        await track(userId, 'pet_plays', 1);
     }
 
     static async trackPetHatch(userId) {
-        try {
-            await Promise.all([
-                // Weekly: hatch_pet (1 hatch goal)
-                QuestProgressService.updateWeeklyProgress(userId, 'weekly_pet_hatches', 1, 3),
-                // Achievement: pets hatched
-                QuestProgressService.incrementAchievementProgress(userId, 'total_pet_hatches', 1)
-            ]);
-        } catch (error) {
-            console.error(`[QuestMiddleware] Failed to track pet hatch for ${userId}:`, error);
-        }
+        await track(userId, 'pet_hatches', 1);
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // TRADING TRACKING
-    // ═══════════════════════════════════════════════════════════════════
-    
+    static async trackPetLevel(userId, levelsGained = 1) {
+        await track(userId, 'pet_levels', levelsGained);
+    }
+
+    // ─── Trading Tracking ───
     static async trackTrade(userId) {
-        try {
-            await Promise.all([
-                // Daily: daily_trades (2 trades goal)
-                QuestProgressService.updateDailyProgress(userId, 'daily_trades', 1, 2),
-                // Weekly: weekly_trades (10 trades goal)
-                QuestProgressService.updateWeeklyProgress(userId, 'weekly_trades', 1, 10),
-                // Achievement: total trades
-                QuestProgressService.incrementAchievementProgress(userId, 'total_trades', 1)
-            ]);
-        } catch (error) {
-            console.error(`[QuestMiddleware] Failed to track trade for ${userId}:`, error);
-        }
+        await track(userId, 'trades', 1);
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // MARKET TRACKING
-    // ═══════════════════════════════════════════════════════════════════
-    
-    static async trackMarketSale(userId) {
-        try {
-            await Promise.all([
-                // Daily: daily_market_sales (1 sale goal)
-                QuestProgressService.updateDailyProgress(userId, 'daily_market_sales', 1, 1),
-                // Weekly: weekly_market_sales (5 sales goal)
-                QuestProgressService.updateWeeklyProgress(userId, 'weekly_market_sales', 1, 5)
-            ]);
-        } catch (error) {
-            console.error(`[QuestMiddleware] Failed to track market sale for ${userId}:`, error);
-        }
+    // ─── Market Tracking ───
+    static async trackMarketSale(userId, amount = 0) {
+        await track(userId, 'market_sales', 1);
+        await track(userId, 'market_profit', amount);
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // ECONOMY TRACKING (Coins)
-    // ═══════════════════════════════════════════════════════════════════
-    
+    static async trackMarketBuy(userId) {
+        await track(userId, 'market_buys', 1);
+    }
+
+    // ─── Economy Tracking ───
     static async trackCoinsEarned(userId, amount) {
-        try {
-            await Promise.all([
-                // Daily: earn 100k coins
-                QuestProgressService.updateDailyProgress(userId, 'daily_coins_earn', amount, 100000),
-                // Weekly: earn 1M coins
-                QuestProgressService.updateWeeklyProgress(userId, 'weekly_coins_earn', amount, 1000000),
-                // Achievement: total coins earned
-                QuestProgressService.incrementAchievementProgress(userId, 'lifetime_coins', amount)
-            ]);
-        } catch (error) {
-            console.error(`[QuestMiddleware] Failed to track coins for ${userId}:`, error);
-        }
+        await track(userId, 'coins_earned', amount);
     }
 
     static async trackCoinsSpent(userId, amount) {
-        try {
-            await Promise.all([
-                // Daily: spend 50k coins
-                QuestProgressService.updateDailyProgress(userId, 'daily_coins_spend', amount, 50000),
-                // Weekly: spend 500k coins
-                QuestProgressService.updateWeeklyProgress(userId, 'weekly_coins_spend', amount, 500000)
-            ]);
-        } catch (error) {
-            console.error(`[QuestMiddleware] Failed to track coins spent for ${userId}:`, error);
-        }
+        await track(userId, 'coins_spent', amount);
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // BUILDING TRACKING
-    // ═══════════════════════════════════════════════════════════════════
-    
+    static async trackGemsEarned(userId, amount) {
+        await track(userId, 'gems_earned', amount);
+    }
+
+    // ─── Building Tracking ───
     static async trackBuildingUpgrade(userId) {
-        try {
-            await Promise.all([
-                // Weekly: upgrade buildings
-                QuestProgressService.updateWeeklyProgress(userId, 'weekly_building_upgrades', 1, 5),
-                // Achievement: total upgrades
-                QuestProgressService.incrementAchievementProgress(userId, 'total_building_upgrades', 1)
-            ]);
-        } catch (error) {
-            console.error(`[QuestMiddleware] Failed to track building upgrade for ${userId}:`, error);
-        }
+        await track(userId, 'building_upgrades', 1);
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // RARITY TRACKING (Shinies, Astral+)
-    // ═══════════════════════════════════════════════════════════════════
-    
+    static async trackBuildingCollect(userId) {
+        await track(userId, 'building_collects', 1);
+    }
+
+    // ─── Rarity Tracking ───
     static async trackShiny(userId) {
-        try {
-            await Promise.all([
-                // Daily: find shiny
-                QuestProgressService.updateDailyProgress(userId, 'daily_shinies', 1, 1),
-                // Weekly: find shinies
-                QuestProgressService.updateWeeklyProgress(userId, 'weekly_shinies', 1, 10),
-                // Achievement: total shinies
-                QuestProgressService.incrementAchievementProgress(userId, 'total_shinies', 1)
-            ]);
-        } catch (error) {
-            console.error(`[QuestMiddleware] Failed to track shiny for ${userId}:`, error);
-        }
+        await track(userId, 'shinies', 1);
     }
 
     static async trackAstralPlus(userId) {
-        try {
-            await Promise.all([
-                // Weekly: obtain astral+ rarity
-                QuestProgressService.updateWeeklyProgress(userId, 'weekly_astral_plus', 1, 1),
-                // Achievement: total astral+
-                QuestProgressService.incrementAchievementProgress(userId, 'total_astral_plus', 1)
-            ]);
-        } catch (error) {
-            console.error(`[QuestMiddleware] Failed to track astral+ for ${userId}:`, error);
+        await track(userId, 'astral_plus', 1);
+    }
+
+    static async trackNewFumo(userId) {
+        await track(userId, 'new_fumos', 1);
+    }
+
+    static async trackFumoObtained(userId, rarity, isNew = false) {
+        if (isNew) {
+            await this.trackNewFumo(userId);
+        }
+        
+        const astralPlus = ['ASTRAL', 'CELESTIAL', 'INFINITE', 'ETERNAL', 'TRANSCENDENT'];
+        if (astralPlus.includes(rarity?.toUpperCase())) {
+            await this.trackAstralPlus(userId);
         }
     }
 
-    static async trackFumoObtained(userId, rarity) {
-        try {
-            // Track for achievements
-            await QuestProgressService.incrementAchievementProgress(userId, 'unique_fumos', 1);
-            
-            const astralPlus = ['ASTRAL', 'CELESTIAL', 'INFINITE', 'ETERNAL', 'TRANSCENDENT'];
-            if (astralPlus.includes(rarity?.toUpperCase())) {
-                await this.trackAstralPlus(userId);
-            }
-        } catch (error) {
-            console.error(`[QuestMiddleware] Failed to track fumo obtained for ${userId}:`, error);
-        }
-    }
-
-    // ═══════════════════════════════════════════════════════════════════
-    // DAILY LOGIN/ACTIVITY TRACKING
-    // ═══════════════════════════════════════════════════════════════════
-    
+    // ─── Daily/Login Tracking ───
     static async trackDailyLogin(userId) {
-        try {
-            await Promise.all([
-                // Daily: claim daily reward
-                QuestProgressService.updateDailyProgress(userId, 'daily_claim', 1, 1),
-                // Achievement: login streak
-                QuestProgressService.incrementAchievementProgress(userId, 'total_logins', 1)
-            ]);
-        } catch (error) {
-            console.error(`[QuestMiddleware] Failed to track daily login for ${userId}:`, error);
-        }
+        await track(userId, 'daily_claim', 1);
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // MYSTERY CRATE TRACKING
-    // ═══════════════════════════════════════════════════════════════════
-    
+    static async trackLoginStreak(userId, streak) {
+        await updateQuestProgressDirect(userId, 'login_streak', streak, 'weekly');
+    }
+
+    // ─── Crate Tracking ───
     static async trackCrateOpen(userId) {
-        try {
-            await Promise.all([
-                // Weekly: open mystery crates
-                QuestProgressService.updateWeeklyProgress(userId, 'weekly_crates', 1, 5),
-                // Achievement: total crates
-                QuestProgressService.incrementAchievementProgress(userId, 'total_crates_opened', 1)
-            ]);
-        } catch (error) {
-            console.error(`[QuestMiddleware] Failed to track crate open for ${userId}:`, error);
-        }
+        await track(userId, 'crates_opened', 1);
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // SOCIAL TRACKING
-    // ═══════════════════════════════════════════════════════════════════
-    
+    // ─── Social Tracking ───
     static async trackGift(userId) {
+        await track(userId, 'gifts', 1);
+    }
+
+    // ─── Limit Break Tracking ───
+    static async trackLimitBreak(userId) {
+        await track(userId, 'limit_breaks', 1);
+    }
+
+    // ─── Command Variety Tracking ───
+    static async trackCommandVariety(userId, commandName) {
+        const date = new Date().toISOString().slice(0, 10);
         try {
-            await Promise.all([
-                // Daily: send gift
-                QuestProgressService.updateDailyProgress(userId, 'daily_gifts', 1, 1),
-                // Weekly: generous giving
-                QuestProgressService.updateWeeklyProgress(userId, 'weekly_gifts', 1, 7)
-            ]);
+            // Track unique commands used today
+            await new Promise((resolve, reject) => {
+                db.run(
+                    `INSERT OR IGNORE INTO userCommandVariety (userId, commandName, date) VALUES (?, ?, ?)`,
+                    [userId, commandName, date],
+                    (err) => err ? reject(err) : resolve()
+                );
+            });
+            
+            // Get count of unique commands
+            const result = await new Promise((resolve, reject) => {
+                db.get(
+                    `SELECT COUNT(DISTINCT commandName) as count FROM userCommandVariety WHERE userId = ? AND date = ?`,
+                    [userId, date],
+                    (err, row) => err ? reject(err) : resolve(row)
+                );
+            });
+            
+            // Update quest progress with current count
+            await updateQuestProgressDirect(userId, 'command_variety', result?.count || 1, 'daily');
         } catch (error) {
-            console.error(`[QuestMiddleware] Failed to track gift for ${userId}:`, error);
+            console.error(`[QuestMiddleware] Failed to track command variety for ${userId}:`, error);
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // LEGACY SUPPORT (for backwards compatibility)
-    // ═══════════════════════════════════════════════════════════════════
-    
+    // ─── Quest Completion Tracking ───
+    static async trackQuestCompleted(userId) {
+        await track(userId, 'quests_completed', 1);
+    }
+
+    static async trackDailyCompletion(userId) {
+        await track(userId, 'daily_completions', 1);
+    }
+
+    // ─── Legacy Support ───
     static async trackPassiveCoins(userId, amount) {
         await this.trackCoinsEarned(userId, amount);
+    }
+}
+
+/**
+ * Directly update quest progress (for variety-type quests where we set absolute value)
+ */
+async function updateQuestProgressDirect(userId, trackingType, value, questType) {
+    const date = new Date().toISOString().slice(0, 10);
+    const week = getWeekIdentifier();
+    
+    try {
+        // Get user's active quests that match this trackingType
+        const activeQuests = await new Promise((resolve, reject) => {
+            db.all(
+                `SELECT uniqueQuestId, goal FROM userActiveQuests 
+                 WHERE userId = ? AND trackingType = ? AND questType = ?
+                 AND period = ?`,
+                [userId, trackingType, questType, questType === 'daily' ? date : week],
+                (err, rows) => err ? reject(err) : resolve(rows || [])
+            );
+        });
+        
+        // Update progress for each matching quest
+        for (const quest of activeQuests) {
+            const table = questType === 'daily' ? 'dailyQuestProgress' : 'weeklyQuestProgress';
+            const timeField = questType === 'daily' ? 'date' : 'week';
+            const timeValue = questType === 'daily' ? date : week;
+            
+            await new Promise((resolve, reject) => {
+                db.run(
+                    `INSERT INTO ${table} (userId, questId, ${timeField}, progress, completed, claimed)
+                     VALUES (?, ?, ?, ?, ?, 0)
+                     ON CONFLICT(userId, questId, ${timeField}) DO UPDATE SET
+                         progress = ?,
+                         completed = CASE WHEN ? >= ${table}.goal OR ? >= ? THEN 1 ELSE ${table}.completed END`,
+                    [userId, quest.uniqueQuestId, timeValue, value, value >= quest.goal ? 1 : 0, 
+                     value, value, value, quest.goal],
+                    (err) => err ? reject(err) : resolve()
+                );
+            });
+        }
+    } catch (error) {
+        console.error(`[QuestMiddleware] Failed to update ${trackingType} directly for ${userId}:`, error);
     }
 }
 

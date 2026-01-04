@@ -218,14 +218,26 @@ module.exports = {
         const botChannelId = musicService.getVoiceChannelId(guildId);
         if (!await checkSameVoiceChannel(interaction, botChannelId)) return;
 
-        // Parse time (supports "1:30" or "90")
+        // Parse time (supports "1:30", "90", "0:30", "1:30:00")
         let seconds;
         if (timeStr.includes(':')) {
-            const parts = timeStr.split(':').map(Number);
+            const parts = timeStr.split(':').map(p => parseInt(p) || 0);
+            // Validate each part is a valid number
+            if (parts.some(p => isNaN(p) || p < 0)) {
+                return interaction.reply({
+                    embeds: [trackHandler.createErrorEmbed('Invalid time format. Use "1:30" or "90".')],
+                    ephemeral: true
+                });
+            }
             if (parts.length === 2) {
-                seconds = parts[0] * 60 + parts[1];
+                // Validate minutes:seconds format (seconds should be 0-59 in proper format)
+                const [mins, secs] = parts;
+                seconds = mins * 60 + secs;
             } else if (parts.length === 3) {
-                seconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
+                const [hours, mins, secs] = parts;
+                seconds = hours * 3600 + mins * 60 + secs;
+            } else {
+                seconds = NaN;
             }
         } else {
             seconds = parseInt(timeStr);

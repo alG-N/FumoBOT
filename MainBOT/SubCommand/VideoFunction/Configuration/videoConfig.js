@@ -21,6 +21,13 @@ module.exports = {
     TARGET_COMPRESSION_MB: 24,  // Target size after compression
     
     // ═══════════════════════════════════════════════════
+    // Duration & Abuse Prevention Settings
+    // ═══════════════════════════════════════════════════
+    MAX_VIDEO_DURATION_SECONDS: 300,  // 5 minutes max - prevents hour-long video abuse
+    MAX_CONCURRENT_DOWNLOADS: 3,      // Max simultaneous downloads across all users
+    USER_COOLDOWN_SECONDS: 30,        // Per-user cooldown between downloads
+    
+    // ═══════════════════════════════════════════════════
     // Cleanup Settings
     // ═══════════════════════════════════════════════════
     TEMP_FILE_CLEANUP_INTERVAL: 5 * 60 * 1000,  // 5 minutes

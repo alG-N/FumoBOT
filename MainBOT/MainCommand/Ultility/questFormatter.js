@@ -169,7 +169,7 @@ function formatQuestCompletion(completed, total) {
 }
 
 function formatAchievementTier(tier) {
-    const tiers = require('../Configuration/achievementConfig').ACHIEVEMENT_TIERS;
+    const tiers = require('../Configuration/unifiedAchievementConfig').ACHIEVEMENT_TIERS;
     const tierInfo = tiers[tier];
     
     return `${tierInfo.icon} ${tierInfo.name} (x${tierInfo.multiplier})`;

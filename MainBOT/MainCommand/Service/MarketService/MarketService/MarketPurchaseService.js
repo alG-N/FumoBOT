@@ -95,6 +95,13 @@ async function processShopPurchase(userId, fumo, amount, totalPrice, currency, s
             updateGemMarketStock(userId, fumo.name, amount);
         }
         
+        // Track market buy for quests (each purchase counts as 1, regardless of amount)
+        try {
+            await QuestMiddleware.trackMarketBuy(userId);
+        } catch (err) {
+            // Silent fail for quest tracking
+        }
+        
         return { remainingBalance };
     });
 }
@@ -172,6 +179,16 @@ async function processGlobalPurchase(buyerId, listing) {
         // Track market sale for seller's quests
         try {
             await QuestMiddleware.trackMarketSale(listing.userId);
+            // Track market buy for buyer's quests
+            await QuestMiddleware.trackMarketBuy(buyerId);
+            
+            // Track coins/gems earned by seller from market sale
+            if (sellerReceivesCoins > 0) {
+                await QuestMiddleware.trackCoinsEarned(listing.userId, sellerReceivesCoins);
+            }
+            if (sellerReceivesGems > 0) {
+                await QuestMiddleware.trackGemsEarned(listing.userId, sellerReceivesGems);
+            }
         } catch (err) {
             // Silent fail for quest tracking
         }

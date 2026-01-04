@@ -1,7 +1,8 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { checkAccess, AccessType } = require('../Middleware');
 const fs = require('fs');
-const afkFilePath = 'MainBOT/SubCommand/BasicCommand/SillyAFK.json';
+const path = require('path');
+const afkFilePath = path.join(__dirname, 'SillyAFK.json');
 
 // In-memory cache for AFK data
 let afkCache = null;
@@ -98,56 +99,70 @@ module.exports = {
     },
     
     onMessage(message, client) {
-        if (message.author.bot) return;
-        const afkData = loadAfkUsers();
-        const userId = message.author.id;
-        const guildId = message.guild?.id;
+        try {
+            if (message.author.bot) return;
+            if (!message.guild) return; // Ignore DMs
+            
+            const afkData = loadAfkUsers();
+            const userId = message.author.id;
+            const guildId = message.guild.id;
 
-        let wasAfk = false;
-        let afkInfo;
-        if (afkData[userId]?.type === 'global') {
-            wasAfk = true;
-            afkInfo = afkData[userId];
-            delete afkData[userId];
-        } else if (afkData[userId]?.[guildId]) {
-            wasAfk = true;
-            afkInfo = afkData[userId][guildId];
-            delete afkData[userId][guildId];
-            if (Object.keys(afkData[userId]).length === 0) delete afkData[userId];
-        }
-        if (wasAfk) {
-            saveAfkUsers(afkData);
-            const timeAway = Math.floor((Date.now() - afkInfo.timestamp) / 1000);
-            const embed = new EmbedBuilder()
-                .setColor('#00CED1')
-                .setTitle('Welcome Back!')
-                .setDescription(`You were AFK for **${formatTime(timeAway)}**. おかえりなさい！`)
-                .setThumbnail(message.author.displayAvatarURL({ dynamic: true }))
-                .setImage('https://media.tenor.com/blCLnVdO3CgAAAAd/senko-sewayaki-kitsune-no-senko-san.gif')
-                .setFooter({ text: 'We missed you! 🎌', iconURL: client.user.displayAvatarURL() });
-            return message.reply({ embeds: [embed] }).then(msg => setTimeout(() => msg.delete().catch(() => { }), 15000));
-        }
-
-        message.mentions.users.forEach(user => {
+            let wasAfk = false;
             let afkInfo;
-            if (afkData[user.id]?.type === 'global') afkInfo = afkData[user.id];
-            else if (afkData[user.id]?.[guildId]) afkInfo = afkData[user.id][guildId];
-            if (afkInfo) {
+            if (afkData[userId]?.type === 'global') {
+                wasAfk = true;
+                afkInfo = afkData[userId];
+                delete afkData[userId];
+            } else if (afkData[userId]?.[guildId]) {
+                wasAfk = true;
+                afkInfo = afkData[userId][guildId];
+                delete afkData[userId][guildId];
+                if (Object.keys(afkData[userId]).length === 0) delete afkData[userId];
+            }
+            
+            if (wasAfk) {
+                saveAfkUsers(afkData);
                 const timeAway = Math.floor((Date.now() - afkInfo.timestamp) / 1000);
                 const embed = new EmbedBuilder()
-                    .setColor('#FFA07A')
-                    .setTitle(`${user.username} is currently AFK 💤`)
-                    .setDescription(`**AFK for:** ${formatTime(timeAway)}\n**Reason:** ${afkInfo.reason}`)
-                    .setThumbnail(user.displayAvatarURL({ dynamic: true }))
-                    .addFields([
-                        {
-                            name: 'While you wait...',
-                            value: '🍵 Grab tea\n📺 Watch anime\n🎮 Play a game\n🈶 Practice Japanese\n🎨 Draw a fumo\n'
-                        }
-                    ])
-                    .setFooter({ text: 'They’ll return soon 🌸', iconURL: client.user.displayAvatarURL() });
-                message.reply({ embeds: [embed] });
+                    .setColor('#00CED1')
+                    .setTitle('Welcome Back!')
+                    .setDescription(`You were AFK for **${formatTime(timeAway)}**. おかえりなさい！`)
+                    .setThumbnail(message.author.displayAvatarURL({ dynamic: true }))
+                    .setImage('https://media.tenor.com/blCLnVdO3CgAAAAd/senko-sewayaki-kitsune-no-senko-san.gif')
+                    .setFooter({ text: 'We missed you! 🎌', iconURL: client.user.displayAvatarURL() });
+                message.reply({ embeds: [embed] })
+                    .then(msg => setTimeout(() => msg.delete().catch(() => {}), 15000))
+                    .catch(() => {});
+                return;
             }
-        });
+
+            message.mentions.users.forEach(user => {
+                let mentionedAfkInfo;
+                if (afkData[user.id]?.type === 'global') {
+                    mentionedAfkInfo = afkData[user.id];
+                } else if (afkData[user.id]?.[guildId]) {
+                    mentionedAfkInfo = afkData[user.id][guildId];
+                }
+                
+                if (mentionedAfkInfo) {
+                    const timeAway = Math.floor((Date.now() - mentionedAfkInfo.timestamp) / 1000);
+                    const embed = new EmbedBuilder()
+                        .setColor('#FFA07A')
+                        .setTitle(`${user.username} is currently AFK 💤`)
+                        .setDescription(`**AFK for:** ${formatTime(timeAway)}\n**Reason:** ${mentionedAfkInfo.reason}`)
+                        .setThumbnail(user.displayAvatarURL({ dynamic: true }))
+                        .addFields([
+                            {
+                                name: 'While you wait...',
+                                value: '🍵 Grab tea\n📺 Watch anime\n🎮 Play a game\n🈶 Practice Japanese\n🎨 Draw a fumo\n'
+                            }
+                        ])
+                        .setFooter({ text: 'They\'ll return soon 🌸', iconURL: client.user.displayAvatarURL() });
+                    message.reply({ embeds: [embed] }).catch(() => {});
+                }
+            });
+        } catch (error) {
+            console.error('[AFK] onMessage error:', error.message);
+        }
     }
 };

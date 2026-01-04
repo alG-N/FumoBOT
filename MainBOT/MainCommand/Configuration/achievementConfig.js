@@ -1,3 +1,11 @@
+/**
+ * @deprecated This file is deprecated. Please use unifiedAchievementConfig.js instead.
+ * The ACHIEVEMENTS array and ACHIEVEMENT_TIERS have been moved to unifiedAchievementConfig.js
+ * for better maintainability and to avoid duplication with questConfig.js.
+ * 
+ * Migration: Import from '../Configuration/unifiedAchievementConfig' instead.
+ * This file is kept for backward compatibility but will be removed in a future update.
+ */
 const ACHIEVEMENTS = [
     {
         id: 'total_rolls',

@@ -77,6 +77,9 @@ module.exports = {
         const subreddit = interaction.options.getString('subreddit').replace(/\s/g, '').trim();
         const sortBy = interaction.options.getString('sort') || 'top';
         const count = parseInt(interaction.options.getString('count') || '5');
+        
+        // Check if channel is NSFW-enabled (for filtering NSFW posts)
+        const isNsfwChannel = interaction.channel?.nsfw || false;
 
         await interaction.deferReply();
 
@@ -111,12 +114,27 @@ module.exports = {
             });
         }
 
+        // Filter out NSFW posts if channel is not NSFW-enabled
+        let filteredPosts = result.posts;
+        if (!isNsfwChannel) {
+            filteredPosts = result.posts.filter(post => !post.nsfw);
+            if (filteredPosts.length === 0 && result.posts.length > 0) {
+                const nsfwEmbed = new EmbedBuilder()
+                    .setTitle('🔞 NSFW Content Only')
+                    .setDescription(`All posts from **r/${subreddit}** are marked NSFW.\n\nTo view NSFW content, use this command in an **age-restricted channel**.`)
+                    .setColor('#ED4245')
+                    .setFooter({ text: 'Channel must be marked as NSFW in Discord settings' });
+                return interaction.editReply({ embeds: [nsfwEmbed] });
+            }
+        }
+
         // Store in cache
-        redditCache.setPosts(interaction.user.id, result.posts);
+        redditCache.setPosts(interaction.user.id, filteredPosts);
         redditCache.setPage(interaction.user.id, 0);
         redditCache.setSort(interaction.user.id, sortBy);
+        redditCache.setNsfwChannel(interaction.user.id, isNsfwChannel); // Store NSFW status
 
-        await postHandler.sendPostListEmbed(interaction, subreddit, result.posts, sortBy, 0);
+        await postHandler.sendPostListEmbed(interaction, subreddit, filteredPosts, sortBy, 0, isNsfwChannel);
     },
 
     async handleButton(interaction) {

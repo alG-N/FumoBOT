@@ -91,7 +91,7 @@ class QuestProgressService {
         
         return new Promise((resolve, reject) => {
             db.all(
-                `SELECT questId, progress, completed FROM dailyQuestProgress
+                `SELECT questId, progress, completed, COALESCE(claimed, 0) as claimed FROM dailyQuestProgress
                  WHERE userId = ? AND date = ?`,
                 [userId, targetDate],
                 (err, rows) => {
@@ -100,7 +100,8 @@ class QuestProgressService {
                     rows.forEach(row => {
                         progressMap[row.questId] = {
                             progress: row.progress,
-                            completed: row.completed === 1
+                            completed: row.completed === 1,
+                            claimed: row.claimed === 1
                         };
                     });
                     resolve(progressMap);
@@ -114,7 +115,7 @@ class QuestProgressService {
         
         return new Promise((resolve, reject) => {
             db.all(
-                `SELECT questId, progress, completed FROM weeklyQuestProgress
+                `SELECT questId, progress, completed, COALESCE(claimed, 0) as claimed FROM weeklyQuestProgress
                  WHERE userId = ? AND week = ?`,
                 [userId, targetWeek],
                 (err, rows) => {
@@ -123,7 +124,8 @@ class QuestProgressService {
                     rows.forEach(row => {
                         progressMap[row.questId] = {
                             progress: row.progress,
-                            completed: row.completed === 1
+                            completed: row.completed === 1,
+                            claimed: row.claimed === 1
                         };
                     });
                     resolve(progressMap);
@@ -135,9 +137,9 @@ class QuestProgressService {
     static async getAchievementProgress(userId, achievementId = null) {
         return new Promise((resolve, reject) => {
             const query = achievementId
-                ? `SELECT achievementId, progress, claimed FROM achievementProgress 
+                ? `SELECT achievementId, progress, claimed, claimedMilestones FROM achievementProgress 
                    WHERE userId = ? AND achievementId = ?`
-                : `SELECT achievementId, progress, claimed FROM achievementProgress 
+                : `SELECT achievementId, progress, claimed, claimedMilestones FROM achievementProgress 
                    WHERE userId = ?`;
             
             const params = achievementId ? [userId, achievementId] : [userId];
@@ -146,13 +148,31 @@ class QuestProgressService {
                 if (err) return reject(err);
                 
                 if (achievementId) {
-                    resolve(rows[0] || { progress: 0, claimed: 0 });
+                    const row = rows[0];
+                    if (row) {
+                        let claimedMilestones = [];
+                        try {
+                            claimedMilestones = row.claimedMilestones ? JSON.parse(row.claimedMilestones) : [];
+                        } catch (e) {
+                            claimedMilestones = [];
+                        }
+                        resolve({ progress: row.progress, claimed: row.claimed, claimedMilestones });
+                    } else {
+                        resolve({ progress: 0, claimed: 0, claimedMilestones: [] });
+                    }
                 } else {
                     const progressMap = {};
                     rows.forEach(row => {
+                        let claimedMilestones = [];
+                        try {
+                            claimedMilestones = row.claimedMilestones ? JSON.parse(row.claimedMilestones) : [];
+                        } catch (e) {
+                            claimedMilestones = [];
+                        }
                         progressMap[row.achievementId] = {
                             progress: row.progress,
-                            claimed: row.claimed
+                            claimed: row.claimed,
+                            claimedMilestones
                         };
                     });
                     resolve(progressMap);
@@ -277,6 +297,79 @@ class QuestProgressService {
                 (err) => {
                     if (err) return reject(err);
                     resolve();
+                }
+            );
+        });
+    }
+
+    /**
+     * Update progress for dynamic quests
+     * Uses the goal stored in userActiveQuests
+     */
+    static async updateDynamicProgress(userId, questId, questType, increment = 1) {
+        const timeField = questType === 'daily' ? 'date' : 'week';
+        const timeValue = questType === 'daily' 
+            ? new Date().toISOString().slice(0, 10)
+            : getWeekIdentifier();
+        const table = questType === 'daily' ? 'dailyQuestProgress' : 'weeklyQuestProgress';
+        
+        // Get the goal for this quest from userActiveQuests
+        const questData = await new Promise((resolve, reject) => {
+            db.get(
+                `SELECT goal FROM userActiveQuests 
+                 WHERE userId = ? AND questId = ? AND questType = ?`,
+                [userId, questId, questType],
+                (err, row) => err ? reject(err) : resolve(row)
+            );
+        });
+        
+        if (!questData) {
+            // Quest not found in active quests
+            return { changes: 0, progress: 0, completed: false };
+        }
+        
+        const goal = questData.goal;
+        
+        return new Promise((resolve, reject) => {
+            db.run(
+                `INSERT INTO ${table} (userId, questId, ${timeField}, progress, completed)
+                 VALUES (?, ?, ?, ?, 0)
+                 ON CONFLICT(userId, questId, ${timeField}) DO UPDATE SET
+                     progress = MIN(${table}.progress + ?, ?),
+                     completed = CASE 
+                         WHEN ${table}.progress + ? >= ? THEN 1
+                         ELSE ${table}.completed
+                     END`,
+                [userId, questId, timeValue, increment, increment, goal, increment, goal],
+                function(err) {
+                    if (err) return reject(err);
+                    resolve({ 
+                        changes: this.changes,
+                        goal
+                    });
+                }
+            );
+        });
+    }
+
+    /**
+     * Get count of completed quests
+     */
+    static async getCompletedCount(userId, questType = 'daily') {
+        const table = questType === 'daily' ? 'dailyQuestProgress' : 'weeklyQuestProgress';
+        const timeField = questType === 'daily' ? 'date' : 'week';
+        const timeValue = questType === 'daily' 
+            ? new Date().toISOString().slice(0, 10)
+            : getWeekIdentifier();
+        
+        return new Promise((resolve, reject) => {
+            db.get(
+                `SELECT COUNT(*) as count FROM ${table}
+                 WHERE userId = ? AND ${timeField} = ? AND completed = 1`,
+                [userId, timeValue],
+                (err, row) => {
+                    if (err) return reject(err);
+                    resolve(row?.count || 0);
                 }
             );
         });

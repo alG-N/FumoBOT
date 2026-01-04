@@ -16,8 +16,8 @@ const SellTransactionService = require('./SellTransactionService');
 // ============================================================
 // CONSTANTS
 // ============================================================
-const SELLABLE_RARITIES = ['Common', 'UNCOMMON', 'RARE', 'EPIC', 'OTHERWORLDLY', 'LEGENDARY', 'MYTHICAL', '???', 'ASTRAL', 'CELESTIAL', 'INFINITE'];
-const UNSELLABLE_RARITIES = ['ETERNAL', 'TRANSCENDENT', 'EXCLUSIVE'];
+const SELLABLE_RARITIES = ['Common', 'UNCOMMON', 'RARE', 'EPIC', 'OTHERWORLDLY', 'LEGENDARY', 'MYTHICAL', 'EXCLUSIVE', '???', 'ASTRAL', 'CELESTIAL', 'INFINITE'];
+const UNSELLABLE_RARITIES = ['ETERNAL', 'TRANSCENDENT'];
 const TRAITS = [
     { id: 'base', label: 'Base', emoji: '📦' },
     { id: 'shiny', label: '✨SHINY', emoji: '✨', tag: '[✨SHINY]' },

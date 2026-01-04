@@ -10,6 +10,7 @@ const {
     removeNormalUserState 
 } = require('../UnifiedAutoRollPersistence');
 const StorageLimitService = require('../../UserDataService/StorageService/StorageLimitService');
+const QuestMiddleware = require('../../../Middleware/questMiddleware');
 
 const autoRollMap = new Map();
 const AUTO_SAVE_INTERVAL = 30000;
@@ -130,6 +131,11 @@ async function performAutoSell(userId, rolledFumos = []) {
     // Execute all operations in single transaction
     if (operations.length > 0) {
         await transaction(operations);
+    }
+    
+    // Track coins earned from auto-sell for quest progress
+    if (totalSell > 0) {
+        await QuestMiddleware.trackCoinsEarned(userId, totalSell);
     }
 
     return totalSell;

@@ -131,7 +131,7 @@ async function getUserQuestSummary(userId) {
                 [userId, week]
             ),
             db.all(
-                `SELECT achievementId, progress, claimed 
+                `SELECT achievementId, progress, claimed, claimedMilestones 
                  FROM achievementProgress 
                  WHERE userId = ?`,
                 [userId]
@@ -141,10 +141,24 @@ async function getUserQuestSummary(userId) {
         const dailyCompleted = (dailyProgress || []).filter(q => q.completed === 1).length;
         const weeklyCompleted = (weeklyProgress || []).filter(q => q.completed === 1).length;
         
+        // Parse claimedMilestones for each achievement
+        const parsedAchievements = (achievements || []).map(ach => {
+            let claimedMilestones = [];
+            try {
+                claimedMilestones = ach.claimedMilestones ? JSON.parse(ach.claimedMilestones) : [];
+            } catch (e) {
+                claimedMilestones = [];
+            }
+            return {
+                ...ach,
+                claimedMilestones
+            };
+        });
+        
         return {
             daily: { completed: dailyCompleted, total: 5, progress: dailyProgress || [] },
             weekly: { completed: weeklyCompleted, total: 7, progress: weeklyProgress || [] },
-            achievements: achievements || []
+            achievements: parsedAchievements
         };
     } catch (error) {
         console.error('[BalanceService] Error fetching quest summary:', error);
@@ -162,11 +176,36 @@ async function getCurrentWeather(userId) {
 }
 
 async function getUserAchievements(userId, row) {
-    const { ACHIEVEMENTS } = require('../../../Configuration/balanceConfig');
+    // Get badge-based achievements from user's inventory
+    const { getUserBadges } = require('../ItemService/ItemQueryService');
     
-    return ACHIEVEMENTS
-        .filter(achievement => achievement.check(row))
-        .map(achievement => achievement.name);
+    try {
+        const badges = await getUserBadges(userId);
+        
+        if (!badges || badges.length === 0) {
+            return [];
+        }
+
+        // Format badges with tier emoji - now shows "BadgeName - TierName"
+        const tierEmojis = {
+            'C': '🥉', // Common
+            'R': '🥈', // Rare
+            'E': '🥇', // Epic
+            'L': '💎', // Legendary
+            'M': '🌟', // Mythical
+            'T': '✨', // Transcendent
+            '?': '❓'  // Special/Unknown
+        };
+
+        return badges.map(badge => {
+            const emoji = tierEmojis[badge.tier] || '🏅';
+            // Format as "BadgeName - TierName" (e.g., "RollBadge - Mythical")
+            return `${emoji} ${badge.baseName} - ${badge.tierName}`;
+        });
+    } catch (error) {
+        console.error('[BalanceService] Error fetching badge achievements:', error);
+        return [];
+    }
 }
 
 async function getUserActivity(userId) {

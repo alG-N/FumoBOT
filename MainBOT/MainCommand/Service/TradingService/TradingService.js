@@ -86,6 +86,10 @@ async function updateTradeItem(sessionKey, userId, type, data) {
             break;
 
         case 'item':
+            // Check if item is untradable (badges are not tradeable)
+            if (data.itemName && data.itemName.includes('Badge')) {
+                return { success: false, error: 'UNTRADABLE_ITEM', message: 'Badges cannot be traded!' };
+            }
             if (user.items.size >= TRADING_CONFIG.MAX_ITEMS_PER_TRADE && !user.items.has(data.itemName)) {
                 return { success: false, error: 'MAX_ITEMS_REACHED' };
             }
@@ -465,6 +469,21 @@ async function executeTrade(sessionKey) {
                             QuestMiddleware.trackTrade(user1.id),
                             QuestMiddleware.trackTrade(user2.id)
                         ]);
+                        
+                        // Track coins/gems received by each user from trade
+                        // User 2 receives user1's offer, User 1 receives user2's offer
+                        if (user1.coins > 0) {
+                            await QuestMiddleware.trackCoinsEarned(user2.id, user1.coins);
+                        }
+                        if (user1.gems > 0) {
+                            await QuestMiddleware.trackGemsEarned(user2.id, user1.gems);
+                        }
+                        if (user2.coins > 0) {
+                            await QuestMiddleware.trackCoinsEarned(user1.id, user2.coins);
+                        }
+                        if (user2.gems > 0) {
+                            await QuestMiddleware.trackGemsEarned(user1.id, user2.gems);
+                        }
                     } catch (err) {
                         // Silent fail for quest tracking
                     }

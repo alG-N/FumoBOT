@@ -216,5 +216,100 @@ module.exports = {
     getUserInventoryPaginated,
     getInventoryStats,
     getItemsByRarity,
-    searchInventory
+    searchInventory,
+    getUserBadges
 };
+
+/**
+ * Get all badges from user's inventory, consolidated by base name (highest rarity only)
+ * @param {string} userId - The user ID
+ * @returns {Promise<Array<{baseName: string, tier: string, tierName: string, fullName: string, quantity: number}>>} Array of badge objects
+ */
+async function getUserBadges(userId) {
+    debugLog('INVENTORY_QUERY', `Fetching badges for user ${userId}`);
+
+    try {
+        const rows = await all(
+            `SELECT 
+                COALESCE(itemName, fumoName) as itemName,
+                SUM(quantity) as totalQuantity 
+             FROM userInventory 
+             WHERE userId = ? 
+             AND COALESCE(itemName, fumoName) LIKE '%Badge%'
+             AND (itemName IS NOT NULL OR fumoName IS NOT NULL)
+             AND (TRIM(COALESCE(itemName, '')) != '' OR TRIM(COALESCE(fumoName, '')) != '')
+             GROUP BY COALESCE(itemName, fumoName)
+             HAVING totalQuantity > 0
+             ORDER BY COALESCE(itemName, fumoName)`,
+            [userId]
+        );
+
+        if (!rows || rows.length === 0) {
+            return [];
+        }
+
+        // Tier priority (lower = higher rarity): T > M > L > E > R > C
+        const tierPriority = { 'T': 0, 'M': 1, 'L': 2, 'E': 3, 'R': 4, 'C': 5, '?': 99 };
+        
+        // Tier to full name mapping
+        const tierNames = {
+            'T': 'Transcendent',
+            'M': 'Mythical',
+            'L': 'Legendary',
+            'E': 'Epic',
+            'R': 'Rare',
+            'C': 'Common',
+            '?': 'Unknown'
+        };
+
+        // Group badges by base name and keep only the highest rarity
+        const badgeMap = new Map();
+
+        for (const row of rows) {
+            if (!row.itemName || typeof row.itemName !== 'string' || row.itemName.trim() === '') {
+                continue;
+            }
+
+            const quantity = parseInt(row.totalQuantity) || 0;
+            if (quantity <= 0) continue;
+
+            // Extract tier and base name: "RollBadge(M)" -> tier: "M", baseName: "RollBadge"
+            const match = row.itemName.match(/^(.+?)\(([CLREMT?])\)$/);
+            if (!match) continue;
+
+            const baseName = match[1].trim();
+            const tier = match[2];
+            const priority = tierPriority[tier] ?? 99;
+
+            // Check if we already have this badge type
+            const existing = badgeMap.get(baseName);
+            
+            // Keep the badge with higher rarity (lower priority number)
+            if (!existing || priority < existing.priority) {
+                badgeMap.set(baseName, {
+                    baseName,
+                    tier,
+                    tierName: tierNames[tier] || 'Unknown',
+                    fullName: row.itemName,
+                    quantity,
+                    priority
+                });
+            }
+        }
+
+        // Convert to array and sort by tier priority (highest rarity first)
+        return Array.from(badgeMap.values())
+            .sort((a, b) => a.priority - b.priority)
+            .map(({ baseName, tier, tierName, fullName, quantity }) => ({
+                baseName,
+                tier,
+                tierName,
+                fullName,
+                quantity
+            }));
+
+    } catch (error) {
+        debugLog('INVENTORY_QUERY', `Error fetching badges: ${error.message}`);
+        return [];
+    }
+}

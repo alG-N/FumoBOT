@@ -139,7 +139,9 @@ module.exports = (clientInstance) => {
         if (message.author.bot) return;
         
         const content = message.content.trim();
-        if (content !== '.b' && content !== '.balance') return;
+        const command = content.split(/\s+/)[0].toLowerCase();
+        // Only respond to exact .balance or .bal (not .b which conflicts with .boost)
+        if (command !== '.balance' && command !== '.bal') return;
         
         const restriction = checkRestrictions(message.author.id);
         if (restriction.blocked) {
@@ -147,6 +149,31 @@ module.exports = (clientInstance) => {
         }
         
         const args = content.split(/\s+/).slice(1);
+        
+        // Handle subcommands
+        if (args[0]?.toLowerCase() === 'achievements' || args[0]?.toLowerCase() === 'ach') {
+            // Redirect to quest achievements
+            return message.reply({
+                embeds: [
+                    new EmbedBuilder()
+                        .setColor(0x7B68EE)
+                        .setTitle('🏆 Achievements')
+                        .setDescription([
+                            'Use `.quest` and click **🏆 Achievements** to view your detailed achievement progress!',
+                            '',
+                            'Or use `.quest achievements` directly.',
+                            '',
+                            '**Quick Info:**',
+                            '• Achievements track your lifetime progress',
+                            '• Each achievement has multiple milestones',
+                            '• Milestones scale infinitely!',
+                            '• Claim rewards with `.claim`'
+                        ].join('\n'))
+                        .setTimestamp()
+                ]
+            });
+        }
+        
         const targetUser = await parseTargetUser(message, args);
         
         await handleBalanceCommand(message, targetUser);

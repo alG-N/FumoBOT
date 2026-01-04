@@ -1,5 +1,6 @@
 const db = require('../../../Core/database');
 const SellValidationService = require('./SellValidationService');
+const QuestMiddleware = require('../../../Middleware/questMiddleware');
 
 const SHINY_MULTIPLIER = 2;
 const ALG_MULTIPLIER = 150;
@@ -213,6 +214,13 @@ class SellTransactionService {
 
             // Execute all in single transaction
             await db.transaction(operations);
+            
+            // Track coins/gems earned for quest progress
+            if (rewardType === 'coins' && totalReward > 0) {
+                await QuestMiddleware.trackCoinsEarned(userId, totalReward);
+            } else if (rewardType === 'gems' && totalReward > 0) {
+                await QuestMiddleware.trackGemsEarned(userId, totalReward);
+            }
 
             return { success: true };
         } catch (error) {

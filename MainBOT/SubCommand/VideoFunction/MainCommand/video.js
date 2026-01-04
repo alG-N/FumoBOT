@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { checkAccess, AccessType } = require('../../Middleware');
 const path = require('path');
 const fs = require('fs');
@@ -9,6 +9,36 @@ const videoEmbedBuilder = require('../Utility/videoEmbedBuilder');
 const progressAnimator = require('../Utility/progressAnimator');
 const { validateUrl } = require('../Middleware/urlValidator');
 const videoConfig = require('../Configuration/videoConfig');
+
+// ═══════════════════════════════════════════════════
+// Rate Limiting & Abuse Prevention
+// ═══════════════════════════════════════════════════
+const userCooldowns = new Map();
+const activeDownloads = new Set();
+
+function checkCooldown(userId) {
+    const cooldown = userCooldowns.get(userId);
+    if (cooldown && Date.now() < cooldown) {
+        return Math.ceil((cooldown - Date.now()) / 1000);
+    }
+    return 0;
+}
+
+function setCooldown(userId) {
+    userCooldowns.set(userId, Date.now() + (videoConfig.USER_COOLDOWN_SECONDS * 1000));
+}
+
+function checkConcurrentLimit() {
+    return activeDownloads.size >= videoConfig.MAX_CONCURRENT_DOWNLOADS;
+}
+
+// Cleanup old cooldowns periodically
+setInterval(() => {
+    const now = Date.now();
+    for (const [userId, expiry] of userCooldowns.entries()) {
+        if (now > expiry) userCooldowns.delete(userId);
+    }
+}, 60000);
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -47,6 +77,29 @@ module.exports = {
             return interaction.reply({ embeds: [access.embed], ephemeral: true });
         }
 
+        const userId = interaction.user.id;
+
+        // Check user cooldown
+        const remainingCooldown = checkCooldown(userId);
+        if (remainingCooldown > 0) {
+            const cooldownEmbed = new EmbedBuilder()
+                .setColor('#FF6B6B')
+                .setTitle('⏳ Cooldown Active')
+                .setDescription(`Please wait **${remainingCooldown} seconds** before downloading another video.`)
+                .setFooter({ text: 'This helps prevent server overload' });
+            return interaction.reply({ embeds: [cooldownEmbed], ephemeral: true });
+        }
+
+        // Check concurrent download limit
+        if (checkConcurrentLimit()) {
+            const busyEmbed = new EmbedBuilder()
+                .setColor('#FF6B6B')
+                .setTitle('🚦 Server Busy')
+                .setDescription(`Too many downloads in progress. Please wait a moment and try again.\n\n*Max concurrent downloads: ${videoConfig.MAX_CONCURRENT_DOWNLOADS}*`)
+                .setFooter({ text: 'This helps keep the bot responsive' });
+            return interaction.reply({ embeds: [busyEmbed], ephemeral: true });
+        }
+
         await interaction.deferReply();
 
         const url = interaction.options.getString('url');
@@ -63,14 +116,23 @@ module.exports = {
         const loadingEmbed = videoEmbedBuilder.buildLoadingEmbed(platform.name, platform.id, 'initializing');
         await interaction.editReply({ embeds: [loadingEmbed] });
 
-        // Handle direct link method
+        // Handle direct link method (no cooldown for links)
         if (method === 'link') {
             await this.handleDirectLink(interaction, url, platform);
             return;
         }
 
-        // Handle download methods (auto and download)
-        await this.handleDownload(interaction, url, platform, quality);
+        // Set cooldown and track active download
+        setCooldown(userId);
+        activeDownloads.add(userId);
+
+        try {
+            // Handle download methods (auto and download)
+            await this.handleDownload(interaction, url, platform, quality);
+        } finally {
+            // Always remove from active downloads
+            activeDownloads.delete(userId);
+        }
     },
 
     /**

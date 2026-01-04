@@ -109,6 +109,18 @@ async function executeSingleFlip(userId, choice, currency, bet, multiplier) {
     // Track for quest progress
     try {
         await QuestMiddleware.trackGamble(userId);
+        
+        // Track win for quest progress
+        if (won) {
+            await QuestMiddleware.trackGambleWin(userId, amount);
+            
+            // Track coins/gems earned
+            if (currency === 'coins') {
+                await QuestMiddleware.trackCoinsEarned(userId, amount);
+            } else if (currency === 'gems') {
+                await QuestMiddleware.trackGemsEarned(userId, amount);
+            }
+        }
     } catch (err) {
         debugLog('FLIP', `Quest tracking error: ${err.message}`);
     }
@@ -187,6 +199,22 @@ async function executeBatchFlips(userId, choice, currency, bet, multiplier, coun
     try {
         for (let i = 0; i < count; i++) {
             await QuestMiddleware.trackGamble(userId);
+        }
+        
+        // Track wins for quest progress
+        if (winCount > 0) {
+            for (let i = 0; i < winCount; i++) {
+                await QuestMiddleware.trackGambleWin(userId, 0);
+            }
+        }
+        
+        // Track net coins/gems earned (if positive)
+        if (netChange > 0) {
+            if (currency === 'coins') {
+                await QuestMiddleware.trackCoinsEarned(userId, netChange);
+            } else if (currency === 'gems') {
+                await QuestMiddleware.trackGemsEarned(userId, netChange);
+            }
         }
     } catch (err) {
         debugLog('FLIP', `Quest tracking error: ${err.message}`);

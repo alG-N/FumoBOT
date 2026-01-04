@@ -363,7 +363,7 @@ class PixivService {
 
     async getAutocompleteSuggestions(query) {
         // Use circuit breaker for autocomplete too
-        return circuitBreaker.withCircuitBreaker('pixiv-autocomplete', async () => {
+        return withCircuitBreaker('pixiv-autocomplete', async () => {
             const controller = new AbortController();
             const timeout = setTimeout(() => controller.abort(), 2000);
 
@@ -396,7 +396,7 @@ class PixivService {
 
         try {
             const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 1000);
+            const timeout = setTimeout(() => controller.abort(), 2500); // Increased from 1000ms for reliability
 
             const response = await fetch(
                 `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=ja&dt=t&q=${encodeURIComponent(text)}`,
@@ -426,7 +426,7 @@ class PixivService {
 
         try {
             const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 1000);
+            const timeout = setTimeout(() => controller.abort(), 2500); // Increased from 1000ms for reliability
 
             const response = await fetch(
                 `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ja&tl=en&dt=t&q=${encodeURIComponent(text)}`,

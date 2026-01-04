@@ -7,6 +7,7 @@ const FumoPool = require('../../../Data/FumoPool');
 const StorageLimitService = require('../../UserDataService/StorageService/StorageLimitService');
 const { getUserBoosts, consumeSanaeLuckRoll, consumeSanaeGuaranteedRoll, getSanaeBoostMultiplier, getTraitBoostDisplay } = require('../NormalGachaService/BoostService');
 const { meetsMinimumRarity, getRaritiesAbove } = require('../NormalGachaService/RarityService');
+const QuestMiddleware = require('../../../Middleware/questMiddleware');
 
 async function getEventUserBoosts(userId) {
     const now = Date.now();
@@ -439,10 +440,11 @@ async function selectAndAddMultipleEventFumos(userId, rarities, fumoPool) {
         }
     }
     
-    // Track weekly shiny count
+    // Track weekly shiny count and quest progress
     if (shinyCount > 0) {
         for (let i = 0; i < shinyCount; i++) {
             await incrementWeeklyShiny(userId);
+            await QuestMiddleware.trackShiny(userId);
         }
     }
     

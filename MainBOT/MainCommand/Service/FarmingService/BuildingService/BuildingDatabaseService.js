@@ -1,5 +1,6 @@
 const { get, run } = require('../../../Core/database');
 const { debugLog } = require('../../../Core/logger');
+const QuestMiddleware = require('../../../Middleware/questMiddleware');
 
 async function getUserBuildings(userId) {
     const row = await get(
@@ -59,6 +60,9 @@ async function upgradeBuilding(userId, buildingType) {
         `UPDATE userBuildings SET ${column} = ${column} + 1 WHERE userId = ?`,
         [userId]
     );
+    
+    // Track quest progress for building upgrades
+    await QuestMiddleware.trackBuildingUpgrade(userId);
     
     debugLog('BUILDINGS', `Upgraded ${buildingType} for user ${userId}`);
     return result;

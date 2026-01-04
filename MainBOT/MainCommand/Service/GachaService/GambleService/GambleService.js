@@ -135,6 +135,16 @@ async function updateBalances(winnerId, loserId, currency, amount) {
             [amount, amount, loserId]
         )
     ]);
+    
+    // Track gamble win for winner (quest tracking)
+    await QuestMiddleware.trackGambleWin(winnerId, amount);
+    
+    // Track coins/gems earned by winner
+    if (currency === 'coins') {
+        await QuestMiddleware.trackCoinsEarned(winnerId, amount);
+    } else if (currency === 'gems') {
+        await QuestMiddleware.trackGemsEarned(winnerId, amount);
+    }
 }
 
 async function updateBalancesPenalty(user1Id, user2Id, currency, penalty) {

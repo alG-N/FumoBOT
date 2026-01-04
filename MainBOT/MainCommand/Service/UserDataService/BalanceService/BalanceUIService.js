@@ -569,16 +569,29 @@ function getRarityEmoji(rarity) {
 // PAGE 9: QUESTS - Quest progress summary
 // ═══════════════════════════════════════════════════════════════════
 function createQuestsPage(targetUser, questSummary) {
+    const { ACHIEVEMENTS } = require('../../../Configuration/unifiedAchievementConfig');
     const { daily = { completed: 0, total: 5 }, weekly = { completed: 0, total: 7 }, achievements = [] } = questSummary || {};
     
     const dailyBar = formatProgressBar(daily.completed, daily.total, 10);
     const weeklyBar = formatProgressBar(weekly.completed, weekly.total, 10);
     
-    // Calculate claimable achievements
+    // Calculate claimable achievements using new milestone system
     let claimableAchievements = 0;
-    achievements.forEach(ach => {
-        const milestones = Math.floor((ach.progress || 0) / 100);
-        if (milestones > (ach.claimed || 0)) claimableAchievements++;
+    let totalMilestonesClaimed = 0;
+    
+    ACHIEVEMENTS.forEach(achConfig => {
+        const userAch = achievements.find(a => a.achievementId === achConfig.id);
+        const progress = userAch?.progress || 0;
+        const claimedMilestones = userAch?.claimedMilestones || [];
+        
+        totalMilestonesClaimed += claimedMilestones.length;
+        
+        // Check each base milestone
+        achConfig.milestones.forEach((milestone, i) => {
+            if (progress >= milestone.count && !claimedMilestones.includes(i)) {
+                claimableAchievements++;
+            }
+        });
     });
     
     // Get time until resets
@@ -621,9 +634,11 @@ function createQuestsPage(targetUser, questSummary) {
             {
                 name: '🏆 Achievements',
                 value: [
-                    `📊 **Tracked:** ${achievements.length}`,
+                    `📊 **Milestones Claimed:** ${totalMilestonesClaimed}`,
                     `🎁 **Claimable:** ${claimableAchievements}`,
-                    claimableAchievements > 0 ? '✨ Use `.claim` to collect!' : ''
+                    claimableAchievements > 0 ? '✨ Use `.claim` to collect!' : '',
+                    '',
+                    '*Use `.quest achievements` for details*'
                 ].filter(Boolean).join('\n'),
                 inline: false
             },
@@ -632,7 +647,7 @@ function createQuestsPage(targetUser, questSummary) {
                 value: [
                     '• Use `.quest` for detailed quest view',
                     '• Use `.claim` to collect all rewards',
-                    '• Quests track automatically as you play'
+                    '• Achievements scale infinitely!'
                 ].join('\n'),
                 inline: false
             }

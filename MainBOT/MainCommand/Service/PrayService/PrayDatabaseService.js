@@ -155,6 +155,14 @@ async function updateUserCoins(userId, coins, gems) {
         `UPDATE userCoins SET coins = coins + ?, gems = gems + ? WHERE userId = ?`,
         [coins, gems, userId]
     );
+    
+    // Track coins and gems earned for quest progress (only positive amounts)
+    if (coins > 0) {
+        await QuestMiddleware.trackCoinsEarned(userId, coins);
+    }
+    if (gems > 0) {
+        await QuestMiddleware.trackGemsEarned(userId, gems);
+    }
 }
 
 async function deductUserCurrency(userId, coins, gems) {

@@ -16,17 +16,27 @@ module.exports = {
             .setTitle('🛠️ FumoBOT(OtherCMD) - List of Commands')
             .setColor('#00ccff')
             .addFields(
-                { name: '/anime [nameAnime]', value: 'Displays detailed information about this anime' },
-                { name: '/play', value: 'Play a music of your own choice' },
-                { name: '/invite', value: 'Invite the bot to other server!' },
-                { name: '/reddit', value: 'Fetch post from Reddit!' },
-                { name: '/groupInform', value: 'Displays detailed information about the server.' },
-                { name: '/avatar help', value: 'Shows information about a user. If no user is mentioned, shows info about the command user.' },
-                { name: '/ping', value: 'Checks the bot\'s latency and API latency.' },
-                { name: '/roleinfo [@role]', value: 'Displays information about a specific role.' },
-                { name: '/leaderboard', value: 'Displays the no-life' },
-                { name: '/afk', value: 'If you want to afk sure' },
-                { name: '/deathbattle [@username] [set-hp] [jjk / ??? anime]', value: 'Deathbattle with a friend in anime..' },
+                { name: '🎬 Media Commands', value: 
+                    '`/video [url]` - Download videos from TikTok, YouTube, Twitter, etc.\n' +
+                    '`/pixiv [query]` - Search Pixiv artwork (SFW/NSFW filters)\n' +
+                    '`/reddit [subreddit]` - Fetch posts from Reddit\n' +
+                    '`/anime [name]` - Search anime information\n' +
+                    '`/steam` - Check Steam sales', inline: false },
+                { name: '🎵 Music Commands', value: 
+                    '`/music play [query]` - Play music in voice channel\n' +
+                    '`/music queue` - View the queue\n' +
+                    '`/music skip` - Skip current track\n' +
+                    '`/music stop` - Stop and disconnect', inline: false },
+                { name: '⚔️ Interactive Commands', value: 
+                    '`/deathbattle [@user] [skillset]` - Battle with anime skillsets\n' +
+                    '`/say [message]` - Make the bot speak', inline: false },
+                { name: '📋 Utility Commands', value: 
+                    '`/avatar [user]` - View user avatar\n' +
+                    '`/ping` - Check bot latency\n' +
+                    '`/groupinform` - Server information\n' +
+                    '`/roleinfo [@role]` - Role information\n' +
+                    '`/afk [reason]` - Set AFK status\n' +
+                    '`/invite` - Invite the bot', inline: false }
             )
             .setTimestamp()
             .setFooter({ text: `Requested by ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL() });

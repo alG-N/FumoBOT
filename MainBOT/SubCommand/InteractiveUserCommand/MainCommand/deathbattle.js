@@ -98,15 +98,28 @@ module.exports = {
             await interaction.reply({ embeds: [battleEmbed] });
             const message = await interaction.fetchReply();
 
-            const countdownInterval = setInterval(async () => {
-                countdown--;
-                battleEmbed = embedBuilder.buildCountdownEmbed(battle, countdown);
-                await interaction.editReply({ embeds: [battleEmbed] });
-                
-                if (countdown <= 0) {
-                    clearInterval(countdownInterval);
-                    battle.battleLog = `⚔️ **Round 1**: The battle between **${battle.player1.username}** and **${battle.player2.username}** begins!\n`;
-                    startBattle(battle, interaction);
+            let countdownInterval = null;
+            
+            const cleanupBattle = () => {
+                if (countdownInterval) clearInterval(countdownInterval);
+                if (battle?.interval) clearInterval(battle.interval);
+                battleService.removeBattle(interaction.guild.id);
+            };
+
+            countdownInterval = setInterval(async () => {
+                try {
+                    countdown--;
+                    battleEmbed = embedBuilder.buildCountdownEmbed(battle, countdown);
+                    await interaction.editReply({ embeds: [battleEmbed] });
+                    
+                    if (countdown <= 0) {
+                        clearInterval(countdownInterval);
+                        countdownInterval = null;
+                        battle.battleLog = `⚔️ **Round 1**: The battle between **${battle.player1.username}** and **${battle.player2.username}** begins!\n`;
+                        startBattle(battle, interaction);
+                    }
+                } catch (err) {
+                    cleanupBattle();
                 }
             }, 1000);
 
@@ -115,67 +128,79 @@ module.exports = {
                 await interaction.editReply({ embeds: [battleEmbed] });
 
                 battle.interval = setInterval(async () => {
-                    if (battle.player1Health <= 0 || battle.player2Health <= 0) {
-                        clearInterval(battle.interval);
-                        
-                        let winnerMsg = '';
-                        if (battle.player1Health <= 0 && battle.player2Health <= 0) {
-                            winnerMsg = `\n**It's a draw!**`;
-                            logger.log(`Battle ended in draw`, interaction);
-                        } else if (battle.player1Health <= 0) {
-                            winnerMsg = `\n**${battle.player2.username} wins the battle!**`;
-                            logger.log(`Battle won by ${battle.player2.tag}`, interaction);
-                        } else {
-                            winnerMsg = `\n**${battle.player1.username} wins the battle!**`;
-                            logger.log(`Battle won by ${battle.player1.tag}`, interaction);
+                    try {
+                        if (battle.player1Health <= 0 || battle.player2Health <= 0) {
+                            clearInterval(battle.interval);
+                            battle.interval = null;
+                            
+                            let winnerMsg = '';
+                            if (battle.player1Health <= 0 && battle.player2Health <= 0) {
+                                winnerMsg = `\n**It's a draw!**`;
+                                logger.log(`Battle ended in draw`, interaction);
+                            } else if (battle.player1Health <= 0) {
+                                winnerMsg = `\n**${battle.player2.username} wins the battle!**`;
+                                logger.log(`Battle won by ${battle.player2.tag}`, interaction);
+                            } else {
+                                winnerMsg = `\n**${battle.player1.username} wins the battle!**`;
+                                logger.log(`Battle won by ${battle.player1.tag}`, interaction);
+                            }
+                            
+                            battle.battleLog += winnerMsg;
+                            battleEmbed = embedBuilder.buildBattleEmbed(battle);
+                            battleEmbed.setFooter({ text: 'Battle finished!' });
+                            await interaction.editReply({ embeds: [battleEmbed] });
+                            
+                            battleService.removeBattle(interaction.guild.id);
+                            return;
                         }
-                        
-                        battle.battleLog += winnerMsg;
+
+                        if (battle.roundCount % BATTLE_LOG_RESET_INTERVAL === 0) {
+                            battle.battleLog = `⚔️ **Battle Continues - Round ${battle.roundCount}** ⚔️\n\n`;
+                        }
+
+                        if (battle.roundCount % 2 !== 0) {
+                            if (!battle.player1Stunned) {
+                                let log = battleService.dealDamage(battle, true);
+                                battle.battleLog += `**Round ${battle.roundCount}**: ${log}\n`;
+                            } else {
+                                battle.battleLog += `**Round ${battle.roundCount}**: **${battle.player1.username}** was stunned and couldn't attack!\n`;
+                                battle.player1Stunned = false;
+                            }
+                        } else {
+                            if (battle.player2Stunned) {
+                                battle.battleLog += `**Round ${battle.roundCount}**: **${battle.player2.username}** was stunned and couldn't attack!\n`;
+                                battle.player2Stunned = false;
+                            } else if (!battle.player1Immune) {
+                                let log = battleService.dealDamage(battle, false);
+                                battle.battleLog += `**Round ${battle.roundCount}**: ${log}\n`;
+                            } else {
+                                battle.battleLog += `**Round ${battle.roundCount}**: **${battle.player1.username}** was immune to all attacks this round!\n`;
+                                battle.player1Immune = false;
+                            }
+                        }
+
+                        const effectLogs = battleService.handleEffects(battle);
+                        effectLogs.forEach(log => battle.battleLog += `${log}\n`);
+
                         battleEmbed = embedBuilder.buildBattleEmbed(battle);
-                        battleEmbed.setFooter({ text: 'Battle finished!' });
                         await interaction.editReply({ embeds: [battleEmbed] });
-                        
-                        battleService.removeBattle(interaction.guild.id);
-                        return;
+
+                        battle.roundCount++;
+                    } catch (err) {
+                        // Cleanup on error during battle
+                        cleanupBattle();
+                        logger.error(`Battle round error: ${err.message}`, interaction);
                     }
-
-                    if (battle.roundCount % BATTLE_LOG_RESET_INTERVAL === 0) {
-                        battle.battleLog = `⚔️ **Battle Continues - Round ${battle.roundCount}** ⚔️\n\n`;
-                    }
-
-                    if (battle.roundCount % 2 !== 0) {
-                        if (!battle.player1Stunned) {
-                            let log = battleService.dealDamage(battle, true);
-                            battle.battleLog += `**Round ${battle.roundCount}**: ${log}\n`;
-                        } else {
-                            battle.battleLog += `**Round ${battle.roundCount}**: **${battle.player1.username}** was stunned and couldn't attack!\n`;
-                            battle.player1Stunned = false;
-                        }
-                    } else {
-                        if (battle.player2Stunned) {
-                            battle.battleLog += `**Round ${battle.roundCount}**: **${battle.player2.username}** was stunned and couldn't attack!\n`;
-                            battle.player2Stunned = false;
-                        } else if (!battle.player1Immune) {
-                            let log = battleService.dealDamage(battle, false);
-                            battle.battleLog += `**Round ${battle.roundCount}**: ${log}\n`;
-                        } else {
-                            battle.battleLog += `**Round ${battle.roundCount}**: **${battle.player1.username}** was immune to all attacks this round!\n`;
-                            battle.player1Immune = false;
-                        }
-                    }
-
-                    const effectLogs = battleService.handleEffects(battle);
-                    effectLogs.forEach(log => battle.battleLog += `${log}\n`);
-
-                    battleEmbed = embedBuilder.buildBattleEmbed(battle);
-                    await interaction.editReply({ embeds: [battleEmbed] });
-
-                    battle.roundCount++;
                 }, ROUND_INTERVAL);
             }
 
         } catch (err) {
             logger.error(`DeathBattle command error: ${err.message}`, interaction);
+            
+            // Attempt cleanup in case battle was partially started
+            try {
+                battleService.removeBattle(interaction.guild?.id);
+            } catch {}
             
             if (interaction.replied || interaction.deferred) {
                 await interaction.followUp({ 

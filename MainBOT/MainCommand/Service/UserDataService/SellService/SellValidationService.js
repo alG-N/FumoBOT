@@ -8,7 +8,8 @@ const COIN_REWARDS = {
     'EPIC': 150,
     'OTHERWORLDLY': 300,
     'LEGENDARY': 1300,
-    'MYTHICAL': 7000
+    'MYTHICAL': 7000,
+    'EXCLUSIVE': 15000
 };
 
 const GEM_REWARDS = {

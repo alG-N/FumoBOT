@@ -215,6 +215,14 @@ async function claimDaily(userId) {
         // Track quest progress
         try {
             await QuestMiddleware.trackDailyLogin(userId);
+            
+            // Track coins and gems earned for quest progress
+            if (rewards.coins > 0) {
+                await QuestMiddleware.trackCoinsEarned(userId, rewards.coins);
+            }
+            if (rewards.gems > 0) {
+                await QuestMiddleware.trackGemsEarned(userId, rewards.gems);
+            }
         } catch (e) {
             // Don't fail claim if quest tracking fails
         }

@@ -171,11 +171,12 @@ class VideoEmbedBuilder {
 
     /**
      * Build invalid URL embed
+     * @param {string} [customMessage] - Optional custom error message
      */
-    buildInvalidUrlEmbed() {
+    buildInvalidUrlEmbed(customMessage = null) {
         return this.buildErrorEmbed(
             '❌ Invalid URL',
-            'Please provide a valid URL starting with `http://` or `https://`',
+            customMessage || 'Please provide a valid URL starting with `http://` or `https://`',
             null,
             [
                 'Make sure to copy the full URL',

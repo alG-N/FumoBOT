@@ -299,6 +299,8 @@ async function performMultiRoll(userId, fumos, rollCount, isAutoRoll = false) {
                 if (failedCount > 0) {
                     const refund = failedCount * 100;
                     await run(`UPDATE userCoins SET coins = coins + ? WHERE userId = ?`, [refund, userId]);
+                    // Track refund as coins earned for quest progress
+                    await QuestMiddleware.trackCoinsEarned(userId, refund);
                 }
                 return {
                     success: false,
@@ -377,6 +379,8 @@ async function performMultiRoll(userId, fumos, rollCount, isAutoRoll = false) {
             // Refund coins on error
             try {
                 await run(`UPDATE userCoins SET coins = coins + ? WHERE userId = ?`, [cost, userId]);
+                // Track refund as coins earned for quest progress
+                await QuestMiddleware.trackCoinsEarned(userId, cost);
             } catch (refundError) {
                 console.error('❌ Failed to refund coins:', refundError);
             }

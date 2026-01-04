@@ -3,6 +3,7 @@ const { checkRestrictions } = require('../../../Middleware/restrictions');
 const { checkButtonOwnership } = require('../../../Middleware/buttonOwnership');
 const { get, run, all } = require('../../../Core/database');
 const { logToDiscord, LogLevel } = require('../../../Core/logger');
+const QuestMiddleware = require('../../../Middleware/questMiddleware');
 const {
     getRequirementForUser,
     clearRequirementForUser,
@@ -397,6 +398,9 @@ module.exports = async (client) => {
 
                     // Clear the requirement so next stage generates new one
                     clearRequirementForUser(userId);
+                    
+                    // Track quest progress for limit breaks
+                    await QuestMiddleware.trackLimitBreak(userId);
 
                     const newBreaks = breaks + 1;
                     const totalLimit = 5 + (checkRow?.fragmentUses || 0) + newBreaks;

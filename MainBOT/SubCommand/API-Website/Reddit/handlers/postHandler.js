@@ -126,12 +126,18 @@ function createBackButton(userId) {
     );
 }
 
-async function sendPostListEmbed(interaction, subreddit, posts, sortBy, currentPage) {
+async function sendPostListEmbed(interaction, subreddit, posts, sortBy, currentPage, isNsfwChannel = false) {
     const totalPages = Math.ceil(posts.length / POSTS_PER_PAGE);
     const startIdx = currentPage * POSTS_PER_PAGE;
     const pagePosts = posts.slice(startIdx, startIdx + POSTS_PER_PAGE);
 
     const embed = createPostListEmbed(subreddit, posts, sortBy, currentPage);
+    
+    // Add NSFW filter notice if not in NSFW channel
+    if (!isNsfwChannel) {
+        embed.setDescription(embed.data.description + '\n\n*🔒 NSFW posts are hidden. Use an age-restricted channel to view all posts.*');
+    }
+    
     const components = [
         ...createPostButtons(pagePosts.length, startIdx, interaction.user.id)
     ];

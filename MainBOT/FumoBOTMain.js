@@ -303,6 +303,18 @@ client.once('ready', async () => {
     }
 
     initializeDatabase();
+    
+    // Migrate quests without trackingType (one-time fix for existing users)
+    try {
+        const QuestPoolService = require('./MainCommand/Service/UserDataService/QuestService/QuestPoolService');
+        const migrationResult = await QuestPoolService.migrateQuestsWithoutTrackingType();
+        if (migrationResult.migrated > 0) {
+            console.log(`✅ Quest migration: ${migrationResult.migrated} users migrated`);
+        }
+    } catch (err) {
+        console.error('⚠️ Quest migration error:', err.message);
+    }
+    
     startIncomeSystem();
     scheduleBackups(client);
     initializeErrorHandlers(client);
@@ -651,6 +663,26 @@ async function safeReply(interaction, content) {
 client.on('messageCreate', message => {
     afk.onMessage(message, client);
     anime.onMessage(message, client);
+});
+
+// Voice state update handler - cleanup music when bot is kicked/moved
+client.on('voiceStateUpdate', async (oldState, newState) => {
+    // Only handle bot's own voice state changes
+    if (oldState.member?.id !== client.user.id) return;
+    
+    // Bot was in a channel and is now disconnected (kicked or moved out)
+    if (oldState.channelId && !newState.channelId) {
+        const guildId = oldState.guild.id;
+        console.log(`[Music] Bot disconnected from voice in guild ${guildId}, cleaning up...`);
+        
+        try {
+            const musicService = require('./SubCommand/MusicFunction/Service/MusicService');
+            await musicService.cleanup(guildId);
+            console.log(`[Music] Cleanup complete for guild ${guildId}`);
+        } catch (error) {
+            console.error(`[Music] Cleanup error for guild ${guildId}:`, error.message);
+        }
+    }
 });
 
 process.on('SIGINT', handleShutdown);

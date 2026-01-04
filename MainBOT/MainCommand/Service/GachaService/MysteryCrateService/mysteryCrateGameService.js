@@ -117,6 +117,18 @@ async function processCrateSelection(userId, selectedIndex, crateResults, betAmo
         // Track for quest progress
         try {
             await QuestMiddleware.trackGamble(userId);
+            await QuestMiddleware.trackCrateOpen(userId);
+            
+            // Track gamble win and coins/gems earned
+            if (netChange > 0) {
+                await QuestMiddleware.trackGambleWin(userId, netChange);
+                
+                if (currency === 'coins') {
+                    await QuestMiddleware.trackCoinsEarned(userId, netChange);
+                } else if (currency === 'gems') {
+                    await QuestMiddleware.trackGemsEarned(userId, netChange);
+                }
+            }
         } catch (err) {
             console.error('[Mystery Crate] Quest tracking error:', err);
         }

@@ -335,6 +335,15 @@ async function atomicDeductInventory(userId, itemName, quantity, isFumo = false)
  * Uses transaction to ensure atomicity
  */
 async function atomicTransferItem(fromUserId, toUserId, itemName, quantity, rarity = null, isFumo = false) {
+    // Prevent trading untradable items (badges)
+    if (!isFumo && itemName && itemName.includes('Badge')) {
+        return {
+            success: false,
+            error: 'UNTRADABLE_ITEM',
+            message: 'Badges cannot be traded!'
+        };
+    }
+    
     const field = isFumo ? 'fumoName' : 'itemName';
     
     return await withUserLock(fromUserId, `transfer_${itemName}`, async () => {

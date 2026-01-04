@@ -8,8 +8,9 @@ module.exports = (client) => {
     client.on("messageCreate", async (message) => {
         if (message.author.bot) return;
 
-        const prefixMatch = message.content.match(/^\.b(?:oost|st)?$/i);
-        if (!prefixMatch) return;
+        const command = message.content.trim().split(/\s+/)[0].toLowerCase();
+        // Only respond to .boost, .bst, or .b (but not .bal or .balance)
+        if (!['.boost', '.bst', '.b'].includes(command)) return;
 
         const userId = message.author.id;
 

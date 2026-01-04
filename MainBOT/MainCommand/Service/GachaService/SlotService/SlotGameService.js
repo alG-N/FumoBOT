@@ -140,6 +140,24 @@ async function performSlotSpin(userId, currency, bet, autoSpinCount = 1) {
     }
 
     const netProfit = totalWin - totalBet;
+    
+    // Track wins and coins/gems earned for quest progress
+    try {
+        if (totalWin > 0) {
+            await QuestMiddleware.trackGambleWin(userId, totalWin);
+        }
+        
+        // Track net profit if positive
+        if (netProfit > 0) {
+            if (currency === 'coins') {
+                await QuestMiddleware.trackCoinsEarned(userId, netProfit);
+            } else if (currency === 'gems') {
+                await QuestMiddleware.trackGemsEarned(userId, netProfit);
+            }
+        }
+    } catch (err) {
+        debugLog('SLOT', `Quest tracking error: ${err.message}`);
+    }
 
     return {
         success: true,

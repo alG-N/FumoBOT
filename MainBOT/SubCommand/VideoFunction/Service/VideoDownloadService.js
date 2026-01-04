@@ -75,6 +75,19 @@ class VideoDownloadService extends EventEmitter {
             videoPath = await cobaltService.downloadVideo(url, this.tempDir);
             console.log('✅ Cobalt download successful');
             
+            // Check video duration (5 minute limit for short videos only)
+            const maxDurationSeconds = videoConfig.MAX_VIDEO_DURATION_SECONDS || 300;
+            const duration = await ffmpegService._getVideoDuration(videoPath);
+            
+            if (duration > maxDurationSeconds) {
+                // Delete the downloaded file
+                if (fs.existsSync(videoPath)) {
+                    fs.unlinkSync(videoPath);
+                }
+                const maxMinutes = Math.floor(maxDurationSeconds / 60);
+                throw new Error(`Video too long! Max duration is ${maxMinutes} minutes. This video is ${Math.floor(duration / 60)} minutes.`);
+            }
+            
             // Get initial file size
             const initialStats = fs.statSync(videoPath);
             const initialSizeMB = initialStats.size / (1024 * 1024);
@@ -108,7 +121,8 @@ class VideoDownloadService extends EventEmitter {
                 format,
                 method: 'Cobalt',
                 wasCompressed,
-                originalSize: initialSizeMB
+                originalSize: initialSizeMB,
+                duration: duration
             };
 
             this.emit('complete', result);

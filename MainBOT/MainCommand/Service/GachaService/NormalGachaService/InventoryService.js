@@ -515,6 +515,7 @@ async function selectAndAddMultipleFumos(userId, rarities, fumoPool, options = {
         // Call incrementWeeklyShiny multiple times - it's async callback based
         for (let i = 0; i < shinyCount; i++) {
             incrementWeeklyShiny(userId);
+            await QuestMiddleware.trackShiny(userId);
         }
     }
     

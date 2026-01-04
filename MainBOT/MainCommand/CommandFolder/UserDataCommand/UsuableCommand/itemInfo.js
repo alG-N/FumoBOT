@@ -9,7 +9,7 @@ module.exports = async (discordClient) => {
         const content = message.content.trim().toLowerCase();
         const args = message.content.split(/ +/);
 
-        if (content.startsWith('.iteminfo') || content.startsWith('.it')) {
+        if (content.startsWith('.iteminfo') || content.startsWith('.ii')) {
             const restriction = checkRestrictions(message.author.id);
             if (restriction.blocked) {
                 return message.reply({ embeds: [restriction.embed] });

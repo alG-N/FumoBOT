@@ -1,6 +1,6 @@
 const db = require('../../../Core/Database/dbSetting');
 const { DAILY_REWARDS, WEEKLY_REWARDS, ACHIEVEMENT_REWARDS } = require('../../../Configuration/rewardConfig');
-const { ACHIEVEMENTS } = require('../../../Configuration/achievementConfig');
+const { ACHIEVEMENTS } = require('../../../Configuration/unifiedAchievementConfig');
 
 class QuestRewardService {
     static async getDailyRewards(userId) {

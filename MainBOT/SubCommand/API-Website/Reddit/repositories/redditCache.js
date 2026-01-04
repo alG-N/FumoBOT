@@ -4,6 +4,7 @@ class RedditCache {
         this.galleryStates = new Map();
         this.pageStates = new Map();
         this.sortStates = new Map();
+        this.nsfwStates = new Map(); // Track if user is in NSFW channel
     }
 
     // Post management
@@ -37,6 +38,15 @@ class RedditCache {
         return this.sortStates.get(userId) || 'top';
     }
 
+    // NSFW channel state management
+    setNsfwChannel(userId, isNsfw) {
+        this.nsfwStates.set(userId, isNsfw);
+    }
+
+    getNsfwChannel(userId) {
+        return this.nsfwStates.get(userId) || false;
+    }
+
     // Gallery state management
     setGalleryPage(userId, postIndex, page) {
         const key = `${userId}_${postIndex}`;
@@ -61,6 +71,7 @@ class RedditCache {
         this.clearPosts(userId);
         this.pageStates.delete(userId);
         this.sortStates.delete(userId);
+        this.nsfwStates.delete(userId);
         this.clearGalleryStates(userId);
     }
 }

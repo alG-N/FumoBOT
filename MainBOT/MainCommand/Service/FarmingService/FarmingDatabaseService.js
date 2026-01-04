@@ -1,5 +1,6 @@
 const { get, all, run, transaction, withUserLock } = require('../../Core/database');
 const { debugLog } = require('../../Core/logger');
+const QuestMiddleware = require('../../Middleware/questMiddleware');
 
 function getBaseFumoNameWithRarity(fumoName) {
     if (!fumoName) return '';
@@ -404,6 +405,20 @@ async function updateFarmingIncome(userId, coinsAwarded, gemsAwarded) {
         `UPDATE userCoins SET coins = COALESCE(coins, 0) + ?, gems = COALESCE(gems, 0) + ? WHERE userId = ?`,
         [coinsAwarded, gemsAwarded, userId]
     );
+    
+    // Track coins and gems earned for quest progress
+    try {
+        if (coinsAwarded > 0) {
+            await QuestMiddleware.trackCoinsEarned(userId, coinsAwarded);
+            debugLog('QUEST_TRACK', `Tracked ${coinsAwarded} coins earned for user ${userId}`);
+        }
+        if (gemsAwarded > 0) {
+            await QuestMiddleware.trackGemsEarned(userId, gemsAwarded);
+            debugLog('QUEST_TRACK', `Tracked ${gemsAwarded} gems earned for user ${userId}`);
+        }
+    } catch (err) {
+        console.error(`[FarmingDatabaseService] Quest tracking failed for ${userId}:`, err);
+    }
 }
 
 async function updateDailyQuest(userId, coinsAwarded) {
