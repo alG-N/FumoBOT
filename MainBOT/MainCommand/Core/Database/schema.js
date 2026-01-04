@@ -188,6 +188,23 @@ function createIndexes() {
         
         // Sanae Blessings
         `CREATE INDEX IF NOT EXISTS idx_sanaeBlessings_user ON sanaeBlessings(userId)`,
+        
+        // Level System
+        `CREATE INDEX IF NOT EXISTS idx_levelProgress_user ON userLevelProgress(userId)`,
+        `CREATE INDEX IF NOT EXISTS idx_levelProgress_level ON userLevelProgress(level DESC)`,
+        `CREATE INDEX IF NOT EXISTS idx_levelMilestones_user ON userLevelMilestones(userId)`,
+        
+        // Rebirth System
+        `CREATE INDEX IF NOT EXISTS idx_rebirthProgress_user ON userRebirthProgress(userId)`,
+        `CREATE INDEX IF NOT EXISTS idx_rebirthProgress_count ON userRebirthProgress(rebirthCount DESC)`,
+        `CREATE INDEX IF NOT EXISTS idx_rebirthMilestones_user ON userRebirthMilestones(userId)`,
+        
+        // Main Quest System
+        `CREATE INDEX IF NOT EXISTS idx_mainQuestProgress_user ON mainQuestProgress(userId)`,
+        `CREATE INDEX IF NOT EXISTS idx_mainQuestProgress_quest ON mainQuestProgress(currentQuestId)`,
+        
+        // Biome System
+        `CREATE INDEX IF NOT EXISTS idx_userBiome_user ON userBiome(userId)`,
     ];
 
     return new Promise((resolve, reject) => {
@@ -794,6 +811,131 @@ function createIndexes() {
                     console.error('Error creating sanaeBlessings table:', err.message);
                 } else {
                     console.log('✅ Table sanaeBlessings is ready');
+                }
+                res();
+            });
+        }));
+
+        // ═══════════════════════════════════════════════════════════════════
+        // LEVEL & EXP SYSTEM TABLES
+        // ═══════════════════════════════════════════════════════════════════
+        
+        // User Level Progress Table
+        tables.push(new Promise((res) => {
+            db.run(`CREATE TABLE IF NOT EXISTS userLevelProgress (
+                userId TEXT PRIMARY KEY,
+                level INTEGER DEFAULT 1,
+                exp INTEGER DEFAULT 0,
+                totalExpEarned INTEGER DEFAULT 0,
+                lastExpSource TEXT,
+                lastUpdated INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+            )`, (err) => {
+                if (err) {
+                    console.error('Error creating userLevelProgress table:', err.message);
+                } else {
+                    console.log('✅ Table userLevelProgress is ready');
+                }
+                res();
+            });
+        }));
+
+        // Level Milestones Claimed Table
+        tables.push(new Promise((res) => {
+            db.run(`CREATE TABLE IF NOT EXISTS userLevelMilestones (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                userId TEXT NOT NULL,
+                milestoneLevel INTEGER NOT NULL,
+                claimedAt INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+                UNIQUE(userId, milestoneLevel)
+            )`, (err) => {
+                if (err) {
+                    console.error('Error creating userLevelMilestones table:', err.message);
+                } else {
+                    console.log('✅ Table userLevelMilestones is ready');
+                }
+                res();
+            });
+        }));
+
+        // ═══════════════════════════════════════════════════════════════════
+        // REBIRTH SYSTEM TABLES
+        // ═══════════════════════════════════════════════════════════════════
+        
+        // User Rebirth Progress Table
+        tables.push(new Promise((res) => {
+            db.run(`CREATE TABLE IF NOT EXISTS userRebirthProgress (
+                userId TEXT PRIMARY KEY,
+                rebirthCount INTEGER DEFAULT 0,
+                totalRebirths INTEGER DEFAULT 0,
+                lastRebirthAt INTEGER,
+                preservedFumos TEXT DEFAULT '[]',
+                lifetimeCoinsBeforeRebirth INTEGER DEFAULT 0,
+                lifetimeGemsBeforeRebirth INTEGER DEFAULT 0
+            )`, (err) => {
+                if (err) {
+                    console.error('Error creating userRebirthProgress table:', err.message);
+                } else {
+                    console.log('✅ Table userRebirthProgress is ready');
+                }
+                res();
+            });
+        }));
+
+        // Rebirth Milestones Claimed Table
+        tables.push(new Promise((res) => {
+            db.run(`CREATE TABLE IF NOT EXISTS userRebirthMilestones (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                userId TEXT NOT NULL,
+                milestoneRebirth INTEGER NOT NULL,
+                claimedAt INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+                UNIQUE(userId, milestoneRebirth)
+            )`, (err) => {
+                if (err) {
+                    console.error('Error creating userRebirthMilestones table:', err.message);
+                } else {
+                    console.log('✅ Table userRebirthMilestones is ready');
+                }
+                res();
+            });
+        }));
+
+        // ═══════════════════════════════════════════════════════════════════
+        // MAIN QUEST SYSTEM TABLE
+        // ═══════════════════════════════════════════════════════════════════
+        
+        // Main Quest Progress Table (persists through rebirth)
+        tables.push(new Promise((res) => {
+            db.run(`CREATE TABLE IF NOT EXISTS mainQuestProgress (
+                userId TEXT PRIMARY KEY,
+                currentQuestId INTEGER DEFAULT 1,
+                completedQuests TEXT DEFAULT '[]',
+                questTracking TEXT DEFAULT '{}',
+                lastUpdated INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+            )`, (err) => {
+                if (err) {
+                    console.error('Error creating mainQuestProgress table:', err.message);
+                } else {
+                    console.log('✅ Table mainQuestProgress is ready');
+                }
+                res();
+            });
+        }));
+
+        // ═══════════════════════════════════════════════════════════════════
+        // BIOME SYSTEM TABLE
+        // ═══════════════════════════════════════════════════════════════════
+        
+        // User Biome Table (farming biome selection)
+        tables.push(new Promise((res) => {
+            db.run(`CREATE TABLE IF NOT EXISTS userBiome (
+                userId TEXT PRIMARY KEY,
+                biomeId TEXT DEFAULT 'GRASSLAND',
+                biomeChangedAt INTEGER DEFAULT NULL
+            )`, (err) => {
+                if (err) {
+                    console.error('Error creating userBiome table:', err.message);
+                } else {
+                    console.log('✅ Table userBiome is ready');
                 }
                 res();
             });

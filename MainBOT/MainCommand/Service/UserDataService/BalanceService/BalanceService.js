@@ -171,8 +171,33 @@ async function getUserQuestSummary(userId) {
 }
 
 async function getCurrentWeather(userId) {
-    // Weather system not implemented yet - return null
-    return null;
+    try {
+        const { getCurrentMultipliers, getActiveSeasonsList } = require('../../FarmingService/SeasonService/SeasonManagerService');
+        const { getActiveSeasonTypes } = require('../../FarmingService/SeasonService/SeasonDatabaseService');
+        
+        const activeSeasons = await getActiveSeasonTypes();
+        
+        if (!activeSeasons || activeSeasons.length === 0) {
+            return null;
+        }
+        
+        const multipliers = await getCurrentMultipliers();
+        const description = await getActiveSeasonsList();
+        
+        // Get the primary weather type (first non-WEEKEND event)
+        const primaryWeather = activeSeasons.find(s => s !== 'WEEKEND') || activeSeasons[0];
+        
+        return {
+            weatherType: primaryWeather,
+            multiplierCoin: multipliers.coinMultiplier || 1,
+            multiplierGem: multipliers.gemMultiplier || 1,
+            activeEvents: multipliers.activeEvents || activeSeasons,
+            description: description
+        };
+    } catch (error) {
+        console.error('[BalanceService] Error fetching weather:', error);
+        return null;
+    }
 }
 
 async function getUserAchievements(userId, row) {

@@ -69,6 +69,38 @@ function calculateTotalIncome(farmingFumos, boostMultipliers) {
     return { totalCoins, totalGems };
 }
 
+/**
+ * Calculate total income with biome multipliers
+ * @param {Object[]} farmingFumos - Array of farming fumos
+ * @param {Object} boostMultipliers - Boost multipliers (coinMultiplier, gemMultiplier)
+ * @param {Object|null} biomeMultipliers - Biome multipliers (coinMultiplier, gemMultiplier)
+ * @param {number} rebirthBonus - Rebirth multiplier bonus (percentage, e.g., 10 = 10%)
+ * @returns {{totalCoins: number, totalGems: number}}
+ */
+function calculateTotalIncomeWithBiome(farmingFumos, boostMultipliers, biomeMultipliers = null, rebirthBonus = 0) {
+    let totalCoins = 0;
+    let totalGems = 0;
+    
+    // Calculate base biome multiplier
+    const biomeCoinMult = biomeMultipliers?.coinMultiplier || 1;
+    const biomeGemMult = biomeMultipliers?.gemMultiplier || 1;
+    
+    // Calculate rebirth multiplier (e.g., 10% bonus = 1.10)
+    const rebirthMult = 1 + (rebirthBonus / 100);
+
+    farmingFumos.forEach(fumo => {
+        const quantity = fumo.quantity || 1;
+        const baseCoins = fumo.coinsPerMin * quantity;
+        const baseGems = fumo.gemsPerMin * quantity;
+        
+        // Apply all multipliers: base * boost * biome * rebirth
+        totalCoins += Math.floor(baseCoins * boostMultipliers.coinMultiplier * biomeCoinMult * rebirthMult);
+        totalGems += Math.floor(baseGems * boostMultipliers.gemMultiplier * biomeGemMult * rebirthMult);
+    });
+
+    return { totalCoins, totalGems };
+}
+
 function sortByIncome(farmingFumos) {
     return farmingFumos.sort((a, b) => {
         const totalA = (a.coinsPerMin || 0) + (a.gemsPerMin || 0);
@@ -107,6 +139,7 @@ module.exports = {
     calculateFarmingStats,
     calculateFarmLimit,
     calculateTotalIncome,
+    calculateTotalIncomeWithBiome,
     sortByIncome,
     groupByRarity
 };

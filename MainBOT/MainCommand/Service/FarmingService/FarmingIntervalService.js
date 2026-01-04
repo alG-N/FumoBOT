@@ -1,4 +1,4 @@
-const { all } = require('../../Core/database');
+const { all, get } = require('../../Core/database');
 const { getUserFarmingFumos, updateFarmingIncome, updateDailyQuest } = require('./FarmingDatabaseService');
 const { INCOME_INTERVAL } = require('./FarmingCalculationService');
 const { getCurrentMultipliers } = require('./SeasonService/SeasonManagerService');
@@ -10,9 +10,28 @@ const {
     calculateEventAmplification,
     BUILDING_TYPES
 } = require('../../Configuration/buildingConfig');
+const { getRebirthMultiplier } = require('../../Configuration/rebirthConfig');
 const { debugLog } = require('../../Core/logger');
 
 const farmingIntervals = new Map();
+
+/**
+ * Get user's rebirth multiplier
+ * @param {string} userId 
+ * @returns {Promise<number>}
+ */
+async function getUserRebirthMultiplier(userId) {
+    try {
+        const row = await get(
+            `SELECT rebirth FROM userCoins WHERE userId = ?`,
+            [userId]
+        );
+        return getRebirthMultiplier(row?.rebirth || 0);
+    } catch (error) {
+        console.error('[Farming] Error getting rebirth multiplier:', error);
+        return 1;
+    }
+}
 
 async function getActiveBoostMultipliers(userId) {
     const { get, all: dbAll } = require('../../Core/database');
@@ -122,13 +141,16 @@ async function startFarmingInterval(userId, fumoName, coinsPerMin, gemsPerMin) {
             const isCritical = rollCritical(criticalChance);
             const criticalMult = isCritical ? BUILDING_TYPES.CRITICAL_FARMING.criticalMultiplier : 1;
 
+            // Get rebirth multiplier
+            const rebirthMult = await getUserRebirthMultiplier(userId);
+
             const quantity = fumo.quantity || 1;
             
             let coinsAwarded = Math.floor(
-                fumo.coinsPerMin * quantity * userCoinBoost * coinBuildingBoost * seasonCoinMult * criticalMult
+                fumo.coinsPerMin * quantity * userCoinBoost * coinBuildingBoost * seasonCoinMult * criticalMult * rebirthMult
             );
             let gemsAwarded = Math.floor(
-                fumo.gemsPerMin * quantity * userGemBoost * gemBuildingBoost * seasonGemMult * criticalMult
+                fumo.gemsPerMin * quantity * userGemBoost * gemBuildingBoost * seasonGemMult * criticalMult * rebirthMult
             );
 
             await updateFarmingIncome(userId, coinsAwarded, gemsAwarded);

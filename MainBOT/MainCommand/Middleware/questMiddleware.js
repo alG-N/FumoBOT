@@ -1,6 +1,19 @@
 const db = require('../Core/Database/dbSetting');
 const { getWeekIdentifier } = require('../Ultility/timeUtils');
 
+// Lazy-load MainQuestDatabaseService to avoid circular dependencies
+let MainQuestDatabaseService = null;
+function getMainQuestService() {
+    if (!MainQuestDatabaseService) {
+        try {
+            MainQuestDatabaseService = require('../Service/UserDataService/MainQuestService/MainQuestDatabaseService');
+        } catch (e) {
+            console.error('[QuestMiddleware] Could not load MainQuestDatabaseService:', e.message);
+        }
+    }
+    return MainQuestDatabaseService;
+}
+
 /**
  * Universal tracking function that updates progress for any active quest
  * matching the given trackingType
@@ -64,8 +77,30 @@ async function track(userId, trackingType, increment = 1) {
         // Also track achievements
         await trackAchievement(userId, trackingType, increment);
         
+        // Also track main quest progress
+        await trackMainQuest(userId, trackingType, increment);
+        
     } catch (error) {
         console.error(`[QuestMiddleware] Failed to track ${trackingType} for ${userId}:`, error);
+    }
+}
+
+/**
+ * Track main quest progress based on trackingType
+ */
+async function trackMainQuest(userId, trackingType, increment = 1) {
+    const mqService = getMainQuestService();
+    if (!mqService) return;
+    
+    try {
+        const result = await mqService.updateTracking(userId, trackingType, increment);
+        if (result && result.quest) {
+            // Quest completed! Could emit an event or log here
+            console.log(`[MainQuest] User ${userId} completed Main Quest ${result.quest.id}: ${result.quest.title}`);
+        }
+    } catch (error) {
+        // Silent fail - main quest tracking shouldn't break regular quests
+        console.error(`[QuestMiddleware] Failed to track main quest for ${userId}:`, error.message);
     }
 }
 
@@ -256,8 +291,23 @@ class QuestMiddleware {
             await this.trackNewFumo(userId);
         }
         
+        const rarityUpper = rarity?.toUpperCase();
+        
+        // Track legendary+ (legendary and above)
+        const legendaryPlus = ['LEGENDARY', 'MYTHIC', 'MYTHICAL', 'ASTRAL', 'CELESTIAL', 'INFINITE', 'ETERNAL', 'TRANSCENDENT'];
+        if (legendaryPlus.includes(rarityUpper)) {
+            await this.trackLegendaryPlus(userId);
+        }
+        
+        // Track mythical+ (mythical and above)
+        const mythicalPlus = ['MYTHIC', 'MYTHICAL', 'ASTRAL', 'CELESTIAL', 'INFINITE', 'ETERNAL', 'TRANSCENDENT'];
+        if (mythicalPlus.includes(rarityUpper)) {
+            await this.trackMythicalPlus(userId);
+        }
+        
+        // Track astral+
         const astralPlus = ['ASTRAL', 'CELESTIAL', 'INFINITE', 'ETERNAL', 'TRANSCENDENT'];
-        if (astralPlus.includes(rarity?.toUpperCase())) {
+        if (astralPlus.includes(rarityUpper)) {
             await this.trackAstralPlus(userId);
         }
     }
@@ -284,6 +334,90 @@ class QuestMiddleware {
     // ─── Limit Break Tracking ───
     static async trackLimitBreak(userId) {
         await track(userId, 'limit_breaks', 1);
+    }
+
+    // ─── Fragment Tracking ───
+    static async trackFragmentUsed(userId, count = 1) {
+        await track(userId, 'fragment_used', count);
+    }
+
+    // ─── Library Discovery Tracking ───
+    static async trackLibraryDiscovery(userId, totalDiscovered) {
+        // For absolute value tracking (library is a cumulative count)
+        await updateQuestProgressDirect(userId, 'library_discovered', totalDiscovered, 'daily');
+        await updateQuestProgressDirect(userId, 'library_discovered', totalDiscovered, 'weekly');
+        // Also track for main quests (which use tracking increment style)
+        await track(userId, 'library_discovered', 1);
+    }
+
+    // ─── Unique Fumo Tracking ───
+    static async trackUniqueFumos(userId, totalUnique) {
+        await updateQuestProgressDirect(userId, 'unique_fumos', totalUnique, 'daily');
+        await updateQuestProgressDirect(userId, 'unique_fumos', totalUnique, 'weekly');
+        await track(userId, 'unique_fumos', 1);
+    }
+
+    // ─── Farming Tracking ───
+    static async trackFarmingAdd(userId, count = 1) {
+        await track(userId, 'farming_add', count);
+    }
+
+    static async trackFarmingCount(userId, currentCount) {
+        await updateQuestProgressDirect(userId, 'farming_count', currentCount, 'daily');
+        await updateQuestProgressDirect(userId, 'farming_count', currentCount, 'weekly');
+        await track(userId, 'farming_count', 0); // Just trigger check, no increment
+    }
+
+    // ─── Weather Farming Tracking ───
+    static async trackWeatherFarm(userId) {
+        await track(userId, 'weather_farm', 1);
+    }
+
+    // ─── Building Levels Tracking ───
+    static async trackTotalBuildingLevels(userId, totalLevels) {
+        await updateQuestProgressDirect(userId, 'total_building_levels', totalLevels, 'daily');
+        await updateQuestProgressDirect(userId, 'total_building_levels', totalLevels, 'weekly');
+        await track(userId, 'total_building_levels', 0); // Just trigger check
+    }
+
+    // ─── Prayer Variety Tracking ───
+    static async trackPrayerVariety(userId, totalUnique) {
+        await updateQuestProgressDirect(userId, 'prayer_variety', totalUnique, 'daily');
+        await updateQuestProgressDirect(userId, 'prayer_variety', totalUnique, 'weekly');
+        await track(userId, 'prayer_variety', 0);
+    }
+
+    // ─── Yukari Mark Tracking ───
+    static async trackYukariMark(userId, markLevel) {
+        await updateQuestProgressDirect(userId, 'yukari_mark', markLevel, 'daily');
+        await updateQuestProgressDirect(userId, 'yukari_mark', markLevel, 'weekly');
+        await track(userId, 'yukari_mark', 0);
+    }
+
+    // ─── Rarity-Based Tracking ───
+    static async trackLegendaryPlus(userId) {
+        await track(userId, 'legendary_plus', 1);
+    }
+
+    static async trackMythicalPlus(userId) {
+        await track(userId, 'mythical_plus', 1);
+    }
+
+    // ─── Weekly Quest Completion Tracking ───
+    static async trackWeeklyQuestCompleted(userId) {
+        await track(userId, 'weekly_quest_completed', 1);
+    }
+
+    // ─── Achievement Tracking ───
+    static async trackAchievementClaimed(userId) {
+        await track(userId, 'achievements_claimed', 1);
+    }
+
+    // ─── Coins Milestone Tracking ───
+    static async trackCoinsMilestone(userId, balance) {
+        await updateQuestProgressDirect(userId, 'coins_milestone', balance, 'daily');
+        await updateQuestProgressDirect(userId, 'coins_milestone', balance, 'weekly');
+        await track(userId, 'coins_milestone', 0);
     }
 
     // ─── Command Variety Tracking ───
@@ -322,6 +456,81 @@ class QuestMiddleware {
 
     static async trackDailyCompletion(userId) {
         await track(userId, 'daily_completions', 1);
+    }
+
+    // ─── EXP Tracking ───
+    /**
+     * Grant EXP to user (called when completing quests, main quests, etc.)
+     * @param {string} userId 
+     * @param {number} amount - EXP amount
+     * @param {string} source - Source description
+     */
+    static async grantExp(userId, amount, source = 'quest') {
+        try {
+            const { addExp } = require('../Service/UserDataService/LevelService/LevelDatabaseService');
+            const result = await addExp(userId, amount, source);
+            
+            if (result.levelUps && result.levelUps.length > 0) {
+                console.log(`[EXP] User ${userId} leveled up to ${result.newLevel}!`);
+            }
+            
+            return result;
+        } catch (error) {
+            console.error(`[QuestMiddleware] Failed to grant EXP to ${userId}:`, error);
+            return { success: false };
+        }
+    }
+
+    /**
+     * Grant EXP for daily quest completion
+     * @param {string} userId 
+     * @param {number} questsCompleted - Number of daily quests completed
+     * @param {number} totalQuests - Total daily quests
+     * @param {number} streak - Current daily streak
+     */
+    static async grantDailyQuestExp(userId, questsCompleted, totalQuests, streak = 0) {
+        const { calculateDailyQuestExp } = require('../Configuration/levelConfig');
+        const exp = calculateDailyQuestExp(questsCompleted, totalQuests, streak);
+        return await this.grantExp(userId, exp, 'daily_quest');
+    }
+
+    /**
+     * Grant EXP for weekly quest completion
+     * @param {string} userId 
+     * @param {number} questsCompleted - Number of weekly quests completed
+     * @param {number} totalQuests - Total weekly quests
+     */
+    static async grantWeeklyQuestExp(userId, questsCompleted, totalQuests) {
+        const { calculateWeeklyQuestExp } = require('../Configuration/levelConfig');
+        const exp = calculateWeeklyQuestExp(questsCompleted, totalQuests);
+        return await this.grantExp(userId, exp, 'weekly_quest');
+    }
+
+    /**
+     * Grant EXP for main quest completion
+     * @param {string} userId 
+     * @param {number} expReward - EXP reward from the main quest
+     */
+    static async grantMainQuestExp(userId, expReward) {
+        return await this.grantExp(userId, expReward, 'main_quest');
+    }
+
+    // ─── Main Quest Command Tracking ───
+    /**
+     * Track command usage for main quests
+     * @param {string} userId 
+     * @param {string} commandName - Name of the command used
+     */
+    static async trackMainQuestCommand(userId, commandName) {
+        const mqService = getMainQuestService();
+        if (!mqService) return null;
+        
+        try {
+            return await mqService.trackCommand(userId, commandName);
+        } catch (error) {
+            console.error(`[QuestMiddleware] Failed to track main quest command for ${userId}:`, error.message);
+            return null;
+        }
     }
 
     // ─── Legacy Support ───
