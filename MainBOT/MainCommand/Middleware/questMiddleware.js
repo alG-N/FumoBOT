@@ -17,6 +17,7 @@ function getMainQuestService() {
 /**
  * Universal tracking function that updates progress for any active quest
  * matching the given trackingType
+ * Optimized: Batch fetch current progress and batch update
  */
 async function track(userId, trackingType, increment = 1) {
     const date = new Date().toISOString().slice(0, 10);
@@ -34,21 +35,53 @@ async function track(userId, trackingType, increment = 1) {
             );
         });
         
-        // Update progress for each matching quest and check for new completions
+        if (activeQuests.length === 0) {
+            // Still track achievements and main quest even if no matching quests
+            await trackAchievement(userId, trackingType, increment);
+            await trackMainQuest(userId, trackingType, increment);
+            return;
+        }
+        
+        // Separate quests by type for optimized batch queries
+        const dailyQuests = activeQuests.filter(q => q.questType === 'daily');
+        const weeklyQuests = activeQuests.filter(q => q.questType === 'weekly');
+        
+        // Batch fetch current progress for all quests
+        const [dailyProgress, weeklyProgress] = await Promise.all([
+            dailyQuests.length > 0 ? new Promise((resolve, reject) => {
+                const placeholders = dailyQuests.map(() => '?').join(',');
+                db.all(
+                    `SELECT questId, progress, completed FROM dailyQuestProgress 
+                     WHERE userId = ? AND date = ? AND questId IN (${placeholders})`,
+                    [userId, date, ...dailyQuests.map(q => q.uniqueQuestId)],
+                    (err, rows) => err ? reject(err) : resolve(rows || [])
+                );
+            }) : Promise.resolve([]),
+            weeklyQuests.length > 0 ? new Promise((resolve, reject) => {
+                const placeholders = weeklyQuests.map(() => '?').join(',');
+                db.all(
+                    `SELECT questId, progress, completed FROM weeklyQuestProgress 
+                     WHERE userId = ? AND week = ? AND questId IN (${placeholders})`,
+                    [userId, week, ...weeklyQuests.map(q => q.uniqueQuestId)],
+                    (err, rows) => err ? reject(err) : resolve(rows || [])
+                );
+            }) : Promise.resolve([])
+        ]);
+        
+        // Build progress maps
+        const dailyProgressMap = new Map(dailyProgress.map(p => [p.questId, p]));
+        const weeklyProgressMap = new Map(weeklyProgress.map(p => [p.questId, p]));
+        
+        let newlyCompletedCount = 0;
+        
+        // Update progress for each matching quest
         for (const quest of activeQuests) {
             const table = quest.questType === 'daily' ? 'dailyQuestProgress' : 'weeklyQuestProgress';
             const timeField = quest.questType === 'daily' ? 'date' : 'week';
             const timeValue = quest.questType === 'daily' ? date : week;
+            const progressMap = quest.questType === 'daily' ? dailyProgressMap : weeklyProgressMap;
             
-            // Get current progress BEFORE update to detect completion
-            const currentProgress = await new Promise((resolve, reject) => {
-                db.get(
-                    `SELECT progress, completed FROM ${table} WHERE userId = ? AND questId = ? AND ${timeField} = ?`,
-                    [userId, quest.uniqueQuestId, timeValue],
-                    (err, row) => err ? reject(err) : resolve(row)
-                );
-            });
-            
+            const currentProgress = progressMap.get(quest.uniqueQuestId);
             const wasCompleted = currentProgress?.completed === 1;
             const oldProgress = currentProgress?.progress || 0;
             
@@ -67,11 +100,15 @@ async function track(userId, trackingType, increment = 1) {
                 );
             });
             
-            // If quest JUST got completed, track it for "complete X quests" meta quest
-            // BUT only if we're not already tracking 'quests_completed' (prevent infinite loop)
-            if (!wasCompleted && (oldProgress + increment) >= quest.goal && trackingType !== 'quests_completed') {
-                await track(userId, 'quests_completed', 1);
+            // Count newly completed quests
+            if (!wasCompleted && (oldProgress + increment) >= quest.goal) {
+                newlyCompletedCount++;
             }
+        }
+        
+        // Batch track "complete X quests" meta quest if any were completed
+        if (newlyCompletedCount > 0 && trackingType !== 'quests_completed') {
+            await track(userId, 'quests_completed', newlyCompletedCount);
         }
         
         // Also track achievements

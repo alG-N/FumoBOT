@@ -131,6 +131,7 @@ function createIndexes() {
         `CREATE INDEX IF NOT EXISTS idx_boosts_userId ON activeBoosts(userId)`,
         `CREATE INDEX IF NOT EXISTS idx_boosts_expires ON activeBoosts(userId, expiresAt)`,
         `CREATE INDEX IF NOT EXISTS idx_boosts_type ON activeBoosts(userId, type, source)`,
+        `CREATE INDEX IF NOT EXISTS idx_boosts_user_source_type ON activeBoosts(userId, source, type)`,
 
         // Daily Quests - Checked frequently
         `CREATE INDEX IF NOT EXISTS idx_daily_quest ON dailyQuestProgress(userId, questId, date)`,
@@ -189,7 +190,7 @@ function createIndexes() {
         // Sanae Blessings
         `CREATE INDEX IF NOT EXISTS idx_sanaeBlessings_user ON sanaeBlessings(userId)`,
         
-        // Level System
+        // Level System (using userLevelProgress table)
         `CREATE INDEX IF NOT EXISTS idx_levelProgress_user ON userLevelProgress(userId)`,
         `CREATE INDEX IF NOT EXISTS idx_levelProgress_level ON userLevelProgress(level DESC)`,
         `CREATE INDEX IF NOT EXISTS idx_levelMilestones_user ON userLevelMilestones(userId)`,
@@ -815,12 +816,8 @@ function createIndexes() {
                 res();
             });
         }));
-
-        // ═══════════════════════════════════════════════════════════════════
-        // LEVEL & EXP SYSTEM TABLES
-        // ═══════════════════════════════════════════════════════════════════
         
-        // User Level Progress Table
+        // Level/EXP data is now stored in userLevelProgress table (separate from userCoins)
         tables.push(new Promise((res) => {
             db.run(`CREATE TABLE IF NOT EXISTS userLevelProgress (
                 userId TEXT PRIMARY KEY,
@@ -856,10 +853,6 @@ function createIndexes() {
                 res();
             });
         }));
-
-        // ═══════════════════════════════════════════════════════════════════
-        // REBIRTH SYSTEM TABLES
-        // ═══════════════════════════════════════════════════════════════════
         
         // User Rebirth Progress Table
         tables.push(new Promise((res) => {
@@ -898,10 +891,6 @@ function createIndexes() {
                 res();
             });
         }));
-
-        // ═══════════════════════════════════════════════════════════════════
-        // MAIN QUEST SYSTEM TABLE
-        // ═══════════════════════════════════════════════════════════════════
         
         // Main Quest Progress Table (persists through rebirth)
         tables.push(new Promise((res) => {
@@ -920,10 +909,6 @@ function createIndexes() {
                 res();
             });
         }));
-
-        // ═══════════════════════════════════════════════════════════════════
-        // BIOME SYSTEM TABLE
-        // ═══════════════════════════════════════════════════════════════════
         
         // User Biome Table (farming biome selection)
         tables.push(new Promise((res) => {
@@ -936,6 +921,25 @@ function createIndexes() {
                     console.error('Error creating userBiome table:', err.message);
                 } else {
                     console.log('✅ Table userBiome is ready');
+                }
+                res();
+            });
+        }));
+        
+        // User Other Place Table (alternate dimension farming)
+        tables.push(new Promise((res) => {
+            db.run(`CREATE TABLE IF NOT EXISTS userOtherPlace (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                userId TEXT NOT NULL,
+                fumoName TEXT NOT NULL,
+                quantity INTEGER DEFAULT 1,
+                sentAt INTEGER NOT NULL,
+                UNIQUE(userId, fumoName)
+            )`, (err) => {
+                if (err) {
+                    console.error('Error creating userOtherPlace table:', err.message);
+                } else {
+                    console.log('✅ Table userOtherPlace is ready');
                 }
                 res();
             });
@@ -1051,10 +1055,150 @@ async function ensureColumnsExist() {
     }
 }
 
+/**
+ * Migrate level/exp data from userCoins to userLevelProgress table
+ * This is a one-time migration for existing users
+ */
+async function migrateUserLevelData() {
+    console.log('🔄 Checking for level/exp migration...');
+    
+    const dbAllAsync = (sql, params = []) => {
+        return new Promise((resolve, reject) => {
+            db.all(sql, params, (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows);
+            });
+        });
+    };
+    
+    const dbRunAsync = (sql, params = []) => {
+        return new Promise((resolve, reject) => {
+            db.run(sql, params, function(err) {
+                if (err) reject(err);
+                else resolve(this);
+            });
+        });
+    };
+    
+    try {
+        // Check if there are users with level/exp in userCoins that don't exist in userLevelProgress
+        const usersToMigrate = await dbAllAsync(`
+            SELECT uc.userId, uc.level, uc.exp 
+            FROM userCoins uc
+            LEFT JOIN userLevelProgress ulp ON uc.userId = ulp.userId
+            WHERE ulp.userId IS NULL AND (uc.level > 0 OR uc.exp > 0)
+        `);
+        
+        if (usersToMigrate.length === 0) {
+            console.log('✅ No level/exp migration needed - all users migrated');
+            return;
+        }
+        
+        console.log(`🔄 Migrating ${usersToMigrate.length} users' level/exp data...`);
+        
+        let migrated = 0;
+        for (const user of usersToMigrate) {
+            await dbRunAsync(
+                `INSERT OR IGNORE INTO userLevelProgress (userId, level, exp, totalExpEarned, lastUpdated)
+                 VALUES (?, ?, ?, ?, ?)`,
+                [user.userId, user.level || 1, user.exp || 0, user.exp || 0, Date.now()]
+            );
+            migrated++;
+        }
+        
+        console.log(`✅ Migrated ${migrated} users' level/exp data to userLevelProgress table`);
+    } catch (err) {
+        console.error('❌ Error during level/exp migration:', err.message);
+    }
+}
+
+/**
+ * Drop deprecated level/exp columns from userCoins table
+ * Only runs if columns still exist and data has been migrated
+ */
+async function dropDeprecatedLevelColumns() {
+    console.log('🔄 Checking for deprecated level/exp columns in userCoins...');
+    
+    const dbGetAsync = (sql, params = []) => {
+        return new Promise((resolve, reject) => {
+            db.get(sql, params, (err, row) => {
+                if (err) reject(err);
+                else resolve(row);
+            });
+        });
+    };
+    
+    const dbAllAsync = (sql, params = []) => {
+        return new Promise((resolve, reject) => {
+            db.all(sql, params, (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows);
+            });
+        });
+    };
+    
+    const dbRunAsync = (sql, params = []) => {
+        return new Promise((resolve, reject) => {
+            db.run(sql, params, function(err) {
+                if (err) reject(err);
+                else resolve(this);
+            });
+        });
+    };
+    
+    try {
+        // Check if level/exp columns exist in userCoins
+        const tableInfo = await dbAllAsync(`PRAGMA table_info(userCoins)`);
+        const hasLevel = tableInfo.some(col => col.name === 'level');
+        const hasExp = tableInfo.some(col => col.name === 'exp');
+        
+        if (!hasLevel && !hasExp) {
+            console.log('✅ level/exp columns already removed from userCoins');
+            return;
+        }
+        
+        // Verify all data is migrated before dropping
+        const unmigrated = await dbGetAsync(`
+            SELECT COUNT(*) as count FROM userCoins uc
+            LEFT JOIN userLevelProgress ulp ON uc.userId = ulp.userId
+            WHERE ulp.userId IS NULL AND (uc.level > 0 OR uc.exp > 0)
+        `);
+        
+        if (unmigrated && unmigrated.count > 0) {
+            console.log(`⚠️ Cannot drop columns - ${unmigrated.count} users still need migration`);
+            return;
+        }
+        
+        // SQLite 3.35.0+ supports DROP COLUMN
+        console.log('🔄 Dropping deprecated level/exp columns from userCoins...');
+        
+        if (hasLevel) {
+            await dbRunAsync(`ALTER TABLE userCoins DROP COLUMN level`);
+            console.log('  ✅ Dropped level column');
+        }
+        
+        if (hasExp) {
+            await dbRunAsync(`ALTER TABLE userCoins DROP COLUMN exp`);
+            console.log('  ✅ Dropped exp column');
+        }
+        
+        console.log('✅ Successfully cleaned up deprecated columns from userCoins');
+    } catch (err) {
+        // SQLite version may not support DROP COLUMN, which is fine
+        if (err.message?.includes('DROP COLUMN') || err.message?.includes('syntax error')) {
+            console.log('⚠️ SQLite version does not support DROP COLUMN - columns will be ignored');
+        } else {
+            console.error('❌ Error dropping deprecated columns:', err.message);
+        }
+    }
+}
+
 async function initializeDatabase() {
     console.log('🚀 Initializing database schema...');
     await createTables();
     await ensureColumnsExist();
+    await migrateUserLevelData(); // Migrate level/exp data to new table
+    await dropDeprecatedLevelColumns(); // Remove old level/exp columns from userCoins
     await cleanupDuplicateFumos(); // Clean duplicates BEFORE creating unique indexes
     await createIndexes();
     console.log('✅ Database initialization complete');
@@ -1065,5 +1209,7 @@ module.exports = {
     ensureColumnsExist,
     createIndexes,
     cleanupDuplicateFumos,
+    migrateUserLevelData,
+    dropDeprecatedLevelColumns,
     initializeDatabase
 };

@@ -82,7 +82,10 @@ class LeaderboardDataService {
         if (cached) return cached;
 
         const rows = await db.all(
-            'SELECT userId, level FROM userCoins WHERE level >= ? ORDER BY level DESC, exp DESC LIMIT ?',
+            `SELECT ulp.userId, ulp.level 
+             FROM userLevelProgress ulp
+             WHERE ulp.level >= ? 
+             ORDER BY ulp.level DESC, ulp.exp DESC LIMIT ?`,
             [LEADERBOARD_CONFIG.MIN_DISPLAY_VALUE.level, limit]
         );
 
@@ -95,7 +98,11 @@ class LeaderboardDataService {
         if (cached) return cached;
 
         const rows = await db.all(
-            'SELECT userId, rebirth FROM userCoins WHERE rebirth > 0 ORDER BY rebirth DESC, level DESC LIMIT ?',
+            `SELECT uc.userId, uc.rebirth 
+             FROM userCoins uc
+             LEFT JOIN userLevelProgress ulp ON uc.userId = ulp.userId
+             WHERE uc.rebirth > 0 
+             ORDER BY uc.rebirth DESC, COALESCE(ulp.level, 1) DESC LIMIT ?`,
             [limit]
         );
 
@@ -291,7 +298,7 @@ class LeaderboardDataService {
                 params = [userId];
                 break;
             case 'level':
-                query = 'SELECT COUNT(*) + 1 as rank FROM userCoins WHERE level > (SELECT level FROM userCoins WHERE userId = ?)';
+                query = 'SELECT COUNT(*) + 1 as rank FROM userLevelProgress WHERE level > (SELECT COALESCE(level, 1) FROM userLevelProgress WHERE userId = ?)';
                 params = [userId];
                 break;
             default:

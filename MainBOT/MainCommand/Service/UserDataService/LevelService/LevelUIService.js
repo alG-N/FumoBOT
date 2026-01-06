@@ -114,11 +114,12 @@ function createMilestonesEmbed(user, levelData, claimedLevels = [], page = 0) {
             status = '🔒'; // Locked
         }
         
-        const rewardStr = [
+        // Handle milestones with null rewards
+        const rewardStr = m.rewards ? [
             m.rewards.coins ? `💰${formatNumber(m.rewards.coins)}` : '',
             m.rewards.gems ? `💎${formatNumber(m.rewards.gems)}` : '',
             m.rewards.tickets ? `🎫${m.rewards.tickets}` : ''
-        ].filter(Boolean).join(' ');
+        ].filter(Boolean).join(' ') : '*No reward*';
         
         return [
             `${status} **Lv.${m.level} - ${m.name}**`,

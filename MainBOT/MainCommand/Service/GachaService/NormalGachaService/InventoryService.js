@@ -198,6 +198,15 @@ async function checkAstralDuplicateBlock(userId, baseFumoName, rarity) {
  */
 async function rollSpecialVariant(userId, fumoName) {
     const variants = await getActiveSpecialVariants(userId);
+    return rollSpecialVariantSync(variants);
+}
+
+/**
+ * Synchronous special variant roll using pre-cached variant data
+ * OPTIMIZED: No DB calls, uses cached data
+ */
+function rollSpecialVariantSync(variants) {
+    if (!variants) return null;
     
     // Roll for GLITCHED first (higher priority)
     if (variants.glitched) {
@@ -230,7 +239,14 @@ async function rollSpecialVariant(userId, fumoName) {
  */
 async function rollBaseVariant(userId) {
     const variantLuck = await getVariantLuckMultiplier(userId);
-    
+    return rollBaseVariantSync(variantLuck);
+}
+
+/**
+ * Synchronous base variant roll using pre-cached variant luck
+ * OPTIMIZED: No DB calls, uses cached data
+ */
+function rollBaseVariantSync(variantLuck) {
     // Roll for alG first (rarer)
     const algChance = (VARIANT_CONFIG?.ALG?.multiplier || 1/1000) * variantLuck;
     if (Math.random() < algChance) {
@@ -390,7 +406,13 @@ async function selectAndAddMultipleFumos(userId, rarities, fumoPool, options = {
     const astralPlusBaseNamesInBatch = new Set();
     let blockedDuplicates = 0;
     
-    // First pass: determine all fumos and variants without DB writes
+    // OPTIMIZED: Cache variant data once for the entire batch instead of 100 queries
+    const [variantLuck, specialVariants] = await Promise.all([
+        getVariantLuckMultiplier(userId),
+        getActiveSpecialVariants(userId)
+    ]);
+    
+    // First pass: determine all fumos and variants without DB writes (FULLY SYNCHRONOUS)
     for (const rarity of rarities) {
         // Handle both flat array and organized by rarity formats
         let rarityPool;
@@ -433,11 +455,9 @@ async function selectAndAddMultipleFumos(userId, rarities, fumoPool, options = {
         
         let finalName = baseFumo.name;
         
-        // OPTIMIZED: Roll for variants in parallel
-        const [baseVariant, specialVariant] = await Promise.all([
-            rollBaseVariant(userId),
-            rollSpecialVariant(userId, finalName)
-        ]);
+        // OPTIMIZED: Use cached variant data - no DB calls in loop
+        const baseVariant = rollBaseVariantSync(variantLuck);
+        const specialVariant = rollSpecialVariantSync(specialVariants);
         
         // Apply variants to name
         finalName = applyVariantToName(finalName, baseVariant, specialVariant);
@@ -477,7 +497,7 @@ async function selectAndAddMultipleFumos(userId, rarities, fumoPool, options = {
         debugLog('[SIGIL]', `Total ASTRAL+ duplicates blocked in batch: ${blockedDuplicates}`);
     }
     
-    // Second pass: batch update database
+    // Second pass: batch update database using single transaction
     // Get all existing fumos for this user in one query
     const fumoNames = Array.from(fumoUpdates.keys());
     if (fumoNames.length > 0) {
@@ -492,31 +512,36 @@ async function selectAndAddMultipleFumos(userId, rarities, fumoPool, options = {
             existingMap.set(row.fumoName, row);
         }
         
-        // Batch updates and inserts with ON CONFLICT to prevent race conditions
+        // Build batch INSERT/UPDATE using ON CONFLICT for all fumos at once
+        const insertValues = [];
+        const insertParams = [];
+        
         for (const [fumoName, data] of fumoUpdates) {
-            const existing = existingMap.get(fumoName);
-            if (existing) {
-                await run(
-                    `UPDATE userInventory SET quantity = quantity + ? WHERE id = ?`,
-                    [data.count, existing.id]
-                );
-            } else {
-                await run(
-                    `INSERT INTO userInventory (userId, fumoName, quantity, rarity) VALUES (?, ?, ?, ?)
-                     ON CONFLICT(userId, fumoName) DO UPDATE SET quantity = quantity + ?`,
-                    [userId, fumoName, data.count, data.rarity, data.count]
-                );
-            }
+            insertValues.push('(?, ?, ?, ?)');
+            insertParams.push(userId, fumoName, data.count, data.rarity);
+        }
+        
+        // Single batch INSERT with ON CONFLICT for all fumos
+        if (insertValues.length > 0) {
+            await run(
+                `INSERT INTO userInventory (userId, fumoName, quantity, rarity) VALUES ${insertValues.join(', ')}
+                 ON CONFLICT(userId, fumoName) DO UPDATE SET quantity = quantity + excluded.quantity`,
+                insertParams
+            );
         }
     }
     
-    // Update shiny count once (fire and forget - these are async DB writes)
+    // Update shiny count once (fire and forget for incrementWeeklyShiny, batch track for quest)
     if (shinyCount > 0) {
-        // Call incrementWeeklyShiny multiple times - it's async callback based
+        // Fire and forget weekly shiny increments - these are async callback based
         for (let i = 0; i < shinyCount; i++) {
             incrementWeeklyShiny(userId);
-            await QuestMiddleware.trackShiny(userId);
         }
+        
+        // OPTIMIZED: Track shiny quests in parallel (non-blocking)
+        Promise.all(
+            Array(shinyCount).fill().map(() => QuestMiddleware.trackShiny(userId))
+        ).catch(() => {}); // Fire and forget
     }
     
     return results;

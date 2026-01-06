@@ -1,9 +1,3 @@
-/**
- * Biome UI Service
- * 
- * Handles all UI/embed creation for the biome system.
- */
-
 const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { 
     getAllBiomes, 
@@ -13,7 +7,7 @@ const {
     formatBiomeInfo,
     getBiomeRequirementText 
 } = require('../../../Configuration/biomeConfig');
-const { getUserBiomeData } = require('./BiomeDatabaseService');
+const { getUserBiomeData, setUserBiome, canChangeBiome } = require('./BiomeDatabaseService');
 
 /**
  * Create biome selection embed
@@ -149,10 +143,11 @@ function createBiomeDetailEmbed(biomeId) {
     // Bonuses
     const bonuses = [];
     if (biome.bonuses.shinyBonus) bonuses.push(`✨ Shiny Fumos: +${biome.bonuses.shinyBonus}%`);
+    if (biome.bonuses.alGBonus) bonuses.push(`🌟 alG Fumos: +${biome.bonuses.alGBonus}%`);
     if (biome.bonuses.commonBonus) bonuses.push(`⚪ Common Fumos: +${biome.bonuses.commonBonus}%`);
     if (biome.bonuses.voidBonus) bonuses.push(`🌀 Void Fumos: +${biome.bonuses.voidBonus}%`);
     if (biome.bonuses.glitchedBonus) bonuses.push(`🔮 Glitched Fumos: +${biome.bonuses.glitchedBonus}%`);
-    if (biome.bonuses.allRarityBonus) bonuses.push(`🌟 All Fumos: +${biome.bonuses.allRarityBonus}%`);
+    if (biome.bonuses.allRarityBonus) bonuses.push(`⭐ All Fumos: +${biome.bonuses.allRarityBonus}%`);
     
     if (bonuses.length > 0) {
         embed.addFields({
@@ -213,9 +208,78 @@ async function getBiomeStatusText(userId) {
     return `${biomeData.biome.emoji} ${biomeData.biome.name} (${biomeData.biome.multipliers.coins}x/${biomeData.biome.multipliers.gems}x)`;
 }
 
+/**
+ * Handle biome change from select menu
+ * @param {Interaction} interaction 
+ * @param {string} userId 
+ */
+async function handleBiomeChange(interaction, userId) {
+    if (!interaction.isStringSelectMenu()) {
+        return;
+    }
+    
+    const selectedBiomeId = interaction.values[0];
+    
+    try {
+        // Check cooldown
+        const cooldownStatus = await canChangeBiome(userId);
+        if (!cooldownStatus.canChange) {
+            const hours = Math.ceil(cooldownStatus.remainingMs / (60 * 60 * 1000));
+            return await interaction.reply({
+                embeds: [{
+                    title: '⏰ Cooldown Active',
+                    description: `You can change biome again in **${hours} hour(s)**`,
+                    color: 0xFFA500
+                }],
+                ephemeral: true
+            });
+        }
+        
+        // Get old biome for comparison
+        const oldBiomeData = await getUserBiomeData(userId);
+        const oldBiome = oldBiomeData.biome;
+        
+        // Check if selecting same biome
+        if (oldBiomeData.biomeId === selectedBiomeId) {
+            return await interaction.reply({
+                content: '❌ You are already in this biome!',
+                ephemeral: true
+            });
+        }
+        
+        // Get new biome config
+        const newBiome = getBiome(selectedBiomeId);
+        if (!newBiome) {
+            return await interaction.reply({
+                content: '❌ Invalid biome selected.',
+                ephemeral: true
+            });
+        }
+        
+        // Set the new biome
+        await setUserBiome(userId, selectedBiomeId);
+        
+        // Show success embed
+        const successEmbed = createBiomeChangeEmbed(newBiome, oldBiome);
+        
+        await interaction.update({
+            embeds: [successEmbed],
+            components: []
+        });
+        
+    } catch (error) {
+        console.error('Error changing biome:', error);
+        await interaction.reply({
+            content: '❌ Failed to change biome.',
+            ephemeral: true
+        });
+    }
+}
+
 module.exports = {
     createBiomeSelectEmbed,
     createBiomeDetailEmbed,
     createBiomeChangeEmbed,
-    getBiomeStatusText
+    getBiomeStatusText,
+    handleBiomeChange
 };

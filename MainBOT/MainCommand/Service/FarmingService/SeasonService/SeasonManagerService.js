@@ -286,9 +286,22 @@ async function getCurrentMultipliers() {
     await cleanExpiredSeasons();
     const activeSeasons = await getActiveSeasonTypes();
     
+    // First check if any active season IS a combo key itself (combo was already triggered)
+    const { WEATHER_COMBOS, getComboMultiplier } = require('../../../Configuration/weatherComboConfig');
+    for (const season of activeSeasons) {
+        if (WEATHER_COMBOS[season]) {
+            const comboMult = getComboMultiplier(season);
+            return {
+                coinMultiplier: comboMult.coin,
+                gemMultiplier: comboMult.gem,
+                activeEvents: [season]
+            };
+        }
+    }
+    
+    // Check if active weathers FORM a combo (for the first detection)
     const comboCheck = checkForWeatherCombo(activeSeasons);
     if (comboCheck.found) {
-        const { getComboMultiplier } = require('../../../Configuration/weatherComboConfig');
         const comboMult = getComboMultiplier(comboCheck.comboKey);
         return {
             coinMultiplier: comboMult.coin,
@@ -306,6 +319,15 @@ async function getActiveSeasonsList() {
         return 'No active seasonal events';
     }
     
+    // Check if any active season IS a combo key itself
+    const { WEATHER_COMBOS, getComboDescription: getComboDesc } = require('../../../Configuration/weatherComboConfig');
+    for (const season of activeSeasons) {
+        if (WEATHER_COMBOS[season]) {
+            return getComboDesc(season);
+        }
+    }
+    
+    // Check if weathers FORM a combo
     const comboCheck = checkForWeatherCombo(activeSeasons);
     if (comboCheck.found) {
         return getComboDescription(comboCheck.comboKey);

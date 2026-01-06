@@ -1,6 +1,6 @@
 const { get, run, withUserLock, atomicDeductCoins } = require('../../../Core/database');
 const { getUserBoosts, calculateTotalLuckMultiplier, consumeSanaeLuckRoll, consumeSanaeGuaranteedRoll } = require('./BoostService');
-const { calculateRarity, updatePityCounters, updateBoostCharge, meetsMinimumRarity } = require('./RarityService');
+const { calculateRarity, calculateRarityBatched, applyBatchedUpdates, updatePityCounters, updateBoostCharge, meetsMinimumRarity } = require('./RarityService');
 const { selectAndAddFumo, selectAndAddMultipleFumos } = require('./InventoryService');
 const { ASTRAL_PLUS_RARITIES, isRarer } = require('../../../Configuration/rarity');
 const { incrementWeeklyAstral } = require('../../../Ultility/weekly');
@@ -8,12 +8,65 @@ const { debugLog } = require('../../../Core/logger');
 const StorageLimitService = require('../../UserDataService/StorageService/StorageLimitService');
 const QuestMiddleware = require('../../../Middleware/questMiddleware');
 
+// Lazy-load level service to avoid circular dependencies
+let LevelDatabaseService = null;
+let levelServiceLoadFailed = false;
+
+function getLevelService() {
+    if (levelServiceLoadFailed) return null; // Don't keep retrying if it failed
+    
+    if (!LevelDatabaseService) {
+        try {
+            LevelDatabaseService = require('../../UserDataService/LevelService/LevelDatabaseService');
+        } catch (e) {
+            levelServiceLoadFailed = true;
+            console.error('[CrateGachaRollService] Could not load LevelDatabaseService:', e.message);
+            return null;
+        }
+    }
+    return LevelDatabaseService;
+}
+
 // Maximum pity counter value to prevent integer overflow
 const MAX_PITY = 2147483647;
+
+/**
+ * Award EXP based on number of fumos rolled
+ * 1 fumo = 1 EXP, 10 fumos = 10 EXP, etc.
+ * @param {string} userId 
+ * @param {number} rollCount - Number of fumos rolled
+ */
+async function awardRollExp(userId, rollCount) {
+    if (!rollCount || rollCount <= 0) return;
+    
+    const levelService = getLevelService();
+    if (!levelService) {
+        console.warn('[CrateGachaRollService] LevelDatabaseService not available, skipping EXP award');
+        return;
+    }
+    
+    if (typeof levelService.addExp !== 'function') {
+        console.error('[CrateGachaRollService] addExp is not a function on LevelDatabaseService');
+        return;
+    }
+    
+    try {
+        const result = await levelService.addExp(userId, rollCount, 'crate_gacha');
+        if (result && result.levelUps && result.levelUps.length > 0) {
+            debugLog('LEVEL', `User ${userId} leveled up to ${result.newLevel} from gacha rolls!`);
+        }
+    } catch (error) {
+        // Log the full error for debugging
+        console.error('[CrateGachaRollService] Failed to award EXP:', error);
+    }
+}
 
 async function updateQuestsAndAchievements(userId, rollCount) {
     // Use the new QuestMiddleware for tracking
     await QuestMiddleware.trackRoll(userId, rollCount);
+    
+    // Award EXP for rolling (1 fumo = 1 EXP)
+    await awardRollExp(userId, rollCount);
 }
 
 async function getUserRollData(userId) {
@@ -229,9 +282,21 @@ async function performMultiRoll(userId, fumos, rollCount, isAutoRoll = false) {
             let sanaeGuaranteedRemaining = boosts.sanaeGuaranteedRolls || 0;
             const sanaeMinRarity = boosts.sanaeGuaranteedRarity || null;
             
-            // Track S!gil nullified rolls locally to avoid re-fetching
-            let sigilNullifiedRemaining = boosts.sigilNullifiedRolls || 0;
+            // Create mutable boosts copy for batched calculation
+            const batchBoosts = { 
+                ...boosts, 
+                sigilNullifiedRolls: boosts.sigilNullifiedRolls || 0,
+                nullifiedUses: boosts.nullifiedUses || 0
+            };
+            
+            // Track batched updates to apply after loop
+            const batchedUpdates = {
+                sigilNullifiedUsed: 0,
+                nullifiedUsed: 0,
+                sanaeGuaranteedUsed: 0
+            };
 
+            // OPTIMIZED: No awaits inside the loop - all synchronous
             for (let i = 0; i < rollCount; i++) {
                 currentRolls++;
 
@@ -243,14 +308,17 @@ async function performMultiRoll(userId, fumos, rollCount, isAutoRoll = false) {
                     ...pities
                 };
 
-                // Pass the local count to avoid stale data
-                const tempBoosts = { ...boosts, sigilNullifiedRolls: sigilNullifiedRemaining };
-                let { rarity, sigilNullified } = await calculateRarity(userId, tempBoosts, tempRow, hasFantasyBook);
+                // Use batched version - no database writes
+                const result = calculateRarityBatched(batchBoosts, tempRow, hasFantasyBook);
+                let rarity = result.rarity;
 
                 // Track if S!gil nullified was used this roll
-                if (sigilNullified) {
+                if (result.sigilNullified) {
                     sigilNullifiedUsedInBatch = true;
-                    sigilNullifiedRemaining = Math.max(0, sigilNullifiedRemaining - 1);
+                    batchedUpdates.sigilNullifiedUsed++;
+                }
+                if (result.nullifiedUsed && !result.sigilNullified) {
+                    batchedUpdates.nullifiedUsed++;
                 }
 
                 // Check if we should use Sanae guaranteed rarity
@@ -260,15 +328,14 @@ async function performMultiRoll(userId, fumos, rollCount, isAutoRoll = false) {
                     }
                     sanaeGuaranteedRemaining--;
                     sanaeGuaranteedUsed++;
-                    
-                    // Consume the guaranteed roll from database
-                    await consumeSanaeGuaranteedRoll(userId);
+                    batchedUpdates.sanaeGuaranteedUsed++;
                 }
 
                 rarities.push(rarity);
 
+                // incrementWeeklyAstral uses callback-style, not blocking
                 if (ASTRAL_PLUS_RARITIES.includes(rarity)) {
-                    await incrementWeeklyAstral(userId);
+                    incrementWeeklyAstral(userId);
                 }
 
                 pities = updatePityCounters(pities, rarity, hasFantasyBook);
@@ -285,6 +352,9 @@ async function performMultiRoll(userId, fumos, rollCount, isAutoRoll = false) {
                 boostActive = boostUpdate.boostActive;
                 boostRollsRemaining = boostUpdate.boostRollsRemaining;
             }
+            
+            // Apply all batched database updates at once
+            await applyBatchedUpdates(userId, batchedUpdates);
 
             // Pass S!gil astral blocking flag if any nullified rolls used S!gil
             const fumoResults = await selectAndAddMultipleFumos(userId, rarities, fumos, {

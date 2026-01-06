@@ -179,11 +179,22 @@ function calculateEventChances(totalLuckMultiplier) {
 }
 
 async function getEventUserRollData(userId) {
-    return await get(
-        `SELECT gems, lastRollTime, rollsInCurrentWindow, rollsSinceLastMythical, rollsSinceLastQuestionMark, 
-         luck, rollsLeft, totalRolls, hasFantasyBook FROM userCoins WHERE userId = ?`,
-        [userId]
-    );
+    // Get data from userCoins and level from userLevelProgress
+    const [userData, levelData] = await Promise.all([
+        get(
+            `SELECT gems, lastRollTime, rollsInCurrentWindow, rollsSinceLastMythical, rollsSinceLastQuestionMark, 
+             luck, rollsLeft, totalRolls, hasFantasyBook FROM userCoins WHERE userId = ?`,
+            [userId]
+        ),
+        get(`SELECT level FROM userLevelProgress WHERE userId = ?`, [userId])
+    ]);
+    
+    if (!userData) return null;
+    
+    return {
+        ...userData,
+        level: levelData?.level || 1
+    };
 }
 
 async function updateEventUserAfterRoll(userId, updates) {

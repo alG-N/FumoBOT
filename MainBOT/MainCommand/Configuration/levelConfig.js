@@ -2,6 +2,7 @@
  * Level & Experience Configuration
  * 
  * EXP is earned through:
+ * - Gacha rolls (1 fumo rolled = 1 EXP, e.g., 100 fumos = 100 EXP)
  * - Main Quest completion
  * - Daily quest completion (bonus EXP)
  * - Weekly quest completion (bonus EXP)

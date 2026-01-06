@@ -76,21 +76,23 @@ function calculateEfficiency(userData) {
 }
 
 function getLevelProgress(userData) {
-    const currentLevel = userData.level || 1;
-    const currentExp = userData.exp || 0;
-    const expToNextLevel = calculateExpRequired(currentLevel);
-    const progress = (currentExp / expToNextLevel) * 100;
+    const totalExp = userData.exp || 0;
+    // Use getLevelFromExp to properly calculate current level progress
+    const { getLevelFromExp } = require('../../../Configuration/levelConfig');
+    const levelData = getLevelFromExp(totalExp);
     
     return {
-        currentLevel,
-        currentExp,
-        expToNextLevel,
-        progress: Math.min(progress, 100)
+        currentLevel: levelData.level,
+        currentExp: levelData.currentExp,
+        expToNextLevel: levelData.expToNext,
+        progress: Math.min(levelData.progress, 100)
     };
 }
 
+// DEPRECATED: Use getExpForLevel from levelConfig instead
 function calculateExpRequired(level) {
-    return Math.floor(100 * Math.pow(1.5, level - 1));
+    const { getExpForLevel } = require('../../../Configuration/levelConfig');
+    return getExpForLevel(level + 1);
 }
 
 function getPlayerRank(userData) {

@@ -1,5 +1,6 @@
 const { checkRestrictions } = require('../../Middleware/restrictions');
 const TRADING_CONFIG = require('../../Configuration/tradingConfig');
+const { requireFeature } = require('../../Ultility/featureLock');
 
 const {
     isUserTrading,
@@ -54,6 +55,12 @@ module.exports = (client) => {
         const restriction = checkRestrictions(message.author.id);
         if (restriction.blocked) {
             return message.reply({ embeds: [restriction.embed] });
+        }
+
+        // Check if user has unlocked trading feature (Level 20)
+        const featureLock = await requireFeature(message.author.id, 'TRADING');
+        if (featureLock) {
+            return message.reply({ embeds: [featureLock] });
         }
 
         const mentionedUser = message.mentions.users.first();

@@ -1,4 +1,4 @@
-const { get, run, withUserLock } = require('../../../Core/database');
+const { get, run, all, withUserLock } = require('../../../Core/database');
 const { debugLog } = require('../../../Core/logger');
 const { 
     getLevelFromExp, 
@@ -6,33 +6,28 @@ const {
     LEVEL_MILESTONES,
     MAX_LEVEL 
 } = require('../../../Configuration/levelConfig');
+const { invalidateCache } = require('../BalanceService/BalanceService');
 
 /**
- * Get user's current EXP and level info
+ * Get user's current EXP and level info from userLevelProgress table
  * @param {string} userId 
  * @returns {Promise<{level: number, exp: number, currentExp: number, expToNext: number, progress: number}>}
  */
 async function getUserLevel(userId) {
-    const row = await get(
-        `SELECT level, exp, rebirth FROM userCoins WHERE userId = ?`,
-        [userId]
-    );
+    // Get level/exp from userLevelProgress and rebirth from userCoins
+    const [levelRow, rebirthRow] = await Promise.all([
+        get(`SELECT level, exp FROM userLevelProgress WHERE userId = ?`, [userId]),
+        get(`SELECT rebirth FROM userCoins WHERE userId = ?`, [userId])
+    ]);
     
-    if (!row) {
-        return {
-            level: 1,
-            exp: 0,
-            currentExp: 0,
-            expToNext: 100,
-            progress: 0,
-            rebirth: 0
-        };
-    }
+    const level = levelRow?.level || 1;
+    const exp = levelRow?.exp || 0;
+    const rebirth = rebirthRow?.rebirth || 0;
     
-    const levelInfo = getLevelFromExp(row.exp || 0);
+    const levelInfo = getLevelFromExp(exp);
     return {
         ...levelInfo,
-        rebirth: row.rebirth || 0
+        rebirth
     };
 }
 
@@ -49,20 +44,24 @@ async function addExp(userId, amount, source = 'unknown') {
     }
     
     return await withUserLock(userId, 'addExp', async () => {
-        // Get current state
+        // Get current state from userLevelProgress
         const current = await get(
-            `SELECT level, exp, rebirth FROM userCoins WHERE userId = ?`,
+            `SELECT level, exp FROM userLevelProgress WHERE userId = ?`,
             [userId]
         );
         
         if (!current) {
             // Create user entry if doesn't exist
             await run(
-                `INSERT OR IGNORE INTO userCoins (userId, coins, gems, exp, level) 
-                 VALUES (?, 0, 0, ?, 1)`,
-                [userId, amount]
+                `INSERT OR IGNORE INTO userLevelProgress (userId, level, exp, totalExpEarned, lastUpdated, lastExpSource) 
+                 VALUES (?, 1, ?, ?, ?, ?)`,
+                [userId, amount, amount, Date.now(), source]
             );
             const newLevelInfo = getLevelFromExp(amount);
+            
+            // Invalidate balance cache so UI shows updated level/exp
+            invalidateCache(userId);
+            
             return {
                 success: true,
                 levelUps: newLevelInfo.level > 1 ? [newLevelInfo.level] : [],
@@ -79,11 +78,14 @@ async function addExp(userId, amount, source = 'unknown') {
         // Cap at MAX_LEVEL
         const cappedLevel = Math.min(newLevelInfo.level, MAX_LEVEL);
         
-        // Update database
+        // Update userLevelProgress table
         await run(
-            `UPDATE userCoins SET exp = ?, level = ? WHERE userId = ?`,
-            [newExp, cappedLevel, userId]
+            `UPDATE userLevelProgress SET exp = ?, level = ?, totalExpEarned = totalExpEarned + ?, lastUpdated = ?, lastExpSource = ? WHERE userId = ?`,
+            [newExp, cappedLevel, amount, Date.now(), source, userId]
         );
+        
+        // Invalidate balance cache so UI shows updated level/exp
+        invalidateCache(userId);
         
         // Track level ups
         const levelUps = [];
@@ -112,10 +114,23 @@ async function setLevel(userId, level) {
     const { getTotalExpForLevel } = require('../../../Configuration/levelConfig');
     const exp = getTotalExpForLevel(level);
     
-    await run(
-        `UPDATE userCoins SET level = ?, exp = ? WHERE userId = ?`,
-        [level, exp, userId]
-    );
+    // Check if user exists in userLevelProgress
+    const existing = await get(`SELECT userId FROM userLevelProgress WHERE userId = ?`, [userId]);
+    
+    if (existing) {
+        await run(
+            `UPDATE userLevelProgress SET level = ?, exp = ?, lastUpdated = ? WHERE userId = ?`,
+            [level, exp, Date.now(), userId]
+        );
+    } else {
+        await run(
+            `INSERT INTO userLevelProgress (userId, level, exp, totalExpEarned, lastUpdated) VALUES (?, ?, ?, ?, ?)`,
+            [userId, level, exp, exp, Date.now()]
+        );
+    }
+    
+    // Invalidate balance cache so UI shows updated level/exp
+    invalidateCache(userId);
     
     return { success: true, level, exp };
 }
@@ -128,20 +143,13 @@ async function setLevel(userId, level) {
 async function getUnclaimedMilestones(userId) {
     const userLevel = await getUserLevel(userId);
     
-    // Get claimed milestones from database
-    const claimedRows = await get(
-        `SELECT claimedMilestones FROM userLevelMilestones WHERE userId = ?`,
+    // Get claimed milestone levels from database (row-based schema)
+    const claimedRows = await all(
+        `SELECT milestoneLevel FROM userLevelMilestones WHERE userId = ?`,
         [userId]
     );
     
-    let claimedLevels = [];
-    if (claimedRows?.claimedMilestones) {
-        try {
-            claimedLevels = JSON.parse(claimedRows.claimedMilestones);
-        } catch (e) {
-            claimedLevels = [];
-        }
-    }
+    const claimedLevels = claimedRows.map(r => r.milestoneLevel);
     
     // Find unclaimed milestones that user has reached
     return LEVEL_MILESTONES.filter(m => 
@@ -170,20 +178,13 @@ async function claimMilestone(userId, milestoneLevel) {
             return { success: false, error: 'INVALID_MILESTONE' };
         }
         
-        // Check if already claimed
-        const claimedRows = await get(
-            `SELECT claimedMilestones FROM userLevelMilestones WHERE userId = ?`,
+        // Check if already claimed (row-based schema)
+        const claimedRows = await all(
+            `SELECT milestoneLevel FROM userLevelMilestones WHERE userId = ?`,
             [userId]
         );
         
-        let claimedLevels = [];
-        if (claimedRows?.claimedMilestones) {
-            try {
-                claimedLevels = JSON.parse(claimedRows.claimedMilestones);
-            } catch (e) {
-                claimedLevels = [];
-            }
-        }
+        const claimedLevels = claimedRows.map(r => r.milestoneLevel);
         
         if (claimedLevels.includes(milestoneLevel)) {
             return { success: false, error: 'ALREADY_CLAIMED' };
@@ -208,13 +209,10 @@ async function claimMilestone(userId, milestoneLevel) {
             );
         }
         
-        // Mark as claimed
-        claimedLevels.push(milestoneLevel);
+        // Mark as claimed (insert new row)
         await run(
-            `INSERT INTO userLevelMilestones (userId, claimedMilestones)
-             VALUES (?, ?)
-             ON CONFLICT(userId) DO UPDATE SET claimedMilestones = ?`,
-            [userId, JSON.stringify(claimedLevels), JSON.stringify(claimedLevels)]
+            `INSERT OR IGNORE INTO userLevelMilestones (userId, milestoneLevel) VALUES (?, ?)`,
+            [userId, milestoneLevel]
         );
         
         debugLog('LEVEL', `User ${userId} claimed milestone ${milestoneLevel}: ${JSON.stringify(rewards)}`);
@@ -261,16 +259,30 @@ async function claimAllMilestones(userId) {
  * @returns {Promise<Object[]>}
  */
 async function getLevelLeaderboard(limit = 10) {
-    const { all } = require('../../../Core/database');
-    
+    // Join userLevelProgress with userCoins to get rebirth info
     return await all(
-        `SELECT userId, level, exp, rebirth 
-         FROM userCoins 
-         WHERE level > 0
-         ORDER BY rebirth DESC, level DESC, exp DESC 
+        `SELECT ulp.userId, ulp.level, ulp.exp, COALESCE(uc.rebirth, 0) as rebirth 
+         FROM userLevelProgress ulp
+         LEFT JOIN userCoins uc ON ulp.userId = uc.userId
+         WHERE ulp.level > 0
+         ORDER BY COALESCE(uc.rebirth, 0) DESC, ulp.level DESC, ulp.exp DESC 
          LIMIT ?`,
         [limit]
     );
+}
+
+/**
+ * Reset user's level and exp (for rebirth)
+ * @param {string} userId 
+ */
+async function resetLevelForRebirth(userId) {
+    await run(
+        `UPDATE userLevelProgress SET level = 1, exp = 0, lastUpdated = ? WHERE userId = ?`,
+        [Date.now(), userId]
+    );
+    
+    // Invalidate balance cache so UI shows updated level/exp
+    invalidateCache(userId);
 }
 
 module.exports = {
@@ -280,5 +292,6 @@ module.exports = {
     getUnclaimedMilestones,
     claimMilestone,
     claimAllMilestones,
-    getLevelLeaderboard
+    getLevelLeaderboard,
+    resetLevelForRebirth
 };

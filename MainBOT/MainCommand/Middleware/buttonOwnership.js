@@ -54,7 +54,11 @@ async function sendOwnershipError(interaction, customMessage = null) {
 }
 
 function checkButtonOwnership(interaction, expectedAction = null) {
-    return verifyButtonOwnership(interaction, expectedAction);
+    const isOwner = verifyButtonOwnership(interaction, expectedAction);
+    return {
+        isOwner,
+        message: isOwner ? null : "❌ You can't use someone else's button. Run the command yourself."
+    };
 }
 
 function getValidatedUserId(interaction) {

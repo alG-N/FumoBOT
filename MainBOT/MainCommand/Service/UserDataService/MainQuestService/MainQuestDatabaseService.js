@@ -7,7 +7,7 @@
  * NOTE: Table creation is handled by Core/Database/schema.js
  */
 
-const { withUserLock, pool } = require('../../../Core/database.js');
+const { withUserLock, get, run, all } = require('../../../Core/database.js');
 const { MAIN_QUESTS, getQuestById, getNextQuest, calculateQuestExp } = require('../../../Configuration/mainQuestConfig.js');
 
 // Lazy-load LevelDatabaseService to avoid circular dependencies
@@ -29,53 +29,75 @@ function getLevelService() {
  * @returns {Promise<Object>}
  */
 async function getMainQuestProgress(userId) {
-    return new Promise((resolve, reject) => {
-        pool.get(`
-            SELECT * FROM mainQuestProgress WHERE userId = ?
-        `, [userId], (err, row) => {
-            if (err) {
-                reject(err);
-                return;
-            }
-            
-            if (!row) {
-                // Return default progress
-                resolve({
-                    userId,
-                    currentQuestId: 1,
-                    completedQuests: [],
-                    questTracking: {},
-                    lastUpdated: Date.now()
-                });
-                return;
-            }
-            
-            resolve({
-                userId: row.userId,
-                currentQuestId: row.currentQuestId,
-                completedQuests: JSON.parse(row.completedQuests || '[]'),
-                questTracking: JSON.parse(row.questTracking || '{}'),
-                lastUpdated: row.lastUpdated
-            });
-        });
-    });
+    const row = await get(`
+        SELECT * FROM mainQuestProgress WHERE userId = ?
+    `, [userId]);
+    
+    if (!row) {
+        // Return default progress
+        return {
+            userId,
+            currentQuestId: 1,
+            completedQuests: [],
+            questTracking: {},
+            lastUpdated: Date.now()
+        };
+    }
+    
+    return {
+        userId: row.userId,
+        currentQuestId: row.currentQuestId,
+        completedQuests: JSON.parse(row.completedQuests || '[]'),
+        questTracking: JSON.parse(row.questTracking || '{}'),
+        lastUpdated: row.lastUpdated
+    };
 }
 
 /**
  * Initialize or update user's main quest entry
+ * Automatically skips quest 1 (starter) if user already has an account
  * @param {string} userId 
  * @returns {Promise<void>}
  */
 async function initializeUserProgress(userId) {
-    return new Promise((resolve, reject) => {
-        pool.run(`
+    // First check if user already has main quest progress
+    const existing = await get(`SELECT currentQuestId, completedQuests FROM mainQuestProgress WHERE userId = ?`, [userId]);
+    
+    // Check if user already has an account (meaning they've done .starter before)
+    const hasAccount = await get(`SELECT userId FROM userCoins WHERE userId = ?`, [userId]);
+    
+    if (existing) {
+        // User has progress entry - check if they're stuck on quest 1 but already have account
+        if (existing.currentQuestId === 1 && hasAccount) {
+            // Auto-complete quest 1 for existing users who already did .starter
+            const completedQuests = JSON.parse(existing.completedQuests || '[]');
+            if (!completedQuests.includes(1)) {
+                completedQuests.push(1);
+                await run(`
+                    UPDATE mainQuestProgress 
+                    SET currentQuestId = 2, 
+                        completedQuests = ?,
+                        questTracking = json_set(COALESCE(questTracking, '{}'), '$.cmd_starter', 1)
+                    WHERE userId = ?
+                `, [JSON.stringify(completedQuests), userId]);
+            }
+        }
+        return; // Already initialized
+    }
+    
+    if (hasAccount) {
+        // User already did .starter, start them at quest 2 with quest 1 auto-completed
+        await run(`
+            INSERT OR IGNORE INTO mainQuestProgress (userId, currentQuestId, completedQuests, questTracking)
+            VALUES (?, 2, '[1]', '{"cmd_starter": 1}')
+        `, [userId]);
+    } else {
+        // New user, start at quest 1
+        await run(`
             INSERT OR IGNORE INTO mainQuestProgress (userId, currentQuestId, completedQuests, questTracking)
             VALUES (?, 1, '[]', '{}')
-        `, [userId], (err) => {
-            if (err) reject(err);
-            else resolve();
-        });
-    });
+        `, [userId]);
+    }
 }
 
 /**
@@ -86,7 +108,7 @@ async function initializeUserProgress(userId) {
  * @returns {Promise<Object|null>} Returns completed quest if any
  */
 async function updateTracking(userId, trackingType, amount = 1) {
-    return withUserLock(userId, async () => {
+    return withUserLock(userId, 'main_quest_tracking', async () => {
         // Ensure user has progress entry
         await initializeUserProgress(userId);
         
@@ -123,7 +145,7 @@ async function updateTracking(userId, trackingType, amount = 1) {
  * @returns {Promise<Object|null>}
  */
 async function trackCommand(userId, commandName) {
-    return withUserLock(userId, async () => {
+    return withUserLock(userId, 'main_quest_command', async () => {
         await initializeUserProgress(userId);
         
         const progress = await getMainQuestProgress(userId);
@@ -158,7 +180,7 @@ async function trackCommand(userId, commandName) {
  * @returns {Promise<Object|null>}
  */
 async function checkLevelQuest(userId, currentLevel) {
-    return withUserLock(userId, async () => {
+    return withUserLock(userId, 'main_quest_level', async () => {
         const progress = await getMainQuestProgress(userId);
         const currentQuest = getQuestById(progress.currentQuestId);
         
@@ -181,7 +203,7 @@ async function checkLevelQuest(userId, currentLevel) {
  * @returns {Promise<Object|null>}
  */
 async function checkRebirthQuest(userId, rebirthCount) {
-    return withUserLock(userId, async () => {
+    return withUserLock(userId, 'main_quest_rebirth', async () => {
         const progress = await getMainQuestProgress(userId);
         const currentQuest = getQuestById(progress.currentQuestId);
         
@@ -255,25 +277,20 @@ async function completeQuest(userId, progress, quest) {
     const tracking = progress.questTracking;
     
     // Save progress
-    await new Promise((resolve, reject) => {
-        pool.run(`
-            UPDATE mainQuestProgress
-            SET currentQuestId = ?,
-                completedQuests = ?,
-                questTracking = ?,
-                lastUpdated = ?
-            WHERE userId = ?
-        `, [
-            nextQuestId,
-            JSON.stringify(completedQuests),
-            JSON.stringify(tracking),
-            Date.now(),
-            userId
-        ], (err) => {
-            if (err) reject(err);
-            else resolve();
-        });
-    });
+    await run(`
+        UPDATE mainQuestProgress
+        SET currentQuestId = ?,
+            completedQuests = ?,
+            questTracking = ?,
+            lastUpdated = ?
+        WHERE userId = ?
+    `, [
+        nextQuestId,
+        JSON.stringify(completedQuests),
+        JSON.stringify(tracking),
+        Date.now(),
+        userId
+    ]);
     
     // Give rewards
     const rewards = quest.rewards;
@@ -313,17 +330,12 @@ async function completeQuest(userId, progress, quest) {
  * @param {Object} tracking 
  */
 async function saveTracking(userId, tracking) {
-    return new Promise((resolve, reject) => {
-        pool.run(`
-            UPDATE mainQuestProgress
-            SET questTracking = ?,
-                lastUpdated = ?
-            WHERE userId = ?
-        `, [JSON.stringify(tracking), Date.now(), userId], (err) => {
-            if (err) reject(err);
-            else resolve();
-        });
-    });
+    return await run(`
+        UPDATE mainQuestProgress
+        SET questTracking = ?,
+            lastUpdated = ?
+        WHERE userId = ?
+    `, [JSON.stringify(tracking), Date.now(), userId]);
 }
 
 /**
@@ -333,17 +345,12 @@ async function saveTracking(userId, tracking) {
  * @param {number} gems 
  */
 async function grantCurrencyRewards(userId, coins, gems) {
-    return new Promise((resolve, reject) => {
-        pool.run(`
-            UPDATE userCoins
-            SET coins = coins + ?,
-                gems = gems + ?
-            WHERE userId = ?
-        `, [coins, gems, userId], (err) => {
-            if (err) reject(err);
-            else resolve();
-        });
-    });
+    return await run(`
+        UPDATE userCoins
+        SET coins = coins + ?,
+            gems = gems + ?
+        WHERE userId = ?
+    `, [coins, gems, userId]);
 }
 
 /**

@@ -51,7 +51,7 @@ function createOverviewPage(targetUser, userData, farmingFumos, activeBoosts, we
     const levelProgress = getLevelProgress(userData);
     
     const weatherInfo = weather 
-        ? `🌤️ ${weather.weatherType} (${weather.multiplierCoin}x/${weather.multiplierGem}x)`
+        ? `🌤️ ${weather.weatherType}\n(${weather.multiplierCoin}x/${weather.multiplierGem}x)`
         : '☁️ Clear skies';
     
     const embed = new EmbedBuilder()
@@ -153,12 +153,16 @@ function createEconomyPage(targetUser, userData, farmingFumos, activeBoosts) {
             },
             {
                 name: '⚙️ Farming Production',
-                value: [
-                    `🐾 **Fumos Farming:** ${(farmingFumos || []).length}`,
-                    `💰 **Base Rate:** ${formatNumber(farmingRate.totalCoins)}/min`,
-                    `💎 **Base Rate:** ${formatNumber(farmingRate.totalGems)}/min`,
-                    `📈 **Boosted:** ${formatNumber(effectiveCoinsPerMin)}💰/${formatNumber(effectiveGemsPerMin)}💎 /min`
-                ].join('\n'),
+                value: (() => {
+                    const fumoList = farmingFumos || [];
+                    const totalFumoCount = fumoList.reduce((sum, f) => sum + (f.quantity || 1), 0);
+                    return [
+                        `🐾 **Fumos Farming:** ${totalFumoCount} (${fumoList.length} unique)`,
+                        `💰 **Base Rate:** ${formatNumber(farmingRate.totalCoins)}/min`,
+                        `💎 **Base Rate:** ${formatNumber(farmingRate.totalGems)}/min`,
+                        `📈 **Boosted:** ${formatNumber(effectiveCoinsPerMin)}💰/${formatNumber(effectiveGemsPerMin)}💎 /min`
+                    ].join('\n');
+                })(),
                 inline: false
             },
             {
@@ -187,10 +191,15 @@ function createEconomyPage(targetUser, userData, farmingFumos, activeBoosts) {
 // ═══════════════════════════════════════════════════════════════════
 // PAGE 3: PRAYER - Prayer & devotion statistics
 // ═══════════════════════════════════════════════════════════════════
-function createPrayerPage(targetUser, userData) {
+function createPrayerPage(targetUser, userData, sanaeData = {}) {
     const reimuProgress = formatProgressBar(userData.reimuPityCount || 0, 15);
     const marisaProgress = formatProgressBar(userData.marisaDonationCount || 0, 5);
     const yukariProgress = formatProgressBar(userData.yukariMark || 0, 10);
+    
+    // Sanae faith points - max 20 from prayConfig.faithPoints.max
+    const faithPoints = sanaeData.faithPoints || 0;
+    const maxFaith = 20; // From prayConfig.faithPoints.max
+    const faithProgress = formatProgressBar(faithPoints, maxFaith);
     
     return new EmbedBuilder()
         .setTitle(`🙏 ${targetUser.username}'s Prayer & Devotion`)
@@ -220,6 +229,17 @@ function createPrayerPage(targetUser, userData) {
                     `💰 **Coins Earned:** ${formatNumber(userData.yukariCoins || 0)}`,
                     `💎 **Gems Earned:** ${formatNumber(userData.yukariGems || 0)}`,
                     `🎭 **Yukari Mark:** ${yukariProgress}`
+                ].join('\n'),
+                inline: false
+            },
+            {
+                name: '⛩️ Sanae\'s Faith',
+                value: [
+                    `🙏 **Faith Points:** ${formatNumber(faithPoints)} / ${formatNumber(maxFaith)}`,
+                    `📈 **Progress:** ${faithProgress}`,
+                    `✨ **Permanent Luck:** +${((sanaeData.permanentLuckBonus || 0) * 100).toFixed(1)}%`,
+                    `🎲 **Luck Rolls Left:** ${sanaeData.luckForRolls || 0}`,
+                    `🎯 **Guaranteed Rolls:** ${sanaeData.guaranteedRarityRolls || 0}`
                 ].join('\n'),
                 inline: false
             },
@@ -724,11 +744,11 @@ function createActivityPage(targetUser, activityData, achievements) {
 // ═══════════════════════════════════════════════════════════════════
 // GENERATE ALL PAGES
 // ═══════════════════════════════════════════════════════════════════
-async function generateAllPages(targetUser, userData, farmingFumos, activeBoosts, achievements, activityData, petData, buildings, questSummary, weather) {
+async function generateAllPages(targetUser, userData, farmingFumos, activeBoosts, achievements, activityData, petData, buildings, questSummary, weather, sanaeData) {
     return [
         createOverviewPage(targetUser, userData, farmingFumos, activeBoosts, weather),
         createEconomyPage(targetUser, userData, farmingFumos, activeBoosts),
-        createPrayerPage(targetUser, userData),
+        createPrayerPage(targetUser, userData, sanaeData),
         createStatsPage(targetUser, userData),
         createPetsPage(targetUser, petData || { owned: [], hatching: [] }),
         createBuildingsPage(targetUser, buildings || []),

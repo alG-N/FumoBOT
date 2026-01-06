@@ -49,11 +49,12 @@ async function handleLimitBreakerInteraction(interaction, userId, message, clien
     else if (customId.startsWith('limitbreak_back_')) {
         await handleLimitBreakBack(interaction, userId);
     }
-    else if (customId.startsWith('fragment_use_')) {
-        await handleFragmentUse(interaction, userId, client);
-    }
+    // IMPORTANT: Check fragment_use_multi_ BEFORE fragment_use_ since startsWith will match both
     else if (customId.startsWith('fragment_use_multi_')) {
         await showFragmentModal(interaction, userId);
+    }
+    else if (customId.startsWith('fragment_use_')) {
+        await handleFragmentUse(interaction, userId, client);
     }
 }
 

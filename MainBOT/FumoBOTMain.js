@@ -127,6 +127,8 @@ const commandModules = {
     useItem: () => require('./MainCommand/CommandFolder/UserDataCommand/UsuableCommand/use'),
     itemInfo: () => require('./MainCommand/CommandFolder/UserDataCommand/UsuableCommand/itemInfo'),
     quest: () => require('./MainCommand/CommandFolder/UserDataCommand/UsuableCommand/quest'),
+    level: () => require('./MainCommand/CommandFolder/UserDataCommand/UsuableCommand/level'),
+    rebirth: () => require('./MainCommand/CommandFolder/UserDataCommand/UsuableCommand/rebirth'),
     daily: () => require('./MainCommand/CommandFolder/UserDataCommand/DailyStuff/daily'),
     starter: () => require('./MainCommand/CommandFolder/UserDataCommand/DailyStuff/starter'),
     

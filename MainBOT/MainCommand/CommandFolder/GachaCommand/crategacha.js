@@ -332,17 +332,24 @@ module.exports = (client) => {
                  FROM userCoins WHERE userId = ?`,
                 [message.author.id]
             );
+            
+            // Get level from userLevelProgress
+            const levelRow = await get(
+                `SELECT level FROM userLevelProgress WHERE userId = ?`,
+                [message.author.id]
+            );
 
             if (!row) {
                 return message.reply({ content: 'You do not have any coins unfortunately..', ephemeral: true });
             }
 
             const hasFantasyBook = !!row.hasFantasyBook;
+            const userLevel = levelRow?.level || 1;
             const boosts = await getUserBoosts(message.author.id);
             const autoRollActive = isAutoRollActive(message.author.id);
 
             const embed = await createShopEmbed(row, boosts, hasFantasyBook, autoRollActive, message.author.id);
-            const buttons = createShopButtons(message.author.id, autoRollActive);
+            const buttons = createShopButtons(message.author.id, autoRollActive, userLevel);
 
             await message.channel.send({ embeds: [embed], components: [buttons] });
             await logToDiscord(client, `📋 User ${message.author.tag} opened crate gacha shop`);
@@ -361,7 +368,7 @@ module.exports = (client) => {
             const parts = interaction.customId.split('_');
             const action = parts.slice(0, -1).join('_');
 
-            const crategachaActions = ['buy1fumo', 'buy10fumos', 'buy100fumos', 'autoRoll50', 'stopAuto50', 'autoRollProceed', 'autoRollAutoSell'];
+            const crategachaActions = ['buy1fumo', 'buy10fumos', 'buy100fumos', 'autoRoll50', 'stopAuto50', 'autoRollProceed', 'autoRollAutoSell', 'lockedAutoRoll'];
             if (!crategachaActions.includes(action)) {
                 return;
             }
@@ -399,6 +406,24 @@ module.exports = (client) => {
 
                 case 'stopAuto50':
                     await handleAutoRollStop(interaction, client);
+                    break;
+
+                case 'lockedAutoRoll':
+                    // Handle locked auto-roll button click
+                    await interaction.reply({
+                        embeds: [{
+                            title: '🔒 Feature Locked',
+                            description: '**Auto Roll** requires **Level 10** to unlock.\n\n' +
+                                         '📈 Gain EXP by:\n' +
+                                         '• Completing daily & weekly quests\n' +
+                                         '• Rolling fumos in gacha\n' +
+                                         '• Completing main quests\n\n' +
+                                         'Keep playing to level up!',
+                            color: 0xFF6B6B,
+                            footer: { text: 'Use .level to check your progress' }
+                        }],
+                        ephemeral: true
+                    });
                     break;
 
                 default:

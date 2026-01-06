@@ -7,6 +7,7 @@ const {
     RESET_CONFIG,
     sortFumosByRarity
 } = require('../../../Configuration/rebirthConfig');
+const { resetLevelForRebirth } = require('../LevelService/LevelDatabaseService');
 
 /**
  * Get user's rebirth status
@@ -14,22 +15,14 @@ const {
  * @returns {Promise<{rebirth: number, level: number, canRebirth: boolean, multiplier: number}>}
  */
 async function getRebirthStatus(userId) {
-    const row = await get(
-        `SELECT rebirth, level, exp FROM userCoins WHERE userId = ?`,
-        [userId]
-    );
+    // Get rebirth from userCoins and level from userLevelProgress
+    const [coinsRow, levelRow] = await Promise.all([
+        get(`SELECT rebirth FROM userCoins WHERE userId = ?`, [userId]),
+        get(`SELECT level, exp FROM userLevelProgress WHERE userId = ?`, [userId])
+    ]);
     
-    if (!row) {
-        return {
-            rebirth: 0,
-            level: 1,
-            canRebirth: false,
-            multiplier: 1
-        };
-    }
-    
-    const rebirth = row.rebirth || 0;
-    const level = row.level || 1;
+    const rebirth = coinsRow?.rebirth || 0;
+    const level = levelRow?.level || 1;
     
     return {
         rebirth,
@@ -145,12 +138,10 @@ async function performRebirth(userId, keepFumoName = null, client = null) {
             // Start the reset process
             const operations = [];
             
-            // 1. Update rebirth count and reset level/exp/currency
+            // 1. Update rebirth count and reset currency (level/exp now in separate table)
             operations.push({
                 sql: `UPDATE userCoins SET 
                     rebirth = ?,
-                    level = 1,
-                    exp = 0,
                     coins = 0,
                     gems = 0,
                     spiritTokens = 0,
@@ -168,6 +159,12 @@ async function performRebirth(userId, keepFumoName = null, client = null) {
                     boostActive = 0
                 WHERE userId = ?`,
                 params: [newRebirth, userId]
+            });
+            
+            // 1b. Reset level/exp in userLevelProgress table
+            operations.push({
+                sql: `UPDATE userLevelProgress SET level = 1, exp = 0, lastUpdated = ? WHERE userId = ?`,
+                params: [Date.now(), userId]
             });
             
             // 2. Clear inventory (except kept fumo)
@@ -303,11 +300,13 @@ function applyRebirthMultiplier(baseAmount, rebirth) {
  * @returns {Promise<Object[]>}
  */
 async function getRebirthLeaderboard(limit = 10) {
+    // Join userCoins with userLevelProgress for level data
     return await all(
-        `SELECT userId, rebirth, level 
-         FROM userCoins 
-         WHERE rebirth > 0
-         ORDER BY rebirth DESC, level DESC 
+        `SELECT uc.userId, uc.rebirth, COALESCE(ulp.level, 1) as level 
+         FROM userCoins uc
+         LEFT JOIN userLevelProgress ulp ON uc.userId = ulp.userId
+         WHERE uc.rebirth > 0
+         ORDER BY uc.rebirth DESC, COALESCE(ulp.level, 1) DESC 
          LIMIT ?`,
         [limit]
     );

@@ -9,7 +9,8 @@ const {
     getUserBuildings,
     getUserPets,
     getUserQuestSummary,
-    getCurrentWeather
+    getCurrentWeather,
+    getSanaeData
 } = require('../../../Service/UserDataService/BalanceService/BalanceService');
 const { generateAllPages } = require('../../../Service/UserDataService/BalanceService/BalanceUIService');
 const { sendPaginatedBalance } = require('../../../Service/UserDataService/BalanceService/BalanceNavigationService');
@@ -56,7 +57,8 @@ async function handleBalanceCommand(message, targetUser) {
             petData,
             buildings,
             questSummary,
-            weather
+            weather,
+            sanaeData
         ] = await Promise.all([
             getFarmingFumos(targetUser.id),
             getActiveBoosts(targetUser.id),
@@ -65,7 +67,8 @@ async function handleBalanceCommand(message, targetUser) {
             getUserPets(targetUser.id),
             getUserBuildings(targetUser.id),
             getUserQuestSummary(targetUser.id),
-            getCurrentWeather(targetUser.id)
+            getCurrentWeather(targetUser.id),
+            getSanaeData(targetUser.id)
         ]);
         
         const pages = await generateAllPages(
@@ -78,7 +81,8 @@ async function handleBalanceCommand(message, targetUser) {
             petData,
             buildings,
             questSummary,
-            weather
+            weather,
+            sanaeData
         );
         
         const onUpdate = async () => {
@@ -93,7 +97,8 @@ async function handleBalanceCommand(message, targetUser) {
                 freshPets,
                 freshBuildings,
                 freshQuests,
-                freshWeather
+                freshWeather,
+                freshSanae
             ] = await Promise.all([
                 getFarmingFumos(targetUser.id),
                 getActiveBoosts(targetUser.id),
@@ -102,7 +107,8 @@ async function handleBalanceCommand(message, targetUser) {
                 getUserPets(targetUser.id),
                 getUserBuildings(targetUser.id),
                 getUserQuestSummary(targetUser.id),
-                getCurrentWeather(targetUser.id)
+                getCurrentWeather(targetUser.id),
+                getSanaeData(targetUser.id)
             ]);
             
             return await generateAllPages(
@@ -115,7 +121,8 @@ async function handleBalanceCommand(message, targetUser) {
                 freshPets,
                 freshBuildings,
                 freshQuests,
-                freshWeather
+                freshWeather,
+                freshSanae
             );
         };
         

@@ -16,7 +16,7 @@ const {
     COLORS
 } = require('../../../Service/UserDataService/LevelService/LevelUIService');
 const { LEVEL_MILESTONES } = require('../../../Configuration/levelConfig');
-const { get } = require('../../../Core/database');
+const { get, all } = require('../../../Core/database');
 const { formatNumber } = require('../../../Ultility/formatting');
 
 const INTERACTION_TIMEOUT = 180000;
@@ -27,18 +27,12 @@ const INTERACTION_TIMEOUT = 180000;
  * @returns {Promise<number[]>}
  */
 async function getClaimedMilestones(userId) {
-    const row = await get(
-        `SELECT claimedMilestones FROM userLevelMilestones WHERE userId = ?`,
+    const rows = await all(
+        `SELECT milestoneLevel FROM userLevelMilestones WHERE userId = ?`,
         [userId]
     );
     
-    if (!row?.claimedMilestones) return [];
-    
-    try {
-        return JSON.parse(row.claimedMilestones);
-    } catch (e) {
-        return [];
-    }
+    return rows.map(r => r.milestoneLevel);
 }
 
 module.exports = (client) => {

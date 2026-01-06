@@ -82,7 +82,17 @@ function createEventStatusEmbed(userData, boosts, chances, eventTimeRemaining, r
     return embed;
 }
 
-function createEventShopButtons(userId, isAutoRollActive = false) {
+/**
+ * Create event shop buttons with level-gated auto-roll
+ * @param {string} userId - User ID
+ * @param {boolean} isAutoRollActive - Whether auto-roll is currently active
+ * @param {number} userLevel - User's current level (default 1)
+ * @returns {ActionRowBuilder}
+ */
+function createEventShopButtons(userId, isAutoRollActive = false, userLevel = 1) {
+    const AUTO_ROLL_LEVEL = 10; // Level required for auto-roll
+    const isAutoRollUnlocked = userLevel >= AUTO_ROLL_LEVEL;
+    
     return new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId(`eventbuy1fumo_${userId}`)
@@ -100,9 +110,10 @@ function createEventShopButtons(userId, isAutoRollActive = false) {
             .setStyle(ButtonStyle.Success)
             .setDisabled(isAutoRollActive),
         new ButtonBuilder()
-            .setCustomId(isAutoRollActive ? `stopEventAuto_${userId}` : `startEventAuto_${userId}`)
-            .setLabel(isAutoRollActive ? '🛑 Stop Auto' : '🤖 Auto Roll')
-            .setStyle(isAutoRollActive ? ButtonStyle.Danger : ButtonStyle.Success)
+            .setCustomId(isAutoRollActive ? `stopEventAuto_${userId}` : (isAutoRollUnlocked ? `startEventAuto_${userId}` : `lockedEventAuto_${userId}`))
+            .setLabel(isAutoRollActive ? '🛑 Stop Auto' : (isAutoRollUnlocked ? '🤖 Auto Roll' : '🔒 Auto (Lv.10)'))
+            .setStyle(isAutoRollActive ? ButtonStyle.Danger : (isAutoRollUnlocked ? ButtonStyle.Success : ButtonStyle.Secondary))
+            .setDisabled(false) // Keep enabled so we can show the locked message when clicked
     );
 }
 

@@ -15,10 +15,10 @@ const {
     QUEST_CONFIG,
     DAILY_QUEST_POOL,
     WEEKLY_QUEST_POOL,
-    ACHIEVEMENTS,
     QUEST_CHAINS,
     getStreakBonus
 } = require('../../../Configuration/questConfig');
+const { ACHIEVEMENTS } = require('../../../Configuration/unifiedAchievementConfig');
 
 const QuestPoolService = require('../../../Service/UserDataService/QuestService/QuestPoolService');
 const QuestProgressService = require('../../../Service/UserDataService/QuestService/QuestProgressService');
@@ -999,7 +999,12 @@ module.exports = async (client) => {
                         
                         const parts = interaction.customId.split('_');
                         let action = parts[1];
-                        if (parts[1] === 'ach' && parts[2]) {
+                        
+                        // Handle mq_* customIds (Main Quest buttons)
+                        // Format: mq_story_{userId}_{timestamp} where parts[0]='mq', parts[1]='story'
+                        if (parts[0] === 'mq') {
+                            action = 'mq';
+                        } else if (parts[1] === 'ach' && parts[2]) {
                             action = `ach_${parts[2]}`;
                         } else if (parts[1] === 'reroll' && parts[2]) {
                             action = `reroll_${parts[2]}`;
@@ -1135,7 +1140,8 @@ module.exports = async (client) => {
                             // Main Quest sub-handlers
                             case 'mq': {
                                 // Parse mq_* commands
-                                const mqAction = parts[2];
+                                // Format: mq_story_{userId}_{timestamp} -> parts[1] = 'story'
+                                const mqAction = parts[1];
                                 
                                 if (mqAction === 'story') {
                                     const stats = await MainQuestDatabaseService.getCompletionStats(userId);
@@ -1149,8 +1155,9 @@ module.exports = async (client) => {
                                             components: [MainQuestUIService.createMainQuestButtons(userId, stats)]
                                         });
                                     }
-                                } else if (mqAction === 'list' || mqAction?.startsWith('list_')) {
-                                    const page = mqAction.includes('_') ? parseInt(parts[3]) || 0 : 0;
+                                } else if (mqAction === 'list') {
+                                    // Format: mq_list_{pageNumber}_{userId}_{timestamp}
+                                    const page = parseInt(parts[2]) || 0;
                                     const progress = await MainQuestDatabaseService.getMainQuestProgress(userId);
                                     const totalPages = Math.ceil(getTotalMainQuests() / 10);
                                     
@@ -1421,9 +1428,32 @@ module.exports = async (client) => {
                                         embeds: [refreshChains],
                                         components: [createBackButton(userId, false, 'daily', refreshHasClaimable)]
                                     });
+                                } else if (currentView === 'mainquest') {
+                                    // Refresh main quest view
+                                    try {
+                                        const progress = await MainQuestDatabaseService.getMainQuestProgress(userId);
+                                        const stats = await MainQuestDatabaseService.getCompletionStats(userId);
+                                        const questProgress = await MainQuestDatabaseService.getCurrentQuestProgress(userId);
+                                        
+                                        const mainQuestEmbed = MainQuestUIService.createMainQuestOverviewEmbed({
+                                            progress,
+                                            stats,
+                                            questProgress,
+                                            user: message.author
+                                        });
+                                        
+                                        const mainQuestButtons = MainQuestUIService.createMainQuestButtons(userId, stats);
+                                        
+                                        await interaction.editReply({
+                                            embeds: [mainQuestEmbed],
+                                            components: [mainQuestButtons]
+                                        });
+                                    } catch (err) {
+                                        console.error('[Main Quest] Error refreshing:', err);
+                                    }
                                 } else {
                                     const refreshMain = buildMainMenuEmbed(userId, streak, rerollsUsed);
-                                    await interaction.editReply({ embeds: [refreshMain] });
+                                    await interaction.editReply({ embeds: [refreshMain], components: createMainMenuButtons(userId) });
                                 }
                                 break;
                             }

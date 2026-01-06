@@ -21,13 +21,24 @@ async function getUserData(userId, useCache = true) {
         }
     }
     
-    const row = await db.get(`SELECT * FROM userCoins WHERE userId = ?`, [userId]);
+    // Get data from both userCoins and userLevelProgress
+    const [row, levelRow] = await Promise.all([
+        db.get(`SELECT * FROM userCoins WHERE userId = ?`, [userId]),
+        db.get(`SELECT level, exp FROM userLevelProgress WHERE userId = ?`, [userId])
+    ]);
     
     if (!row) {
         return null;
     }
     
-    const data = sanitizeUserData(row);
+    // Merge level data from userLevelProgress into the row
+    const mergedRow = {
+        ...row,
+        level: levelRow?.level || 1,
+        exp: levelRow?.exp || 0
+    };
+    
+    const data = sanitizeUserData(mergedRow);
     
     cache.set(cacheKey, {
         data,
@@ -49,12 +60,52 @@ async function getBatchUserData(userIds) {
 
 async function getFarmingFumos(userId) {
     return await db.all(
-        `SELECT fumoName, coinsPerMin, gemsPerMin, quantity, rarity 
+        `SELECT fumoName, coinsPerMin, gemsPerMin, COALESCE(quantity, 1) as quantity, rarity 
          FROM farmingFumos 
          WHERE userId = ?
          ORDER BY rarity DESC`,
         [userId]
     );
+}
+
+async function getSanaeData(userId) {
+    try {
+        const data = await db.get(
+            `SELECT * FROM sanaeBlessings WHERE userId = ?`,
+            [userId]
+        );
+        
+        // Return normalized data with defaults for missing columns
+        if (!data) {
+            return {
+                faithPoints: 0,
+                permanentLuckBonus: 0,
+                luckForRolls: 0,
+                luckForRollsAmount: 0,
+                guaranteedRarityRolls: 0,
+                craftProtection: 0
+            };
+        }
+        
+        return {
+            faithPoints: data.faithPoints || 0,
+            permanentLuckBonus: data.permanentLuckBonus || 0,
+            luckForRolls: data.luckForRolls || 0,
+            luckForRollsAmount: data.luckForRollsAmount || 0,
+            guaranteedRarityRolls: data.guaranteedRarityRolls || 0,
+            craftProtection: data.craftProtection || 0
+        };
+    } catch (error) {
+        console.error('[BalanceService] Error fetching Sanae data:', error);
+        return {
+            faithPoints: 0,
+            permanentLuckBonus: 0,
+            luckForRolls: 0,
+            luckForRollsAmount: 0,
+            guaranteedRarityRolls: 0,
+            craftProtection: 0
+        };
+    }
 }
 
 async function getActiveBoosts(userId) {
@@ -117,18 +168,21 @@ async function getUserQuestSummary(userId) {
         const { getWeekIdentifier } = require('../../../Ultility/timeUtils');
         const week = getWeekIdentifier();
         
+        // Only count progress for currently active quests (to handle re-rolled quests correctly)
         const [dailyProgress, weeklyProgress, achievements] = await Promise.all([
             db.all(
-                `SELECT questId, progress, completed 
-                 FROM dailyQuestProgress 
-                 WHERE userId = ? AND date = ?`,
-                [userId, date]
+                `SELECT dqp.questId, dqp.progress, dqp.completed 
+                 FROM dailyQuestProgress dqp
+                 INNER JOIN userActiveQuests uaq ON dqp.questId = uaq.uniqueQuestId AND dqp.userId = uaq.userId
+                 WHERE dqp.userId = ? AND dqp.date = ? AND uaq.questType = 'daily' AND uaq.period = ?`,
+                [userId, date, date]
             ),
             db.all(
-                `SELECT questId, progress, completed 
-                 FROM weeklyQuestProgress 
-                 WHERE userId = ? AND week = ?`,
-                [userId, week]
+                `SELECT wqp.questId, wqp.progress, wqp.completed 
+                 FROM weeklyQuestProgress wqp
+                 INNER JOIN userActiveQuests uaq ON wqp.questId = uaq.uniqueQuestId AND wqp.userId = uaq.userId
+                 WHERE wqp.userId = ? AND wqp.week = ? AND uaq.questType = 'weekly' AND uaq.period = ?`,
+                [userId, week, week]
             ),
             db.all(
                 `SELECT achievementId, progress, claimed, claimedMilestones 
@@ -184,13 +238,14 @@ async function getCurrentWeather(userId) {
         const multipliers = await getCurrentMultipliers();
         const description = await getActiveSeasonsList();
         
-        // Get the primary weather type (first non-WEEKEND event)
-        const primaryWeather = activeSeasons.find(s => s !== 'WEEKEND') || activeSeasons[0];
+        // Get all active weather types (excluding WEEKEND for display)
+        const allWeathers = activeSeasons.filter(s => s !== 'WEEKEND');
         
         return {
-            weatherType: primaryWeather,
-            multiplierCoin: multipliers.coinMultiplier || 1,
-            multiplierGem: multipliers.gemMultiplier || 1,
+            weatherType: allWeathers.length > 0 ? allWeathers.join(' + ') : 'WEEKEND',
+            allWeathers: allWeathers,
+            multiplierCoin: parseFloat((multipliers.coinMultiplier || 1).toFixed(2)),
+            multiplierGem: parseFloat((multipliers.gemMultiplier || 1).toFixed(2)),
             activeEvents: multipliers.activeEvents || activeSeasons,
             description: description
         };
@@ -333,6 +388,7 @@ module.exports = {
     getUserData,
     getBatchUserData,
     getFarmingFumos,
+    getSanaeData,
     getActiveBoosts,
     getUserBuildings,
     getUserPets,

@@ -108,7 +108,7 @@ class QuestValidationService {
         return new Promise((resolve, reject) => {
             const db = require('../../Core/Database/dbSetting');
             db.get(
-                `SELECT level FROM userCoins WHERE userId = ?`,
+                `SELECT level FROM userLevelProgress WHERE userId = ?`,
                 [userId],
                 (err, row) => {
                     if (err) return reject(err);

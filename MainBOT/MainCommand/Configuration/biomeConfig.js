@@ -198,7 +198,8 @@ const BIOMES = {
         bonuses: {
             commonBonus: 10,
             shinyBonus: 30,
-            allRarityBonus: 20    // All rarities get bonus
+            alGBonus: 50,             // alG fumos get 50% bonus
+            allRarityBonus: 20        // All rarities get bonus
         },
         color: 0xFFD700  // Gold
     }
@@ -290,6 +291,13 @@ function calculateBiomeMultipliers(biomeId, fumo = null, activeWeather = null) {
             gemMult *= (1 + bonus);
         }
         
+        // alG bonus
+        if (fumoName.includes('🌟alG') && biome.bonuses.alGBonus) {
+            const bonus = biome.bonuses.alGBonus / 100;
+            coinMult *= (1 + bonus);
+            gemMult *= (1 + bonus);
+        }
+        
         // Void bonus
         if (fumoName.includes('🌀VOID') && biome.bonuses.voidBonus) {
             const bonus = biome.bonuses.voidBonus / 100;
@@ -374,10 +382,11 @@ function formatBiomeInfo(biome) {
     // Add bonuses
     const bonusList = [];
     if (biome.bonuses.shinyBonus) bonusList.push(`✨ Shiny: +${biome.bonuses.shinyBonus}%`);
+    if (biome.bonuses.alGBonus) bonusList.push(`🌟 alG: +${biome.bonuses.alGBonus}%`);
     if (biome.bonuses.commonBonus) bonusList.push(`⚪ Common: +${biome.bonuses.commonBonus}%`);
     if (biome.bonuses.voidBonus) bonusList.push(`🌀 Void: +${biome.bonuses.voidBonus}%`);
     if (biome.bonuses.glitchedBonus) bonusList.push(`🔮 Glitched: +${biome.bonuses.glitchedBonus}%`);
-    if (biome.bonuses.allRarityBonus) bonusList.push(`🌟 All: +${biome.bonuses.allRarityBonus}%`);
+    if (biome.bonuses.allRarityBonus) bonusList.push(`⭐ All: +${biome.bonuses.allRarityBonus}%`);
     
     if (bonusList.length > 0) {
         lines.push(``, `**Bonuses:** ${bonusList.join(' | ')}`);

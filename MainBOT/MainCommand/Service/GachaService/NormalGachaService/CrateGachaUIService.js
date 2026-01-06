@@ -210,7 +210,17 @@ Take a chance—who knows what you'll get?
     return embed;
 }
 
-function createShopButtons(userId, isAutoRollActive) {
+/**
+ * Create shop buttons with level-gated auto-roll
+ * @param {string} userId - User ID
+ * @param {boolean} isAutoRollActive - Whether auto-roll is currently active
+ * @param {number} userLevel - User's current level (default 1)
+ * @returns {ActionRowBuilder}
+ */
+function createShopButtons(userId, isAutoRollActive, userLevel = 1) {
+    const AUTO_ROLL_LEVEL = 10; // Level required for auto-roll
+    const isAutoRollUnlocked = userLevel >= AUTO_ROLL_LEVEL;
+    
     return new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId(`buy1fumo_${userId}`)
@@ -225,9 +235,10 @@ function createShopButtons(userId, isAutoRollActive) {
             .setLabel('Summon 100')
             .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
-            .setCustomId(isAutoRollActive ? `stopAuto50_${userId}` : `autoRoll50_${userId}`)
-            .setLabel(isAutoRollActive ? '🛑 Stop Auto 100' : 'Auto Roll 100')
-            .setStyle(isAutoRollActive ? ButtonStyle.Danger : ButtonStyle.Success)
+            .setCustomId(isAutoRollActive ? `stopAuto50_${userId}` : (isAutoRollUnlocked ? `autoRoll50_${userId}` : `lockedAutoRoll_${userId}`))
+            .setLabel(isAutoRollActive ? '🛑 Stop Auto 100' : (isAutoRollUnlocked ? 'Auto Roll 100' : '🔒 Auto Roll (Lv.10)'))
+            .setStyle(isAutoRollActive ? ButtonStyle.Danger : (isAutoRollUnlocked ? ButtonStyle.Success : ButtonStyle.Secondary))
+            .setDisabled(false) // Keep enabled so we can show the locked message when clicked
     );
 }
 

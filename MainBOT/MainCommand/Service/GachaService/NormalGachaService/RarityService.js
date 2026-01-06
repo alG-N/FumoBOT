@@ -91,6 +91,140 @@ function getPreviousRarity(rarity) {
 }
 
 /**
+ * Calculate rarity WITHOUT database writes - for use in batched multi-roll
+ * Returns the rarity and any pending updates to be applied after all rolls
+ * @param {Object} boosts - Local boost state (mutable for tracking)
+ * @param {Object} row - User data
+ * @param {boolean} hasFantasyBook - Whether user has Fantasy Book
+ * @returns {{rarity: string, pendingUpdates: Object}}
+ */
+function calculateRarityBatched(boosts, row, hasFantasyBook) {
+    const pendingUpdates = {};
+    
+    // Check pity thresholds first (highest priority)
+    if (hasFantasyBook) {
+        if (row.pityTranscendent >= PITY_THRESHOLDS.TRANSCENDENT) {
+            return { rarity: 'TRANSCENDENT', resetPity: 'pityTranscendent', pendingUpdates };
+        }
+        if (row.pityEternal >= PITY_THRESHOLDS.ETERNAL) {
+            return { rarity: 'ETERNAL', resetPity: 'pityEternal', pendingUpdates };
+        }
+        if (row.pityInfinite >= PITY_THRESHOLDS.INFINITE) {
+            return { rarity: 'INFINITE', resetPity: 'pityInfinite', pendingUpdates };
+        }
+        if (row.pityCelestial >= PITY_THRESHOLDS.CELESTIAL) {
+            return { rarity: 'CELESTIAL', resetPity: 'pityCelestial', pendingUpdates };
+        }
+        if (row.pityAstral >= PITY_THRESHOLDS.ASTRAL) {
+            return { rarity: 'ASTRAL', resetPity: 'pityAstral', pendingUpdates };
+        }
+    }
+
+    // Check S!gil nullified rolls first (has ASTRAL+ duplicate blocking)
+    if (boosts.sigilNullifiedRolls > 0) {
+        const rarities = hasFantasyBook
+            ? ['TRANSCENDENT', 'ETERNAL', 'INFINITE', 'CELESTIAL', 'ASTRAL', '???', 'EXCLUSIVE', 'MYTHICAL', 'LEGENDARY', 'OTHERWORLDLY', 'EPIC', 'RARE', 'UNCOMMON', 'Common']
+            : ['???', 'EXCLUSIVE', 'MYTHICAL', 'LEGENDARY', 'EPIC', 'RARE', 'UNCOMMON', 'Common'];
+
+        const rarity = rarities[Math.floor(Math.random() * rarities.length)];
+        
+        // Track usage locally instead of DB write
+        boosts.sigilNullifiedRolls--;
+        pendingUpdates.sigilNullifiedUsed = (pendingUpdates.sigilNullifiedUsed || 0) + 1;
+
+        return { rarity, nullifiedUsed: true, sigilNullified: true, pendingUpdates };
+    }
+
+    // Check regular Nullified item override
+    if (boosts.nullifiedUses > 0) {
+        const rarities = hasFantasyBook
+            ? ['TRANSCENDENT', 'ETERNAL', 'INFINITE', 'CELESTIAL', 'ASTRAL', '???', 'EXCLUSIVE', 'MYTHICAL', 'LEGENDARY', 'OTHERWORLDLY', 'EPIC', 'RARE', 'UNCOMMON', 'Common']
+            : ['???', 'EXCLUSIVE', 'MYTHICAL', 'LEGENDARY', 'EPIC', 'RARE', 'UNCOMMON', 'Common'];
+
+        const rarity = rarities[Math.floor(Math.random() * rarities.length)];
+        
+        // Track usage locally instead of DB write
+        boosts.nullifiedUses--;
+        pendingUpdates.nullifiedUsed = (pendingUpdates.nullifiedUsed || 0) + 1;
+
+        return { rarity, nullifiedUsed: true, sigilNullified: false, pendingUpdates };
+    }
+
+    // Calculate total luck multiplier
+    const totalLuck = calculateTotalLuckMultiplier(
+        boosts, 
+        row.boostActive && row.boostRollsRemaining > 0, 
+        row.rollsLeft, 
+        row.totalRolls,
+        row.luck
+    );
+    
+    // Roll for rarity with luck applied
+    let rarityRoll = (Math.random() * 100) / totalLuck;
+
+    // Check thresholds from rarest to common
+    if (rarityRoll < GACHA_THRESHOLDS.TRANSCENDENT && hasFantasyBook) return { rarity: 'TRANSCENDENT', pendingUpdates };
+    if (rarityRoll < GACHA_THRESHOLDS.ETERNAL && hasFantasyBook) return { rarity: 'ETERNAL', pendingUpdates };
+    if (rarityRoll < GACHA_THRESHOLDS.INFINITE && hasFantasyBook) return { rarity: 'INFINITE', pendingUpdates };
+    if (rarityRoll < GACHA_THRESHOLDS.CELESTIAL && hasFantasyBook) return { rarity: 'CELESTIAL', pendingUpdates };
+    if (rarityRoll < GACHA_THRESHOLDS.ASTRAL && hasFantasyBook) return { rarity: 'ASTRAL', pendingUpdates };
+    if (rarityRoll < GACHA_THRESHOLDS.QUESTION && hasFantasyBook) return { rarity: '???', pendingUpdates };
+    if (rarityRoll < GACHA_THRESHOLDS.EXCLUSIVE) return { rarity: 'EXCLUSIVE', pendingUpdates };
+    if (rarityRoll < GACHA_THRESHOLDS.MYTHICAL) return { rarity: 'MYTHICAL', pendingUpdates };
+    if (rarityRoll < GACHA_THRESHOLDS.LEGENDARY) return { rarity: 'LEGENDARY', pendingUpdates };
+    if (rarityRoll < GACHA_THRESHOLDS.OTHERWORLDLY && hasFantasyBook) return { rarity: 'OTHERWORLDLY', pendingUpdates };
+    if (rarityRoll < GACHA_THRESHOLDS.EPIC) return { rarity: 'EPIC', pendingUpdates };
+    if (rarityRoll < GACHA_THRESHOLDS.RARE) return { rarity: 'RARE', pendingUpdates };
+    if (rarityRoll < GACHA_THRESHOLDS.UNCOMMON) return { rarity: 'UNCOMMON', pendingUpdates };
+    return { rarity: 'Common', pendingUpdates };
+}
+
+/**
+ * Apply batched updates after multi-roll completes
+ * @param {string} userId 
+ * @param {Object} updates - Accumulated updates from batched rolls
+ */
+async function applyBatchedUpdates(userId, updates) {
+    const promises = [];
+    
+    if (updates.sigilNullifiedUsed > 0) {
+        promises.push(run(
+            `UPDATE activeBoosts SET extra = json_set(COALESCE(extra, '{}'), '$.remaining', 
+                COALESCE(json_extract(extra, '$.remaining'), 0) - ?) 
+             WHERE userId = ? AND type = 'nullifiedRolls' AND source = 'S!gil'`,
+            [updates.sigilNullifiedUsed, userId]
+        ));
+    }
+    
+    if (updates.nullifiedUsed > 0) {
+        // Get current uses and update/delete accordingly
+        promises.push((async () => {
+            const current = await require('../../../Core/database').get(
+                `SELECT uses FROM activeBoosts WHERE userId = ? AND type = 'rarityOverride' AND source = 'Nullified'`,
+                [userId]
+            );
+            if (current) {
+                const newUses = (current.uses || 0) - updates.nullifiedUsed;
+                if (newUses <= 0) {
+                    await run(`DELETE FROM activeBoosts WHERE userId = ? AND type = 'rarityOverride' AND source = 'Nullified'`, [userId]);
+                } else {
+                    await run(`UPDATE activeBoosts SET uses = ? WHERE userId = ? AND type = 'rarityOverride' AND source = 'Nullified'`, [newUses, userId]);
+                }
+            }
+        })());
+    }
+    
+    if (updates.sanaeGuaranteedUsed > 0) {
+        promises.push(run(
+            `UPDATE sanaeBlessings SET guaranteedRarityRolls = MAX(0, guaranteedRarityRolls - ?), lastUpdated = ? WHERE userId = ?`,
+            [updates.sanaeGuaranteedUsed, Date.now(), userId]
+        ));
+    }
+    
+    await Promise.all(promises);
+}
+
+/**
  * Main rarity calculation function with pity system and boosts
  */
 async function calculateRarity(userId, boosts, row, hasFantasyBook) {
@@ -381,6 +515,8 @@ module.exports = {
     
     // Main gacha functions
     calculateRarity,
+    calculateRarityBatched,
+    applyBatchedUpdates,
     updatePityCounters,
     updateBoostCharge,
     selectRarityWithPity,

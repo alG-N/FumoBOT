@@ -10,6 +10,9 @@ const { incrementDailyGamble } = require('../../../Ultility/weekly');
 const { debugLog } = require('../../../Core/logger');
 const QuestMiddleware = require('../../../Middleware/questMiddleware');
 
+// In-memory flip streak tracking (resets on bot restart or after loss)
+const flipStreaks = new Map();
+
 async function getOrCreateUser(userId) {
     debugLog('FLIP', `Getting user data for ${userId}`);
     
@@ -114,12 +117,20 @@ async function executeSingleFlip(userId, choice, currency, bet, multiplier) {
         if (won) {
             await QuestMiddleware.trackGambleWin(userId, amount);
             
+            // Track flip win streak
+            const currentStreak = (flipStreaks.get(userId) || 0) + 1;
+            flipStreaks.set(userId, currentStreak);
+            await QuestMiddleware.trackFlipStreak(userId, currentStreak);
+            
             // Track coins/gems earned
             if (currency === 'coins') {
                 await QuestMiddleware.trackCoinsEarned(userId, amount);
             } else if (currency === 'gems') {
                 await QuestMiddleware.trackGemsEarned(userId, amount);
             }
+        } else {
+            // Reset streak on loss
+            flipStreaks.set(userId, 0);
         }
     } catch (err) {
         debugLog('FLIP', `Quest tracking error: ${err.message}`);

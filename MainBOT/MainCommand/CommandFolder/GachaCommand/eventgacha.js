@@ -131,6 +131,7 @@ module.exports = (client) => {
             }
 
             const rollsLeft = userData.rollsLeft || 0;
+            const userLevel = userData.level || 1;
             const boosts = await getEventUserBoosts(message.author.id);
             const isBoostActive = boosts.ancient > 1 || boosts.mysterious > 1 || boosts.pet > 1;
             const totalLuckMultiplier = calculateEventLuckMultiplier(
@@ -151,7 +152,8 @@ module.exports = (client) => {
             const isAutoRollActive = isEventAutoRollActive(message.author.id);
             const rowButtons = createEventShopButtons(
                 message.author.id,
-                isAutoRollActive
+                isAutoRollActive,
+                userLevel
             );
 
             await message.channel.send({ embeds: [embed], components: [rowButtons] });
@@ -170,10 +172,28 @@ module.exports = (client) => {
         const validButtons = [
             'eventbuy1fumo', 'eventbuy10fumos', 'eventbuy100fumos',
             'continue1', 'continue10', 'continue100',
-            'startEventAuto', 'stopEventAuto'
+            'startEventAuto', 'stopEventAuto', 'lockedEventAuto'
         ];
 
         if (!validButtons.includes(action)) return;
+
+        // Handle locked auto-roll button
+        if (action === 'lockedEventAuto') {
+            return interaction.reply({
+                embeds: [{
+                    title: '🔒 Feature Locked',
+                    description: '**Auto Roll** requires **Level 10** to unlock.\n\n' +
+                                 '📈 Gain EXP by:\n' +
+                                 '• Completing daily & weekly quests\n' +
+                                 '• Rolling fumos in gacha\n' +
+                                 '• Completing main quests\n\n' +
+                                 'Keep playing to level up!',
+                    color: 0xFF6B6B,
+                    footer: { text: 'Use .level to check your progress' }
+                }],
+                ephemeral: true
+            });
+        }
 
         const expectedCustomId = `${action}_${userId}`;
         if (!interaction.customId.startsWith(expectedCustomId)) {

@@ -6,7 +6,42 @@ const MAX_CACHE_SIZE = 10000; // Prevent unbounded cache growth
 
 // ========== USER LOCKS FOR RACE CONDITION PREVENTION ==========
 const userLocks = new Map();
-const LOCK_TIMEOUT = 30000; // 30 second max lock duration
+const lockQueues = new Map(); // Queue for waiting operations
+const LOCK_TIMEOUT = 60000; // 60 second max lock duration
+const MAX_LOCK_WAIT_TIME = 90000; // 90 second max wait time
+
+// Track long-running operations for debugging
+const LONG_OPERATION_THRESHOLD = 15000; // Log operations taking > 15 seconds
+
+/**
+ * Clean up any stale locks periodically
+ */
+setInterval(() => {
+    const now = Date.now();
+    for (const [key, lock] of userLocks.entries()) {
+        const lockAge = now - lock.timestamp;
+        
+        // Only release truly stale locks (past timeout)
+        if (lockAge > LOCK_TIMEOUT) {
+            // Only warn for unexpected stale locks (not multiRoll operations)
+            if (!lock.operation.includes('multiRoll')) {
+                console.warn(`[DB] Auto-releasing stale lock: ${key} (operation: ${lock.operation}, age: ${Math.round(lockAge / 1000)}s)`);
+            }
+            userLocks.delete(key);
+            // Process any queued operations
+            const queue = lockQueues.get(key);
+            if (queue && queue.length > 0) {
+                const nextResolve = queue.shift();
+                if (nextResolve) nextResolve();
+            }
+        }
+        // Log long-running operations (for debugging, not as warning)
+        else if (lockAge > LONG_OPERATION_THRESHOLD && !lock.logged) {
+            lock.logged = true;
+            console.log(`[DB] Long-running operation: ${lock.operation} for ${key} (${Math.round(lockAge / 1000)}s)`);
+        }
+    }
+}, 10000); // Check every 10 seconds
 
 /**
  * Acquire a lock for a user to prevent race conditions
@@ -16,25 +51,53 @@ const LOCK_TIMEOUT = 30000; // 30 second max lock duration
  */
 async function acquireUserLock(userId, operation = 'unknown') {
     const lockKey = `lock_${userId}`;
+    const startTime = Date.now();
     
-    // Wait for existing lock to release
+    // If lock exists, wait in queue
     while (userLocks.has(lockKey)) {
         const existingLock = userLocks.get(lockKey);
+        const lockAge = Date.now() - existingLock.timestamp;
+        
         // Check for stale lock
-        if (Date.now() - existingLock.timestamp > LOCK_TIMEOUT) {
-            console.warn(`[DB] Releasing stale lock for user ${userId} (operation: ${existingLock.operation})`);
+        if (lockAge > LOCK_TIMEOUT) {
+            // Only warn for unexpected operations
+            if (!existingLock.operation.includes('multiRoll')) {
+                console.warn(`[DB] Releasing stale lock for user ${userId} (operation: ${existingLock.operation}, age: ${Math.round(lockAge / 1000)}s)`);
+            }
             userLocks.delete(lockKey);
             break;
         }
-        await new Promise(resolve => setTimeout(resolve, 50));
+        
+        // Check if we've waited too long
+        if (Date.now() - startTime > MAX_LOCK_WAIT_TIME) {
+            console.error(`[DB] Lock wait timeout for user ${userId}, forcing acquisition (waiting operation: ${operation})`);
+            userLocks.delete(lockKey);
+            break;
+        }
+        
+        // Wait in queue with promise-based waiting
+        await new Promise(resolve => {
+            if (!lockQueues.has(lockKey)) {
+                lockQueues.set(lockKey, []);
+            }
+            lockQueues.get(lockKey).push(resolve);
+            // Also set a timeout in case lock is never released
+            setTimeout(resolve, 100);
+        });
     }
     
-    // Acquire lock
-    userLocks.set(lockKey, { timestamp: Date.now(), operation });
+    // Acquire lock with logged flag for tracking
+    userLocks.set(lockKey, { timestamp: Date.now(), operation, logged: false });
     
     // Return release function
     return () => {
         userLocks.delete(lockKey);
+        // Notify next in queue
+        const queue = lockQueues.get(lockKey);
+        if (queue && queue.length > 0) {
+            const nextResolve = queue.shift();
+            if (nextResolve) nextResolve();
+        }
     };
 }
 

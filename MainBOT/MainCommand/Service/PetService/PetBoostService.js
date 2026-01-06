@@ -77,11 +77,17 @@ async function refreshBoosts(userId) {
     await applyPetBoosts(userId);
 }
 
+/**
+ * Optimized: Batch refresh with concurrency control
+ */
 async function refreshAllBoosts() {
     const users = await db.all(`SELECT DISTINCT userId FROM equippedPets`, []);
     
-    for (const { userId } of users) {
-        await refreshBoosts(userId);
+    // Process in batches of 10 for better performance
+    const BATCH_SIZE = 10;
+    for (let i = 0; i < users.length; i += BATCH_SIZE) {
+        const batch = users.slice(i, i + BATCH_SIZE);
+        await Promise.all(batch.map(({ userId }) => refreshBoosts(userId)));
     }
 }
 
