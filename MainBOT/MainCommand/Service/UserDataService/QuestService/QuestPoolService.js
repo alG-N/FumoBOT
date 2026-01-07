@@ -312,21 +312,25 @@ class QuestPoolService {
      * Get user stats for potential quest scaling
      */
     static async getUserStats(userId) {
-        // Get level from userLevelProgress and other stats from userCoins
-        const [levelData, userData] = await Promise.all([
+        // Get level from userLevelProgress, rebirth from userRebirthProgress, and rolls from userCoins
+        const [levelData, rebirthData, userData] = await Promise.all([
             new Promise((resolve, reject) => {
                 db.get(`SELECT level FROM userLevelProgress WHERE userId = ?`, [userId],
                     (err, row) => err ? reject(err) : resolve(row));
             }),
             new Promise((resolve, reject) => {
-                db.get(`SELECT rebirth, totalRolls FROM userCoins WHERE userId = ?`, [userId],
+                db.get(`SELECT rebirthCount FROM userRebirthProgress WHERE userId = ?`, [userId],
+                    (err, row) => err ? reject(err) : resolve(row));
+            }),
+            new Promise((resolve, reject) => {
+                db.get(`SELECT totalRolls FROM userCoins WHERE userId = ?`, [userId],
                     (err, row) => err ? reject(err) : resolve(row));
             })
         ]);
         
         return {
             level: levelData?.level || 1,
-            rebirth: userData?.rebirth || 0,
+            rebirth: rebirthData?.rebirthCount || 0,
             totalRolls: userData?.totalRolls || 0
         };
     }

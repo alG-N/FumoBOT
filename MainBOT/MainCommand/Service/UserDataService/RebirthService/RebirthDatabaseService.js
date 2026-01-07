@@ -15,13 +15,13 @@ const { resetLevelForRebirth } = require('../LevelService/LevelDatabaseService')
  * @returns {Promise<{rebirth: number, level: number, canRebirth: boolean, multiplier: number}>}
  */
 async function getRebirthStatus(userId) {
-    // Get rebirth from userCoins and level from userLevelProgress
-    const [coinsRow, levelRow] = await Promise.all([
-        get(`SELECT rebirth FROM userCoins WHERE userId = ?`, [userId]),
+    // Get rebirth from userRebirthProgress and level from userLevelProgress
+    const [rebirthRow, levelRow] = await Promise.all([
+        get(`SELECT rebirthCount FROM userRebirthProgress WHERE userId = ?`, [userId]),
         get(`SELECT level, exp FROM userLevelProgress WHERE userId = ?`, [userId])
     ]);
     
-    const rebirth = coinsRow?.rebirth || 0;
+    const rebirth = rebirthRow?.rebirthCount || 0;
     const level = levelRow?.level || 1;
     
     return {
@@ -138,10 +138,19 @@ async function performRebirth(userId, keepFumoName = null, client = null) {
             // Start the reset process
             const operations = [];
             
-            // 1. Update rebirth count and reset currency (level/exp now in separate table)
+            // 1. Update rebirth count in userRebirthProgress and reset currency in userCoins
+            operations.push({
+                sql: `INSERT INTO userRebirthProgress (userId, rebirthCount, totalRebirths, lastRebirthAt)
+                      VALUES (?, ?, ?, ?)
+                      ON CONFLICT(userId) DO UPDATE SET 
+                        rebirthCount = ?,
+                        totalRebirths = totalRebirths + 1,
+                        lastRebirthAt = ?`,
+                params: [userId, newRebirth, newRebirth, Date.now(), newRebirth, Date.now()]
+            });
+            
             operations.push({
                 sql: `UPDATE userCoins SET 
-                    rebirth = ?,
                     coins = 0,
                     gems = 0,
                     spiritTokens = 0,
@@ -158,7 +167,7 @@ async function performRebirth(userId, keepFumoName = null, client = null) {
                     boostCharge = 0,
                     boostActive = 0
                 WHERE userId = ?`,
-                params: [newRebirth, userId]
+                params: [userId]
             });
             
             // 1b. Reset level/exp in userLevelProgress table
@@ -300,13 +309,13 @@ function applyRebirthMultiplier(baseAmount, rebirth) {
  * @returns {Promise<Object[]>}
  */
 async function getRebirthLeaderboard(limit = 10) {
-    // Join userCoins with userLevelProgress for level data
+    // Join userRebirthProgress with userLevelProgress for level data
     return await all(
-        `SELECT uc.userId, uc.rebirth, COALESCE(ulp.level, 1) as level 
-         FROM userCoins uc
-         LEFT JOIN userLevelProgress ulp ON uc.userId = ulp.userId
-         WHERE uc.rebirth > 0
-         ORDER BY uc.rebirth DESC, COALESCE(ulp.level, 1) DESC 
+        `SELECT urp.userId, urp.rebirthCount as rebirth, COALESCE(ulp.level, 1) as level 
+         FROM userRebirthProgress urp
+         LEFT JOIN userLevelProgress ulp ON urp.userId = ulp.userId
+         WHERE urp.rebirthCount > 0
+         ORDER BY urp.rebirthCount DESC, COALESCE(ulp.level, 1) DESC 
          LIMIT ?`,
         [limit]
     );

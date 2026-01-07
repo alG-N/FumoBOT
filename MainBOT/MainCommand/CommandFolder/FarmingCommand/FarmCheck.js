@@ -30,13 +30,13 @@ module.exports = async (client) => {
         const userId = message.author.id;
 
         try {
-            // Get user level from userLevelProgress and rebirth from userCoins
+            // Get user level from userLevelProgress and rebirth from userRebirthProgress
             const [levelData, rebirthData] = await Promise.all([
                 get(`SELECT level FROM userLevelProgress WHERE userId = ?`, [userId]),
-                get(`SELECT rebirth FROM userCoins WHERE userId = ?`, [userId])
+                get(`SELECT rebirthCount FROM userRebirthProgress WHERE userId = ?`, [userId])
             ]);
             const userLevel = levelData?.level || 1;
-            const userRebirth = rebirthData?.rebirth || 0;
+            const userRebirth = rebirthData?.rebirthCount || 0;
             
             const farmData = await getFarmStatusData(userId, message.author.username);
             

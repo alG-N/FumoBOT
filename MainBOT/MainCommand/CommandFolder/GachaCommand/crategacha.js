@@ -2,6 +2,7 @@ const { get } = require('../../Core/database');
 const { logUserActivity, logError, logToDiscord } = require('../../Core/logger');
 const { checkRestrictions } = require('../../Middleware/restrictions');
 const { verifyButtonOwnership } = require('../../Middleware/buttonOwnership');
+const { checkAndSetCooldown } = require('../../Middleware/rateLimiter');
 const { getUserBoosts } = require('../../Service/GachaService/NormalGachaService/BoostService');
 const { performSingleRoll, performMultiRoll } = require('../../Service/GachaService/NormalGachaService/CrateGachaRollService');
 const { startAutoRoll, stopAutoRoll, isAutoRollActive } = require('../../Service/GachaService/NormalGachaService/CrateAutoRollService');
@@ -20,27 +21,40 @@ const StorageLimitService = require('../../Service/UserDataService/StorageServic
 
 async function handleSingleRoll(interaction, client) {
     try {
+        const userId = interaction.user.id;
+        
+        // Check cooldown BEFORE deferring to give instant feedback
+        const cooldownCheck = await checkAndSetCooldown(userId, 'crategacha');
+        if (cooldownCheck.onCooldown) {
+            return await interaction.reply({
+                content: `🕒 Please wait ${cooldownCheck.remaining}s before clicking again.`,
+                ephemeral: true
+            });
+        }
+        
         // CRITICAL: Defer immediately to prevent interaction timeout
         await interaction.deferReply({ ephemeral: true });
         
         // Check storage BEFORE starting
-        const storageStatus = await StorageLimitService.getStorageStatus(interaction.user.id);
+        const storageStatus = await StorageLimitService.getStorageStatus(userId);
         if (storageStatus.current >= STORAGE_CONFIG.MAX_STORAGE) {
             const embed = StorageLimitService.createStorageFullEmbed(storageStatus, 1);
             return await interaction.editReply({ embeds: [embed] });
         }
 
         const crateFumos = FumoPool.getForCrate();
-        const result = await performSingleRoll(interaction.user.id, crateFumos);
+        const result = await performSingleRoll(userId, crateFumos);
 
         if (!result.success) {
             const errorMessages = {
                 'INSUFFICIENT_COINS': 'You do not have enough coins to buy a fumo.',
                 'NO_FUMO_FOUND': 'No Fumo found for this rarity. Please contact the developer.',
-                'STORAGE_FULL': 'Your storage is full! Please sell some fumos first.'
+                'STORAGE_FULL': 'Your storage is full! Please sell some fumos first.',
+                'LOCK_FAILED': 'Server is busy, please try again in a moment.',
+                'ROLL_FAILED': 'Roll failed, please try again.'
             };
             return await interaction.editReply({
-                content: errorMessages[result.error] || 'An error occurred.'
+                content: errorMessages[result.error] || `An error occurred: ${result.error || 'Unknown error'}`
             });
         }
 
@@ -70,26 +84,39 @@ async function handleSingleRoll(interaction, client) {
 
 async function handleMultiRoll(interaction, rollCount, client) {
     try {
+        const userId = interaction.user.id;
+        
+        // Check cooldown BEFORE deferring to give instant feedback
+        const cooldownCheck = await checkAndSetCooldown(userId, 'crategacha');
+        if (cooldownCheck.onCooldown) {
+            return await interaction.reply({
+                content: `🕒 Please wait ${cooldownCheck.remaining}s before clicking again.`,
+                ephemeral: true
+            });
+        }
+        
         // CRITICAL: Always defer immediately to prevent interaction timeout
         await interaction.deferReply({ ephemeral: true });
         
         // Check storage BEFORE starting
-        const storageStatus = await StorageLimitService.getStorageStatus(interaction.user.id);
+        const storageStatus = await StorageLimitService.getStorageStatus(userId);
         if (storageStatus.current >= STORAGE_CONFIG.MAX_STORAGE) {
             const embed = StorageLimitService.createStorageFullEmbed(storageStatus, rollCount);
             return await interaction.editReply({ embeds: [embed] });
         }
 
         const crateFumos = FumoPool.getForCrate();
-        const result = await performMultiRoll(interaction.user.id, crateFumos, rollCount);
+        const result = await performMultiRoll(userId, crateFumos, rollCount);
 
         if (!result.success) {
             const errorMessages = {
                 'INSUFFICIENT_COINS': `You do not have enough coins to buy ${rollCount} fumos.`,
-                'STORAGE_FULL': 'Your storage is full! Please sell some fumos first.'
+                'STORAGE_FULL': 'Your storage is full! Please sell some fumos first.',
+                'LOCK_FAILED': 'Server is busy, please try again in a moment.',
+                'ROLL_FAILED': 'Roll failed, please try again.'
             };
             return await interaction.editReply({
-                content: errorMessages[result.error] || 'An error occurred.'
+                content: errorMessages[result.error] || `An error occurred: ${result.error || 'Unknown error'}`
             });
         }
 
@@ -118,11 +145,29 @@ async function handleMultiRoll(interaction, rollCount, client) {
     }
 }
 
+const AUTO_ROLL_LEVEL_REQUIREMENT = 10;
+
 async function handleAutoRollStart(interaction, client) {
     const userId = interaction.user.id;
 
     try {
-        // Check if already running FIRST
+        // Check level requirement FIRST (server-side validation)
+        const levelRow = await get(`SELECT level FROM userLevelProgress WHERE userId = ?`, [userId]);
+        const userLevel = levelRow?.level || 1;
+        
+        if (userLevel < AUTO_ROLL_LEVEL_REQUIREMENT) {
+            return await interaction.reply({
+                embeds: [{
+                    title: '🔒 Feature Locked',
+                    description: `**Auto Roll** requires **Level ${AUTO_ROLL_LEVEL_REQUIREMENT}** to unlock.\n\nYour current level: **${userLevel}**\n\n📈 Gain EXP by:\n• Completing daily & weekly quests\n• Rolling fumos in gacha\n• Completing main quests`,
+                    color: 0xFF6B6B,
+                    footer: { text: 'Use .level to check your progress' }
+                }],
+                ephemeral: true
+            });
+        }
+        
+        // Check if already running
         if (isAutoRollActive(userId)) {
             return await interaction.reply({
                 content: '⏳ You already have Auto Roll active! Use "Stop Roll 100" to stop it first.',
@@ -374,14 +419,14 @@ module.exports = (client) => {
             }
 
             if (!verifyButtonOwnership(interaction)) {
-                return interaction.reply({
+                return await interaction.reply({
                     content: "❌ You can't use someone else's buttons. Run the command yourself.",
                     ephemeral: true
                 });
             }
 
             if (['buy1fumo', 'buy10fumos', 'buy100fumos'].includes(action) && isAutoRollActive(userId)) {
-                return interaction.reply({
+                return await interaction.reply({
                     content: '⚠️ You cannot manually roll while Auto Roll is active. Please stop it first.',
                     ephemeral: true
                 });

@@ -214,6 +214,23 @@ module.exports = (client) => {
         }
 
         if (action === 'startEventAuto') {
+            // Check level requirement FIRST (server-side validation)
+            const AUTO_ROLL_LEVEL_REQUIREMENT = 10;
+            const levelRow = await get(`SELECT level FROM userLevelProgress WHERE userId = ?`, [userId]);
+            const userLevel = levelRow?.level || 1;
+            
+            if (userLevel < AUTO_ROLL_LEVEL_REQUIREMENT) {
+                return interaction.reply({
+                    embeds: [{
+                        title: '🔒 Feature Locked',
+                        description: `**Auto Roll** requires **Level ${AUTO_ROLL_LEVEL_REQUIREMENT}** to unlock.\n\nYour current level: **${userLevel}**\n\n📈 Gain EXP by:\n• Completing daily & weekly quests\n• Rolling fumos in gacha\n• Completing main quests`,
+                        color: 0xFF6B6B,
+                        footer: { text: 'Use .level to check your progress' }
+                    }],
+                    ephemeral: true
+                });
+            }
+            
             const cooldownCheck = await checkAndSetCooldown(userId, 'eventgacha');
             if (cooldownCheck.onCooldown) {
                 return interaction.reply({

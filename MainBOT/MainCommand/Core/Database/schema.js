@@ -252,7 +252,7 @@ function createIndexes() {
             }
         };
 
-        // User Coins Table - Remove Sanae columns
+        // User Coins Table - Cleaned up (level/exp/rebirth moved to separate tables, dateObtained/fumoName removed)
         tables.push(new Promise((res) => {
             db.run(`CREATE TABLE IF NOT EXISTS userCoins (
                 userId TEXT PRIMARY KEY, 
@@ -266,15 +266,10 @@ function createIndexes() {
                 rollsLeft INTEGER DEFAULT 0, 
                 totalRolls INTEGER DEFAULT 0, 
                 dailyStreak INTEGER DEFAULT 0, 
-                dateObtained TEXT, 
-                fumoName TEXT, 
                 luckRarity TEXT, 
                 lastDailyBonus INTEGER,
                 rollsSinceLastMythical INTEGER DEFAULT 0,
                 rollsSinceLastQuestionMark INTEGER DEFAULT 0,
-                level INTEGER DEFAULT 0,
-                rebirth INTEGER DEFAULT 0,
-                exp INTEGER DEFAULT 0,
                 lastRollTime INTEGER DEFAULT 0,
                 rollCount INTEGER DEFAULT 0,
                 rollsInCurrentWindow INTEGER DEFAULT 0,
@@ -301,7 +296,7 @@ function createIndexes() {
                 yukariMark INTEGER DEFAULT 0,
                 reimuPityCount INTEGER DEFAULT 0,
                 timeclockLastUsed INTEGER DEFAULT 0,
-                starterPath TEXT DEFAULT NULL
+                starterPath TEXT DEFAULT 'The Legend'
             )`, (err) => {
                 if (err) console.error('Error creating userCoins table:', err.message);
                 res();
@@ -1081,12 +1076,34 @@ async function migrateUserLevelData() {
     };
     
     try {
+        // First check if level/exp columns exist in userCoins
+        const tableInfo = await dbAllAsync(`PRAGMA table_info(userCoins)`);
+        const hasLevel = tableInfo.some(col => col.name === 'level');
+        const hasExp = tableInfo.some(col => col.name === 'exp');
+        
+        if (!hasLevel && !hasExp) {
+            console.log('✅ level/exp columns not in userCoins - migration not needed');
+            return;
+        }
+        
+        // Build dynamic query based on which columns exist
+        const selectCols = ['uc.userId'];
+        const whereConds = [];
+        if (hasLevel) {
+            selectCols.push('uc.level');
+            whereConds.push('uc.level > 0');
+        }
+        if (hasExp) {
+            selectCols.push('uc.exp');
+            whereConds.push('uc.exp > 0');
+        }
+        
         // Check if there are users with level/exp in userCoins that don't exist in userLevelProgress
         const usersToMigrate = await dbAllAsync(`
-            SELECT uc.userId, uc.level, uc.exp 
+            SELECT ${selectCols.join(', ')} 
             FROM userCoins uc
             LEFT JOIN userLevelProgress ulp ON uc.userId = ulp.userId
-            WHERE ulp.userId IS NULL AND (uc.level > 0 OR uc.exp > 0)
+            WHERE ulp.userId IS NULL AND (${whereConds.join(' OR ')})
         `);
         
         if (usersToMigrate.length === 0) {
@@ -1151,35 +1168,69 @@ async function dropDeprecatedLevelColumns() {
         const tableInfo = await dbAllAsync(`PRAGMA table_info(userCoins)`);
         const hasLevel = tableInfo.some(col => col.name === 'level');
         const hasExp = tableInfo.some(col => col.name === 'exp');
+        const hasRebirth = tableInfo.some(col => col.name === 'rebirth');
+        const hasDateObtained = tableInfo.some(col => col.name === 'dateObtained');
+        const hasFumoName = tableInfo.some(col => col.name === 'fumoName');
         
-        if (!hasLevel && !hasExp) {
-            console.log('✅ level/exp columns already removed from userCoins');
+        if (!hasLevel && !hasExp && !hasRebirth && !hasDateObtained && !hasFumoName) {
+            console.log('✅ All deprecated columns already removed from userCoins');
             return;
         }
         
-        // Verify all data is migrated before dropping
-        const unmigrated = await dbGetAsync(`
-            SELECT COUNT(*) as count FROM userCoins uc
-            LEFT JOIN userLevelProgress ulp ON uc.userId = ulp.userId
-            WHERE ulp.userId IS NULL AND (uc.level > 0 OR uc.exp > 0)
-        `);
+        // Build dynamic query based on which columns exist (only for level/exp migration check)
+        const whereConds = [];
+        if (hasLevel) whereConds.push('uc.level > 0');
+        if (hasExp) whereConds.push('uc.exp > 0');
         
-        if (unmigrated && unmigrated.count > 0) {
-            console.log(`⚠️ Cannot drop columns - ${unmigrated.count} users still need migration`);
-            return;
+        // Verify all level/exp data is migrated before dropping
+        if (whereConds.length > 0) {
+            const unmigrated = await dbGetAsync(`
+                SELECT COUNT(*) as count FROM userCoins uc
+                LEFT JOIN userLevelProgress ulp ON uc.userId = ulp.userId
+                WHERE ulp.userId IS NULL AND (${whereConds.join(' OR ')})
+            `);
+            
+            if (unmigrated && unmigrated.count > 0) {
+                console.log(`⚠️ Cannot drop level/exp columns - ${unmigrated.count} users still need migration`);
+            }
         }
         
         // SQLite 3.35.0+ supports DROP COLUMN
-        console.log('🔄 Dropping deprecated level/exp columns from userCoins...');
+        console.log('🔄 Dropping deprecated columns from userCoins...');
         
         if (hasLevel) {
-            await dbRunAsync(`ALTER TABLE userCoins DROP COLUMN level`);
-            console.log('  ✅ Dropped level column');
+            try {
+                await dbRunAsync(`ALTER TABLE userCoins DROP COLUMN level`);
+                console.log('  ✅ Dropped level column');
+            } catch (e) { console.log('  ⚠️ Could not drop level column:', e.message); }
         }
         
         if (hasExp) {
-            await dbRunAsync(`ALTER TABLE userCoins DROP COLUMN exp`);
-            console.log('  ✅ Dropped exp column');
+            try {
+                await dbRunAsync(`ALTER TABLE userCoins DROP COLUMN exp`);
+                console.log('  ✅ Dropped exp column');
+            } catch (e) { console.log('  ⚠️ Could not drop exp column:', e.message); }
+        }
+        
+        if (hasRebirth) {
+            try {
+                await dbRunAsync(`ALTER TABLE userCoins DROP COLUMN rebirth`);
+                console.log('  ✅ Dropped rebirth column');
+            } catch (e) { console.log('  ⚠️ Could not drop rebirth column:', e.message); }
+        }
+        
+        if (hasDateObtained) {
+            try {
+                await dbRunAsync(`ALTER TABLE userCoins DROP COLUMN dateObtained`);
+                console.log('  ✅ Dropped dateObtained column');
+            } catch (e) { console.log('  ⚠️ Could not drop dateObtained column:', e.message); }
+        }
+        
+        if (hasFumoName) {
+            try {
+                await dbRunAsync(`ALTER TABLE userCoins DROP COLUMN fumoName`);
+                console.log('  ✅ Dropped fumoName column');
+            } catch (e) { console.log('  ⚠️ Could not drop fumoName column:', e.message); }
         }
         
         console.log('✅ Successfully cleaned up deprecated columns from userCoins');
@@ -1193,12 +1244,56 @@ async function dropDeprecatedLevelColumns() {
     }
 }
 
+/**
+ * Migrate NULL startPath values to "The Legend" (default path)
+ */
+async function migrateNullStarterPaths() {
+    console.log('🔄 Checking for NULL starterPath values...');
+    
+    const dbRunAsync = (sql, params = []) => {
+        return new Promise((resolve, reject) => {
+            db.run(sql, params, function(err) {
+                if (err) reject(err);
+                else resolve(this);
+            });
+        });
+    };
+    
+    const dbGetAsync = (sql, params = []) => {
+        return new Promise((resolve, reject) => {
+            db.get(sql, params, (err, row) => {
+                if (err) reject(err);
+                else resolve(row);
+            });
+        });
+    };
+    
+    try {
+        // Check how many users have NULL starterPath
+        const countRow = await dbGetAsync(`SELECT COUNT(*) as count FROM userCoins WHERE starterPath IS NULL`);
+        
+        if (countRow.count === 0) {
+            console.log('✅ No NULL starterPath values found');
+            return;
+        }
+        
+        console.log(`🔄 Updating ${countRow.count} users with NULL starterPath to "The Legend"...`);
+        
+        const result = await dbRunAsync(`UPDATE userCoins SET starterPath = 'The Legend' WHERE starterPath IS NULL`);
+        
+        console.log(`✅ Updated ${result.changes} users' starterPath to "The Legend"`);
+    } catch (err) {
+        console.error('❌ Error migrating starterPath:', err.message);
+    }
+}
+
 async function initializeDatabase() {
     console.log('🚀 Initializing database schema...');
     await createTables();
     await ensureColumnsExist();
     await migrateUserLevelData(); // Migrate level/exp data to new table
     await dropDeprecatedLevelColumns(); // Remove old level/exp columns from userCoins
+    await migrateNullStarterPaths(); // Set NULL starterPath to "The Legend"
     await cleanupDuplicateFumos(); // Clean duplicates BEFORE creating unique indexes
     await createIndexes();
     console.log('✅ Database initialization complete');
@@ -1211,5 +1306,6 @@ module.exports = {
     cleanupDuplicateFumos,
     migrateUserLevelData,
     dropDeprecatedLevelColumns,
+    migrateNullStarterPaths,
     initializeDatabase
 };

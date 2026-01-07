@@ -14,15 +14,15 @@ const { invalidateCache } = require('../BalanceService/BalanceService');
  * @returns {Promise<{level: number, exp: number, currentExp: number, expToNext: number, progress: number}>}
  */
 async function getUserLevel(userId) {
-    // Get level/exp from userLevelProgress and rebirth from userCoins
+    // Get level/exp from userLevelProgress and rebirth from userRebirthProgress
     const [levelRow, rebirthRow] = await Promise.all([
         get(`SELECT level, exp FROM userLevelProgress WHERE userId = ?`, [userId]),
-        get(`SELECT rebirth FROM userCoins WHERE userId = ?`, [userId])
+        get(`SELECT rebirthCount FROM userRebirthProgress WHERE userId = ?`, [userId])
     ]);
     
     const level = levelRow?.level || 1;
     const exp = levelRow?.exp || 0;
-    const rebirth = rebirthRow?.rebirth || 0;
+    const rebirth = rebirthRow?.rebirthCount || 0;
     
     const levelInfo = getLevelFromExp(exp);
     return {
@@ -190,23 +190,31 @@ async function claimMilestone(userId, milestoneLevel) {
             return { success: false, error: 'ALREADY_CLAIMED' };
         }
         
-        // Grant rewards
+        // Grant rewards (skip if no rewards, like Level 5)
         const rewards = milestone.rewards;
-        if (rewards.coins || rewards.gems) {
+        if (rewards) {
+            // Ensure user has a row in userCoins first
             await run(
-                `UPDATE userCoins SET 
-                    coins = coins + ?,
-                    gems = gems + ?
-                 WHERE userId = ?`,
-                [rewards.coins || 0, rewards.gems || 0, userId]
+                `INSERT OR IGNORE INTO userCoins (userId, coins, gems, joinDate) VALUES (?, 0, 0, ?)`,
+                [userId, Date.now()]
             );
-        }
-        
-        if (rewards.tickets) {
-            await run(
-                `UPDATE userCoins SET rollsLeft = rollsLeft + ? WHERE userId = ?`,
-                [rewards.tickets, userId]
-            );
+            
+            if (rewards.coins || rewards.gems) {
+                await run(
+                    `UPDATE userCoins SET 
+                        coins = coins + ?,
+                        gems = gems + ?
+                     WHERE userId = ?`,
+                    [rewards.coins || 0, rewards.gems || 0, userId]
+                );
+            }
+            
+            if (rewards.tickets) {
+                await run(
+                    `UPDATE userCoins SET rollsLeft = rollsLeft + ? WHERE userId = ?`,
+                    [rewards.tickets, userId]
+                );
+            }
         }
         
         // Mark as claimed (insert new row)
@@ -215,42 +223,82 @@ async function claimMilestone(userId, milestoneLevel) {
             [userId, milestoneLevel]
         );
         
-        debugLog('LEVEL', `User ${userId} claimed milestone ${milestoneLevel}: ${JSON.stringify(rewards)}`);
+        debugLog('LEVEL', `User ${userId} claimed milestone ${milestoneLevel}: ${JSON.stringify(rewards || {})}`);
         
         return { 
             success: true, 
-            rewards,
+            rewards: rewards || { coins: 0, gems: 0, tickets: 0 },
             milestone 
         };
     });
 }
 
 /**
- * Claim all available milestones
+ * Claim all available milestones (optimized batch operation)
  * @param {string} userId 
  * @returns {Promise<{success: boolean, claimed: Object[], totalRewards: Object}>}
  */
 async function claimAllMilestones(userId) {
-    const unclaimed = await getUnclaimedMilestones(userId);
-    
-    if (unclaimed.length === 0) {
-        return { success: true, claimed: [], totalRewards: { coins: 0, gems: 0, tickets: 0 } };
-    }
-    
-    const claimed = [];
-    const totalRewards = { coins: 0, gems: 0, tickets: 0 };
-    
-    for (const milestone of unclaimed) {
-        const result = await claimMilestone(userId, milestone.level);
-        if (result.success) {
-            claimed.push(milestone);
-            totalRewards.coins += milestone.rewards.coins || 0;
-            totalRewards.gems += milestone.rewards.gems || 0;
-            totalRewards.tickets += milestone.rewards.tickets || 0;
+    return await withUserLock(userId, 'claimAllMilestones', async () => {
+        // Get user level and claimed milestones in parallel
+        const [userLevel, claimedRows] = await Promise.all([
+            getUserLevel(userId),
+            all(`SELECT milestoneLevel FROM userLevelMilestones WHERE userId = ?`, [userId])
+        ]);
+        
+        const claimedLevels = new Set(claimedRows.map(r => r.milestoneLevel));
+        
+        // Find all unclaimed milestones user has reached
+        const unclaimed = LEVEL_MILESTONES.filter(m => 
+            userLevel.level >= m.level && !claimedLevels.has(m.level)
+        );
+        
+        if (unclaimed.length === 0) {
+            return { success: true, claimed: [], totalRewards: { coins: 0, gems: 0, tickets: 0 } };
         }
-    }
-    
-    return { success: true, claimed, totalRewards };
+        
+        // Calculate total rewards (handle null rewards like Level 5)
+        const totalRewards = { coins: 0, gems: 0, tickets: 0 };
+        for (const milestone of unclaimed) {
+            if (milestone.rewards) {
+                totalRewards.coins += milestone.rewards.coins || 0;
+                totalRewards.gems += milestone.rewards.gems || 0;
+                totalRewards.tickets += milestone.rewards.tickets || 0;
+            }
+        }
+        
+        // Ensure user has a row in userCoins
+        await run(
+            `INSERT OR IGNORE INTO userCoins (userId, coins, gems, joinDate) VALUES (?, 0, 0, ?)`,
+            [userId, Date.now()]
+        );
+        
+        // Apply all rewards in a single update
+        if (totalRewards.coins > 0 || totalRewards.gems > 0 || totalRewards.tickets > 0) {
+            await run(
+                `UPDATE userCoins SET 
+                    coins = coins + ?,
+                    gems = gems + ?,
+                    rollsLeft = rollsLeft + ?
+                 WHERE userId = ?`,
+                [totalRewards.coins, totalRewards.gems, totalRewards.tickets, userId]
+            );
+        }
+        
+        // Batch insert all claimed milestones
+        const milestoneLevels = unclaimed.map(m => m.level);
+        const placeholders = milestoneLevels.map(() => '(?, ?)').join(', ');
+        const values = milestoneLevels.flatMap(level => [userId, level]);
+        
+        await run(
+            `INSERT OR IGNORE INTO userLevelMilestones (userId, milestoneLevel) VALUES ${placeholders}`,
+            values
+        );
+        
+        debugLog('LEVEL', `User ${userId} claimed ${unclaimed.length} milestones: ${JSON.stringify(totalRewards)}`);
+        
+        return { success: true, claimed: unclaimed, totalRewards };
+    });
 }
 
 /**
@@ -259,13 +307,13 @@ async function claimAllMilestones(userId) {
  * @returns {Promise<Object[]>}
  */
 async function getLevelLeaderboard(limit = 10) {
-    // Join userLevelProgress with userCoins to get rebirth info
+    // Join userLevelProgress with userRebirthProgress to get rebirth info
     return await all(
-        `SELECT ulp.userId, ulp.level, ulp.exp, COALESCE(uc.rebirth, 0) as rebirth 
+        `SELECT ulp.userId, ulp.level, ulp.exp, COALESCE(urp.rebirthCount, 0) as rebirth 
          FROM userLevelProgress ulp
-         LEFT JOIN userCoins uc ON ulp.userId = uc.userId
+         LEFT JOIN userRebirthProgress urp ON ulp.userId = urp.userId
          WHERE ulp.level > 0
-         ORDER BY COALESCE(uc.rebirth, 0) DESC, ulp.level DESC, ulp.exp DESC 
+         ORDER BY COALESCE(urp.rebirthCount, 0) DESC, ulp.level DESC, ulp.exp DESC 
          LIMIT ?`,
         [limit]
     );

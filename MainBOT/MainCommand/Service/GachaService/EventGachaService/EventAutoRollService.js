@@ -304,6 +304,7 @@ async function restoreEventAutoRolls(client, options = {}) {
 
     console.log(`🔄 Restoring ${userIds.length} event auto-rolls...`);
 
+    const AUTO_ROLL_LEVEL_REQUIREMENT = 10;
     let restored = 0;
     let failed = 0;
     const failureReasons = {};
@@ -311,6 +312,21 @@ async function restoreEventAutoRolls(client, options = {}) {
     for (const userId of userIds) {
         try {
             const saved = savedStates[userId];
+
+            // Check level requirement first
+            const levelRow = await get(
+                `SELECT level FROM userLevelProgress WHERE userId = ?`,
+                [userId]
+            );
+            const userLevel = levelRow?.level || 1;
+            
+            if (userLevel < AUTO_ROLL_LEVEL_REQUIREMENT) {
+                console.log(`⚠️ User ${userId} is level ${userLevel} (requires ${AUTO_ROLL_LEVEL_REQUIREMENT}) - removing event auto-roll state`);
+                removeEventUserState(userId);
+                failureReasons[userId] = 'LEVEL_NOT_REACHED';
+                failed++;
+                continue;
+            }
 
             const data = await getEventUserRollData(userId);
             

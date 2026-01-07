@@ -220,6 +220,20 @@ module.exports = (client) => {
                     
                 } catch (error) {
                     console.error('[Level] Interaction error:', error);
+                    
+                    // Try to show error feedback to user
+                    try {
+                        const errorEmbed = new EmbedBuilder()
+                            .setColor(0xFF0000)
+                            .setTitle('❌ Error')
+                            .setDescription('An error occurred while processing your request. Please try again.')
+                            .setTimestamp();
+                        
+                        await interaction.editReply({
+                            embeds: [errorEmbed],
+                            components: []
+                        }).catch(() => {});
+                    } catch {}
                 }
             });
             

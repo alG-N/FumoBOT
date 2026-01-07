@@ -33,7 +33,7 @@ const db = new sqlite3.Database(dbPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CR
     db.run("PRAGMA cache_size = -250000;");
     db.run("PRAGMA wal_checkpoint(FULL);");
     db.run("PRAGMA mmap_size = 2147483648;");
-    db.run("PRAGMA locking_mode = EXCLUSIVE;");
+    // db.run("PRAGMA locking_mode = EXCLUSIVE;");
   });
 });
 

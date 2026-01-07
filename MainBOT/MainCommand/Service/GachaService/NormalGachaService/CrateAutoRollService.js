@@ -314,6 +314,7 @@ async function restoreAutoRolls(client, fumoPool, options = {}) {
 
     console.log(`🔄 Restoring ${userIds.length} normal auto-rolls...`);
     
+    const AUTO_ROLL_LEVEL_REQUIREMENT = 10;
     let restored = 0;
     let failed = 0;
     const failureReasons = {};
@@ -322,6 +323,21 @@ async function restoreAutoRolls(client, fumoPool, options = {}) {
         try {
             const savedState = savedStates[userId];
             const autoSell = savedState.autoSell || false;
+
+            // Check level requirement first
+            const levelRow = await get(
+                `SELECT level FROM userLevelProgress WHERE userId = ?`,
+                [userId]
+            );
+            const userLevel = levelRow?.level || 1;
+            
+            if (userLevel < AUTO_ROLL_LEVEL_REQUIREMENT) {
+                console.log(`⚠️ User ${userId} is level ${userLevel} (requires ${AUTO_ROLL_LEVEL_REQUIREMENT}) - removing auto-roll state`);
+                removeNormalUserState(userId);
+                failureReasons[userId] = 'LEVEL_NOT_REACHED';
+                failed++;
+                continue;
+            }
 
             const userRow = await get(
                 `SELECT coins FROM userCoins WHERE userId = ?`,

@@ -26,12 +26,6 @@ const {
 // Initialize table on load
 initializeTable().catch(console.error);
 
-/**
- * Handle opening the Other Place UI
- * @param {Interaction} interaction 
- * @param {string} userId 
- * @param {number} rebirthLevel 
- */
 async function handleOtherPlaceOpen(interaction, userId, rebirthLevel) {
     try {
         const slots = getOtherPlaceSlots(rebirthLevel);

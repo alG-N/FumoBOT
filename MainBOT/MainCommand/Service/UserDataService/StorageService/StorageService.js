@@ -14,10 +14,15 @@ class StorageService {
     }
 
     static async getUserMetadata(userId) {
+        // Join userCoins with userLevelProgress and userRebirthProgress for level/rebirth
         return db.get(
-            `SELECT hasFantasyBook, level, rebirth 
-             FROM userCoins 
-             WHERE userId = ?`,
+            `SELECT uc.hasFantasyBook, 
+                    COALESCE(ulp.level, 1) as level, 
+                    COALESCE(urp.rebirthCount, 0) as rebirth 
+             FROM userCoins uc
+             LEFT JOIN userLevelProgress ulp ON uc.userId = ulp.userId
+             LEFT JOIN userRebirthProgress urp ON uc.userId = urp.userId
+             WHERE uc.userId = ?`,
             [userId],
             true
         );

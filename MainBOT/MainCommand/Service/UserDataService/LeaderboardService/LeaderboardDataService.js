@@ -98,11 +98,11 @@ class LeaderboardDataService {
         if (cached) return cached;
 
         const rows = await db.all(
-            `SELECT uc.userId, uc.rebirth 
-             FROM userCoins uc
-             LEFT JOIN userLevelProgress ulp ON uc.userId = ulp.userId
-             WHERE uc.rebirth > 0 
-             ORDER BY uc.rebirth DESC, COALESCE(ulp.level, 1) DESC LIMIT ?`,
+            `SELECT urp.userId, urp.rebirthCount as rebirth 
+             FROM userRebirthProgress urp
+             LEFT JOIN userLevelProgress ulp ON urp.userId = ulp.userId
+             WHERE urp.rebirthCount > 0 
+             ORDER BY urp.rebirthCount DESC, COALESCE(ulp.level, 1) DESC LIMIT ?`,
             [limit]
         );
 

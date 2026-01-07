@@ -119,24 +119,33 @@ async function updateUserAfterRoll(userId, updates) {
 async function performSingleRoll(userId, fumos) {
     debugLog('ROLL', `Single roll for user ${userId}`);
     
-    // Use lock to prevent race conditions
-    return await withUserLock(userId, 'singleRoll', async () => {
+    // STEP 1: Quick precondition checks OUTSIDE the lock
+    const [storageCheck, initialRow] = await Promise.all([
+        StorageLimitService.canAddFumos(userId, 1),
+        getUserRollData(userId)
+    ]);
+    
+    if (!storageCheck.canAdd) {
+        return { 
+            success: false, 
+            error: 'STORAGE_FULL',
+            storageStatus: storageCheck
+        };
+    }
+
+    if (!initialRow || initialRow.coins < 100) {
+        return { success: false, error: 'INSUFFICIENT_COINS' };
+    }
+    
+    // STEP 2: Use lock ONLY for atomic coin deduction and state capture
+    const lockResult = await withUserLock(userId, 'singleRoll', async () => {
         try {
-            // OPTIMIZED: Fetch storage check, user data, and boosts in parallel
-            const [storageCheck, row, boosts] = await Promise.all([
-                StorageLimitService.canAddFumos(userId, 1),
+            // Re-fetch inside lock to ensure consistency
+            const [row, boosts] = await Promise.all([
                 getUserRollData(userId),
                 getUserBoosts(userId)
             ]);
             
-            if (!storageCheck.canAdd) {
-                return { 
-                    success: false, 
-                    error: 'STORAGE_FULL',
-                    storageStatus: storageCheck
-                };
-            }
-
             if (!row || row.coins < 100) {
                 return { success: false, error: 'INSUFFICIENT_COINS' };
             }
@@ -146,107 +155,150 @@ async function performSingleRoll(userId, fumos) {
             if (!deductResult.success) {
                 return { success: false, error: 'INSUFFICIENT_COINS' };
             }
-
-            const hasFantasyBook = !!row.hasFantasyBook;
-
-            // Check for Sanae guaranteed rarity
-            let sanaeGuaranteedUsed = false;
-            const sanaeGuaranteed = boosts.sanaeGuaranteedRolls || 0;
-            const sanaeMinRarity = boosts.sanaeGuaranteedRarity || null;
-
-            let { rarity } = await calculateRarity(userId, boosts, row, hasFantasyBook);
-
-            // Apply Sanae guaranteed rarity if available
-            if (sanaeGuaranteed > 0 && sanaeMinRarity) {
-                if (!meetsMinimumRarity(rarity, sanaeMinRarity)) {
-                    rarity = sanaeMinRarity;
-                }
-                await consumeSanaeGuaranteedRoll(userId);
-                sanaeGuaranteedUsed = true;
-            }
-
-            if (ASTRAL_PLUS_RARITIES.includes(rarity)) {
-                await incrementWeeklyAstral(userId);
-            }
-
-            const boostUpdates = updateBoostCharge(row.boostCharge, row.boostActive, row.boostRollsRemaining);
-            const updatedPities = updatePityCounters(
-                {
-                    pityTranscendent: Math.min(row.pityTranscendent, MAX_PITY),
-                    pityEternal: Math.min(row.pityEternal, MAX_PITY),
-                    pityInfinite: Math.min(row.pityInfinite, MAX_PITY),
-                    pityCelestial: Math.min(row.pityCelestial, MAX_PITY),
-                    pityAstral: Math.min(row.pityAstral, MAX_PITY)
-                },
-                rarity,
-                hasFantasyBook
-            );
-
-            // Cap pity values to prevent overflow
-            for (const key of Object.keys(updatedPities)) {
-                if (typeof updatedPities[key] === 'number') {
-                    updatedPities[key] = Math.min(updatedPities[key], MAX_PITY);
-                }
-            }
-
-            const fumoResult = await selectAndAddFumo(userId, rarity, fumos);
-            if (!fumoResult || !fumoResult.success) {
-                // Refund coins if fumo selection failed
-                await run(`UPDATE userCoins SET coins = coins + 100 WHERE userId = ?`, [userId]);
-                return { success: false, error: fumoResult?.reason || 'NO_FUMO_FOUND' };
-            }
-            const fumo = fumoResult.fumo;
-
-            // Update user data (coins already deducted atomically)
-            await run(
-                `UPDATE userCoins SET
-                    totalRolls = totalRolls + 1,
-                    boostCharge = ?,
-                    boostActive = ?,
-                    boostRollsRemaining = ?,
-                    pityTranscendent = ?,
-                    pityEternal = ?,
-                    pityInfinite = ?,
-                    pityCelestial = ?,
-                    pityAstral = ?,
-                    rollsLeft = CASE 
-                        WHEN rollsLeft >= 1 THEN rollsLeft - 1
-                        ELSE 0 
-                    END
-                WHERE userId = ?`,
-                [
-                    boostUpdates.boostCharge,
-                    boostUpdates.boostActive,
-                    boostUpdates.boostRollsRemaining,
-                    updatedPities.pityTranscendent,
-                    updatedPities.pityEternal,
-                    updatedPities.pityInfinite,
-                    updatedPities.pityCelestial,
-                    updatedPities.pityAstral,
-                    userId
-                ]
-            );
-
-            await updateQuestsAndAchievements(userId, 1);
-
-            return { success: true, fumo, rarity, sanaeGuaranteedUsed };
+            
+            // Return the data needed for processing
+            return {
+                success: true,
+                row,
+                boosts,
+                hasFantasyBook: !!row.hasFantasyBook
+            };
         } catch (error) {
-            console.error('❌ Error in performSingleRoll:', error);
-            debugLog('ROLL_ERROR', `Single roll failed for ${userId}: ${error.message}`);
-            return { success: false, error: 'ROLL_FAILED', details: error.message };
+            console.error('❌ Error in performSingleRoll lock phase:', error);
+            return { success: false, error: 'LOCK_FAILED', details: error.message };
         }
     });
+    
+    // If lock phase failed, return the error
+    if (!lockResult.success) {
+        return lockResult;
+    }
+    
+    // STEP 3: Do heavy computation OUTSIDE the lock (coins already deducted)
+    const { row, boosts, hasFantasyBook } = lockResult;
+    
+    try {
+        // Check for Sanae guaranteed rarity
+        let sanaeGuaranteedUsed = false;
+        const sanaeGuaranteed = boosts.sanaeGuaranteedRolls || 0;
+        const sanaeMinRarity = boosts.sanaeGuaranteedRarity || null;
+
+        let { rarity } = await calculateRarity(userId, boosts, row, hasFantasyBook);
+
+        // Apply Sanae guaranteed rarity if available
+        if (sanaeGuaranteed > 0 && sanaeMinRarity) {
+            if (!meetsMinimumRarity(rarity, sanaeMinRarity)) {
+                rarity = sanaeMinRarity;
+            }
+            await consumeSanaeGuaranteedRoll(userId);
+            sanaeGuaranteedUsed = true;
+        }
+
+        if (ASTRAL_PLUS_RARITIES.includes(rarity)) {
+            await incrementWeeklyAstral(userId);
+        }
+
+        const boostUpdates = updateBoostCharge(row.boostCharge, row.boostActive, row.boostRollsRemaining);
+        const updatedPities = updatePityCounters(
+            {
+                pityTranscendent: Math.min(row.pityTranscendent, MAX_PITY),
+                pityEternal: Math.min(row.pityEternal, MAX_PITY),
+                pityInfinite: Math.min(row.pityInfinite, MAX_PITY),
+                pityCelestial: Math.min(row.pityCelestial, MAX_PITY),
+                pityAstral: Math.min(row.pityAstral, MAX_PITY)
+            },
+            rarity,
+            hasFantasyBook
+        );
+
+        // Cap pity values to prevent overflow
+        for (const key of Object.keys(updatedPities)) {
+            if (typeof updatedPities[key] === 'number') {
+                updatedPities[key] = Math.min(updatedPities[key], MAX_PITY);
+            }
+        }
+
+        const fumoResult = await selectAndAddFumo(userId, rarity, fumos);
+        if (!fumoResult || !fumoResult.success) {
+            // Refund coins if fumo selection failed
+            await run(`UPDATE userCoins SET coins = coins + 100 WHERE userId = ?`, [userId]);
+            return { success: false, error: fumoResult?.reason || 'NO_FUMO_FOUND' };
+        }
+        const fumo = fumoResult.fumo;
+
+        // Update user data (coins already deducted atomically)
+        await run(
+            `UPDATE userCoins SET
+                totalRolls = totalRolls + 1,
+                boostCharge = ?,
+                boostActive = ?,
+                boostRollsRemaining = ?,
+                pityTranscendent = ?,
+                pityEternal = ?,
+                pityInfinite = ?,
+                pityCelestial = ?,
+                pityAstral = ?,
+                rollsLeft = CASE 
+                    WHEN rollsLeft >= 1 THEN rollsLeft - 1
+                    ELSE 0 
+                END
+            WHERE userId = ?`,
+            [
+                boostUpdates.boostCharge,
+                boostUpdates.boostActive,
+                boostUpdates.boostRollsRemaining,
+                updatedPities.pityTranscendent,
+                updatedPities.pityEternal,
+                updatedPities.pityInfinite,
+                updatedPities.pityCelestial,
+                updatedPities.pityAstral,
+                userId
+            ]
+        );
+
+        await updateQuestsAndAchievements(userId, 1);
+
+        return { success: true, fumo, rarity, sanaeGuaranteedUsed };
+    } catch (error) {
+        console.error('❌ Error in performSingleRoll:', error);
+        debugLog('ROLL_ERROR', `Single roll failed for ${userId}: ${error.message}`);
+        // Refund coins on error
+        try {
+            await run(`UPDATE userCoins SET coins = coins + 100 WHERE userId = ?`, [userId]);
+        } catch (refundError) {
+            console.error('❌ Failed to refund coins:', refundError);
+        }
+        return { success: false, error: 'ROLL_FAILED', details: error.message };
+    }
 }
 
 async function performMultiRoll(userId, fumos, rollCount, isAutoRoll = false) {
     debugLog('ROLL', `${rollCount}x roll for user ${userId} (autoRoll: ${isAutoRoll})`);
     
-    // Use lock to prevent race conditions
-    return await withUserLock(userId, `multiRoll_${rollCount}`, async () => {
+    const cost = rollCount * 100;
+    
+    // STEP 1: Quick precondition checks OUTSIDE the lock
+    const [storageCheck, initialRow] = await Promise.all([
+        StorageLimitService.canAddFumos(userId, rollCount),
+        getUserRollData(userId)
+    ]);
+    
+    if (!storageCheck.canAdd) {
+        return { 
+            success: false, 
+            error: 'STORAGE_FULL',
+            storageStatus: storageCheck
+        };
+    }
+    
+    if (!initialRow || initialRow.coins < cost) {
+        return { success: false, error: 'INSUFFICIENT_COINS' };
+    }
+    
+    // STEP 2: Use lock ONLY for atomic coin deduction and state capture
+    const lockResult = await withUserLock(userId, `multiRoll_${rollCount}`, async () => {
         try {
-            const cost = rollCount * 100;
-            
-            // OPTIMIZED: Fetch user data and boosts in parallel
+            // Re-fetch inside lock to ensure consistency
             const [row, boosts] = await Promise.all([
                 getUserRollData(userId),
                 getUserBoosts(userId)
@@ -261,11 +313,31 @@ async function performMultiRoll(userId, fumos, rollCount, isAutoRoll = false) {
             if (!deductResult.success) {
                 return { success: false, error: 'INSUFFICIENT_COINS' };
             }
-
-            const hasFantasyBook = !!row.hasFantasyBook;
-
-            let { boostCharge, boostActive, boostRollsRemaining } = row;
-            let pities = {
+            
+            // Return the data needed for processing
+            return {
+                success: true,
+                row,
+                boosts,
+                hasFantasyBook: !!row.hasFantasyBook
+            };
+        } catch (error) {
+            console.error('❌ Error in performMultiRoll lock phase:', error);
+            return { success: false, error: 'LOCK_FAILED', details: error.message };
+        }
+    });
+    
+    // If lock phase failed, return the error
+    if (!lockResult.success) {
+        return lockResult;
+    }
+    
+    // STEP 3: Do heavy computation OUTSIDE the lock (coins already deducted)
+    const { row, boosts, hasFantasyBook } = lockResult;
+    
+    try {
+        let { boostCharge, boostActive, boostRollsRemaining } = row;
+        let pities = {
                 pityTranscendent: Math.min(row.pityTranscendent, MAX_PITY),
                 pityEternal: Math.min(row.pityEternal, MAX_PITY),
                 pityInfinite: Math.min(row.pityInfinite, MAX_PITY),
@@ -458,7 +530,6 @@ async function performMultiRoll(userId, fumos, rollCount, isAutoRoll = false) {
             debugLog('ROLL_ERROR', `Multi roll failed for ${userId}: ${error.message}`);
             return { success: false, error: 'ROLL_FAILED', details: error.message };
         }
-    });
 }
 
 async function performBatch100Roll(userId, fumos) {

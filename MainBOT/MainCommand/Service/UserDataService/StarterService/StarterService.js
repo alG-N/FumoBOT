@@ -62,14 +62,27 @@ async function claimStarter(userId, pathId) {
         const totalGems = path.gems + welcome.gems;
         const totalTokens = path.spiritTokens;
         
-        // Create user account
+        // Create user account (without level/exp/rebirth - those are in separate tables)
         await db.run(
             `INSERT INTO userCoins (
                 userId, coins, gems, joinDate,
-                luck, level, exp, rebirth,
-                dailyStreak, spiritTokens, starterPath
-            ) VALUES (?, ?, ?, ?, 0, 1, 0, 0, 0, ?, ?)`,
+                luck, dailyStreak, spiritTokens, starterPath
+            ) VALUES (?, ?, ?, ?, 0, 0, ?, ?)`,
             [userId, totalCoins, totalGems, joinDate, totalTokens, pathId]
+        );
+        
+        // Create level progress entry
+        await db.run(
+            `INSERT INTO userLevelProgress (userId, level, exp, totalExpEarned, lastUpdated)
+             VALUES (?, 1, 0, 0, ?)`,
+            [userId, Date.now()]
+        );
+        
+        // Create rebirth progress entry
+        await db.run(
+            `INSERT INTO userRebirthProgress (userId, rebirthCount, totalRebirths)
+             VALUES (?, 0, 0)`,
+            [userId]
         );
         
         // Add path items to inventory
@@ -110,12 +123,25 @@ async function claimStarter(userId, pathId) {
  */
 async function getStarterStats(userId) {
     try {
-        const row = await db.get(
-            `SELECT joinDate, coins, gems, level, rebirth, starterPath
-             FROM userCoins WHERE userId = ?`,
-            [userId],
-            true
-        );
+        // Get base data from userCoins, level from userLevelProgress, rebirth from userRebirthProgress
+        const [row, levelRow, rebirthRow] = await Promise.all([
+            db.get(
+                `SELECT joinDate, coins, gems, starterPath
+                 FROM userCoins WHERE userId = ?`,
+                [userId],
+                true
+            ),
+            db.get(
+                `SELECT level FROM userLevelProgress WHERE userId = ?`,
+                [userId],
+                true
+            ),
+            db.get(
+                `SELECT rebirthCount FROM userRebirthProgress WHERE userId = ?`,
+                [userId],
+                true
+            )
+        ]);
         
         if (!row) return null;
         
@@ -128,8 +154,8 @@ async function getStarterStats(userId) {
             daysPlayed,
             currentCoins: row.coins,
             currentGems: row.gems,
-            level: row.level,
-            rebirth: row.rebirth,
+            level: levelRow?.level || 1,
+            rebirth: rebirthRow?.rebirthCount || 0,
             starterPath: row.starterPath || 'unknown'
         };
     } catch (error) {

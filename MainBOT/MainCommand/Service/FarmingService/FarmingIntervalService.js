@@ -23,10 +23,10 @@ const farmingIntervals = new Map();
 async function getUserRebirthMultiplier(userId) {
     try {
         const row = await get(
-            `SELECT rebirth FROM userCoins WHERE userId = ?`,
+            `SELECT rebirthCount FROM userRebirthProgress WHERE userId = ?`,
             [userId]
         );
-        return getRebirthMultiplier(row?.rebirth || 0);
+        return getRebirthMultiplier(row?.rebirthCount || 0);
     } catch (error) {
         console.error('[Farming] Error getting rebirth multiplier:', error);
         return 1;

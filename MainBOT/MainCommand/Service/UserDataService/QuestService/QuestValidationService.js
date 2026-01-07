@@ -122,11 +122,11 @@ class QuestValidationService {
         return new Promise((resolve, reject) => {
             const db = require('../../Core/Database/dbSetting');
             db.get(
-                `SELECT rebirth FROM userCoins WHERE userId = ?`,
+                `SELECT rebirthCount FROM userRebirthProgress WHERE userId = ?`,
                 [userId],
                 (err, row) => {
                     if (err) return reject(err);
-                    resolve(row ? row.rebirth : 0);
+                    resolve(row ? row.rebirthCount : 0);
                 }
             );
         });
