@@ -116,6 +116,31 @@ async function cleanupDuplicateFumos() {
     }
 }
 
+/**
+ * Drop deprecated/unused tables to clean up the database
+ * These tables were identified as having no usage in the codebase
+ */
+async function dropUnusedTables() {
+    console.log('🧹 Dropping deprecated unused tables...');
+    
+    const deprecatedTables = [
+        'userUsage',          // Command usage tracking - never implemented
+        'userBalance'         // Duplicate of userCoins balance - never used
+    ];
+    
+    for (const tableName of deprecatedTables) {
+        await new Promise((resolve) => {
+            db.run(`DROP TABLE IF EXISTS ${tableName}`, (err) => {
+                if (err) {
+                    console.error(`❌ Failed to drop table ${tableName}:`, err.message);
+                }
+                resolve();
+            });
+        });
+    }
+    console.log('✅ Deprecated tables cleanup complete');
+}
+
 function createIndexes() {
     console.log('📊 Creating database indexes...');
 
@@ -303,14 +328,6 @@ function createIndexes() {
             });
         }));
 
-        // Migration: Add starterPath column if not exists
-        tables.push(new Promise((res) => {
-            db.run(`ALTER TABLE userCoins ADD COLUMN starterPath TEXT DEFAULT NULL`, (err) => {
-                // Ignore error if column already exists
-                res();
-            });
-        }));
-
         // User Buildings Table
         tables.push(new Promise((res) => {
             db.run(`CREATE TABLE IF NOT EXISTS userBuildings (
@@ -427,20 +444,6 @@ function createIndexes() {
             });
         }));
 
-        // User Usage Table
-        tables.push(new Promise((res) => {
-            db.run(`CREATE TABLE IF NOT EXISTS userUsage (
-                userId TEXT, 
-                command TEXT, 
-                date TEXT, 
-                count INTEGER, 
-                PRIMARY KEY (userId, command)
-            )`, (err) => {
-                if (err) console.error('Error creating userUsage table:', err.message);
-                res();
-            });
-        }));
-
         // User Inventory Table
         tables.push(new Promise((res) => {
             db.run(`CREATE TABLE IF NOT EXISTS userInventory (
@@ -468,17 +471,6 @@ function createIndexes() {
                 fragmentUses INTEGER DEFAULT 0
             )`, (err) => {
                 if (err) console.error('Error creating userUpgrades table:', err.message);
-                res();
-            });
-        }));
-
-        // User Balance Table
-        tables.push(new Promise((res) => {
-            db.run(`CREATE TABLE IF NOT EXISTS userBalance (
-                userId TEXT PRIMARY KEY, 
-                balance INTEGER
-            )`, (err) => {
-                if (err) console.error('Error creating userBalance table:', err.message);
                 res();
             });
         }));
@@ -1294,6 +1286,7 @@ async function initializeDatabase() {
     await migrateUserLevelData(); // Migrate level/exp data to new table
     await dropDeprecatedLevelColumns(); // Remove old level/exp columns from userCoins
     await migrateNullStarterPaths(); // Set NULL starterPath to "The Legend"
+    await dropUnusedTables(); // Drop deprecated tables that are no longer used
     await cleanupDuplicateFumos(); // Clean duplicates BEFORE creating unique indexes
     await createIndexes();
     console.log('✅ Database initialization complete');
@@ -1307,5 +1300,6 @@ module.exports = {
     migrateUserLevelData,
     dropDeprecatedLevelColumns,
     migrateNullStarterPaths,
+    dropUnusedTables,
     initializeDatabase
 };

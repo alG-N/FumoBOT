@@ -15,7 +15,7 @@ const {
 } = require('./FarmingDatabaseService');
 const { startFarmingInterval, stopFarmingInterval, stopAllFarmingIntervals } = require('./FarmingIntervalService');
 const { debugLog } = require('../../Core/logger');
-const { get, all } = require('../../Core/database');
+const { get, all, withUserLock } = require('../../Core/database');
 const { parseTraitFromFumoName, stripTraitFromFumoName } = require('./FarmingParserService');
 
 async function addMultipleFumosToFarm(userId, fumoName, quantity) {
@@ -165,88 +165,91 @@ async function addRandomByRarity(userId, rarity) {
 }
 
 async function optimizeFarm(userId) {
-    // OPTIMIZED: Fetch both in parallel
-    const [fragmentUses, upgradesRow] = await Promise.all([
-        getFarmLimit(userId),
-        get(`SELECT limitBreaks FROM userUpgrades WHERE userId = ?`, [userId])
-    ]);
-    const limitBreaks = upgradesRow?.limitBreaks || 0;
-    const limit = calculateFarmLimit(fragmentUses) + limitBreaks;
-    
-    // FIRST: Stop all intervals and clear farming (returns fumos to inventory)
-    await stopAllFarmingIntervals(userId);
-    await clearAllFarming(userId);
-    
-    // NOW query inventory AFTER clearing farm - this includes all fumos
-    const inventory = await all(
-        `SELECT fumoName, SUM(COALESCE(quantity, 1)) as count 
-         FROM userInventory 
-         WHERE userId = ? 
-         AND fumoName IS NOT NULL
-         AND TRIM(fumoName) != ''
-         AND (fumoName LIKE '%(%)' OR fumoName LIKE '%[✨SHINY]' OR fumoName LIKE '%[🌟alG]' OR fumoName LIKE '%[🔮GLITCHED]' OR fumoName LIKE '%[🌀VOID]')
-         GROUP BY fumoName`,
-        [userId]
-    );
+    // Wrap entire operation in user lock to prevent race conditions
+    return await withUserLock(userId, 'optimizeFarm', async () => {
+        // OPTIMIZED: Fetch both in parallel
+        const [fragmentUses, upgradesRow] = await Promise.all([
+            getFarmLimit(userId),
+            get(`SELECT limitBreaks FROM userUpgrades WHERE userId = ?`, [userId])
+        ]);
+        const limitBreaks = upgradesRow?.limitBreaks || 0;
+        const limit = calculateFarmLimit(fragmentUses) + limitBreaks;
+        
+        // FIRST: Stop all intervals and clear farming (returns fumos to inventory)
+        await stopAllFarmingIntervals(userId);
+        await clearAllFarming(userId);
+        
+        // NOW query inventory AFTER clearing farm - this includes all fumos
+        const inventory = await all(
+            `SELECT fumoName, SUM(COALESCE(quantity, 1)) as count 
+             FROM userInventory 
+             WHERE userId = ? 
+             AND fumoName IS NOT NULL
+             AND TRIM(fumoName) != ''
+             AND (fumoName LIKE '%(%)' OR fumoName LIKE '%[✨SHINY]' OR fumoName LIKE '%[🌟alG]' OR fumoName LIKE '%[🔮GLITCHED]' OR fumoName LIKE '%[🌀VOID]')
+             GROUP BY fumoName`,
+            [userId]
+        );
 
-    debugLog('FARMING', `[optimizeFarm] Found ${inventory.length} unique fumo types in inventory`);
+        debugLog('FARMING', `[optimizeFarm] Found ${inventory.length} unique fumo types in inventory`);
 
-    const inventoryWithStats = inventory
-        .filter(item => {
-            if (!item.fumoName || typeof item.fumoName !== 'string' || item.fumoName.trim() === '') {
-                return false;
-            }
-            return item.fumoName.includes('(') || item.fumoName.includes('[');
-        })
-        .map(item => {
-            const stats = calculateFarmingStats(item.fumoName);
-            return {
-                fumoName: item.fumoName,
-                availableCount: parseInt(item.count) || 0,
-                coinsPerMin: stats.coinsPerMin,
-                gemsPerMin: stats.gemsPerMin,
-                totalIncome: stats.coinsPerMin + stats.gemsPerMin
-            };
-        });
-
-    inventoryWithStats.sort((a, b) => b.totalIncome - a.totalIncome);
-
-    const optimalFarm = [];
-    let slotsUsed = 0;
-
-    for (const item of inventoryWithStats) {
-        if (slotsUsed >= limit) break;
-
-        const slotsAvailable = limit - slotsUsed;
-        const quantityToAdd = Math.min(item.availableCount, slotsAvailable);
-
-        if (quantityToAdd > 0) {
-            optimalFarm.push({
-                fumoName: item.fumoName,
-                quantity: quantityToAdd,
-                coinsPerMin: item.coinsPerMin,
-                gemsPerMin: item.gemsPerMin
+        const inventoryWithStats = inventory
+            .filter(item => {
+                if (!item.fumoName || typeof item.fumoName !== 'string' || item.fumoName.trim() === '') {
+                    return false;
+                }
+                return item.fumoName.includes('(') || item.fumoName.includes('[');
+            })
+            .map(item => {
+                const stats = calculateFarmingStats(item.fumoName);
+                return {
+                    fumoName: item.fumoName,
+                    availableCount: parseInt(item.count) || 0,
+                    coinsPerMin: stats.coinsPerMin,
+                    gemsPerMin: stats.gemsPerMin,
+                    totalIncome: stats.coinsPerMin + stats.gemsPerMin
+                };
             });
-            slotsUsed += quantityToAdd;
+
+        inventoryWithStats.sort((a, b) => b.totalIncome - a.totalIncome);
+
+        const optimalFarm = [];
+        let slotsUsed = 0;
+
+        for (const item of inventoryWithStats) {
+            if (slotsUsed >= limit) break;
+
+            const slotsAvailable = limit - slotsUsed;
+            const quantityToAdd = Math.min(item.availableCount, slotsAvailable);
+
+            if (quantityToAdd > 0) {
+                optimalFarm.push({
+                    fumoName: item.fumoName,
+                    quantity: quantityToAdd,
+                    coinsPerMin: item.coinsPerMin,
+                    gemsPerMin: item.gemsPerMin
+                });
+                slotsUsed += quantityToAdd;
+            }
         }
-    }
 
-    debugLog('FARMING', `[optimizeFarm] Optimal farm plan: ${optimalFarm.length} types, ${slotsUsed} slots`);
+        debugLog('FARMING', `[optimizeFarm] Optimal farm plan: ${optimalFarm.length} types, ${slotsUsed} slots`);
 
-    let actualAdded = 0;
-    for (const fumo of optimalFarm) {
-        const success = await addFumoToFarm(userId, fumo.fumoName, fumo.coinsPerMin, fumo.gemsPerMin, fumo.quantity);
-        if (success) {
-            await startFarmingInterval(userId, fumo.fumoName, fumo.coinsPerMin, fumo.gemsPerMin);
-            actualAdded += fumo.quantity;
-        } else {
-            debugLog('FARMING', `[optimizeFarm] Failed to add ${fumo.quantity}x ${fumo.fumoName}`);
+        let actualAdded = 0;
+        for (const fumo of optimalFarm) {
+            const success = await addFumoToFarm(userId, fumo.fumoName, fumo.coinsPerMin, fumo.gemsPerMin, fumo.quantity);
+            if (success) {
+                await startFarmingInterval(userId, fumo.fumoName, fumo.coinsPerMin, fumo.gemsPerMin);
+                actualAdded += fumo.quantity;
+            } else {
+                debugLog('FARMING', `[optimizeFarm] Failed to add ${fumo.quantity}x ${fumo.fumoName}`);
+            }
         }
-    }
 
-    debugLog('FARMING', `[optimizeFarm] Complete: ${actualAdded} fumos added to farm`);
+        debugLog('FARMING', `[optimizeFarm] Complete: ${actualAdded} fumos added to farm`);
 
-    return { success: true, count: actualAdded, uniqueFumos: optimalFarm.length };
+        return { success: true, count: actualAdded, uniqueFumos: optimalFarm.length };
+    });
 }
 
 async function removeByName(userId, fumoName, quantity = 1) {

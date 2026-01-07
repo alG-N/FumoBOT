@@ -5,7 +5,10 @@ const { getUserLevel } = require('../../../Service/UserDataService/LevelService/
 const {
     getRebirthStatus,
     getUserFumosForSelection,
-    performRebirth
+    performRebirth,
+    getUnclaimedRebirthMilestones,
+    getClaimedRebirthMilestones,
+    claimAllRebirthMilestones
 } = require('../../../Service/UserDataService/RebirthService/RebirthDatabaseService');
 const {
     createRebirthOverviewEmbed,
@@ -13,6 +16,7 @@ const {
     createFumoSelectionEmbed,
     createRebirthSuccessEmbed,
     createMilestonesEmbed,
+    createClaimSuccessEmbed,
     createRebirthButtons,
     createFumoSelectMenu,
     createConfirmButtons,
@@ -44,12 +48,13 @@ module.exports = (client) => {
         try {
             const rebirthData = await getRebirthStatus(userId);
             const levelData = await getUserLevel(userId);
+            const unclaimedMilestones = await getUnclaimedRebirthMilestones(userId);
             
             let currentView = 'overview';
             let selectedFumo = null;
             
             const embed = createRebirthOverviewEmbed(message.author, rebirthData, levelData);
-            const buttons = createRebirthButtons(userId, currentView, rebirthData.canRebirth);
+            const buttons = createRebirthButtons(userId, currentView, rebirthData.canRebirth, unclaimedMilestones.length);
             
             const sent = await message.channel.send({
                 embeds: [embed],
@@ -102,17 +107,41 @@ module.exports = (client) => {
                     
                     await interaction.deferUpdate();
                     
+                    // Get fresh unclaimed milestones
+                    const freshUnclaimed = await getUnclaimedRebirthMilestones(userId);
+                    const freshClaimed = await getClaimedRebirthMilestones(userId);
+                    
                     switch (action) {
                         case 'overview':
                             currentView = 'overview';
                             newEmbed = createRebirthOverviewEmbed(message.author, freshRebirthData, freshLevelData);
-                            newComponents = createRebirthButtons(userId, currentView, freshRebirthData.canRebirth);
+                            newComponents = createRebirthButtons(userId, currentView, freshRebirthData.canRebirth, freshUnclaimed.length);
                             break;
                             
                         case 'milestones':
                             currentView = 'milestones';
-                            newEmbed = createMilestonesEmbed(message.author, freshRebirthData.rebirth);
-                            newComponents = createRebirthButtons(userId, currentView, freshRebirthData.canRebirth);
+                            newEmbed = createMilestonesEmbed(message.author, freshRebirthData.rebirth, freshClaimed);
+                            newComponents = createRebirthButtons(userId, currentView, freshRebirthData.canRebirth, freshUnclaimed.length);
+                            break;
+                        
+                        case 'claim':
+                            // Claim all rebirth milestone rewards
+                            const claimResult = await claimAllRebirthMilestones(userId);
+                            
+                            if (claimResult.success && claimResult.claimed.length > 0) {
+                                newEmbed = createClaimSuccessEmbed(message.author, claimResult.claimed, claimResult.totalRewards);
+                                // Refresh claimed list after claiming
+                                const updatedClaimed = await getClaimedRebirthMilestones(userId);
+                                const updatedUnclaimed = await getUnclaimedRebirthMilestones(userId);
+                                newComponents = createRebirthButtons(userId, 'milestones', freshRebirthData.canRebirth, updatedUnclaimed.length);
+                            } else {
+                                newEmbed = new EmbedBuilder()
+                                    .setTitle('ℹ️ No Rewards to Claim')
+                                    .setColor(COLORS.DEFAULT)
+                                    .setDescription('You have already claimed all available rebirth milestone rewards.')
+                                    .setTimestamp();
+                                newComponents = createRebirthButtons(userId, 'milestones', freshRebirthData.canRebirth, 0);
+                            }
                             break;
                             
                         case 'start':
@@ -123,7 +152,7 @@ module.exports = (client) => {
                                     .setColor(COLORS.DANGER)
                                     .setDescription(`You need to be Level 100 to rebirth.\nCurrent: Level ${freshLevelData.level}`)
                                     .setTimestamp();
-                                newComponents = createRebirthButtons(userId, 'overview', false);
+                                newComponents = createRebirthButtons(userId, 'overview', false, freshUnclaimed.length);
                                 break;
                             }
                             
@@ -142,7 +171,7 @@ module.exports = (client) => {
                             currentView = 'overview';
                             selectedFumo = null;
                             newEmbed = createRebirthOverviewEmbed(message.author, freshRebirthData, freshLevelData);
-                            newComponents = createRebirthButtons(userId, currentView, freshRebirthData.canRebirth);
+                            newComponents = createRebirthButtons(userId, currentView, freshRebirthData.canRebirth, freshUnclaimed.length);
                             break;
                             
                         case 'skip':
@@ -158,7 +187,7 @@ module.exports = (client) => {
                                     .setColor(COLORS.DANGER)
                                     .setDescription('You are no longer eligible for rebirth.')
                                     .setTimestamp();
-                                newComponents = createRebirthButtons(userId, 'overview', false);
+                                newComponents = createRebirthButtons(userId, 'overview', false, freshUnclaimed.length);
                                 break;
                             }
                             
@@ -171,7 +200,7 @@ module.exports = (client) => {
                                     .setColor(COLORS.DANGER)
                                     .setDescription(result.message || 'An error occurred during rebirth.')
                                     .setTimestamp();
-                                newComponents = createRebirthButtons(userId, 'overview', freshRebirthData.canRebirth);
+                                newComponents = createRebirthButtons(userId, 'overview', freshRebirthData.canRebirth, freshUnclaimed.length);
                             } else {
                                 newEmbed = createRebirthSuccessEmbed(
                                     message.author,

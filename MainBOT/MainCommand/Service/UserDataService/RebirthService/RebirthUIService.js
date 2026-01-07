@@ -277,27 +277,52 @@ function createRebirthSuccessEmbed(user, newRebirth, newMultiplier, keptFumo) {
  * Create rebirth milestones embed
  * @param {Object} user - Discord user
  * @param {number} currentRebirth - Current rebirth count
+ * @param {number[]} claimedMilestones - Array of claimed milestone rebirth levels
  * @returns {EmbedBuilder}
  */
-function createMilestonesEmbed(user, currentRebirth) {
+function createMilestonesEmbed(user, currentRebirth, claimedMilestones = []) {
+    const claimedSet = new Set(claimedMilestones);
+    let hasUnclaimed = false;
+    
     const milestoneLines = REBIRTH_MILESTONES.map(m => {
         const achieved = currentRebirth >= m.rebirth;
-        const status = achieved ? '✅' : '🔒';
+        const claimed = claimedSet.has(m.rebirth);
         const mult = getRebirthMultiplier(m.rebirth);
+        
+        let status;
+        if (!achieved) {
+            status = '🔒';
+        } else if (claimed) {
+            status = '✅';
+        } else {
+            status = '🎁';
+            hasUnclaimed = true;
+        }
+        
+        const rewardText = m.rewards ? 
+            `💰 ${formatNumber(m.rewards.coins)} | 💎 ${formatNumber(m.rewards.gems)}` : 
+            'No rewards';
         
         return [
             `${status} **Rebirth ${m.rebirth} - ${m.name}**`,
             `├ ${m.bonus}`,
             `├ x${mult.toFixed(2)} multiplier`,
+            `├ Rewards: ${rewardText}`,
             `└ Unlocks: ${m.unlocks.join(', ')}`
         ].join('\n');
     });
+    
+    const legendText = hasUnclaimed ? 
+        '\n🎁 = Claimable | ✅ = Claimed | 🔒 = Locked' : 
+        '\n✅ = Claimed | 🔒 = Locked';
     
     return new EmbedBuilder()
         .setTitle(`🏆 ${user.username}'s Rebirth Milestones`)
         .setColor(getRebirthColor(currentRebirth))
         .setDescription([
-            `Current Rebirth: **${currentRebirth}**\n`,
+            `Current Rebirth: **${currentRebirth}**`,
+            legendText,
+            '',
             milestoneLines.join('\n\n')
         ].join('\n'))
         .setFooter({ text: 'Each rebirth grants permanent bonuses!' })
@@ -309,12 +334,15 @@ function createMilestonesEmbed(user, currentRebirth) {
  * @param {string} userId 
  * @param {string} currentView - 'overview', 'milestones', 'confirm'
  * @param {boolean} canRebirth - Whether user can rebirth
+ * @param {number} unclaimedCount - Number of unclaimed milestones
  * @returns {ActionRowBuilder[]}
  */
-function createRebirthButtons(userId, currentView = 'overview', canRebirth = false) {
+function createRebirthButtons(userId, currentView = 'overview', canRebirth = false, unclaimedCount = 0) {
     const rows = [];
     
     // Navigation buttons
+    const milestonesLabel = unclaimedCount > 0 ? `🏆 Milestones (${unclaimedCount})` : '🏆 Milestones';
+    
     const navRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId(buildSecureCustomId('rebirth_overview', userId))
@@ -322,7 +350,7 @@ function createRebirthButtons(userId, currentView = 'overview', canRebirth = fal
             .setStyle(currentView === 'overview' ? ButtonStyle.Primary : ButtonStyle.Secondary),
         new ButtonBuilder()
             .setCustomId(buildSecureCustomId('rebirth_milestones', userId))
-            .setLabel('🏆 Milestones')
+            .setLabel(milestonesLabel)
             .setStyle(currentView === 'milestones' ? ButtonStyle.Primary : ButtonStyle.Secondary),
         new ButtonBuilder()
             .setCustomId(buildSecureCustomId('rebirth_start', userId))
@@ -331,6 +359,17 @@ function createRebirthButtons(userId, currentView = 'overview', canRebirth = fal
             .setDisabled(!canRebirth)
     );
     rows.push(navRow);
+    
+    // Add claim button if on milestones view and has unclaimed
+    if (currentView === 'milestones' && unclaimedCount > 0) {
+        const claimRow = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId(buildSecureCustomId('rebirth_claim_all', userId))
+                .setLabel(`🎁 Claim All Rewards (${unclaimedCount})`)
+                .setStyle(ButtonStyle.Success)
+        );
+        rows.push(claimRow);
+    }
     
     return rows;
 }
@@ -391,12 +430,39 @@ function createConfirmButtons(userId, fumoSelected = false) {
     );
 }
 
+/**
+ * Create claim success embed for rebirth milestones
+ * @param {Object} user - Discord user
+ * @param {Object[]} claimed - Array of claimed milestones
+ * @param {Object} totalRewards - Total rewards object {coins, gems, tickets}
+ * @returns {EmbedBuilder}
+ */
+function createClaimSuccessEmbed(user, claimed, totalRewards) {
+    const claimedNames = claimed.map(m => `♻️ Rebirth ${m.rebirth} - ${m.name}`).join('\n');
+    
+    return new EmbedBuilder()
+        .setTitle('🎁 Rebirth Milestone Rewards Claimed!')
+        .setColor(COLORS.SUCCESS)
+        .setThumbnail(user.displayAvatarURL())
+        .setDescription([
+            `**Claimed ${claimed.length} milestone${claimed.length > 1 ? 's' : ''}:**`,
+            claimedNames,
+            '',
+            '**Total Rewards:**',
+            `💰 **${formatNumber(totalRewards.coins)}** Coins`,
+            `💎 **${formatNumber(totalRewards.gems)}** Gems`
+        ].join('\n'))
+        .setFooter({ text: 'Keep rebirthing for more rewards!' })
+        .setTimestamp();
+}
+
 module.exports = {
     createRebirthOverviewEmbed,
     createRebirthConfirmEmbed,
     createFumoSelectionEmbed,
     createRebirthSuccessEmbed,
     createMilestonesEmbed,
+    createClaimSuccessEmbed,
     createRebirthButtons,
     createFumoSelectMenu,
     createConfirmButtons,

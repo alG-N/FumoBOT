@@ -71,7 +71,8 @@ const REBIRTH_MILESTONES = [
         unlocks: ['🌍 Other Place (send extra fumos)'],
         bonus: 'Permanent x1.25 multiplier',
         title: 'Reborn',
-        titleEmoji: '♻️'
+        titleEmoji: '♻️',
+        rewards: { coins: 5000, gems: 50 }
     },
     {
         rebirth: 3,
@@ -79,7 +80,8 @@ const REBIRTH_MILESTONES = [
         unlocks: ['Special rebirth shop items'],
         bonus: 'Permanent x1.75 multiplier',
         title: 'Experienced',
-        titleEmoji: '🔄'
+        titleEmoji: '🔄',
+        rewards: { coins: 15000, gems: 150 }
     },
     {
         rebirth: 5,
@@ -87,7 +89,8 @@ const REBIRTH_MILESTONES = [
         unlocks: ['Exclusive rebirth banner'],
         bonus: 'Permanent x2.25 multiplier',
         title: 'Veteran',
-        titleEmoji: '⭐'
+        titleEmoji: '⭐',
+        rewards: { coins: 30000, gems: 300 }
     },
     {
         rebirth: 10,
@@ -95,7 +98,8 @@ const REBIRTH_MILESTONES = [
         unlocks: ['Legendary rebirth cosmetics'],
         bonus: 'Permanent x3.5 multiplier',
         title: 'Legend',
-        titleEmoji: '🌟'
+        titleEmoji: '🌟',
+        rewards: { coins: 75000, gems: 750 }
     },
     {
         rebirth: 20,
@@ -103,7 +107,8 @@ const REBIRTH_MILESTONES = [
         unlocks: ['Mythical rebirth effects'],
         bonus: 'Permanent x6.0 multiplier',
         title: 'Myth',
-        titleEmoji: '✨'
+        titleEmoji: '✨',
+        rewards: { coins: 200000, gems: 2000 }
     },
     {
         rebirth: 50,
@@ -111,7 +116,8 @@ const REBIRTH_MILESTONES = [
         unlocks: ['Ultimate prestige'],
         bonus: 'Permanent x13.5 multiplier',
         title: 'Transcendent',
-        titleEmoji: '💫'
+        titleEmoji: '💫',
+        rewards: { coins: 1000000, gems: 10000 }
     }
 ];
 

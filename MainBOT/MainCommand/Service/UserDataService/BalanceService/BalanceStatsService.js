@@ -61,7 +61,8 @@ function calculateNetWorth(userData) {
 }
 
 function calculateEfficiency(userData) {
-    const totalRolls = userData.totalRolls || 1;
+    // Prevent division by zero - use Math.max to ensure at least 1
+    const totalRolls = Math.max(userData.totalRolls || 1, 1);
     const yukariCoins = userData.yukariCoins || 0;
     const yukariGems = userData.yukariGems || 0;
     
@@ -69,9 +70,9 @@ function calculateEfficiency(userData) {
     const gemsPerRoll = yukariGems / totalRolls;
     
     return {
-        coinsPerRoll,
-        gemsPerRoll,
-        totalEfficiency: coinsPerRoll + (gemsPerRoll * 10)
+        coinsPerRoll: isFinite(coinsPerRoll) ? coinsPerRoll : 0,
+        gemsPerRoll: isFinite(gemsPerRoll) ? gemsPerRoll : 0,
+        totalEfficiency: isFinite(coinsPerRoll + (gemsPerRoll * 10)) ? coinsPerRoll + (gemsPerRoll * 10) : 0
     };
 }
 

@@ -149,6 +149,79 @@ function formatPercentage(value, decimals = 2) {
     return (value * 100).toFixed(decimals) + '%';
 }
 
+/**
+ * Format time remaining in a human-readable format
+ * @param {number} milliseconds - Time in milliseconds
+ * @returns {string} Formatted time string
+ */
+function formatTimeRemaining(milliseconds) {
+    // Handle edge cases
+    if (!milliseconds || milliseconds <= 0 || !isFinite(milliseconds)) {
+        return '0s';
+    }
+    
+    // Cap at 1 year to prevent display issues
+    const MAX_MS = 365 * 24 * 60 * 60 * 1000;
+    milliseconds = Math.min(milliseconds, MAX_MS);
+    
+    const seconds = Math.floor(milliseconds / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    
+    if (days > 0) {
+        const remainingHours = hours % 24;
+        if (remainingHours > 0) {
+            return `${days}d ${remainingHours}h`;
+        }
+        return `${days}d`;
+    } else if (hours > 0) {
+        const remainingMinutes = minutes % 60;
+        if (remainingMinutes > 0) {
+            return `${hours}h ${remainingMinutes}m`;
+        }
+        return `${hours}h`;
+    } else if (minutes > 0) {
+        const remainingSeconds = seconds % 60;
+        if (remainingSeconds > 0) {
+            return `${minutes}m ${remainingSeconds}s`;
+        }
+        return `${minutes}m`;
+    } else {
+        return `${seconds}s`;
+    }
+}
+
+/**
+ * Safely add two currency values
+ * @param {number} a - First value
+ * @param {number} b - Second value
+ * @returns {number} Safe sum
+ */
+function safeAdd(a, b) {
+    return safeCurrency(safeCurrency(a) + safeCurrency(b));
+}
+
+/**
+ * Safely subtract two currency values
+ * @param {number} a - Value to subtract from
+ * @param {number} b - Value to subtract
+ * @returns {number} Safe difference (minimum 0)
+ */
+function safeSubtract(a, b) {
+    return safeCurrency(safeCurrency(a) - safeCurrency(b));
+}
+
+/**
+ * Safely multiply a currency value
+ * @param {number} a - Base value
+ * @param {number} b - Multiplier
+ * @returns {number} Safe product
+ */
+function safeMultiply(a, b) {
+    return safeCurrency(safeCurrency(a) * b);
+}
+
 module.exports = {
     formatNumber,
     parseBet,
@@ -161,6 +234,10 @@ module.exports = {
     SUFFIX_MULTIPLIERS,
     formatDuration,
     formatPercentage,
+    formatTimeRemaining,
     safeCurrency,
+    safeAdd,
+    safeSubtract,
+    safeMultiply,
     MAX_SAFE_CURRENCY
 };

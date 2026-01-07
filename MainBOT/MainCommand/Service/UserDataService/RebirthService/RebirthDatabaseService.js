@@ -5,7 +5,8 @@ const {
     canRebirth,
     getRebirthMultiplier,
     RESET_CONFIG,
-    sortFumosByRarity
+    sortFumosByRarity,
+    REBIRTH_MILESTONES
 } = require('../../../Configuration/rebirthConfig');
 const { resetLevelForRebirth } = require('../LevelService/LevelDatabaseService');
 
@@ -321,10 +322,183 @@ async function getRebirthLeaderboard(limit = 10) {
     );
 }
 
+/**
+ * Get unclaimed rebirth milestones
+ * @param {string} userId 
+ * @returns {Promise<Object[]>} Array of unclaimed milestones
+ */
+async function getUnclaimedRebirthMilestones(userId) {
+    const rebirthData = await getRebirthStatus(userId);
+    
+    // Get claimed milestone levels from database
+    const claimedRows = await all(
+        `SELECT milestoneRebirth FROM userRebirthMilestones WHERE userId = ?`,
+        [userId]
+    );
+    
+    const claimedLevels = claimedRows.map(r => r.milestoneRebirth);
+    
+    // Find unclaimed milestones that user has reached
+    return REBIRTH_MILESTONES.filter(m => 
+        rebirthData.rebirth >= m.rebirth && !claimedLevels.includes(m.rebirth)
+    );
+}
+
+/**
+ * Get claimed rebirth milestones
+ * @param {string} userId 
+ * @returns {Promise<number[]>} Array of claimed rebirth levels
+ */
+async function getClaimedRebirthMilestones(userId) {
+    const claimedRows = await all(
+        `SELECT milestoneRebirth FROM userRebirthMilestones WHERE userId = ?`,
+        [userId]
+    );
+    return claimedRows.map(r => r.milestoneRebirth);
+}
+
+/**
+ * Claim a rebirth milestone reward
+ * @param {string} userId 
+ * @param {number} milestoneRebirth 
+ * @returns {Promise<{success: boolean, rewards?: Object, error?: string}>}
+ */
+async function claimRebirthMilestone(userId, milestoneRebirth) {
+    return await withUserLock(userId, 'claimRebirthMilestone', async () => {
+        const rebirthData = await getRebirthStatus(userId);
+        
+        // Check if user has reached this rebirth level
+        if (rebirthData.rebirth < milestoneRebirth) {
+            return { success: false, error: 'REBIRTH_NOT_REACHED' };
+        }
+        
+        // Find the milestone
+        const milestone = REBIRTH_MILESTONES.find(m => m.rebirth === milestoneRebirth);
+        if (!milestone) {
+            return { success: false, error: 'INVALID_MILESTONE' };
+        }
+        
+        // Check if already claimed
+        const claimedRows = await all(
+            `SELECT milestoneRebirth FROM userRebirthMilestones WHERE userId = ?`,
+            [userId]
+        );
+        
+        const claimedLevels = claimedRows.map(r => r.milestoneRebirth);
+        
+        if (claimedLevels.includes(milestoneRebirth)) {
+            return { success: false, error: 'ALREADY_CLAIMED' };
+        }
+        
+        // Grant rewards
+        const rewards = milestone.rewards;
+        if (rewards) {
+            // Ensure user has a row in userCoins first
+            await run(
+                `INSERT OR IGNORE INTO userCoins (userId, coins, gems, joinDate) VALUES (?, 0, 0, ?)`,
+                [userId, Date.now()]
+            );
+            
+            if (rewards.coins || rewards.gems) {
+                await run(
+                    `UPDATE userCoins SET 
+                        coins = coins + ?,
+                        gems = gems + ?
+                     WHERE userId = ?`,
+                    [rewards.coins || 0, rewards.gems || 0, userId]
+                );
+            }
+        }
+        
+        // Mark as claimed
+        await run(
+            `INSERT OR IGNORE INTO userRebirthMilestones (userId, milestoneRebirth) VALUES (?, ?)`,
+            [userId, milestoneRebirth]
+        );
+        
+        debugLog('REBIRTH', `User ${userId} claimed rebirth milestone ${milestoneRebirth}: ${JSON.stringify(rewards || {})}`);
+        
+        return { 
+            success: true, 
+            rewards: rewards || { coins: 0, gems: 0 },
+            milestone 
+        };
+    });
+}
+
+/**
+ * Claim all available rebirth milestones
+ * @param {string} userId 
+ * @returns {Promise<{success: boolean, claimed: Object[], totalRewards: Object}>}
+ */
+async function claimAllRebirthMilestones(userId) {
+    return await withUserLock(userId, 'claimAllRebirthMilestones', async () => {
+        const [rebirthData, claimedRows] = await Promise.all([
+            getRebirthStatus(userId),
+            all(`SELECT milestoneRebirth FROM userRebirthMilestones WHERE userId = ?`, [userId])
+        ]);
+        
+        const claimedLevels = new Set(claimedRows.map(r => r.milestoneRebirth));
+        
+        // Find all unclaimed milestones user has reached
+        const unclaimed = REBIRTH_MILESTONES.filter(m => 
+            rebirthData.rebirth >= m.rebirth && !claimedLevels.has(m.rebirth)
+        );
+        
+        if (unclaimed.length === 0) {
+            return { success: true, claimed: [], totalRewards: { coins: 0, gems: 0 } };
+        }
+        
+        // Calculate total rewards
+        const totalRewards = { coins: 0, gems: 0 };
+        for (const m of unclaimed) {
+            if (m.rewards) {
+                totalRewards.coins += m.rewards.coins || 0;
+                totalRewards.gems += m.rewards.gems || 0;
+            }
+        }
+        
+        // Ensure user exists
+        await run(
+            `INSERT OR IGNORE INTO userCoins (userId, coins, gems, joinDate) VALUES (?, 0, 0, ?)`,
+            [userId, Date.now()]
+        );
+        
+        // Grant all rewards at once
+        await run(
+            `UPDATE userCoins SET 
+                coins = coins + ?,
+                gems = gems + ?
+             WHERE userId = ?`,
+            [totalRewards.coins, totalRewards.gems, userId]
+        );
+        
+        // Mark all as claimed
+        const placeholders = unclaimed.map(() => '(?, ?)').join(', ');
+        const values = unclaimed.flatMap(m => [userId, m.rebirth]);
+        await run(
+            `INSERT OR IGNORE INTO userRebirthMilestones (userId, milestoneRebirth) VALUES ${placeholders}`,
+            values
+        );
+        
+        debugLog('REBIRTH', `User ${userId} claimed ${unclaimed.length} rebirth milestones: ${JSON.stringify(totalRewards)}`);
+        
+        return {
+            success: true,
+            claimed: unclaimed,
+            totalRewards
+        };
+    });
+}
+
 module.exports = {
     getRebirthStatus,
     getUserFumosForSelection,
     performRebirth,
     applyRebirthMultiplier,
-    getRebirthLeaderboard
+    getRebirthLeaderboard,
+    getUnclaimedRebirthMilestones,
+    getClaimedRebirthMilestones,
+    claimRebirthMilestone,
+    claimAllRebirthMilestones
 };

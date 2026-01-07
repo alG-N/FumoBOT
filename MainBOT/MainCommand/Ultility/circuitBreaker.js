@@ -14,6 +14,7 @@ const CIRCUIT_STATES = {
 
 // Store circuit breakers for different services
 const circuits = new Map();
+const MAX_CIRCUITS = 100; // Maximum number of circuits to prevent memory leaks
 
 // Default configuration
 const DEFAULT_CONFIG = {
@@ -31,6 +32,23 @@ const DEFAULT_CONFIG = {
  */
 function getCircuit(serviceName, config = {}) {
     if (!circuits.has(serviceName)) {
+        // Check if we're at max capacity and need to evict old circuits
+        if (circuits.size >= MAX_CIRCUITS) {
+            const entries = [...circuits.entries()];
+            entries.sort((a, b) => {
+                const timeA = Math.max(a[1].lastSuccess || 0, a[1].lastFailure || 0);
+                const timeB = Math.max(b[1].lastSuccess || 0, b[1].lastFailure || 0);
+                return timeA - timeB;
+            });
+            
+            // Remove oldest 10%
+            const toRemove = Math.ceil(MAX_CIRCUITS * 0.1);
+            for (let i = 0; i < toRemove && i < entries.length; i++) {
+                circuits.delete(entries[i][0]);
+                debugLog('CIRCUIT_BREAKER', `${entries[i][0]}: Evicted (max circuits reached)`);
+            }
+        }
+        
         circuits.set(serviceName, {
             name: serviceName,
             state: CIRCUIT_STATES.CLOSED,
