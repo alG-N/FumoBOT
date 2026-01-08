@@ -375,45 +375,59 @@ class MusicService {
             queue.textChannel = interaction.channel; // Store channel for sending messages
         }
         
-        player.on('start', async (data) => {
-            console.log(`[MusicService] Track started in guild ${guildId}`);
+        player.on('start', async () => {
             this.clearInactivityTimer(guildId);
-            // Note: We don't send embeds here - handled by music.js for button interactions
-            // and by playNext() for natural track transitions
+            // Embeds handled by command handlers, not here
         });
         
         player.on('end', async (data) => {
-            console.log(`[MusicService] Track ended in guild ${guildId}, reason: ${data.reason}`);
-            
-            if (data.reason === 'replaced') return; // Skip was pressed, music.js handles the embed
+            if (data.reason === 'replaced') return; // Skip was pressed
             if (data.reason === 'stopped') return;
             
-            // Natural track end - disable old buttons and play next
-            await this.disableNowPlayingControls(guildId);
+            const queue = musicCache.getQueue(guildId);
+            // Prevent multiple handlers from running
+            if (queue?.isTransitioning) return;
+            if (queue) queue.isTransitioning = true;
             
-            // Small delay for stability
-            await new Promise(resolve => setTimeout(resolve, TRACK_TRANSITION_DELAY));
-            
-            // Play next and send new embed
-            const nextTrack = await this.playNext(guildId);
-            if (nextTrack) {
-                // Send new now playing embed for automatic transition
-                await this.sendNowPlayingEmbed(guildId);
+            try {
+                await this.disableNowPlayingControls(guildId);
+                await new Promise(resolve => setTimeout(resolve, TRACK_TRANSITION_DELAY));
+                
+                const nextTrack = await this.playNext(guildId);
+                if (nextTrack) {
+                    await this.sendNowPlayingEmbed(guildId);
+                }
+            } finally {
+                if (queue) queue.isTransitioning = false;
             }
         });
         
         player.on('exception', async (data) => {
-            console.error(`[MusicService] Track exception in guild ${guildId}:`, data);
-            await this.playNext(guildId);
+            console.error(`[MusicService] Track exception:`, data?.message || data);
+            const queue = musicCache.getQueue(guildId);
+            if (queue?.isTransitioning) return;
+            if (queue) queue.isTransitioning = true;
+            
+            try {
+                await this.playNext(guildId);
+            } finally {
+                if (queue) queue.isTransitioning = false;
+            }
         });
         
-        player.on('stuck', async (data) => {
-            console.warn(`[MusicService] Track stuck in guild ${guildId}`);
-            await this.playNext(guildId);
+        player.on('stuck', async () => {
+            const queue = musicCache.getQueue(guildId);
+            if (queue?.isTransitioning) return;
+            if (queue) queue.isTransitioning = true;
+            
+            try {
+                await this.playNext(guildId);
+            } finally {
+                if (queue) queue.isTransitioning = false;
+            }
         });
         
-        player.on('closed', async (data) => {
-            console.log(`[MusicService] Connection closed in guild ${guildId}`);
+        player.on('closed', async () => {
             await this.cleanup(guildId);
         });
     }
@@ -445,7 +459,6 @@ class MusicService {
         if (!queue) return;
         
         queue.inactivityTimer = setTimeout(() => {
-            console.log(`[MusicService] Inactivity timeout for guild ${guildId}`);
             callback();
         }, INACTIVITY_TIMEOUT);
     }
@@ -487,7 +500,6 @@ class MusicService {
             const listeners = channel.members.filter(m => !m.user.bot).size;
             
             if (listeners === 0) {
-                console.log(`[MusicService] No listeners in VC for guild ${guildId}`);
                 await this.cleanup(guildId);
             }
         }, VC_CHECK_INTERVAL);
@@ -536,8 +548,6 @@ class MusicService {
      * Handle queue end
      */
     async handleQueueEnd(guildId) {
-        console.log(`[MusicService] Queue ended for guild ${guildId}`);
-        
         musicCache.setCurrentTrack(guildId, null);
         
         // Disable old now playing buttons
@@ -563,8 +573,6 @@ class MusicService {
      * Full cleanup
      */
     async cleanup(guildId) {
-        console.log(`[MusicService] Cleaning up guild ${guildId}`);
-        
         // Clear now playing message
         await musicCache.clearNowPlayingMessage(guildId);
         
@@ -680,16 +688,10 @@ class MusicService {
      */
     async sendNowPlayingEmbed(guildId) {
         const queue = musicCache.getQueue(guildId);
-        if (!queue?.textChannel) {
-            console.log(`[MusicService] No text channel for guild ${guildId}`);
-            return;
-        }
+        if (!queue?.textChannel) return;
         
         const currentTrack = this.getCurrentTrack(guildId);
-        if (!currentTrack) {
-            console.log(`[MusicService] No current track for guild ${guildId}`);
-            return;
-        }
+        if (!currentTrack) return;
         
         try {
             // Disable old now playing controls first
@@ -716,10 +718,8 @@ class MusicService {
             
             const nowMessage = await queue.textChannel.send({ embeds: [embed], components: rows });
             this.setNowPlayingMessage(guildId, nowMessage);
-            
-            console.log(`[MusicService] Sent now playing embed for: ${currentTrack.title}`);
         } catch (error) {
-            console.error(`[MusicService] Failed to send now playing embed:`, error);
+            // Silent fail - embed sending is best effort
         }
     }
 

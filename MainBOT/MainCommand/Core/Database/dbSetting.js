@@ -16,15 +16,11 @@ const db = new sqlite3.Database(dbPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CR
     process.exit(1);
   }
 
-  console.log('✅ Connected to the fumos.db database.');
-
   db.serialize(() => {
     db.run("PRAGMA busy_timeout = 15000;");
     db.run("PRAGMA journal_mode = WAL;", (err) => {
       if (err) {
         console.warn("⚠️ Failed to set WAL mode:", err.message);
-      } else {
-        console.log("ℹ️ Journal mode set to WAL.");
       }
     });
     db.run("PRAGMA synchronous = FAST;");

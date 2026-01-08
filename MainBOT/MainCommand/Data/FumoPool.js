@@ -9,7 +9,6 @@ const PLACEHOLDER_IMAGE = 'https://www.firstbenefits.org/wp-content/uploads/2017
 try {
   const rawData = fs.readFileSync(fumoDataPath, 'utf8');
   fumoData = JSON.parse(rawData);
-  console.log(`✅ Loaded ${fumoData.totalFumos} fumos from database`);
 } catch (error) {
   console.error('❌ Failed to load fumos.json:', error.message);
   console.error('   Make sure to run the migration script first!');

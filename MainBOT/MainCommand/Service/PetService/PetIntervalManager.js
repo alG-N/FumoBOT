@@ -45,7 +45,6 @@ function startItemChanceInterval() {
     }, 60000);
 
     INTERVALS.set('itemChance', interval);
-    console.log('✅ Pet item chance interval started');
 }
 
 function startPassiveExpInterval() {
@@ -61,7 +60,6 @@ function startPassiveExpInterval() {
     }, 1000);
 
     INTERVALS.set('passiveExp', interval);
-    console.log('✅ Pet passive exp interval started');
 }
 
 function startActiveExpInterval() {
@@ -77,7 +75,6 @@ function startActiveExpInterval() {
     }, 15 * 60 * 1000);
 
     INTERVALS.set('activeExp', interval);
-    console.log('✅ Pet active exp interval started');
 }
 
 function startNightOwlActiveExpInterval() {
@@ -92,7 +89,6 @@ function startNightOwlActiveExpInterval() {
     }, 12 * 60 * 1000);
 
     INTERVALS.set('nightOwlActiveExp', interval);
-    console.log('✅ Night owl active exp interval started');
 }
 
 function startPetAgingInterval() {
@@ -107,19 +103,14 @@ function startPetAgingInterval() {
     }, 60000);
 
     INTERVALS.set('petAging', interval);
-    console.log('✅ Pet aging interval started');
 }
 
 function startAllPetIntervals() {
-    console.log('🚀 Starting all pet intervals...');
-    
     startItemChanceInterval();
     startPassiveExpInterval();
     startActiveExpInterval();
     startNightOwlActiveExpInterval();
     startPetAgingInterval();
-    
-    console.log('✅ All pet intervals started successfully');
 }
 
 function stopAllPetIntervals() {

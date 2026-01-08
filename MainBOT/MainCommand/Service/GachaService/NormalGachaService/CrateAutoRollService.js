@@ -32,8 +32,6 @@ function startAutoSave() {
             debugLog('AUTO_ROLL', `Auto-saved ${autoRollMap.size} normal + ${eventAutoRollMap.size} event auto-rolls`);
         }
     }, AUTO_SAVE_INTERVAL);
-    
-    console.log('✅ Auto-roll auto-save started (every 30s)');
 }
 
 function stopAutoSave() {

@@ -99,8 +99,6 @@ function initializeShardHandler(discordClient) {
             console.error('[SHARD_INTERACTION_SETUP] Unexpected error:', error);
         }
     });
-
-    console.log('✅ Shard interaction handler initialized');
 }
 
 module.exports = initializeShardHandler;

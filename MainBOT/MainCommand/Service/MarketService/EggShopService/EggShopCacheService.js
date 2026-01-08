@@ -69,7 +69,6 @@ function scheduleHourlyReset() {
 function initializeShop() {
     resetGlobalShop();
     scheduleHourlyReset();
-    console.log('✅ Egg shop initialized');
 }
 
 module.exports = {

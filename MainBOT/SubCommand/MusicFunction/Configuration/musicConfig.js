@@ -19,7 +19,7 @@ module.exports = {
     VOLUME_STEP: 10,
     MIN_VOLUME: 0,
     MAX_VOLUME: 200,
-    DEFAULT_VOLUME: 100,
+    DEFAULT_VOLUME: 80,  // Reduced from 100 to prevent distortion
 
     // Logging
     LOG_CHANNEL_ID: "1411386693499486429",

@@ -11,7 +11,7 @@ module.exports = {
     defaultSearchPlatform: 'ytsearch',
     fallbackSearchPlatform: 'scsearch',
     playerOptions: {
-        volume: 100,
+        volume: 80, 
         selfDeafen: true,
         selfMute: false
     },

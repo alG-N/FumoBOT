@@ -36,13 +36,11 @@ async function cleanupInvalidFarmingFumos() {
 
 function startCleanupJob() {
     if (cleanupIntervalId) {
-        console.log('⚠️ Cleanup job already running');
         return;
     }
 
     // Run cleanup less frequently since it only handles edge cases now
     cleanupIntervalId = setInterval(cleanupInvalidFarmingFumos, CLEANUP_INTERVAL * 5); // Every 5 minutes
-    console.log(`✅ Started farming cleanup job (every ${(CLEANUP_INTERVAL * 5) / 1000}s)`);
 }
 
 function stopCleanupJob() {

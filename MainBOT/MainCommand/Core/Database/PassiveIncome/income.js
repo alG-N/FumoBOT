@@ -218,15 +218,8 @@ function logBoosts(userId) {
 }
 
 function startIncomeSystem() {
-    console.log('🚀 Initializing income system...');
-    console.log(`   - Base coin rate: ${CONFIG.BASE_COIN_RATE} per ${CONFIG.COIN_UPDATE_INTERVAL / 1000}s`);
-    console.log(`   - Base gem rate: ${CONFIG.BASE_GEM_RATE} per ${CONFIG.COIN_UPDATE_INTERVAL / 1000}s`);
-    console.log(`   - Boost cleanup interval: ${CONFIG.BOOST_CLEANUP_INTERVAL / 1000}s`);
-
     updateCoins();
     cleanExpiredBoosts();
-
-    console.log('✅ Income system started successfully');
 }
 
 module.exports = {

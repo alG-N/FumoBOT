@@ -55,8 +55,6 @@ const FumoPool = require('./MainCommand/Data/FumoPool');
 const { registerCodeRedemption } = require('./MainCommand/CommandFolder/UserDataCommand/UsuableCommand/codeRedemption');
 const { maintenance, developerID } = require('./MainCommand/Configuration/maintenanceConfig');
 
-console.log(`Maintenance mode is currently: ${maintenance}`);
-
 // ═══════════════════════════════════════════════════════════════
 // CLIENT INITIALIZATION
 // ═══════════════════════════════════════════════════════════════
@@ -72,7 +70,6 @@ setConnectionMonitor(connectionMonitor);
 
 // Pre-initialize Lavalink before login
 const lavalinkService = require('./SubCommand/MusicFunction/Service/LavalinkService');
-console.log('[Lavalink] Pre-initializing before client login...');
 lavalinkService.preInitialize(client);
 
 // ═══════════════════════════════════════════════════════════════
@@ -178,14 +175,11 @@ const rule34 = require('./SubCommand/API-Website/Rule34/rule34');
 [reddit, pixiv, steam, rule34].forEach(cmd => {
     if (cmd?.data?.name) {
         client.commands.set(cmd.data.name, cmd);
-        console.log(`✅ Loaded ${cmd.data.name} command`);
     }
 });
 
 // Load SubCommand folder
-console.log('🔄 Loading commands from SubCommand folder...');
 loadCommandsRecursively(path.join(__dirname, 'SubCommand'));
-console.log(`✅ Total commands loaded: ${client.commands.size}`);
 
 // ═══════════════════════════════════════════════════════════════
 // AUTO-DEPLOY SLASH COMMANDS (with hash check to avoid unnecessary deploys)
@@ -250,17 +244,6 @@ async function deployCommands(forceRefresh = false) {
             commandCount: commands.length
         }, null, 2));
 
-        console.log(`✅ Successfully deployed ${commands.length} slash commands!`);
-        
-        // Log deployed commands
-        console.log('📋 Deployed commands:');
-        commands.slice(0, 10).forEach((cmd, i) => {
-            console.log(`  ${i + 1}. /${cmd.name}`);
-        });
-        if (commands.length > 10) {
-            console.log(`  ... and ${commands.length - 10} more`);
-        }
-
     } catch (error) {
         console.error('❌ Failed to deploy commands:', error.message);
     }
@@ -276,11 +259,12 @@ client.once('ready', async () => {
     
     // Validate fumo images on startup (non-blocking)
     setTimeout(async () => {
-        console.log('🖼️ Starting fumo image validation...');
         try {
             const fumos = FumoPool.getRaw();
             const results = await validateAllFumoImages(fumos, client);
-            console.log(`✅ Image validation complete: ${results.valid} valid, ${results.broken.length} broken, ${results.missing.length} missing`);
+            if (results.broken.length > 0 || results.missing.length > 0) {
+                console.log(`⚠️ Image validation: ${results.broken.length} broken, ${results.missing.length} missing`);
+            }
         } catch (error) {
             console.error('❌ Image validation failed:', error.message);
         }
@@ -289,19 +273,12 @@ client.once('ready', async () => {
     // Auto-deploy slash commands (only if changed)
     await deployCommands();
 
-    console.log('[Lavalink] Finalizing music system initialization...');
     lavalinkService.finalize();
-
-    console.log('[Lavalink] Waiting for connection...');
     await new Promise(resolve => setTimeout(resolve, 5000));
 
     const status = lavalinkService.getNodeStatus();
-    console.log('[Lavalink] Status:', JSON.stringify(status, null, 2));
-
     if (!status.ready) {
         console.log('[Lavalink] ⚠️ Music system not ready');
-    } else {
-        console.log('[Lavalink] ✅ Music system ready!');
     }
 
     initializeDatabase();
@@ -338,7 +315,6 @@ client.once('ready', async () => {
 
 async function restoreAutoRollSystems(client) {
     try {
-        console.log('🔄 Checking for auto-rolls to restore...');
         const crateFumos = FumoPool.getForCrate();
 
 
@@ -435,15 +411,8 @@ async function restoreAutoRollSystems(client) {
         const totalRestored = results.normal.restored + results.event.restored;
         const totalFailed = results.normal.failed + results.event.failed;
 
-        console.log(`📊 Restoration complete: ${totalRestored} restored, ${totalFailed} failed`);
-        console.log(`   ├─ Normal: ${results.normal.restored} restored, ${results.normal.failed} failed`);
-        console.log(`   └─ Event: ${results.event.restored} restored, ${results.event.failed} failed`);
-
-        if (normalResult.reasons && Object.keys(normalResult.reasons).length > 0) {
-            console.log(`📋 Normal failure reasons:`, normalResult.reasons);
-        }
-        if (eventResult.reasons && Object.keys(eventResult.reasons).length > 0) {
-            console.log(`📋 Event failure reasons:`, eventResult.reasons);
+        if (totalRestored > 0 || totalFailed > 0) {
+            console.log(`📊 Auto-rolls restored: ${totalRestored} (${totalFailed} failed)`);
         }
 
     } catch (error) {

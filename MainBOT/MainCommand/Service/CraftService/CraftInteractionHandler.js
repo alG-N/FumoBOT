@@ -54,8 +54,6 @@ function registerCraftInteractionHandler(client) {
             }
         }
     });
-
-    console.log('✅ Craft interaction handler registered');
 }
 
 async function handleButtonInteraction(interaction) {

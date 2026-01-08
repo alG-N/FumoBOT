@@ -65,7 +65,6 @@ async function initializeSeasonSystem(client) {
         startWeatherComboCheck(client);
         startWeekendMonitor(client);
         
-        console.log('✅ Season system initialized with buffed weather rates');
         await logToDiscord(
             client,
             '✅ Season system initialized\n' +

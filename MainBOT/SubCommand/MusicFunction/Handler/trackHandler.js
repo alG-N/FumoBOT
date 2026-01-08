@@ -156,10 +156,7 @@ class TrackHandler {
 
         // Thumbnail - use setThumbnail for side display, setImage for large
         if (track.thumbnail) {
-            console.log(`[TrackHandler] Setting thumbnail: ${track.thumbnail}`);
             embed.setThumbnail(track.thumbnail);
-        } else {
-            console.log(`[TrackHandler] No thumbnail available for: ${track.title}`);
         }
 
         // Footer with requester info only

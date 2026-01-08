@@ -4,10 +4,7 @@ const { checkButtonOwnership } = require('../../../Middleware/buttonOwnership');
 let isRegistered = false;
 
 function registerSigilInteractionHandler(client) {
-    if (isRegistered) {
-        console.log('⚠️ Sigil interaction handler already registered, skipping...');
-        return;
-    }
+    if (isRegistered) return;
     isRegistered = true;
 
     client.on('interactionCreate', async (interaction) => {
@@ -33,8 +30,6 @@ function registerSigilInteractionHandler(client) {
             await cancelSigilActivation(interaction, client);
         }
     });
-
-    console.log('✅ Sigil interaction handler registered');
 }
 
 module.exports = { registerSigilInteractionHandler };

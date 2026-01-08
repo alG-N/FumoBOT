@@ -405,13 +405,8 @@ function initializeGuildTracking(client) {
     });
     
     client.on('guildDelete', async (guild) => {
-        console.log(`👋 Left server: ${guild.name} (${guild.id})`);
-        
         await sendGuildNotification(client, guild, 'leave');
     });
-    
-    console.log('✅ Guild tracking initialized');
-    console.log(`   - Log channel: ${GUILD_LOG_CHANNEL_ID}`);
 }
 
 /**

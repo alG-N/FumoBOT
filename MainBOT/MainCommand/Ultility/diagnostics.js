@@ -19,7 +19,6 @@ let connectionMonitor = null;
  */
 function setConnectionMonitor(monitor) {
     connectionMonitor = monitor;
-    console.log('✅ ConnectionMonitor integrated with diagnostics');
 }
 
 /**

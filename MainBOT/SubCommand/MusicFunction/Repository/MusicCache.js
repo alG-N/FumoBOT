@@ -682,8 +682,6 @@ class MusicCache {
                 this.playlistCache.delete(key);
             }
         }
-        
-        console.log(`[MusicCache] Cleanup complete. Queues: ${this.guildQueues.size}, Sessions: ${this.userSessions.size}`);
     }
 
     /**

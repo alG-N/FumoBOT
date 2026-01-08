@@ -41,8 +41,6 @@ function initializeErrorHandlers(client) {
         console.log('\n🛑 Received SIGTERM. Graceful shutdown...');
         await gracefulShutdown(client);
     });
-
-    console.log('✅ Error handlers initialized');
 }
 
 /**

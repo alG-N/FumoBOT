@@ -222,15 +222,8 @@ async function backupAndSendDB(client) {
 
 function scheduleBackups(client) {
     cron.schedule(CONFIG.BACKUP_SCHEDULE, () => {
-        console.log('⏰ Running scheduled backup...');
         backupAndSendDB(client);
     });
-
-    console.log(`✅ Backup scheduler initialized`);
-    console.log(`   - Schedule: ${CONFIG.BACKUP_SCHEDULE} (every 12 hours)`);
-    console.log(`   - Database: ${CONFIG.DB_DIR}`);
-    console.log(`   - Backups: ${CONFIG.BACKUP_DIR}`);
-    console.log(`   - Keeping: ${CONFIG.MAX_BACKUPS_TO_KEEP} most recent backups`);
 }
 
 module.exports = {

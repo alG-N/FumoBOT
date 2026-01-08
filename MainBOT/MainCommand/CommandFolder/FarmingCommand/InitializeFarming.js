@@ -15,7 +15,6 @@ module.exports = async (client) => {
                 null,
                 LogLevel.SUCCESS
             );
-            console.log('✅ Farming system ready with auto-cleanup');
         } catch (error) {
             console.error('❌ Failed to initialize farming system:', error);
             await logToDiscord(

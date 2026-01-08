@@ -1,146 +1,5 @@
 const db = require('./dbSetting');
 
-/**
- * Merge duplicate fumo entries in userInventory
- * This must run before creating unique indexes
- */
-async function cleanupDuplicateFumos() {
-    console.log('🧹 Checking for duplicate inventory entries...');
-    
-    const dbAllAsync = (sql, params = []) => {
-        return new Promise((resolve, reject) => {
-            db.all(sql, params, (err, rows) => {
-                if (err) reject(err);
-                else resolve(rows);
-            });
-        });
-    };
-    
-    const dbRunAsync = (sql, params = []) => {
-        return new Promise((resolve, reject) => {
-            db.run(sql, params, function(err) {
-                if (err) reject(err);
-                else resolve(this);
-            });
-        });
-    };
-    
-    try {
-        // Find duplicates for fumoName
-        const fumoDuplicates = await dbAllAsync(`
-            SELECT userId, fumoName, COUNT(*) as cnt, SUM(quantity) as totalQty
-            FROM userInventory
-            WHERE fumoName IS NOT NULL AND fumoName != ''
-            GROUP BY userId, fumoName
-            HAVING COUNT(*) > 1
-        `);
-        
-        if (fumoDuplicates.length > 0) {
-            console.log(`🔄 Found ${fumoDuplicates.length} duplicate fumo entries to merge...`);
-            
-            for (const dup of fumoDuplicates) {
-                // Get the first entry to keep (lowest id)
-                const entries = await dbAllAsync(
-                    `SELECT id, quantity, rarity FROM userInventory 
-                     WHERE userId = ? AND fumoName = ? 
-                     ORDER BY id ASC`,
-                    [dup.userId, dup.fumoName]
-                );
-                
-                if (entries.length > 1) {
-                    const keepId = entries[0].id;
-                    const totalQuantity = entries.reduce((sum, e) => sum + (e.quantity || 1), 0);
-                    const rarity = entries[0].rarity;
-                    
-                    // Update the first entry with total quantity
-                    await dbRunAsync(
-                        `UPDATE userInventory SET quantity = ? WHERE id = ?`,
-                        [totalQuantity, keepId]
-                    );
-                    
-                    // Delete the duplicate entries
-                    const idsToDelete = entries.slice(1).map(e => e.id);
-                    await dbRunAsync(
-                        `DELETE FROM userInventory WHERE id IN (${idsToDelete.join(',')})`,
-                        []
-                    );
-                }
-            }
-            console.log(`✅ Merged ${fumoDuplicates.length} duplicate fumo entries`);
-        }
-        
-        // Find duplicates for itemName (non-fumo items)
-        const itemDuplicates = await dbAllAsync(`
-            SELECT userId, itemName, COUNT(*) as cnt, SUM(quantity) as totalQty
-            FROM userInventory
-            WHERE itemName IS NOT NULL AND itemName != '' AND (fumoName IS NULL OR fumoName = '')
-            GROUP BY userId, itemName
-            HAVING COUNT(*) > 1
-        `);
-        
-        if (itemDuplicates.length > 0) {
-            console.log(`🔄 Found ${itemDuplicates.length} duplicate item entries to merge...`);
-            
-            for (const dup of itemDuplicates) {
-                const entries = await dbAllAsync(
-                    `SELECT id, quantity FROM userInventory 
-                     WHERE userId = ? AND itemName = ? AND (fumoName IS NULL OR fumoName = '')
-                     ORDER BY id ASC`,
-                    [dup.userId, dup.itemName]
-                );
-                
-                if (entries.length > 1) {
-                    const keepId = entries[0].id;
-                    const totalQuantity = entries.reduce((sum, e) => sum + (e.quantity || 1), 0);
-                    
-                    await dbRunAsync(
-                        `UPDATE userInventory SET quantity = ? WHERE id = ?`,
-                        [totalQuantity, keepId]
-                    );
-                    
-                    const idsToDelete = entries.slice(1).map(e => e.id);
-                    await dbRunAsync(
-                        `DELETE FROM userInventory WHERE id IN (${idsToDelete.join(',')})`,
-                        []
-                    );
-                }
-            }
-            console.log(`✅ Merged ${itemDuplicates.length} duplicate item entries`);
-        }
-        
-        if (fumoDuplicates.length === 0 && itemDuplicates.length === 0) {
-            console.log('✅ No duplicate entries found');
-        }
-    } catch (err) {
-        console.error('❌ Error cleaning up duplicates:', err.message);
-    }
-}
-
-/**
- * Drop deprecated/unused tables to clean up the database
- * These tables were identified as having no usage in the codebase
- */
-async function dropUnusedTables() {
-    console.log('🧹 Dropping deprecated unused tables...');
-    
-    const deprecatedTables = [
-        'userUsage',          // Command usage tracking - never implemented
-        'userBalance'         // Duplicate of userCoins balance - never used
-    ];
-    
-    for (const tableName of deprecatedTables) {
-        await new Promise((resolve) => {
-            db.run(`DROP TABLE IF EXISTS ${tableName}`, (err) => {
-                if (err) {
-                    console.error(`❌ Failed to drop table ${tableName}:`, err.message);
-                }
-                resolve();
-            });
-        });
-    }
-    console.log('✅ Deprecated tables cleanup complete');
-}
-
 function createIndexes() {
     console.log('📊 Creating database indexes...');
 
@@ -337,11 +196,7 @@ function createIndexes() {
                 criticalFarmingLevel INTEGER DEFAULT 0,
                 eventBoostLevel INTEGER DEFAULT 0
             )`, (err) => {
-                if (err) {
-                    console.error('Error creating userBuildings table:', err.message);
-                } else {
-                    console.log('✅ Table userBuildings is ready');
-                }
+                if (err) console.error('Error creating userBuildings:', err.message);
                 res();
             });
         }));
@@ -355,11 +210,7 @@ function createIndexes() {
                 expiresAt INTEGER,
                 isActive INTEGER DEFAULT 1
             )`, (err) => {
-                if (err) {
-                    console.error('Error creating activeSeasons table:', err.message);
-                } else {
-                    console.log('✅ Table activeSeasons is ready');
-                }
+                if (err) console.error('Error creating activeSeasons:', err.message);
                 res();
             });
         }));
@@ -372,11 +223,7 @@ function createIndexes() {
                     lastRerollReset INTEGER DEFAULT 0,
                     paidRerollCount INTEGER DEFAULT 0
             )`, (err) => {
-                if (err) {
-                    console.error('Error creating userShopRerolls table:', err.message);
-                } else {
-                    console.log('✅ Table userShopRerolls is ready');
-                }
+                if (err) console.error('Error creating userShopRerolls:', err.message);
                 res();
             });
         }));
@@ -388,11 +235,7 @@ function createIndexes() {
                     shopData TEXT NOT NULL,
                     createdAt INTEGER DEFAULT (strftime('%s', 'now') * 1000)
             )`, (err) => {
-                if (err) {
-                    console.error('❌ Failed to create globalShop table:', err.message);
-                } else {
-                    console.log('✅ Table globalShop is ready');
-                }
+                if (err) console.error('Error creating globalShop:', err.message);
                 res();
             });
         }));
@@ -406,11 +249,7 @@ function createIndexes() {
                 createdAt INTEGER DEFAULT (strftime('%s', 'now') * 1000),
                 PRIMARY KEY (userId, resetTime)
             )`, (err) => {
-                if (err) {
-                    console.error('❌ Failed to create userShopViews table:', err.message);
-                } else {
-                    console.log('✅ Table userShopViews is ready');
-                }
+                if (err) console.error('Error creating userShopViews:', err.message);
                 res();
             });
         }));
@@ -528,11 +367,7 @@ function createIndexes() {
                 expiresAt INTEGER NOT NULL,
                 createdAt INTEGER DEFAULT (strftime('%s', 'now') * 1000)
             )`, (err) => {
-                if (err) {
-                    console.error('Error creating exchangeCache table:', err.message);
-                } else {
-                    console.log('✅ Table exchangeCache is ready');
-                }
+                if (err) console.error('Error creating exchangeCache:', err.message);
                 res();
             });
         }));
@@ -565,7 +400,7 @@ function createIndexes() {
                 extra TEXT DEFAULT '{}',
                 PRIMARY KEY(userId, type, source)
             )`, (err) => {
-                if (!err) console.log("✅ activeBoosts table ready");
+                if (err) console.error('Error creating activeBoosts:', err.message);
                 res();
             });
         }));
@@ -693,7 +528,7 @@ function createIndexes() {
                 ability TEXT,
                 baseWeight REAL
             )`, (err) => {
-                if (!err) console.log("✅ Table 'petInventory' is ready.");
+                if (err) console.error('Error creating petInventory:', err.message);
                 res();
             });
         }));
@@ -766,11 +601,7 @@ function createIndexes() {
                 listedAt INTEGER NOT NULL,
                 CHECK (coinPrice IS NOT NULL OR gemPrice IS NOT NULL)
             )`, (err) => {
-                if (err) {
-                    console.error("Error creating globalMarket table:", err.message);
-                } else {
-                    console.log("✅ Table globalMarket is ready");
-                }
+                if (err) console.error('Error creating globalMarket:', err.message);
                 res();
             });
         }));
@@ -795,11 +626,7 @@ function createIndexes() {
                 lastUpdated INTEGER DEFAULT 0,
                 boostMultiplier INTEGER DEFAULT 1
             )`, (err) => {
-                if (err) {
-                    console.error('Error creating sanaeBlessings table:', err.message);
-                } else {
-                    console.log('✅ Table sanaeBlessings is ready');
-                }
+                if (err) console.error('Error creating sanaeBlessings:', err.message);
                 res();
             });
         }));
@@ -814,11 +641,7 @@ function createIndexes() {
                 lastExpSource TEXT,
                 lastUpdated INTEGER DEFAULT (strftime('%s', 'now') * 1000)
             )`, (err) => {
-                if (err) {
-                    console.error('Error creating userLevelProgress table:', err.message);
-                } else {
-                    console.log('✅ Table userLevelProgress is ready');
-                }
+                if (err) console.error('Error creating userLevelProgress:', err.message);
                 res();
             });
         }));
@@ -832,11 +655,7 @@ function createIndexes() {
                 claimedAt INTEGER DEFAULT (strftime('%s', 'now') * 1000),
                 UNIQUE(userId, milestoneLevel)
             )`, (err) => {
-                if (err) {
-                    console.error('Error creating userLevelMilestones table:', err.message);
-                } else {
-                    console.log('✅ Table userLevelMilestones is ready');
-                }
+                if (err) console.error('Error creating userLevelMilestones:', err.message);
                 res();
             });
         }));
@@ -852,11 +671,7 @@ function createIndexes() {
                 lifetimeCoinsBeforeRebirth INTEGER DEFAULT 0,
                 lifetimeGemsBeforeRebirth INTEGER DEFAULT 0
             )`, (err) => {
-                if (err) {
-                    console.error('Error creating userRebirthProgress table:', err.message);
-                } else {
-                    console.log('✅ Table userRebirthProgress is ready');
-                }
+                if (err) console.error('Error creating userRebirthProgress:', err.message);
                 res();
             });
         }));
@@ -870,11 +685,7 @@ function createIndexes() {
                 claimedAt INTEGER DEFAULT (strftime('%s', 'now') * 1000),
                 UNIQUE(userId, milestoneRebirth)
             )`, (err) => {
-                if (err) {
-                    console.error('Error creating userRebirthMilestones table:', err.message);
-                } else {
-                    console.log('✅ Table userRebirthMilestones is ready');
-                }
+                if (err) console.error('Error creating userRebirthMilestones:', err.message);
                 res();
             });
         }));
@@ -888,11 +699,7 @@ function createIndexes() {
                 questTracking TEXT DEFAULT '{}',
                 lastUpdated INTEGER DEFAULT (strftime('%s', 'now') * 1000)
             )`, (err) => {
-                if (err) {
-                    console.error('Error creating mainQuestProgress table:', err.message);
-                } else {
-                    console.log('✅ Table mainQuestProgress is ready');
-                }
+                if (err) console.error('Error creating mainQuestProgress:', err.message);
                 res();
             });
         }));
@@ -904,11 +711,7 @@ function createIndexes() {
                 biomeId TEXT DEFAULT 'GRASSLAND',
                 biomeChangedAt INTEGER DEFAULT NULL
             )`, (err) => {
-                if (err) {
-                    console.error('Error creating userBiome table:', err.message);
-                } else {
-                    console.log('✅ Table userBiome is ready');
-                }
+                if (err) console.error('Error creating userBiome:', err.message);
                 res();
             });
         }));
@@ -923,11 +726,7 @@ function createIndexes() {
                 sentAt INTEGER NOT NULL,
                 UNIQUE(userId, fumoName)
             )`, (err) => {
-                if (err) {
-                    console.error('Error creating userOtherPlace table:', err.message);
-                } else {
-                    console.log('✅ Table userOtherPlace is ready');
-                }
+                if (err) console.error('Error creating userOtherPlace:', err.message);
                 res();
             });
         }));
@@ -1042,264 +841,15 @@ async function ensureColumnsExist() {
     }
 }
 
-/**
- * Migrate level/exp data from userCoins to userLevelProgress table
- * This is a one-time migration for existing users
- */
-async function migrateUserLevelData() {
-    console.log('🔄 Checking for level/exp migration...');
-    
-    const dbAllAsync = (sql, params = []) => {
-        return new Promise((resolve, reject) => {
-            db.all(sql, params, (err, rows) => {
-                if (err) reject(err);
-                else resolve(rows);
-            });
-        });
-    };
-    
-    const dbRunAsync = (sql, params = []) => {
-        return new Promise((resolve, reject) => {
-            db.run(sql, params, function(err) {
-                if (err) reject(err);
-                else resolve(this);
-            });
-        });
-    };
-    
-    try {
-        // First check if level/exp columns exist in userCoins
-        const tableInfo = await dbAllAsync(`PRAGMA table_info(userCoins)`);
-        const hasLevel = tableInfo.some(col => col.name === 'level');
-        const hasExp = tableInfo.some(col => col.name === 'exp');
-        
-        if (!hasLevel && !hasExp) {
-            console.log('✅ level/exp columns not in userCoins - migration not needed');
-            return;
-        }
-        
-        // Build dynamic query based on which columns exist
-        const selectCols = ['uc.userId'];
-        const whereConds = [];
-        if (hasLevel) {
-            selectCols.push('uc.level');
-            whereConds.push('uc.level > 0');
-        }
-        if (hasExp) {
-            selectCols.push('uc.exp');
-            whereConds.push('uc.exp > 0');
-        }
-        
-        // Check if there are users with level/exp in userCoins that don't exist in userLevelProgress
-        const usersToMigrate = await dbAllAsync(`
-            SELECT ${selectCols.join(', ')} 
-            FROM userCoins uc
-            LEFT JOIN userLevelProgress ulp ON uc.userId = ulp.userId
-            WHERE ulp.userId IS NULL AND (${whereConds.join(' OR ')})
-        `);
-        
-        if (usersToMigrate.length === 0) {
-            console.log('✅ No level/exp migration needed - all users migrated');
-            return;
-        }
-        
-        console.log(`🔄 Migrating ${usersToMigrate.length} users' level/exp data...`);
-        
-        let migrated = 0;
-        for (const user of usersToMigrate) {
-            await dbRunAsync(
-                `INSERT OR IGNORE INTO userLevelProgress (userId, level, exp, totalExpEarned, lastUpdated)
-                 VALUES (?, ?, ?, ?, ?)`,
-                [user.userId, user.level || 1, user.exp || 0, user.exp || 0, Date.now()]
-            );
-            migrated++;
-        }
-        
-        console.log(`✅ Migrated ${migrated} users' level/exp data to userLevelProgress table`);
-    } catch (err) {
-        console.error('❌ Error during level/exp migration:', err.message);
-    }
-}
-
-/**
- * Drop deprecated level/exp columns from userCoins table
- * Only runs if columns still exist and data has been migrated
- */
-async function dropDeprecatedLevelColumns() {
-    console.log('🔄 Checking for deprecated level/exp columns in userCoins...');
-    
-    const dbGetAsync = (sql, params = []) => {
-        return new Promise((resolve, reject) => {
-            db.get(sql, params, (err, row) => {
-                if (err) reject(err);
-                else resolve(row);
-            });
-        });
-    };
-    
-    const dbAllAsync = (sql, params = []) => {
-        return new Promise((resolve, reject) => {
-            db.all(sql, params, (err, rows) => {
-                if (err) reject(err);
-                else resolve(rows);
-            });
-        });
-    };
-    
-    const dbRunAsync = (sql, params = []) => {
-        return new Promise((resolve, reject) => {
-            db.run(sql, params, function(err) {
-                if (err) reject(err);
-                else resolve(this);
-            });
-        });
-    };
-    
-    try {
-        // Check if level/exp columns exist in userCoins
-        const tableInfo = await dbAllAsync(`PRAGMA table_info(userCoins)`);
-        const hasLevel = tableInfo.some(col => col.name === 'level');
-        const hasExp = tableInfo.some(col => col.name === 'exp');
-        const hasRebirth = tableInfo.some(col => col.name === 'rebirth');
-        const hasDateObtained = tableInfo.some(col => col.name === 'dateObtained');
-        const hasFumoName = tableInfo.some(col => col.name === 'fumoName');
-        
-        if (!hasLevel && !hasExp && !hasRebirth && !hasDateObtained && !hasFumoName) {
-            console.log('✅ All deprecated columns already removed from userCoins');
-            return;
-        }
-        
-        // Build dynamic query based on which columns exist (only for level/exp migration check)
-        const whereConds = [];
-        if (hasLevel) whereConds.push('uc.level > 0');
-        if (hasExp) whereConds.push('uc.exp > 0');
-        
-        // Verify all level/exp data is migrated before dropping
-        if (whereConds.length > 0) {
-            const unmigrated = await dbGetAsync(`
-                SELECT COUNT(*) as count FROM userCoins uc
-                LEFT JOIN userLevelProgress ulp ON uc.userId = ulp.userId
-                WHERE ulp.userId IS NULL AND (${whereConds.join(' OR ')})
-            `);
-            
-            if (unmigrated && unmigrated.count > 0) {
-                console.log(`⚠️ Cannot drop level/exp columns - ${unmigrated.count} users still need migration`);
-            }
-        }
-        
-        // SQLite 3.35.0+ supports DROP COLUMN
-        console.log('🔄 Dropping deprecated columns from userCoins...');
-        
-        if (hasLevel) {
-            try {
-                await dbRunAsync(`ALTER TABLE userCoins DROP COLUMN level`);
-                console.log('  ✅ Dropped level column');
-            } catch (e) { console.log('  ⚠️ Could not drop level column:', e.message); }
-        }
-        
-        if (hasExp) {
-            try {
-                await dbRunAsync(`ALTER TABLE userCoins DROP COLUMN exp`);
-                console.log('  ✅ Dropped exp column');
-            } catch (e) { console.log('  ⚠️ Could not drop exp column:', e.message); }
-        }
-        
-        if (hasRebirth) {
-            try {
-                await dbRunAsync(`ALTER TABLE userCoins DROP COLUMN rebirth`);
-                console.log('  ✅ Dropped rebirth column');
-            } catch (e) { console.log('  ⚠️ Could not drop rebirth column:', e.message); }
-        }
-        
-        if (hasDateObtained) {
-            try {
-                await dbRunAsync(`ALTER TABLE userCoins DROP COLUMN dateObtained`);
-                console.log('  ✅ Dropped dateObtained column');
-            } catch (e) { console.log('  ⚠️ Could not drop dateObtained column:', e.message); }
-        }
-        
-        if (hasFumoName) {
-            try {
-                await dbRunAsync(`ALTER TABLE userCoins DROP COLUMN fumoName`);
-                console.log('  ✅ Dropped fumoName column');
-            } catch (e) { console.log('  ⚠️ Could not drop fumoName column:', e.message); }
-        }
-        
-        console.log('✅ Successfully cleaned up deprecated columns from userCoins');
-    } catch (err) {
-        // SQLite version may not support DROP COLUMN, which is fine
-        if (err.message?.includes('DROP COLUMN') || err.message?.includes('syntax error')) {
-            console.log('⚠️ SQLite version does not support DROP COLUMN - columns will be ignored');
-        } else {
-            console.error('❌ Error dropping deprecated columns:', err.message);
-        }
-    }
-}
-
-/**
- * Migrate NULL startPath values to "The Legend" (default path)
- */
-async function migrateNullStarterPaths() {
-    console.log('🔄 Checking for NULL starterPath values...');
-    
-    const dbRunAsync = (sql, params = []) => {
-        return new Promise((resolve, reject) => {
-            db.run(sql, params, function(err) {
-                if (err) reject(err);
-                else resolve(this);
-            });
-        });
-    };
-    
-    const dbGetAsync = (sql, params = []) => {
-        return new Promise((resolve, reject) => {
-            db.get(sql, params, (err, row) => {
-                if (err) reject(err);
-                else resolve(row);
-            });
-        });
-    };
-    
-    try {
-        // Check how many users have NULL starterPath
-        const countRow = await dbGetAsync(`SELECT COUNT(*) as count FROM userCoins WHERE starterPath IS NULL`);
-        
-        if (countRow.count === 0) {
-            console.log('✅ No NULL starterPath values found');
-            return;
-        }
-        
-        console.log(`🔄 Updating ${countRow.count} users with NULL starterPath to "The Legend"...`);
-        
-        const result = await dbRunAsync(`UPDATE userCoins SET starterPath = 'The Legend' WHERE starterPath IS NULL`);
-        
-        console.log(`✅ Updated ${result.changes} users' starterPath to "The Legend"`);
-    } catch (err) {
-        console.error('❌ Error migrating starterPath:', err.message);
-    }
-}
-
 async function initializeDatabase() {
-    console.log('🚀 Initializing database schema...');
     await createTables();
     await ensureColumnsExist();
-    await migrateUserLevelData(); // Migrate level/exp data to new table
-    await dropDeprecatedLevelColumns(); // Remove old level/exp columns from userCoins
-    await migrateNullStarterPaths(); // Set NULL starterPath to "The Legend"
-    await dropUnusedTables(); // Drop deprecated tables that are no longer used
-    await cleanupDuplicateFumos(); // Clean duplicates BEFORE creating unique indexes
     await createIndexes();
-    console.log('✅ Database initialization complete');
 }
 
 module.exports = {
     createTables,
     ensureColumnsExist,
     createIndexes,
-    cleanupDuplicateFumos,
-    migrateUserLevelData,
-    dropDeprecatedLevelColumns,
-    migrateNullStarterPaths,
-    dropUnusedTables,
     initializeDatabase
 };

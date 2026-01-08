@@ -155,8 +155,6 @@ function registerCodeRedemption(client) {
             }
         }
     });
-
-    console.log('✅ Code redemption system registered');
 }
 
 module.exports = {

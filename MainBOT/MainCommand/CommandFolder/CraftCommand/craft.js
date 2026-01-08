@@ -7,10 +7,7 @@ const { registerCraftInteractionHandler } = require('../../Service/CraftService/
 let isRegistered = false;
 
 module.exports = (client) => {
-    if (isRegistered) {
-        console.log('⚠️ craft.js already registered, skipping...');
-        return;
-    }
+    if (isRegistered) return;
     isRegistered = true;
 
     // Register the interaction handler for buttons
@@ -32,8 +29,6 @@ module.exports = (client) => {
 
         await message.reply({ embeds: [embed], components: [buttons] });
     });
-
-    console.log('✅ Main craft command registered');
 };
 
 function createMainCraftEmbed() {

@@ -36,8 +36,7 @@ function initializeTicketSystem() {
     } else {
         fs.writeFileSync(TICKET_FILE, '0', 'utf8');
     }
-    
-    console.log(`🎟️ Ticket system initialized. Counter: ${ticketCounter}`);
+
 }
 
 /**

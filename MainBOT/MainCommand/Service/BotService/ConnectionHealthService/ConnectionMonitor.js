@@ -36,8 +36,6 @@ class ConnectionMonitor {
      * Start monitoring connection health
      */
     start(intervalMs = 30000) {
-        console.log('🔍 Starting connection health monitor...');
-        
         this.setupDiscordListeners();
         this.checkInterval = setInterval(() => this.performHealthCheck(), intervalMs);
         

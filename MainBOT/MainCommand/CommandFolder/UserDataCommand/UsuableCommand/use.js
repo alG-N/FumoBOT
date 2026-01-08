@@ -311,6 +311,4 @@ module.exports = (client) => {
             }
         }
     });
-
-    console.log('✅ Use command handler registered');
 };
