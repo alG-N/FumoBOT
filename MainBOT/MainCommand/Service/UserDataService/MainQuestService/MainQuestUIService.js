@@ -21,9 +21,7 @@ const {
 } = require('../../../Configuration/mainQuestConfig.js');
 const { buildSecureCustomId } = require('../../../Middleware/buttonOwnership.js');
 
-// ═══════════════════════════════════════════════════════════════════
-// EMBED CREATORS
-// ═══════════════════════════════════════════════════════════════════
+// Embed Creators
 
 /**
  * Create the main quest overview embed
@@ -265,9 +263,7 @@ function createQuestListEmbed(completedQuests, currentQuestId, user, page = 0) {
     return embed;
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// BUTTON CREATORS
-// ═══════════════════════════════════════════════════════════════════
+// Button Creators
 
 /**
  * Create main quest navigation buttons
@@ -370,9 +366,7 @@ function createMainQuestButtonForQuestCmd(userId) {
         .setStyle(ButtonStyle.Secondary);
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// HELPER FUNCTIONS
-// ═══════════════════════════════════════════════════════════════════
+// Helper Functions
 
 /**
  * Format story text with proper styling

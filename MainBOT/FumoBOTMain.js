@@ -5,25 +5,19 @@ const path = require('path');
 const crypto = require('crypto');
 require('dotenv').config();
 
-// ═══════════════════════════════════════════════════════════════
-// CORE SYSTEMS
-// ═══════════════════════════════════════════════════════════════
+// Core Systems
 const { initializeDatabase } = require('./MainCommand/Core/Database/schema');
 const { startIncomeSystem } = require('./MainCommand/Core/Database/PassiveIncome/income');
 const { scheduleBackups } = require('./MainCommand/Core/Database/backup');
 const { initializeErrorHandlers } = require('./MainCommand/Ultility/errorHandler');
 const { LOG_CHANNEL_ID } = require('./MainCommand/Core/logger');
 
-// ═══════════════════════════════════════════════════════════════
-// AUTO-DEPLOY CONFIGURATION
-// ═══════════════════════════════════════════════════════════════
-const { clientId, guildId } = require('./config.json');
+// Auto-Deploy Configuration
+const { clientId } = require('./config.json');
 const COMMANDS_HASH_FILE = path.join(__dirname, '.commands-hash.json');
 const AUTO_DEPLOY_ENABLED = true; // Set to false to disable auto-deploy
 
-// ═══════════════════════════════════════════════════════════════
-// SERVICES
-// ═══════════════════════════════════════════════════════════════
+// Services
 const { initializeShop } = require('./MainCommand/Service/MarketService/EggShopService/EggShopCacheService');
 const { initializeSeasonSystem } = require('./MainCommand/Service/FarmingService/SeasonService/SeasonManagerService');
 const { shutdownAutoRolls } = require('./MainCommand/Service/GachaService/NormalGachaService/CrateAutoRollService');
@@ -31,15 +25,11 @@ const initializeShardHandler = require('./MainCommand/Service/UserDataService/Us
 const { registerSigilInteractionHandler } = require('./MainCommand/Service/UserDataService/UseService/SigilInteractionHandler');
 const PetIntervalManager = require('./MainCommand/Service/PetService/PetIntervalManager');
 
-// ═══════════════════════════════════════════════════════════════
-// BOT HEALTH & IMAGE VALIDATION
-// ═══════════════════════════════════════════════════════════════
+// Bot Health & Image Validation
 const ConnectionMonitor = require('./MainCommand/Service/BotService/ConnectionHealthService/ConnectionMonitor');
 const { validateAllFumoImages } = require('./MainCommand/Service/BotService/ImageValidationService/ImageValidator');
 
-// ═══════════════════════════════════════════════════════════════
-// ADMINISTRATOR MODULE
-// ═══════════════════════════════════════════════════════════════
+// Administrator Module
 const {
     registerAdminCommands,
     registerBanSystem,
@@ -48,16 +38,12 @@ const {
     migratePetsCommand
 } = require('./MainCommand/Administrator');
 
-// ═══════════════════════════════════════════════════════════════
-// DATA & CONFIGURATION
-// ═══════════════════════════════════════════════════════════════
+// Data & Configuration
 const FumoPool = require('./MainCommand/Data/FumoPool');
 const { registerCodeRedemption } = require('./MainCommand/CommandFolder/UserDataCommand/UsuableCommand/codeRedemption');
 const { maintenance, developerID } = require('./MainCommand/Configuration/maintenanceConfig');
 
-// ═══════════════════════════════════════════════════════════════
-// CLIENT INITIALIZATION
-// ═══════════════════════════════════════════════════════════════
+// Client Initialization
 const client = createClient();
 client.commands = new Collection();
 
@@ -72,9 +58,7 @@ setConnectionMonitor(connectionMonitor);
 const lavalinkService = require('./SubCommand/MusicFunction/Service/LavalinkService');
 lavalinkService.preInitialize(client);
 
-// ═══════════════════════════════════════════════════════════════
-// COMMAND LOADER (Optimized)
-// ═══════════════════════════════════════════════════════════════
+// Command Loader
 const SKIP_FOLDERS = ['handlers', 'node_modules', 'Test', 'backup'];
 function loadCommandsRecursively(directory, depth = 0) {
     const items = fs.readdirSync(directory, { withFileTypes: true });
@@ -97,9 +81,7 @@ function loadCommandsRecursively(directory, depth = 0) {
     }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// COMMAND MODULES (Lazy-loaded for faster startup)
-// ═══════════════════════════════════════════════════════════════
+// Command Modules (Lazy-loaded)
 const commandModules = {
     // Gacha Commands
     gacha: () => require('./MainCommand/CommandFolder/GachaCommand/crategacha'),
@@ -161,9 +143,7 @@ const commandModules = {
     trade: () => require('./MainCommand/CommandFolder/TradeCommand/trade')
 };
 
-// ═══════════════════════════════════════════════════════════════
-// SUBCOMMAND MODULES
-// ═══════════════════════════════════════════════════════════════
+// Subcommand Modules
 const anime = require('./SubCommand/API-Website/Anime/anime');
 const afk = require('./SubCommand/BasicCommand/afk');
 const reddit = require('./SubCommand/API-Website/Reddit/reddit');
@@ -181,9 +161,7 @@ const rule34 = require('./SubCommand/API-Website/Rule34/rule34');
 // Load SubCommand folder
 loadCommandsRecursively(path.join(__dirname, 'SubCommand'));
 
-// ═══════════════════════════════════════════════════════════════
-// AUTO-DEPLOY SLASH COMMANDS (with hash check to avoid unnecessary deploys)
-// ═══════════════════════════════════════════════════════════════
+// Auto-Deploy Slash Commands
 async function deployCommands(forceRefresh = false) {
     if (!AUTO_DEPLOY_ENABLED) {
         console.log('⏭️ Auto-deploy disabled, skipping...');
@@ -228,12 +206,12 @@ async function deployCommands(forceRefresh = false) {
             return;
         }
 
-        console.log(`🔄 Deploying ${commands.length} slash commands...`);
+        console.log(`🔄 Deploying ${commands.length} slash commands globally...`);
         
         const rest = new REST({ version: '10' }).setToken(process.env.BOT_TOKEN);
         
         await rest.put(
-            Routes.applicationGuildCommands(clientId, guildId),
+            Routes.applicationCommands(clientId),
             { body: commands }
         );
 
@@ -397,16 +375,13 @@ async function restoreAutoRollSystems(client) {
 
         await sendUnifiedRestorationSummary(client, results, LOG_CHANNEL_ID);
 
-        const detailsButtonHandler = async (interaction) => {
-            if (!interaction.isButton()) return;
-
-            if (interaction.customId.startsWith('viewNormalAutoRoll_') ||
-                interaction.customId.startsWith('viewEventAutoRoll_')) {
-                await handleDetailsButtonInteraction(interaction, normalStates, eventStates);
-            }
+        // Store handlers in client for access from main interactionCreate handler
+        // This avoids adding duplicate event listeners on each restart
+        client.autoRollDetailsHandler = {
+            normalStates,
+            eventStates,
+            handleDetailsButtonInteraction
         };
-
-        client.on('interactionCreate', detailsButtonHandler);
 
         const totalRestored = results.normal.restored + results.event.restored;
         const totalFailed = results.normal.failed + results.event.failed;
@@ -420,9 +395,7 @@ async function restoreAutoRollSystems(client) {
     }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// REGISTER ALL COMMANDS (Batch initialization)
-// ═══════════════════════════════════════════════════════════════
+// Register All Commands
 Object.entries(commandModules).forEach(([name, loader]) => {
     try {
         loader()(client);
@@ -431,9 +404,7 @@ Object.entries(commandModules).forEach(([name, loader]) => {
     }
 });
 
-// ═══════════════════════════════════════════════════════════════
-// ADMIN & SYSTEM REGISTRATION
-// ═══════════════════════════════════════════════════════════════
+// Admin & System Registration
 registerAdminCommands(client);
 registerBanSystem(client, developerID);
 registerTicketSystem(client);
@@ -443,7 +414,6 @@ registerCodeRedemption(client);
 client.on('interactionCreate', async interaction => {
     // Handle Select Menus FIRST (before buttons)
     if (interaction.isStringSelectMenu()) {
-        console.log('📋 Select menu interaction received:', interaction.customId);
 
         // Rule34 settings select menus
         if (interaction.customId.startsWith('r34_setting_')) {
@@ -485,7 +455,20 @@ client.on('interactionCreate', async interaction => {
     }
 
     if (interaction.isButton()) {
-        console.log('🔘 Button interaction received:', interaction.customId);
+
+        // Handle auto-roll details button (from restoreAutoRollSystems)
+        if (interaction.customId.startsWith('viewNormalAutoRoll_') ||
+            interaction.customId.startsWith('viewEventAutoRoll_')) {
+            if (client.autoRollDetailsHandler) {
+                const { normalStates, eventStates, handleDetailsButtonInteraction } = client.autoRollDetailsHandler;
+                try {
+                    await handleDetailsButtonInteraction(interaction, normalStates, eventStates);
+                } catch (error) {
+                    console.error('Auto-roll details handler error:', error);
+                }
+            }
+            return;
+        }
 
         const {
             handleDisableNotificationButton,
@@ -587,7 +570,6 @@ client.on('interactionCreate', async interaction => {
     }
 
     if (interaction.isChatInputCommand()) {
-        console.log(`🎮 Command received: /${interaction.commandName} from ${interaction.user.tag}`);
 
         const command = client.commands.get(interaction.commandName);
         if (!command) {
@@ -631,9 +613,13 @@ async function safeReply(interaction, content) {
     }
 }
 
-client.on('messageCreate', message => {
-    afk.onMessage(message, client);
-    anime.onMessage(message, client);
+client.on('messageCreate', async message => {
+    try {
+        await afk.onMessage(message, client);
+        await anime.onMessage(message, client);
+    } catch (error) {
+        // Silent fail for message handlers to prevent bot crashes
+    }
 });
 
 // Voice state update handler - cleanup music when bot is kicked/moved
@@ -644,12 +630,10 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
     // Bot was in a channel and is now disconnected (kicked or moved out)
     if (oldState.channelId && !newState.channelId) {
         const guildId = oldState.guild.id;
-        console.log(`[Music] Bot disconnected from voice in guild ${guildId}, cleaning up...`);
         
         try {
             const musicService = require('./SubCommand/MusicFunction/Service/MusicService');
             await musicService.cleanup(guildId);
-            console.log(`[Music] Cleanup complete for guild ${guildId}`);
         } catch (error) {
             console.error(`[Music] Cleanup error for guild ${guildId}:`, error.message);
         }
@@ -665,7 +649,13 @@ async function handleShutdown(signal) {
     console.log(`\n🛑 Received ${signal || 'shutdown'} signal, saving state...`);
     try {
         shutdownAutoRolls();
-        console.log('✅ Auto-roll state saved successfully');
+        
+        // Cleanup music cache intervals
+        try {
+            const musicCache = require('./SubCommand/MusicFunction/Repository/MusicCache');
+            musicCache.stopCleanupInterval();
+        } catch (e) {}
+        
         console.log('👋 Shutting down gracefully...');
         await new Promise(resolve => setTimeout(resolve, 1000));
         process.exit(0);

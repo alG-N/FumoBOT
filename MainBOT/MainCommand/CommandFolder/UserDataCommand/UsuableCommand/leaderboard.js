@@ -124,6 +124,4 @@ module.exports = (mainClient) => {
         cacheService.clear();
         await message.reply('✅ Leaderboard cache cleared.');
     });
-
-    console.log('✅ Leaderboard command loaded with enhanced categories');
 };

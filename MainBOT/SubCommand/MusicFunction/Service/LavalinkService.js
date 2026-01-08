@@ -137,15 +137,12 @@ class LavalinkService {
                 url.searchParams.delete('si');
                 url.searchParams.delete('feature');
                 searchQuery = url.toString();
-                console.log(`[Lavalink] Cleaned URL: ${searchQuery}`);
             } catch (e) {
-                console.log('[Lavalink] Failed to parse URL, using original');
+                // Use original query on parse failure
             }
         } else {
             searchQuery = `${lavalinkConfig.defaultSearchPlatform}:${query}`;
         }
-
-        console.log(`[Lavalink] Searching: ${searchQuery}`);
 
         const node = [...this.shoukaku.nodes.values()].find(n => n.state === 2);
 
@@ -153,8 +150,6 @@ class LavalinkService {
             console.error('[Lavalink] No available nodes');
             throw new Error('No available nodes');
         }
-
-        console.log(`[Lavalink] Using node: ${node.name}, State: ${node.state}`);
 
         try {
             let result = await node.rest.resolve(searchQuery);
@@ -215,7 +210,8 @@ class LavalinkService {
             };
 
         } catch (error) {
-            throw error;
+            console.error('[Lavalink] Search error:', error.message);
+            throw new Error(error.message === 'NO_RESULTS' ? 'NO_RESULTS' : 'SEARCH_FAILED');
         }
     }
 
@@ -296,6 +292,7 @@ class LavalinkService {
             throw new Error('NOT_A_PLAYLIST');
 
         } catch (error) {
+            console.error('[Lavalink] Playlist search error:', error.message);
             throw error;
         }
     }

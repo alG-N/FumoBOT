@@ -44,8 +44,6 @@ class VideoDownloadService extends EventEmitter {
         await ffmpegService.initialize();
         
         this.startCleanupInterval();
-        
-        console.log(`✅ Video download service initialized (Cobalt: ${videoConfig.COBALT_INSTANCES[0]})`);
     }
 
     /**
@@ -70,10 +68,8 @@ class VideoDownloadService extends EventEmitter {
             
             let videoPath;
 
-            console.log(`📥 Downloading via Cobalt (${videoConfig.COBALT_INSTANCES[0]})...`);
             this.emit('stage', { stage: 'connecting', message: 'Connecting to Cobalt...', method: 'Cobalt' });
             videoPath = await cobaltService.downloadVideo(url, this.tempDir);
-            console.log('✅ Cobalt download successful');
             
             // Check video duration (5 minute limit for short videos only)
             const maxDurationSeconds = videoConfig.MAX_VIDEO_DURATION_SECONDS || 300;

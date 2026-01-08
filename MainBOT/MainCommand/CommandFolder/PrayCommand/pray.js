@@ -281,6 +281,4 @@ module.exports = async (client) => {
             message.reply("❌ An error occurred while processing your prayer.");
         }
     });
-
-    console.log('✅ Pray command loaded successfully');
 };

@@ -73,9 +73,7 @@ function scaleReward(baseReward, actualGoal, baseGoal) {
     };
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// MAIN SERVICE CLASS
-// ═══════════════════════════════════════════════════════════════════
+// Main Service Class
 class QuestPoolService {
     /**
      * Initialize user quests - ensures both daily and weekly quests exist

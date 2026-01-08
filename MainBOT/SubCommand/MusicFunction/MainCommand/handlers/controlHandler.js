@@ -106,13 +106,21 @@ module.exports = {
 
         // Set timeout
         const queue2 = musicCache.getQueue(guildId);
-        queue2.skipVoteTimeout = setTimeout(async () => {
-            musicService.endSkipVote(guildId);
-            await message.edit({
-                embeds: [trackHandler.createInfoEmbed('⏱️ Vote Expired', 'Not enough votes to skip.', 'warning')],
-                components: []
-            }).catch(() => {});
-        }, SKIP_VOTE_TIMEOUT);
+        if (queue2) {
+            // Clear any existing timeout to prevent memory leaks
+            if (queue2.skipVoteTimeout) clearTimeout(queue2.skipVoteTimeout);
+            queue2.skipVoteTimeout = setTimeout(async () => {
+                try {
+                    musicService.endSkipVote(guildId);
+                    await message.edit({
+                        embeds: [trackHandler.createInfoEmbed('⏱️ Vote Expired', 'Not enough votes to skip.', 'warning')],
+                        components: []
+                    }).catch(() => {});
+                } catch (error) {
+                    console.error('Error in skip vote timeout:', error);
+                }
+            }, SKIP_VOTE_TIMEOUT);
+        }
     },
 
     async handlePause(interaction, guildId) {

@@ -18,10 +18,7 @@
  * - Level 100: Rebirth eligibility
  */
 
-// ═══════════════════════════════════════════════════════════════════
-// EXP REQUIREMENTS
-// Formula: floor(BASE_EXP * (SCALE_FACTOR ^ (level - 1)))
-// ═══════════════════════════════════════════════════════════════════
+// EXP Requirements - Formula: floor(BASE_EXP * (SCALE_FACTOR ^ (level - 1)))
 const BASE_EXP = 100;
 const SCALE_FACTOR = 1.12; // 12% increase per level
 const MAX_LEVEL = 100; // Max level before rebirth is required
@@ -80,10 +77,7 @@ function getLevelFromExp(totalExp) {
     };
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// LEVEL MILESTONES & REWARDS
-// Only specific levels have rewards/unlocks as per design
-// ═══════════════════════════════════════════════════════════════════
+// Level Milestones & Rewards - Only specific levels have rewards/unlocks as per design
 const LEVEL_MILESTONES = [
     {
         level: 5,
@@ -129,10 +123,7 @@ const LEVEL_MILESTONES = [
     }
 ];
 
-// ═══════════════════════════════════════════════════════════════════
-// FEATURE UNLOCK LEVELS
-// These are the ONLY levels that unlock features
-// ═══════════════════════════════════════════════════════════════════
+// Feature Unlock Levels - These are the ONLY levels that unlock features
 const FEATURE_UNLOCKS = {
     AUTO_ROLL: 10,        // Auto-roll in crate gacha and event gacha
     PRAY: 15,             // .pray mechanic
@@ -220,9 +211,7 @@ function getFeatureDisplayName(featureKey) {
     return names[featureKey] || featureKey;
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// EXP REWARDS FROM QUESTS
-// ═══════════════════════════════════════════════════════════════════
+// EXP Rewards From Quests
 const QUEST_EXP_REWARDS = {
     DAILY_QUEST: 25,           // Per daily quest completed
     WEEKLY_QUEST: 100,         // Per weekly quest completed
@@ -268,9 +257,7 @@ function calculateWeeklyQuestExp(completed, total) {
     return exp;
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// LEVEL DISPLAY HELPERS
-// ═══════════════════════════════════════════════════════════════════
+// Level Display Helpers
 const LEVEL_TIERS = [
     { min: 1, max: 9, name: 'Beginner', color: '#808080', emoji: '⚪' },
     { min: 10, max: 24, name: 'Intermediate', color: '#00FF00', emoji: '🟢' },

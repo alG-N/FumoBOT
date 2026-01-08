@@ -207,23 +207,28 @@ async function handleConfirm(interaction, trade, client) {
             });
 
             setTimeout(async () => {
-                const executeResult = await executeTrade(trade.sessionKey);
-                
-                if (executeResult.success) {
-                    await interaction.editReply({
-                        content: '✅ **Trade Completed Successfully!**',
-                        embeds: [createCompleteEmbed(trade)],
-                        components: []
-                    });
-                } else {
-                    await interaction.editReply({
-                        content: `❌ **Trade Failed:** ${executeResult.error}`,
-                        embeds: [],
-                        components: []
-                    });
+                try {
+                    const executeResult = await executeTrade(trade.sessionKey);
+                    
+                    if (executeResult.success) {
+                        await interaction.editReply({
+                            content: '✅ **Trade Completed Successfully!**',
+                            embeds: [createCompleteEmbed(trade)],
+                            components: []
+                        }).catch(() => {});
+                    } else {
+                        await interaction.editReply({
+                            content: `❌ **Trade Failed:** ${executeResult.error}`,
+                            embeds: [],
+                            components: []
+                        }).catch(() => {});
+                    }
+                    
+                    cancelTrade(trade.sessionKey);
+                } catch (error) {
+                    console.error('Error executing trade:', error);
+                    cancelTrade(trade.sessionKey);
                 }
-                
-                cancelTrade(trade.sessionKey);
             }, 3000);
         } else {
             await interaction.reply({

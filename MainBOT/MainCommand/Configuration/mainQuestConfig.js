@@ -9,9 +9,7 @@
  * Progress persists through rebirths.
  */
 
-// ═══════════════════════════════════════════════════════════════════
-// MAIN QUEST CHARACTER
-// ═══════════════════════════════════════════════════════════════════
+// Main Quest Character
 const QUEST_GIVER = {
     name: 'alterGolden',
     title: 'The Guide',
@@ -20,9 +18,7 @@ const QUEST_GIVER = {
     color: '#FFD700'
 };
 
-// ═══════════════════════════════════════════════════════════════════
-// QUEST DIFFICULTY SCALING
-// ═══════════════════════════════════════════════════════════════════
+// Quest Difficulty Scaling
 const DIFFICULTY = {
     TUTORIAL: { color: '#00FF00', expMultiplier: 1.0, name: 'Tutorial' },
     EASY: { color: '#7CFC00', expMultiplier: 1.0, name: 'Easy' },
@@ -33,10 +29,7 @@ const DIFFICULTY = {
     MASTER: { color: '#8B0000', expMultiplier: 3.0, name: 'Master' }
 };
 
-// ═══════════════════════════════════════════════════════════════════
-// MAIN QUESTS (30 total)
-// Each quest teaches a mechanic and provides EXP
-// ═══════════════════════════════════════════════════════════════════
+// Main Quests (30 total) - Each quest teaches a mechanic and provides EXP
 const MAIN_QUESTS = [
     // ===== TUTORIAL PHASE (Quests 1-5) =====
     {
@@ -477,9 +470,7 @@ const MAIN_QUESTS = [
     }
 ];
 
-// ═══════════════════════════════════════════════════════════════════
-// HELPER FUNCTIONS
-// ═══════════════════════════════════════════════════════════════════
+// Helper Functions
 
 /**
  * Get quest by ID
@@ -546,11 +537,7 @@ function formatMainQuestProgress(completed) {
     return `${completed}/${total} (${percentage}%)`;
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// TRACKING TYPE REFERENCE
-// All tracking types used in main quests that need to be tracked
-// by the questMiddleware. This is a reference for integration.
-// ═══════════════════════════════════════════════════════════════════
+// Tracking Type Reference - All tracking types used in main quests that need to be tracked by the questMiddleware
 const TRACKING_TYPES = {
     // Gacha/Roll tracking
     rolls: 'Number of gacha rolls performed',

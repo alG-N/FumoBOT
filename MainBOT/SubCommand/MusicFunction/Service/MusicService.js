@@ -13,8 +13,6 @@ class MusicService {
         this.boundGuilds = new Set();
     }
 
-    // ========== QUEUE OPERATIONS ==========
-
     /**
      * Get or create queue
      */
@@ -92,15 +90,16 @@ class MusicService {
         return true;
     }
 
-    // ========== PLAYBACK CONTROL ==========
-
     /**
      * Play track
      */
     async playTrack(guildId, track) {
         const player = lavalinkService.getPlayer(guildId);
-        if (!player || !track?.track?.encoded) {
+        if (!player) {
             throw new Error('NO_PLAYER');
+        }
+        if (!track?.track?.encoded) {
+            throw new Error('INVALID_TRACK');
         }
 
         musicCache.setCurrentTrack(guildId, track);
@@ -218,8 +217,6 @@ class MusicService {
         musicCache.endSkipVote(guildId);
     }
 
-    // ========== LOOP & SHUFFLE ==========
-
     /**
      * Toggle loop mode
      */
@@ -265,8 +262,6 @@ class MusicService {
         return musicCache.getQueue(guildId)?.isShuffled || false;
     }
 
-    // ========== VOLUME CONTROL ==========
-
     /**
      * Set volume
      */
@@ -297,8 +292,6 @@ class MusicService {
         const currentVolume = this.getVolume(guildId);
         return this.setVolume(guildId, currentVolume + delta);
     }
-
-    // ========== VOICE CONNECTION ==========
 
     /**
      * Connect to voice channel
@@ -356,8 +349,6 @@ class MusicService {
         return player?.connection?.channelId || null;
     }
 
-    // ========== PLAYER EVENTS ==========
-
     /**
      * Bind player events
      */
@@ -376,13 +367,17 @@ class MusicService {
         }
         
         player.on('start', async () => {
-            this.clearInactivityTimer(guildId);
-            // Embeds handled by command handlers, not here
+            try {
+                this.clearInactivityTimer(guildId);
+                // Embeds handled by command handlers, not here
+            } catch (error) {
+                console.error(`[MusicService] Error in start handler:`, error.message);
+            }
         });
         
         player.on('end', async (data) => {
-            if (data.reason === 'replaced') return; // Skip was pressed
-            if (data.reason === 'stopped') return;
+            if (data?.reason === 'replaced') return; // Skip was pressed
+            if (data?.reason === 'stopped') return;
             
             const queue = musicCache.getQueue(guildId);
             // Prevent multiple handlers from running
@@ -397,19 +392,23 @@ class MusicService {
                 if (nextTrack) {
                     await this.sendNowPlayingEmbed(guildId);
                 }
+            } catch (error) {
+                console.error(`[MusicService] Error in end handler:`, error.message);
             } finally {
                 if (queue) queue.isTransitioning = false;
             }
         });
         
         player.on('exception', async (data) => {
-            console.error(`[MusicService] Track exception:`, data?.message || data);
+            console.error(`[MusicService] Track exception:`, data?.message || data?.exception?.message || 'Unknown error');
             const queue = musicCache.getQueue(guildId);
             if (queue?.isTransitioning) return;
             if (queue) queue.isTransitioning = true;
             
             try {
                 await this.playNext(guildId);
+            } catch (error) {
+                console.error(`[MusicService] Error handling exception:`, error.message);
             } finally {
                 if (queue) queue.isTransitioning = false;
             }
@@ -421,14 +420,21 @@ class MusicService {
             if (queue) queue.isTransitioning = true;
             
             try {
+                console.warn(`[MusicService] Track stuck in guild ${guildId}, skipping...`);
                 await this.playNext(guildId);
+            } catch (error) {
+                console.error(`[MusicService] Error in stuck handler:`, error.message);
             } finally {
                 if (queue) queue.isTransitioning = false;
             }
         });
         
         player.on('closed', async () => {
-            await this.cleanup(guildId);
+            try {
+                await this.cleanup(guildId);
+            } catch (error) {
+                console.error(`[MusicService] Error in closed handler:`, error.message);
+            }
         });
     }
 
@@ -446,8 +452,6 @@ class MusicService {
         const queue = musicCache.getQueue(guildId);
         if (queue) queue.eventsBound = false;
     }
-
-    // ========== INACTIVITY MANAGEMENT ==========
 
     /**
      * Set inactivity timer
@@ -473,8 +477,6 @@ class MusicService {
             queue.inactivityTimer = null;
         }
     }
-
-    // ========== VOICE CHANNEL MONITORING ==========
 
     /**
      * Start voice channel monitoring
@@ -542,8 +544,6 @@ class MusicService {
         return Array.from(channel.members.filter(m => !m.user.bot).values());
     }
 
-    // ========== QUEUE END HANDLING ==========
-
     /**
      * Handle queue end
      */
@@ -567,8 +567,6 @@ class MusicService {
         this.setInactivityTimer(guildId, () => this.cleanup(guildId));
     }
 
-    // ========== CLEANUP ==========
-
     /**
      * Full cleanup
      */
@@ -591,8 +589,6 @@ class MusicService {
         // Delete queue
         musicCache.deleteQueue(guildId);
     }
-
-    // ========== VOTING ==========
 
     /**
      * Start skip vote
@@ -629,8 +625,6 @@ class MusicService {
         return musicCache.getQueue(guildId)?.skipVoteActive || false;
     }
 
-    // ========== NOW PLAYING MESSAGE ==========
-
     /**
      * Set now playing message
      */
@@ -656,7 +650,12 @@ class MusicService {
             await message.edit(payload);
             return message;
         } catch (error) {
-            console.error(`[MusicService] Failed to update now playing message:`, error);
+            // Message may have been deleted - clear reference
+            if (error.code === 10008) { // Unknown Message
+                musicCache.setNowPlayingMessage(guildId, null);
+            } else {
+                console.error(`[MusicService] Failed to update now playing message:`, error.message);
+            }
             return null;
         }
     }
@@ -666,7 +665,7 @@ class MusicService {
      */
     async disableNowPlayingControls(guildId) {
         const message = this.getNowPlayingMessage(guildId);
-        if (!message?.components) return;
+        if (!message?.components?.length) return;
         
         try {
             const disabledRows = message.components.map(row => ({
@@ -679,7 +678,11 @@ class MusicService {
             
             await message.edit({ components: disabledRows });
         } catch (error) {
-            console.error(`[MusicService] Failed to disable controls:`, error);
+            // Message may have been deleted - clear reference
+            if (error.code === 10008) { // Unknown Message
+                musicCache.setNowPlayingMessage(guildId, null);
+            }
+            // Silent fail for other errors - controls disabling is best effort
         }
     }
 
@@ -723,8 +726,6 @@ class MusicService {
         }
     }
 
-    // ========== FAVORITES ==========
-
     addFavorite(userId, track) {
         return musicCache.addFavorite(userId, track);
     }
@@ -741,8 +742,6 @@ class MusicService {
         return musicCache.isFavorited(userId, trackUrl);
     }
 
-    // ========== HISTORY ==========
-
     addToHistory(userId, track) {
         return musicCache.addToHistory(userId, track);
     }
@@ -755,8 +754,6 @@ class MusicService {
         musicCache.clearHistory(userId);
     }
 
-    // ========== PREFERENCES ==========
-
     getPreferences(userId) {
         return musicCache.getPreferences(userId);
     }
@@ -765,13 +762,9 @@ class MusicService {
         return musicCache.setPreferences(userId, prefs);
     }
 
-    // ========== RECENTLY PLAYED ==========
-
     getRecentlyPlayed(guildId, limit) {
         return musicCache.getRecentlyPlayed(guildId, limit);
     }
-
-    // ========== SEARCH ==========
 
     /**
      * Search for track
@@ -786,8 +779,6 @@ class MusicService {
     async searchPlaylist(query, requester) {
         return lavalinkService.searchPlaylist(query, requester);
     }
-
-    // ========== UTILITIES ==========
 
     /**
      * Get player

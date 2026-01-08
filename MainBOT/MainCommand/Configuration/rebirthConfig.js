@@ -20,9 +20,7 @@
  * - Unlock special features
  */
 
-// ═══════════════════════════════════════════════════════════════════
-// REBIRTH REQUIREMENTS
-// ═══════════════════════════════════════════════════════════════════
+// Rebirth Requirements
 const REBIRTH_LEVEL_REQUIREMENT = 100;
 
 /**
@@ -34,10 +32,7 @@ function canRebirth(level) {
     return level >= REBIRTH_LEVEL_REQUIREMENT;
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// REBIRTH MULTIPLIERS
-// Formula: 1 + (rebirth * MULTIPLIER_PER_REBIRTH)
-// ═══════════════════════════════════════════════════════════════════
+// Rebirth Multipliers - Formula: 1 + (rebirth * MULTIPLIER_PER_REBIRTH)
 const MULTIPLIER_PER_REBIRTH = 0.25;
 const MAX_REBIRTH = 50; // Soft cap for display purposes
 
@@ -61,9 +56,7 @@ function getMultiplierDescription(rebirth) {
     return `x${mult.toFixed(2)} Coins & Gems`;
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// REBIRTH MILESTONES & SPECIAL UNLOCKS
-// ═══════════════════════════════════════════════════════════════════
+// Rebirth Milestones & Special Unlocks
 const REBIRTH_MILESTONES = [
     {
         rebirth: 1,
@@ -157,9 +150,7 @@ function getRebirthTitle(rebirth) {
     return { title: achieved.title, emoji: achieved.titleEmoji };
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// FEATURE UNLOCKS BY REBIRTH
-// ═══════════════════════════════════════════════════════════════════
+// Feature Unlocks By Rebirth
 const REBIRTH_FEATURE_UNLOCKS = {
     OTHER_PLACE: 1,        // Send extra fumos to earn passive income
     REBIRTH_SHOP: 3,       // Access to rebirth-exclusive shop
@@ -180,10 +171,7 @@ function hasRebirthFeature(rebirth, feature) {
     return rebirth >= required;
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// RESET CONFIGURATION
-// What gets reset during rebirth
-// ═══════════════════════════════════════════════════════════════════
+// Reset Configuration - What gets reset during rebirth
 const RESET_CONFIG = {
     // Currency - RESET
     resetCoins: true,
@@ -263,9 +251,7 @@ function getPreservedSummary() {
     ];
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// RARITY PRIORITY FOR FUMO SELECTION
-// ═══════════════════════════════════════════════════════════════════
+// Rarity Priority For Fumo Selection
 const RARITY_PRIORITY = [
     'TRANSCENDENT',
     'ETERNAL',
@@ -301,9 +287,7 @@ function sortFumosByRarity(fumos) {
     });
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// DISPLAY HELPERS
-// ═══════════════════════════════════════════════════════════════════
+// Display Helpers
 const REBIRTH_COLORS = {
     0: '#808080',     // Gray - No rebirth
     1: '#00FF00',     // Green

@@ -17,12 +17,9 @@ const QUEST_CONFIG = {
     categoryDiversityLimit: 2 // Max quests from same category
 };
 
-// ═══════════════════════════════════════════════════════════════════
-// DAILY QUEST POOL - Random selection each day
-// Each quest has minGoal/maxGoal for dynamic requirements
-// ═══════════════════════════════════════════════════════════════════
+// Daily Quest Pool - Random selection each day, each quest has minGoal/maxGoal for dynamic requirements
 const DAILY_QUEST_POOL = [
-    // ─── Gacha Quests ───
+    // Gacha Quests
     { 
         templateId: 'daily_rolls_basic',
         descTemplate: 'Roll {goal} times',
@@ -45,7 +42,7 @@ const DAILY_QUEST_POOL = [
         baseReward: { coins: 6000, gems: 600, tickets: 2 }
     },
 
-    // ─── Prayer Quests ───
+    // Prayer Quests
     { 
         templateId: 'daily_prayers',
         descTemplate: 'Successfully pray {goal} times',
@@ -61,7 +58,7 @@ const DAILY_QUEST_POOL = [
         baseReward: { coins: 15000, gems: 1500, tickets: 4 }
     },
 
-    // ─── Economy Quests ───
+    // Economy Quests
     { 
         templateId: 'daily_coins_earn',
         descTemplate: 'Earn {goal} coins',
@@ -84,7 +81,7 @@ const DAILY_QUEST_POOL = [
         baseReward: { coins: 8000, gems: 200, tickets: 2 }
     },
 
-    // ─── Crafting Quests ───
+    // Crafting Quests
     { 
         templateId: 'daily_crafts',
         descTemplate: 'Craft {goal} items',
@@ -100,7 +97,7 @@ const DAILY_QUEST_POOL = [
         baseReward: { coins: 12000, gems: 1200, tickets: 3 }
     },
 
-    // ─── Gambling Quests ───
+    // Gambling Quests
     { 
         templateId: 'daily_gambles',
         descTemplate: 'Use gamble commands {goal} times',
@@ -123,7 +120,7 @@ const DAILY_QUEST_POOL = [
         baseReward: { coins: 15000, gems: 1500, tickets: 4 }
     },
 
-    // ─── Pet Quests ───
+    // Pet Quests
     { 
         templateId: 'daily_pet_feeds',
         descTemplate: 'Feed your pet {goal} times',
@@ -139,7 +136,7 @@ const DAILY_QUEST_POOL = [
         baseReward: { coins: 4000, gems: 400, tickets: 1 }
     },
 
-    // ─── Collection Quests ───
+    // Collection Quests
     { 
         templateId: 'daily_shinies',
         descTemplate: 'Obtain {goal} shiny fumo(s)',
@@ -155,7 +152,7 @@ const DAILY_QUEST_POOL = [
         baseReward: { coins: 10000, gems: 1000, tickets: 2 }
     },
 
-    // ─── Trading Quests ───
+    // Trading Quests
     { 
         templateId: 'daily_trades',
         descTemplate: 'Complete {goal} trade(s)',
@@ -164,7 +161,7 @@ const DAILY_QUEST_POOL = [
         baseReward: { coins: 5000, gems: 500, tickets: 1 }
     },
 
-    // ─── Market Quests ───
+    // Market Quests
     { 
         templateId: 'daily_market_sales',
         descTemplate: 'Sell {goal} item(s) on market',
@@ -180,7 +177,7 @@ const DAILY_QUEST_POOL = [
         baseReward: { coins: 5000, gems: 500, tickets: 1 }
     },
 
-    // ─── Social Quests ───
+    // Social Quests
     { 
         templateId: 'daily_gifts',
         descTemplate: 'Send {goal} gift(s)',
@@ -189,7 +186,7 @@ const DAILY_QUEST_POOL = [
         baseReward: { coins: 3000, gems: 300, tickets: 1 }
     },
 
-    // ─── Building Quests ───
+    // Building Quests
     { 
         templateId: 'daily_building_collect',
         descTemplate: 'Collect from buildings {goal} times',
@@ -198,7 +195,7 @@ const DAILY_QUEST_POOL = [
         baseReward: { coins: 4000, gems: 400, tickets: 1 }
     },
 
-    // ─── General Quests ───
+    // General Quests
     { 
         templateId: 'daily_claim',
         descTemplate: 'Claim your daily reward',
@@ -214,7 +211,7 @@ const DAILY_QUEST_POOL = [
         baseReward: { coins: 5000, gems: 500, tickets: 2 }
     },
 
-    // ─── Crate Quests ───
+    // Crate Quests
     { 
         templateId: 'daily_crates',
         descTemplate: 'Open {goal} mystery crate(s)',
@@ -223,7 +220,7 @@ const DAILY_QUEST_POOL = [
         baseReward: { coins: 6000, gems: 600, tickets: 2 }
     },
 
-    // ─── Meta Quests ───
+    // Meta Quests
     { 
         templateId: 'daily_complete_quests',
         descTemplate: 'Complete {goal} other quest(s)',
@@ -233,11 +230,9 @@ const DAILY_QUEST_POOL = [
     }
 ];
 
-// ═══════════════════════════════════════════════════════════════════
-// WEEKLY QUEST POOL - Random selection each week
-// ═══════════════════════════════════════════════════════════════════
+// Weekly Quest Pool - Random selection each week
 const WEEKLY_QUEST_POOL = [
-    // ─── Gacha Challenges ───
+    // Gacha Challenges
     { 
         templateId: 'weekly_rolls',
         descTemplate: 'Roll {goal} times',
@@ -253,7 +248,7 @@ const WEEKLY_QUEST_POOL = [
         baseReward: { coins: 60000, gems: 6000, tickets: 15 }
     },
 
-    // ─── Prayer Mastery ───
+    // Prayer Mastery
     { 
         templateId: 'weekly_prayers',
         descTemplate: 'Successfully pray {goal} times',
@@ -262,7 +257,7 @@ const WEEKLY_QUEST_POOL = [
         baseReward: { coins: 75000, gems: 7500, tickets: 20 }
     },
 
-    // ─── Collection Goals ───
+    // Collection Goals
     { 
         templateId: 'weekly_shinies',
         descTemplate: 'Obtain {goal} shiny fumos',
@@ -285,7 +280,7 @@ const WEEKLY_QUEST_POOL = [
         baseReward: { coins: 80000, gems: 8000, tickets: 20 }
     },
 
-    // ─── Crafting Goals ───
+    // Crafting Goals
     { 
         templateId: 'weekly_crafts',
         descTemplate: 'Craft {goal} items',
@@ -294,7 +289,7 @@ const WEEKLY_QUEST_POOL = [
         baseReward: { coins: 50000, gems: 5000, tickets: 15 }
     },
 
-    // ─── Gambling Goals ───
+    // Gambling Goals
     { 
         templateId: 'weekly_gambles',
         descTemplate: 'Use gamble commands {goal} times',
@@ -310,7 +305,7 @@ const WEEKLY_QUEST_POOL = [
         baseReward: { coins: 100000, gems: 10000, tickets: 25 }
     },
 
-    // ─── Economy Goals ───
+    // Economy Goals
     { 
         templateId: 'weekly_coins_earn',
         descTemplate: 'Earn {goal} coins total',
@@ -326,7 +321,7 @@ const WEEKLY_QUEST_POOL = [
         baseReward: { coins: 50000, gems: 5000, tickets: 10 }
     },
 
-    // ─── Pet Goals ───
+    // Pet Goals
     { 
         templateId: 'weekly_pet_hatches',
         descTemplate: 'Hatch {goal} pet egg(s)',
@@ -342,7 +337,7 @@ const WEEKLY_QUEST_POOL = [
         baseReward: { coins: 60000, gems: 6000, tickets: 15 }
     },
 
-    // ─── Building Goals ───
+    // Building Goals
     { 
         templateId: 'weekly_building_upgrades',
         descTemplate: 'Upgrade buildings {goal} times',
@@ -351,7 +346,7 @@ const WEEKLY_QUEST_POOL = [
         baseReward: { coins: 80000, gems: 8000, tickets: 20 }
     },
 
-    // ─── Trading Goals ───
+    // Trading Goals
     { 
         templateId: 'weekly_trades',
         descTemplate: 'Complete {goal} trades',
@@ -360,7 +355,7 @@ const WEEKLY_QUEST_POOL = [
         baseReward: { coins: 60000, gems: 6000, tickets: 15 }
     },
 
-    // ─── Market Goals ───
+    // Market Goals
     { 
         templateId: 'weekly_market_sales',
         descTemplate: 'Sell {goal} items on market',
@@ -376,7 +371,7 @@ const WEEKLY_QUEST_POOL = [
         baseReward: { coins: 60000, gems: 6000, tickets: 15 }
     },
 
-    // ─── Mystery Crate Goals ───
+    // Mystery Crate Goals
     { 
         templateId: 'weekly_crates',
         descTemplate: 'Open {goal} mystery crates',
@@ -385,7 +380,7 @@ const WEEKLY_QUEST_POOL = [
         baseReward: { coins: 60000, gems: 6000, tickets: 15 }
     },
 
-    // ─── Social Goals ───
+    // Social Goals
     { 
         templateId: 'weekly_gifts',
         descTemplate: 'Send {goal} gifts',
@@ -394,7 +389,7 @@ const WEEKLY_QUEST_POOL = [
         baseReward: { coins: 30000, gems: 3000, tickets: 8 }
     },
 
-    // ─── Dedication Goals ───
+    // Dedication Goals
     { 
         templateId: 'weekly_dailies_complete',
         descTemplate: 'Complete all daily quests {goal} days',
@@ -411,9 +406,7 @@ const WEEKLY_QUEST_POOL = [
     }
 ];
 
-// ═══════════════════════════════════════════════════════════════════
-// ACHIEVEMENTS - Permanent milestones with tiered rewards
-// ═══════════════════════════════════════════════════════════════════
+// Achievements - Permanent milestones with tiered rewards
 const ACHIEVEMENTS = [
     {
         id: 'total_rolls',
@@ -546,9 +539,7 @@ const ACHIEVEMENTS = [
     }
 ];
 
-// ═══════════════════════════════════════════════════════════════════
-// QUEST CHAINS - Multi-quest story progressions
-// ═══════════════════════════════════════════════════════════════════
+// Quest Chains - Multi-quest story progressions
 const QUEST_CHAINS = [
     {
         id: 'beginner_path',
@@ -597,9 +588,7 @@ const QUEST_CHAINS = [
     }
 ];
 
-// ═══════════════════════════════════════════════════════════════════
-// QUEST CATEGORIES
-// ═══════════════════════════════════════════════════════════════════
+// Quest Categories
 const QUEST_CATEGORIES = {
     gacha: { name: 'Gacha Quests', icon: '🎲', color: '#FF6B6B', description: 'Roll and collect fumos' },
     prayer: { name: 'Prayer Quests', icon: '🙏', color: '#4ECDC4', description: 'Pray for rewards' },
@@ -618,9 +607,7 @@ const QUEST_CATEGORIES = {
     dedication: { name: 'Dedication', icon: '🔥', color: '#FF6348', description: 'Show commitment' }
 };
 
-// ═══════════════════════════════════════════════════════════════════
-// DIFFICULTY SETTINGS
-// ═══════════════════════════════════════════════════════════════════
+// Difficulty Settings
 const DIFFICULTY_SETTINGS = {
     easy: { name: 'Easy', emoji: '🟢', multiplier: 1.0, color: '#2ECC71' },
     medium: { name: 'Medium', emoji: '🟡', multiplier: 1.5, color: '#F39C12' },
@@ -628,9 +615,7 @@ const DIFFICULTY_SETTINGS = {
     legendary: { name: 'Legendary', emoji: '🟣', multiplier: 3.0, color: '#9B59B6' }
 };
 
-// ═══════════════════════════════════════════════════════════════════
-// BONUS REWARDS CONFIGURATION
-// ═══════════════════════════════════════════════════════════════════
+// Bonus Rewards Configuration
 const BONUS_CONFIG = {
     ALL_DAILIES: { coins: 25000, gems: 2500, tickets: 10 },
     ALL_WEEKLIES: { coins: 250000, gems: 25000, tickets: 75, items: ['MysticOrb(M)'] },
@@ -644,9 +629,7 @@ const BONUS_CONFIG = {
     }
 };
 
-// ═══════════════════════════════════════════════════════════════════
-// HELPER FUNCTIONS
-// ═══════════════════════════════════════════════════════════════════
+// Helper Functions
 function getStreakBonus(streak) {
     const milestones = Object.keys(BONUS_CONFIG.STREAK_MILESTONES)
         .map(Number)
@@ -687,9 +670,6 @@ const QUEST_POOLS = {
     weekly: WEEKLY_QUEST_POOL
 };
 
-// ═══════════════════════════════════════════════════════════════════
-// EXPORTS
-// ═══════════════════════════════════════════════════════════════════
 module.exports = {
     // Config
     QUEST_CONFIG,

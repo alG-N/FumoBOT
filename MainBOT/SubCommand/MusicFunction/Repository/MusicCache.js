@@ -31,8 +31,18 @@ class MusicCache {
         this.FAVORITES_MAX_SIZE = 200;
         this.RECENTLY_PLAYED_MAX = 50;
 
-        // Start cleanup interval
-        setInterval(() => this._cleanup(), 10 * 60 * 1000);
+        // Start cleanup interval (store reference for potential cleanup)
+        this._cleanupInterval = setInterval(() => this._cleanup(), 10 * 60 * 1000);
+    }
+
+    /**
+     * Stop cleanup interval (for graceful shutdown)
+     */
+    stopCleanupInterval() {
+        if (this._cleanupInterval) {
+            clearInterval(this._cleanupInterval);
+            this._cleanupInterval = null;
+        }
     }
 
     // ========== QUEUE MANAGEMENT ==========
@@ -231,8 +241,12 @@ class MusicCache {
         if (!queue) return;
         
         // Filter original tracks to only include those still in queue
-        const currentIds = new Set(queue.tracks.map(t => t.url));
-        queue.tracks = queue.originalTracks.filter(t => currentIds.has(t.url));
+        // Use url with fallback to encoded track data for comparison
+        const currentIds = new Set(queue.tracks.map(t => t.url || t.track?.encoded).filter(Boolean));
+        queue.tracks = queue.originalTracks.filter(t => {
+            const id = t.url || t.track?.encoded;
+            return id && currentIds.has(id);
+        });
         queue.isShuffled = false;
         queue.updatedAt = Date.now();
     }

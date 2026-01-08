@@ -1100,9 +1100,7 @@ module.exports = async (client) => {
                                 break;
                             }
                             
-                            // ═══════════════════════════════════════════════════════════════════
-                            // MAIN QUEST (alterGolden) HANDLER
-                            // ═══════════════════════════════════════════════════════════════════
+                            // Main Quest (alterGolden) Handler
                             case 'mainquest': {
                                 currentView = 'mainquest';
                                 try {
@@ -1204,9 +1202,7 @@ module.exports = async (client) => {
                                 break;
                             }
                             
-                            // ═══════════════════════════════════════════════════════════════════
-                            // CLAIM BUTTON HANDLER
-                            // ═══════════════════════════════════════════════════════════════════
+                            // Claim Button Handler
                             case 'claim': {
                                 const claimResult = await QuestClaimService.claimAll(userId);
                                 
@@ -1268,9 +1264,7 @@ module.exports = async (client) => {
                                 break;
                             }
                             
-                            // ═══════════════════════════════════════════════════════════════════
-                            // REROLL MENU HANDLERS (show which quest to reroll)
-                            // ═══════════════════════════════════════════════════════════════════
+                            // Reroll Menu Handlers (show which quest to reroll)
                             case 'reroll_menu_daily': {
                                 currentView = 'reroll_select';
                                 const currentDate = getCurrentDate();

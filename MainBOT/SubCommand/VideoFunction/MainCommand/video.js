@@ -173,8 +173,6 @@ module.exports = {
      * Handle download with progress updates
      */
     async handleDownload(interaction, url, platform, quality) {
-        console.log('📥 Downloading video...');
-        
         let lastUpdateTime = 0;
         const UPDATE_INTERVAL = 1500; // Update embed every 1.5 seconds to avoid rate limits
         let currentStage = 'initializing';

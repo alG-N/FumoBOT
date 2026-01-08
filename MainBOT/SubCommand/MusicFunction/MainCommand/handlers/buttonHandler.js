@@ -467,9 +467,17 @@ module.exports = {
         await interaction.reply({ embeds: [embed], components: [row] });
 
         const q = musicCache.getQueue(guildId);
-        q.skipVoteTimeout = setTimeout(async () => {
-            musicService.endSkipVote(guildId);
-        }, SKIP_VOTE_TIMEOUT);
+        if (q) {
+            // Clear any existing timeout to prevent memory leaks
+            if (q.skipVoteTimeout) clearTimeout(q.skipVoteTimeout);
+            q.skipVoteTimeout = setTimeout(async () => {
+                try {
+                    musicService.endSkipVote(guildId);
+                } catch (error) {
+                    console.error('Error in skip vote timeout:', error);
+                }
+            }, SKIP_VOTE_TIMEOUT);
+        }
     },
 
     async handleButtonQueuePage(interaction, guildId, pageAction) {
