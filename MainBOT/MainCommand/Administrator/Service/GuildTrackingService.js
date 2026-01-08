@@ -415,56 +415,51 @@ function initializeGuildTracking(client) {
  */
 function createWelcomeEmbed() {
     return new EmbedBuilder()
-        .setTitle('🎉 Thanks for inviting FumoBOT!')
+        .setTitle('🎉 Thank You for Inviting FumoBOT!')
         .setColor(0xFFB6C1) // Light pink - Fumo themed
         .setDescription(
-            'Hello! I\'m **FumoBOT** - your gateway to collecting adorable Fumo plushies and more!\n\n' +
-            'Here\'s a quick guide to get you started:'
+            '### Welcome to the world of Fumo collecting! 🧸\n\n' +
+            'I\'m **FumoBOT** - your companion for collecting adorable Touhou Fumo plushies, playing games, and having fun!\n\n' +
+            '**Getting Started:**\n' +
+            '> Use `.starter` or `/starter` to begin your journey!\n' +
+            '> Use `.help` or `/help` to see all available commands.'
         )
         .addFields(
             {
-                name: '🎴 __Main Commands (Fumo Collection)__',
+                name: '🎴 __Fumo Collection Commands__',
                 value: 
-                    '`/start` - Begin your Fumo journey!\n' +
-                    '`/pray` - Pray for Fumos (free daily!)\n' +
-                    '`/collection` - View your Fumo collection\n' +
-                    '`/daily` - Claim daily rewards\n' +
-                    '`/shop` - Buy items and upgrades\n' +
-                    '`/trade` - Trade Fumos with others\n' +
-                    '`/craft` - Craft special items\n' +
-                    '`/library` - View all available Fumos',
-                inline: false
+                    '`.starter` - Begin your Fumo journey!\n' +
+                    '`.pray` - Pray for Fumos (free daily!)\n' +
+                    '`.col` - View your Fumo collection\n' +
+                    '`.daily` - Claim daily rewards\n' +
+                    '`.shop` - Buy items and upgrades\n' +
+                    '`.trade` - Trade Fumos with others\n' +
+                    '`.library` - View all available Fumos',
+                inline: true
             },
             {
-                name: '🔧 __Sub Commands (Utilities)__',
+                name: '🔧 __Utility Commands__',
                 value: 
                     '`/pixiv` - Search Pixiv artwork\n' +
-                    '`/video` - Download videos (requires Cobalt)\n' +
-                    '`/music` - Play music in voice channels\n' +
+                    '`/video` - Download videos\n' +
+                    '`/music` - Play music in voice\n' +
                     '`/avatar` - Get user avatars\n' +
-                    '`/serverinfo` - Server information',
-                inline: false
+                    '`/serverinfo` - Server info',
+                inline: true
             },
             {
-                name: '💡 __Pro Tips__',
+                name: '💡 __Quick Tips__',
                 value: 
-                    '• Use `/tutorial` to learn the game mechanics\n' +
+                    '• Most commands work with both `.prefix` and `/slash`\n' +
+                    '• Use `.quest` to track daily/weekly quests\n' +
                     '• Join events for exclusive limited Fumos!\n' +
-                    '• Complete quests for bonus rewards\n' +
-                    '• Farm coins with `/farm` commands',
-                inline: false
-            },
-            {
-                name: '🔗 __Links__',
-                value: 
-                    '[Support Server](https://discord.gg/fumobot) • ' +
-                    '[Invite Bot](https://discord.com/oauth2/authorize?client_id=YOUR_CLIENT_ID) • ' +
-                    '[GitHub](https://github.com/alG-N/FumoBOT)',
+                    '• Farm coins with `.farm` commands\n' +
+                    '• Craft items with `.craft`',
                 inline: false
             }
         )
-        .setImage('https://i.imgur.com/placeholder.png') // Replace with actual Fumo banner
-        .setFooter({ text: 'Use /help for full command list • Have fun collecting!' })
+        .setThumbnail('https://i.imgur.com/YFGnL5c.png') // Fumo image
+        .setFooter({ text: 'Use .help for full command list • Have fun collecting! 🌸' })
         .setTimestamp();
 }
 

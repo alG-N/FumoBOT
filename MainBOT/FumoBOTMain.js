@@ -151,12 +151,20 @@ const pixiv = require('./SubCommand/API-Website/Pixiv/pixiv');
 const steam = require('./SubCommand/API-Website/Steam/steam');
 const rule34 = require('./SubCommand/API-Website/Rule34/rule34');
 
+// Admin commands
+const { botCheckCommand } = require('./MainCommand/Administrator');
+
 // Register API commands
 [reddit, pixiv, steam, rule34].forEach(cmd => {
     if (cmd?.data?.name) {
         client.commands.set(cmd.data.name, cmd);
     }
 });
+
+// Register admin slash commands
+if (botCheckCommand?.data?.name) {
+    client.commands.set(botCheckCommand.data.name, botCheckCommand);
+}
 
 // Load SubCommand folder
 loadCommandsRecursively(path.join(__dirname, 'SubCommand'));

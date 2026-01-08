@@ -99,12 +99,34 @@ module.exports = {
             
             await musicService.cleanup(guildId);
             
-            await interaction.editReply({
-                embeds: [trackHandler.createDisconnectedEmbed()],
-                components: []
-            });
+            try {
+                await interaction.editReply({
+                    embeds: [trackHandler.createStoppedByUserEmbed(interaction.user)],
+                    components: []
+                });
+            } catch (editError) {
+                // Message might be deleted or interaction expired
+                if (editError.code === 10008 || editError.code === 10062) {
+                    // Try to send a new message instead
+                    try {
+                        await interaction.channel?.send({
+                            embeds: [trackHandler.createStoppedByUserEmbed(interaction.user)]
+                        });
+                    } catch {
+                        // Channel might not be accessible, ignore
+                    }
+                }
+            }
         } catch (error) {
             console.error('Stop button error:', error);
+            // Try ephemeral reply as fallback
+            try {
+                if (!interaction.replied && !interaction.deferred) {
+                    await interaction.reply({ content: 'Playback stopped.', ephemeral: true });
+                }
+            } catch {
+                // Ignore if we can't respond
+            }
         }
     },
 

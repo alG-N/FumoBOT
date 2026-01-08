@@ -48,6 +48,7 @@ const { registerAdminCommands, ALLOWED_ADMINS } = require('./Command/adminComman
 const { registerBanSystem, banUser, unbanUser, isUserBanned, parseDuration } = require('./Command/banCommands');
 const { registerTicketSystem, initializeTicketSystem, incrementTicketCounter } = require('./Command/ticketCommands');
 const migratePetsCommand = require('./Command/migratePetsCommand');
+const botCheckCommand = require('./Command/botCheckCommand');
 
 // ═══════════════════════════════════════════════════════════════
 // UTILITIES
@@ -89,6 +90,7 @@ module.exports = {
     registerBanSystem,
     registerTicketSystem,
     migratePetsCommand,
+    botCheckCommand,
     
     // Guild Tracking
     initializeGuildTracking,

@@ -1,19 +1,6 @@
 const db = require('../Core/Database/dbSetting');
 const { getWeekIdentifier } = require('../Ultility/timeUtils');
 
-// Lazy-load MainQuestDatabaseService to avoid circular dependencies
-let MainQuestDatabaseService = null;
-function getMainQuestService() {
-    if (!MainQuestDatabaseService) {
-        try {
-            MainQuestDatabaseService = require('../Service/UserDataService/MainQuestService/MainQuestDatabaseService');
-        } catch (e) {
-            console.error('[QuestMiddleware] Could not load MainQuestDatabaseService:', e.message);
-        }
-    }
-    return MainQuestDatabaseService;
-}
-
 /**
  * Universal tracking function that updates progress for any active quest
  * matching the given trackingType
@@ -36,9 +23,8 @@ async function track(userId, trackingType, increment = 1) {
         });
         
         if (activeQuests.length === 0) {
-            // Still track achievements and main quest even if no matching quests
+            // Still track achievements even if no matching quests
             await trackAchievement(userId, trackingType, increment);
-            await trackMainQuest(userId, trackingType, increment);
             return;
         }
         
@@ -114,30 +100,8 @@ async function track(userId, trackingType, increment = 1) {
         // Also track achievements
         await trackAchievement(userId, trackingType, increment);
         
-        // Also track main quest progress
-        await trackMainQuest(userId, trackingType, increment);
-        
     } catch (error) {
         console.error(`[QuestMiddleware] Failed to track ${trackingType} for ${userId}:`, error);
-    }
-}
-
-/**
- * Track main quest progress based on trackingType
- */
-async function trackMainQuest(userId, trackingType, increment = 1) {
-    const mqService = getMainQuestService();
-    if (!mqService) return;
-    
-    try {
-        const result = await mqService.updateTracking(userId, trackingType, increment);
-        if (result && result.quest) {
-            // Quest completed! Could emit an event or log here
-            console.log(`[MainQuest] User ${userId} completed Main Quest ${result.quest.id}: ${result.quest.title}`);
-        }
-    } catch (error) {
-        // Silent fail - main quest tracking shouldn't break regular quests
-        console.error(`[QuestMiddleware] Failed to track main quest for ${userId}:`, error.message);
     }
 }
 

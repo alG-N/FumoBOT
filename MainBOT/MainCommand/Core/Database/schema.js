@@ -84,10 +84,6 @@ function createIndexes() {
         `CREATE INDEX IF NOT EXISTS idx_rebirthProgress_count ON userRebirthProgress(rebirthCount DESC)`,
         `CREATE INDEX IF NOT EXISTS idx_rebirthMilestones_user ON userRebirthMilestones(userId)`,
         
-        // Main Quest System
-        `CREATE INDEX IF NOT EXISTS idx_mainQuestProgress_user ON mainQuestProgress(userId)`,
-        `CREATE INDEX IF NOT EXISTS idx_mainQuestProgress_quest ON mainQuestProgress(currentQuestId)`,
-        
         // Biome System
         `CREATE INDEX IF NOT EXISTS idx_userBiome_user ON userBiome(userId)`,
     ];
@@ -686,20 +682,6 @@ function createIndexes() {
                 UNIQUE(userId, milestoneRebirth)
             )`, (err) => {
                 if (err) console.error('Error creating userRebirthMilestones:', err.message);
-                res();
-            });
-        }));
-        
-        // Main Quest Progress Table (persists through rebirth)
-        tables.push(new Promise((res) => {
-            db.run(`CREATE TABLE IF NOT EXISTS mainQuestProgress (
-                userId TEXT PRIMARY KEY,
-                currentQuestId INTEGER DEFAULT 1,
-                completedQuests TEXT DEFAULT '[]',
-                questTracking TEXT DEFAULT '{}',
-                lastUpdated INTEGER DEFAULT (strftime('%s', 'now') * 1000)
-            )`, (err) => {
-                if (err) console.error('Error creating mainQuestProgress:', err.message);
                 res();
             });
         }));

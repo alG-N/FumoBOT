@@ -24,11 +24,6 @@ const QuestPoolService = require('../../../Service/UserDataService/QuestService/
 const QuestProgressService = require('../../../Service/UserDataService/QuestService/QuestProgressService');
 const QuestClaimService = require('../../../Service/UserDataService/QuestService/QuestClaimService');
 
-// Main Quest imports
-const MainQuestDatabaseService = require('../../../Service/UserDataService/MainQuestService/MainQuestDatabaseService');
-const MainQuestUIService = require('../../../Service/UserDataService/MainQuestService/MainQuestUIService');
-const { QUEST_GIVER, getTotalMainQuests } = require('../../../Configuration/mainQuestConfig');
-
 const INTERACTION_TIMEOUT = 180000;
 const COLORS = {
     MAIN: '#5DADE2',
@@ -567,15 +562,7 @@ function createMainMenuButtons(userId) {
             .setStyle(ButtonStyle.Secondary)
     );
     
-    // Row 2: alterGolden Main Quest
-    const row2 = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-            .setCustomId(buildSecureCustomId('quest_mainquest', userId))
-            .setLabel(`${QUEST_GIVER.emoji} ${QUEST_GIVER.name}`)
-            .setStyle(ButtonStyle.Secondary)
-    );
-    
-    return [row1, row2];
+    return [row1];
 }
 
 /**
@@ -1099,97 +1086,6 @@ module.exports = async (client) => {
                                 });
                                 break;
                             }
-                            
-                            // Main Quest (alterGolden) Handler
-                            case 'mainquest': {
-                                currentView = 'mainquest';
-                                try {
-                                    const progress = await MainQuestDatabaseService.getMainQuestProgress(userId);
-                                    const stats = await MainQuestDatabaseService.getCompletionStats(userId);
-                                    const questProgress = await MainQuestDatabaseService.getCurrentQuestProgress(userId);
-                                    
-                                    const mainQuestEmbed = MainQuestUIService.createMainQuestOverviewEmbed({
-                                        progress,
-                                        stats,
-                                        questProgress,
-                                        user: message.author
-                                    });
-                                    
-                                    const mainQuestButtons = MainQuestUIService.createMainQuestButtons(userId, stats);
-                                    
-                                    await interaction.editReply({
-                                        embeds: [mainQuestEmbed],
-                                        components: [mainQuestButtons]
-                                    });
-                                } catch (err) {
-                                    console.error('[Main Quest] Error loading main quest:', err);
-                                    await interaction.editReply({
-                                        embeds: [new EmbedBuilder()
-                                            .setColor(COLORS.ERROR)
-                                            .setTitle('❌ Error')
-                                            .setDescription('Failed to load main quest. Please try again.')
-                                        ],
-                                        components: createMainMenuButtons(userId)
-                                    });
-                                }
-                                break;
-                            }
-                            
-                            // Main Quest sub-handlers
-                            case 'mq': {
-                                // Parse mq_* commands
-                                // Format: mq_story_{userId}_{timestamp} -> parts[1] = 'story'
-                                const mqAction = parts[1];
-                                
-                                if (mqAction === 'story') {
-                                    const stats = await MainQuestDatabaseService.getCompletionStats(userId);
-                                    if (stats.currentQuest) {
-                                        const storyEmbed = MainQuestUIService.createStoryDialogEmbed(
-                                            stats.currentQuest,
-                                            message.author
-                                        );
-                                        await interaction.editReply({
-                                            embeds: [storyEmbed],
-                                            components: [MainQuestUIService.createMainQuestButtons(userId, stats)]
-                                        });
-                                    }
-                                } else if (mqAction === 'list') {
-                                    // Format: mq_list_{pageNumber}_{userId}_{timestamp}
-                                    const page = parseInt(parts[2]) || 0;
-                                    const progress = await MainQuestDatabaseService.getMainQuestProgress(userId);
-                                    const totalPages = Math.ceil(getTotalMainQuests() / 10);
-                                    
-                                    const listEmbed = MainQuestUIService.createQuestListEmbed(
-                                        progress.completedQuests,
-                                        progress.currentQuestId,
-                                        message.author,
-                                        page
-                                    );
-                                    
-                                    await interaction.editReply({
-                                        embeds: [listEmbed],
-                                        components: [MainQuestUIService.createQuestListButtons(userId, page, totalPages)]
-                                    });
-                                } else if (mqAction === 'refresh' || mqAction === 'back') {
-                                    // Refresh main quest view
-                                    const progress = await MainQuestDatabaseService.getMainQuestProgress(userId);
-                                    const stats = await MainQuestDatabaseService.getCompletionStats(userId);
-                                    const questProgress = await MainQuestDatabaseService.getCurrentQuestProgress(userId);
-                                    
-                                    const mainQuestEmbed = MainQuestUIService.createMainQuestOverviewEmbed({
-                                        progress,
-                                        stats,
-                                        questProgress,
-                                        user: message.author
-                                    });
-                                    
-                                    await interaction.editReply({
-                                        embeds: [mainQuestEmbed],
-                                        components: [MainQuestUIService.createMainQuestButtons(userId, stats)]
-                                    });
-                                }
-                                break;
-                            }
                                 
                             case 'reroll_info': {
                                 currentView = 'reroll';
@@ -1422,29 +1318,6 @@ module.exports = async (client) => {
                                         embeds: [refreshChains],
                                         components: [createBackButton(userId, false, 'daily', refreshHasClaimable)]
                                     });
-                                } else if (currentView === 'mainquest') {
-                                    // Refresh main quest view
-                                    try {
-                                        const progress = await MainQuestDatabaseService.getMainQuestProgress(userId);
-                                        const stats = await MainQuestDatabaseService.getCompletionStats(userId);
-                                        const questProgress = await MainQuestDatabaseService.getCurrentQuestProgress(userId);
-                                        
-                                        const mainQuestEmbed = MainQuestUIService.createMainQuestOverviewEmbed({
-                                            progress,
-                                            stats,
-                                            questProgress,
-                                            user: message.author
-                                        });
-                                        
-                                        const mainQuestButtons = MainQuestUIService.createMainQuestButtons(userId, stats);
-                                        
-                                        await interaction.editReply({
-                                            embeds: [mainQuestEmbed],
-                                            components: [mainQuestButtons]
-                                        });
-                                    } catch (err) {
-                                        console.error('[Main Quest] Error refreshing:', err);
-                                    }
                                 } else {
                                     const refreshMain = buildMainMenuEmbed(userId, streak, rerollsUsed);
                                     await interaction.editReply({ embeds: [refreshMain], components: createMainMenuButtons(userId) });

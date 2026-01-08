@@ -8,7 +8,7 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelect
 const musicCache = require('../Repository/MusicCache');
 const { fmtDur, formatViewCount } = require('../Utility/formatters');
 
-// Enhanced color scheme with gradient-like feel
+// Enhanced color scheme
 const COLORS = {
     playing: '#1DB954',      // Spotify green
     paused: '#FFA500',       // Warm orange
@@ -23,7 +23,7 @@ const COLORS = {
     history: '#3498DB'       // Sky blue for history
 };
 
-// Loop mode display with enhanced labels
+// Loop mode display
 const LOOP_DISPLAY = {
     'off': { emoji: '➡️', text: 'Off', label: 'No Repeat' },
     'track': { emoji: '🔂', text: 'Song', label: 'Repeat Song' },
@@ -38,14 +38,10 @@ const SOURCE_PLATFORM = {
     unknown: { emoji: '🎵', fallback: '🎵', name: 'Music', color: COLORS.info }
 };
 
-// Visual separators and decorations
+// Minimal decorations (for backwards compatibility)
 const DECORATIONS = {
-    line: '───────────────────────────',
-    dotLine: '• • • • • • • • • • • • • • •',
-    sparkle: '✨',
-    musicNote: '♪',
-    nowPlaying: '🎶 NOW PLAYING 🎶',
-    paused: '⏸️ PAUSED ⏸️'
+    line: '',
+    dotLine: ''
 };
 
 class TrackHandler {
@@ -72,7 +68,7 @@ class TrackHandler {
     }
 
     /**
-     * Create now playing embed - Enhanced version
+     * Create now playing embed - Clean version
      */
     createNowPlayingEmbed(track, options = {}) {
         const {
@@ -91,75 +87,56 @@ class TrackHandler {
         const color = isPaused ? COLORS.paused : COLORS.playing;
         const loopInfo = LOOP_DISPLAY[loopMode];
 
+        const statusIcon = isPaused ? '⏸️ PAUSED' : '🎵 NOW PLAYING';
+
         const embed = new EmbedBuilder()
             .setColor(color)
-            .setAuthor({
-                name: isPaused ? DECORATIONS.paused : DECORATIONS.nowPlaying,
-                iconURL: 'https://cdn.discordapp.com/emojis/741605543046807626.gif' // Music wave gif
-            })
+            .setAuthor({ name: statusIcon })
             .setTitle(track.title)
             .setURL(track.url);
 
-        // Build rich description
+        // Build clean description
         const descLines = [];
-        descLines.push(`${DECORATIONS.line}`);
-        descLines.push('');
-        descLines.push(`👤 **Artist:** ${track.author || 'Unknown Artist'}`);
-        descLines.push(`⏱️ **Duration:** \`${fmtDur(track.lengthSeconds)}\``);
-        
-        if (track.viewCount) {
-            descLines.push(`👁️ **Views:** ${formatViewCount(track.viewCount)}`);
-        }
-        
-        descLines.push(`📀 **Source:** ${sourceInfo.fallback} ${sourceInfo.name}`);
-        descLines.push('');
-        descLines.push(`${DECORATIONS.line}`);
+        descLines.push(`**Artist:** ${track.author || 'Unknown Artist'}`);
+        descLines.push(`**Duration:** ${fmtDur(track.lengthSeconds)}`);
+        descLines.push(`**Source:** ${sourceInfo.fallback} ${sourceInfo.name}`);
 
         embed.setDescription(descLines.join('\n'));
 
-        // Status field with visual indicators
-        const statusItems = [];
-        
-        // Volume with visual bar
+        // Playback Settings - compact inline format
         const volBar = this._createVolumeBar(volume);
-        statusItems.push(`🔊 \`${volume}%\` ${volBar}`);
-        
-        // Loop status
-        statusItems.push(`${loopInfo.emoji} **Loop:** ${loopInfo.label}`);
-        
-        // Shuffle
-        statusItems.push(isShuffled ? '🔀 **Shuffle:** On' : '➡️ **Shuffle:** Off');
-
         embed.addFields({
-            name: '⚙️ Playback Settings',
-            value: statusItems.join('\n'),
-            inline: false
+            name: 'Playback Settings',
+            value: [
+                `${volBar} ${volume}%`,
+                `**Loop:** ${loopInfo.label}`,
+                `**Shuffle:** ${isShuffled ? 'On' : 'Off'}`
+            ].join('\n'),
+            inline: true
         });
 
-        // Queue info with visual
+        // Queue info - only if there's a queue
         if (queueLength > 0 || nextTrack) {
             const queueLines = [];
-            queueLines.push(`📋 **${queueLength}** song${queueLength !== 1 ? 's' : ''} in queue`);
+            queueLines.push(`**${queueLength}** song${queueLength !== 1 ? 's' : ''} in queue`);
             
             if (nextTrack) {
-                queueLines.push('');
-                queueLines.push(`⏭️ **Up Next:**`);
-                queueLines.push(`┗ ${this._truncate(nextTrack.title, 35)}`);
+                queueLines.push(`**Up Next:** ${this._truncate(nextTrack.title, 30)}`);
             }
             
             embed.addFields({
-                name: '📊 Queue Status',
+                name: 'Queue',
                 value: queueLines.join('\n'),
-                inline: false
+                inline: true
             });
         }
 
-        // Thumbnail - use setThumbnail for side display, setImage for large
+        // Thumbnail
         if (track.thumbnail) {
             embed.setThumbnail(track.thumbnail);
         }
 
-        // Footer with requester info only
+        // Footer with requester info
         if (track.requestedBy) {
             embed.setFooter({
                 text: `Requested by ${track.requestedBy.displayName || track.requestedBy.username}`,
@@ -182,7 +159,7 @@ class TrackHandler {
     }
 
     /**
-     * Create control buttons - Enhanced with labels
+     * Create control buttons - Clean with labels
      */
     createControlButtons(guildId, options = {}) {
         const {
@@ -280,29 +257,24 @@ class TrackHandler {
     }
 
     /**
-     * Create queued track embed - Enhanced
+     * Create queued track embed - Clean version
      */
     createQueuedEmbed(track, position, requester) {
         const sourceInfo = this._getSourceInfo(track);
         
         const embed = new EmbedBuilder()
             .setColor(COLORS.queued)
-            .setAuthor({
-                name: '📥 Added to Queue',
-                iconURL: requester?.displayAvatarURL?.() || null
-            })
+            .setAuthor({ name: 'Added to Queue' })
             .setTitle(track.title)
             .setURL(track.url)
             .setDescription(
-                `${DECORATIONS.dotLine}\n\n` +
-                `👤 **Artist:** ${track.author || 'Unknown Artist'}\n` +
-                `⏱️ **Duration:** \`${fmtDur(track.lengthSeconds)}\`\n` +
-                `📀 **Source:** ${sourceInfo.fallback} ${sourceInfo.name}\n\n` +
-                `${DECORATIONS.dotLine}`
+                `**Artist:** ${track.author || 'Unknown Artist'}\n` +
+                `**Duration:** ${fmtDur(track.lengthSeconds)}\n` +
+                `**Source:** ${sourceInfo.fallback} ${sourceInfo.name}`
             )
             .addFields({
-                name: '📍 Position in Queue',
-                value: position === 0 ? '🎵 **Playing Next!**' : `\`#${position}\` in line`,
+                name: 'Position',
+                value: position === 0 ? 'Playing Next!' : `#${position} in queue`,
                 inline: true
             });
 
@@ -323,26 +295,21 @@ class TrackHandler {
     }
 
     /**
-     * Create priority queued embed - Enhanced
+     * Create priority queued embed - Clean version
      */
     createPriorityQueuedEmbed(track, requester) {
         const sourceInfo = this._getSourceInfo(track);
         
         const embed = new EmbedBuilder()
             .setColor(COLORS.success)
-            .setAuthor({
-                name: '⚡ Priority Added - Playing Next!',
-                iconURL: requester?.displayAvatarURL?.() || null
-            })
+            .setAuthor({ name: 'Priority Added - Playing Next!' })
             .setTitle(track.title)
             .setURL(track.url)
             .setDescription(
-                `${DECORATIONS.dotLine}\n\n` +
-                `👤 **Artist:** ${track.author || 'Unknown Artist'}\n` +
-                `⏱️ **Duration:** \`${fmtDur(track.lengthSeconds)}\`\n` +
-                `📀 **Source:** ${sourceInfo.fallback} ${sourceInfo.name}\n\n` +
-                `✨ *This track was added to the front of the queue!*\n\n` +
-                `${DECORATIONS.dotLine}`
+                `**Artist:** ${track.author || 'Unknown Artist'}\n` +
+                `**Duration:** ${fmtDur(track.lengthSeconds)}\n` +
+                `**Source:** ${sourceInfo.fallback} ${sourceInfo.name}\n\n` +
+                `*This track was added to the front of the queue.*`
             );
 
         if (track.thumbnail) {
@@ -362,21 +329,16 @@ class TrackHandler {
     }
 
     /**
-     * Create playlist queued embed - Enhanced
+     * Create playlist queued embed - Clean version
      */
     createPlaylistEmbed(playlistName, trackCount, requester, firstTrack) {
         const embed = new EmbedBuilder()
             .setColor(COLORS.queued)
-            .setAuthor({
-                name: '📑 Playlist Added',
-                iconURL: requester?.displayAvatarURL?.() || null
-            })
+            .setAuthor({ name: 'Playlist Added' })
             .setTitle(playlistName || 'Playlist')
             .setDescription(
-                `${DECORATIONS.line}\n\n` +
-                `📋 **Total Tracks:** \`${trackCount}\`\n` +
-                `▶️ **First Track:** ${firstTrack?.title || 'Loading...'}\n\n` +
-                `${DECORATIONS.line}`
+                `**Total Tracks:** ${trackCount}\n` +
+                `**First Track:** ${firstTrack?.title || 'Loading...'}`
             );
 
         if (firstTrack?.thumbnail) {
@@ -396,7 +358,7 @@ class TrackHandler {
     }
 
     /**
-     * Create queue list embed - Enhanced
+     * Create queue list embed - Clean version
      */
     createQueueListEmbed(tracks, currentTrack, options = {}) {
         const { page = 1, perPage = 10, loopMode = 'off', isShuffled = false, volume = 100 } = options;
@@ -408,15 +370,14 @@ class TrackHandler {
 
         const embed = new EmbedBuilder()
             .setColor(COLORS.info)
-            .setAuthor({ name: '📋 Music Queue' });
+            .setAuthor({ name: 'Music Queue' });
 
         // Current track section
         if (currentTrack) {
-            embed.setTitle('🎵 Now Playing')
+            embed.setTitle('Now Playing')
             embed.setDescription(
                 `**[${currentTrack.title}](${currentTrack.url})**\n` +
-                `👤 ${currentTrack.author || 'Unknown'} • ⏱️ ${fmtDur(currentTrack.lengthSeconds)}\n` +
-                `${DECORATIONS.line}`
+                `${currentTrack.author || 'Unknown'} • ${fmtDur(currentTrack.lengthSeconds)}`
             );
             
             if (currentTrack.thumbnail) {
@@ -430,7 +391,7 @@ class TrackHandler {
                 const position = start + i + 1;
                 const title = this._truncate(track.title, 40);
                 const duration = fmtDur(track.lengthSeconds);
-                return `\`${String(position).padStart(2, '0')}.\` [${title}](${track.url})\n　　 ⏱️ ${duration} • 👤 ${this._truncate(track.author || 'Unknown', 20)}`;
+                return `\`${String(position).padStart(2, '0')}.\` [${title}](${track.url})\n　　 ${duration} • ${this._truncate(track.author || 'Unknown', 20)}`;
             }).join('\n\n');
 
             embed.addFields({ 
@@ -644,22 +605,29 @@ class TrackHandler {
     }
 
     /**
-     * Create disconnected embed - Enhanced
+     * Create disconnected embed - Clean version
      */
     createDisconnectedEmbed() {
         return new EmbedBuilder()
             .setColor(COLORS.warning)
-            .setAuthor({ name: '👋 Disconnected' })
-            .setTitle('Left the voice channel')
-            .setDescription(
-                `The bot has disconnected due to inactivity.\n\n` +
-                `Use \`/music play\` to start playing again!`
-            )
+            .setAuthor({ name: 'Disconnected' })
+            .setDescription('Left the voice channel due to inactivity.\nUse `/music play` to start playing again!')
             .setTimestamp();
     }
 
     /**
-     * Create favorites list embed - Enhanced
+     * Create stopped by user embed
+     */
+    createStoppedByUserEmbed(user) {
+        return new EmbedBuilder()
+            .setColor(COLORS.stopped)
+            .setAuthor({ name: 'Playback Stopped' })
+            .setDescription(`Music was stopped by ${user?.displayName || user?.username || 'a user'}`)
+            .setTimestamp();
+    }
+
+    /**
+     * Create favorites list embed
      */
     createFavoritesEmbed(favorites, userId, page = 1, perPage = 10) {
         const totalPages = Math.ceil(favorites.length / perPage) || 1;
