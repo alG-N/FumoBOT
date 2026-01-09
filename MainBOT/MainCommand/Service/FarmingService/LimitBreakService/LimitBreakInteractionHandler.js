@@ -1,8 +1,8 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const { get, run } = require('../../../Core/database');
 const { logToDiscord, LogLevel } = require('../../../Core/logger');
-const { 
-    getRequirementForUser, 
+const {
+    getRequirementForUser,
     clearRequirementForUser,
     validateUserHasFumos,
     getTierInfo,
@@ -15,16 +15,10 @@ const {
     TRAIT_HIERARCHY
 } = require('./LimitBreakRequirement');
 
-// ============================================================
-// CONSTANTS
-// ============================================================
 const MAX_FRAGMENT_USES = 30;
 const FRAGMENT_NAME = 'FragmentOf1800s(R)';
 const BASE_FARM_LIMIT = 5;
 
-// ============================================================
-// TIER COLORS FOR UI
-// ============================================================
 const TIER_COLORS = {
     NOVICE: 0x90EE90,      // Light green
     ADEPT: 0x4169E1,       // Royal blue
@@ -42,7 +36,7 @@ async function handleLimitBreakerInteraction(interaction, userId, message, clien
 
     if (customId.startsWith('open_limitbreaker_')) {
         await openLimitBreakerMenu(interaction, userId);
-    } 
+    }
     else if (customId.startsWith('limitbreak_confirm_')) {
         await handleLimitBreakConfirm(interaction, userId, message, client);
     }
@@ -92,11 +86,11 @@ async function handleLimitBreakBack(interaction, userId) {
 
     try {
         const username = interaction.user.username;
-        
+
         const { getFarmStatusData, createFarmStatusEmbed } = require('../FarmStatusHelper');
         const farmData = await getFarmStatusData(userId, username);
         const embed = createFarmStatusEmbed(farmData);
-        
+
         const mainButtons = new ActionRowBuilder()
             .addComponents(
                 new ButtonBuilder()
@@ -106,7 +100,15 @@ async function handleLimitBreakBack(interaction, userId) {
                 new ButtonBuilder()
                     .setCustomId(`open_limitbreaker_${userId}`)
                     .setLabel('⚡ Limit Breaker')
-                    .setStyle(ButtonStyle.Danger)
+                    .setStyle(ButtonStyle.Danger),
+                new ButtonBuilder()
+                    .setCustomId(isBiomeUnlocked ? `open_biome_${userId}` : `locked_biome_${userId}`)
+                    .setLabel(isBiomeUnlocked ? '🌍 Biome' : `🔒 Biome (Lv.${BIOME_UNLOCK_LEVEL})`)
+                    .setStyle(isBiomeUnlocked ? ButtonStyle.Success : ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId(isOtherPlaceUnlocked ? `open_otherplace_${userId}` : `locked_otherplace_${userId}`)
+                    .setLabel(isOtherPlaceUnlocked ? '🌌 Other Place' : '🔒 Other Place (♻️1)')
+                    .setStyle(isOtherPlaceUnlocked ? ButtonStyle.Success : ButtonStyle.Secondary)
             );
 
         await interaction.editReply({
@@ -119,7 +121,7 @@ async function handleLimitBreakBack(interaction, userId) {
             await interaction.followUp({
                 content: '❌ Failed to return to farm status.',
                 ephemeral: true
-            }).catch(() => {});
+            }).catch(() => { });
         }
     }
 }
@@ -179,7 +181,7 @@ async function handleLimitBreakConfirm(interaction, userId, message, client) {
 
         const requirementData = getRequirementForUser(userId, breaks + 1);
         const reqs = calculateResourceRequirements(breaks); // Use the new function
-        
+
         const validation = await validateResources(userId, reqs, requirementData.requirements.fumos);
 
         if (!validation.valid) {
@@ -190,7 +192,7 @@ async function handleLimitBreakConfirm(interaction, userId, message, client) {
         }
 
         await consumeResources(userId, reqs, validation.fumoIds);
-        
+
         if (checkRow) {
             await run(`UPDATE userUpgrades SET limitBreaks = limitBreaks + 1 WHERE userId = ?`, [userId]);
         } else {
@@ -256,17 +258,17 @@ async function validateResources(userId, reqs, requiredFumos) {
         return { valid: false, error: `❌ You're missing required Fumos: ${missingList}` };
     }
 
-    return { 
-        valid: true, 
+    return {
+        valid: true,
         fumoIds: fumoValidation.map(v => v.id)
     };
 }
 
 async function consumeResources(userId, reqs, fumoIds) {
     await Promise.all([
-        run(`UPDATE userInventory SET quantity = quantity - ? WHERE userId = ? AND itemName = ?`, 
+        run(`UPDATE userInventory SET quantity = quantity - ? WHERE userId = ? AND itemName = ?`,
             [reqs.fragments, userId, 'FragmentOf1800s(R)']),
-        run(`UPDATE userInventory SET quantity = quantity - ? WHERE userId = ? AND itemName = ?`, 
+        run(`UPDATE userInventory SET quantity = quantity - ? WHERE userId = ? AND itemName = ?`,
             [reqs.nullified, userId, 'Nullified(?)'])
     ]);
 
@@ -282,39 +284,39 @@ function createProgressBar(current, max, length = 10) {
     const percentage = current / max;
     const filled = Math.round(percentage * length);
     const empty = length - filled;
-    
+
     const filledChar = '█';
     const emptyChar = '░';
-    
+
     return `${filledChar.repeat(filled)}${emptyChar.repeat(empty)} ${(percentage * 100).toFixed(1)}%`;
 }
 
 function createLimitBreakerEmbed(data) {
-    const { 
+    const {
         currentBreaks, fragmentUses, requirements, requiredFumos, fumoValidation, inventory,
-        isFragmentPhase, fragmentsRemaining, maxFragmentUses, totalFarmLimit 
+        isFragmentPhase, fragmentsRemaining, maxFragmentUses, totalFarmLimit
     } = data;
     const nextBreakNumber = currentBreaks + 1;
     const canBreak = currentBreaks < MAX_LIMIT_BREAKS;
-    
+
     // Get tier and milestone info
     const tier = getTierInfo(nextBreakNumber);
     const milestone = getMilestoneInfo(nextBreakNumber);
     const nextMilestone = getNextMilestone(nextBreakNumber);
-    
+
     // Use fragment color if in fragment phase
-    const embedColor = isFragmentPhase 
-        ? FRAGMENT_COLOR 
+    const embedColor = isFragmentPhase
+        ? FRAGMENT_COLOR
         : (milestone ? MILESTONE_COLOR : (TIER_COLORS[tier.key] || 0xFFD700));
 
     const embed = new EmbedBuilder()
         .setTitle(
-            isFragmentPhase 
-                ? '🔮 Fragment Enhancement Phase' 
+            isFragmentPhase
+                ? '🔮 Fragment Enhancement Phase'
                 : (milestone ? `🌟 MILESTONE: ${milestone.name}` : `⚡ Limit Breaker - ${tier.emoji} ${tier.name} Tier`)
         )
         .setColor(canBreak ? embedColor : 0xFF0000);
-    
+
     if (!canBreak && !isFragmentPhase) {
         embed.setDescription(
             '**🏆 MAXIMUM LIMIT BREAKS REACHED!**\n\n' +
@@ -329,7 +331,7 @@ function createLimitBreakerEmbed(data) {
     // ============================================================
     if (isFragmentPhase) {
         const fragmentProgressBar = createProgressBar(fragmentUses, maxFragmentUses, 15);
-        
+
         embed.setDescription(
             '**🔮 Use Fragments to increase your farm limit!**\n\n' +
             'Before performing Limit Breaks, you must first use all your Fragment enhancements.\n' +
@@ -339,7 +341,7 @@ function createLimitBreakerEmbed(data) {
 
         embed.addFields({
             name: '📊 Fragment Progress',
-            value: 
+            value:
                 `**Used:** ${fragmentUses} / ${maxFragmentUses}\n` +
                 `${fragmentProgressBar}\n` +
                 `**Remaining Slots:** ${fragmentsRemaining}`,
@@ -348,7 +350,7 @@ function createLimitBreakerEmbed(data) {
 
         embed.addFields({
             name: '📦 Your Fragments',
-            value: 
+            value:
                 `**Available:** ${inventory.fragments}x FragmentOf1800s(R)\n` +
                 `**Can Use:** ${Math.min(inventory.fragments, fragmentsRemaining)}`,
             inline: true
@@ -365,7 +367,7 @@ function createLimitBreakerEmbed(data) {
             const nextReqs = requirements;
             embed.addFields({
                 name: '🔮 Next Phase: Limit Breaking',
-                value: 
+                value:
                     `After using all ${maxFragmentUses} fragments, you'll unlock Limit Breaking!\n` +
                     `**First Limit Break requires:**\n` +
                     `• ${nextReqs.fragments}x FragmentOf1800s(R)\n` +
@@ -375,18 +377,18 @@ function createLimitBreakerEmbed(data) {
             });
         }
 
-        embed.setFooter({ 
-            text: `🔮 Fragment Phase | ${fragmentsRemaining} slots remaining` 
+        embed.setFooter({
+            text: `🔮 Fragment Phase | ${fragmentsRemaining} slots remaining`
         });
-        
+
         embed.setTimestamp();
         return embed;
     }
-    
+
     // ============================================================
     // LIMIT BREAK PHASE UI (existing logic)
     // ============================================================
-    
+
     // Build description
     let description = '';
     if (milestone) {
@@ -395,15 +397,15 @@ function createLimitBreakerEmbed(data) {
     description += `*${tier.description}*\n\n`;
     description += '**Break through your farming limits!**\n';
     description += 'Sacrifice specific items to gain additional farming slots.\n';
-    
+
     embed.setDescription(description);
 
     // Status with progress bar
     const progressBar = createProgressBar(currentBreaks, MAX_LIMIT_BREAKS, 15);
-    
+
     embed.addFields({
         name: '📊 Limit Break Status',
-        value: 
+        value:
             `**Progress:** ${currentBreaks} / ${MAX_LIMIT_BREAKS}\n` +
             `${progressBar}\n` +
             `**Current Tier:** ${tier.emoji} ${tier.name}\n` +
@@ -414,10 +416,10 @@ function createLimitBreakerEmbed(data) {
     // Resource requirements
     const hasFragments = inventory.fragments >= requirements.fragments;
     const hasNullified = inventory.nullified >= requirements.nullified;
-    
+
     embed.addFields({
         name: `💎 Resource Requirements (#${nextBreakNumber})`,
-        value: 
+        value:
             `${hasFragments ? '✅' : '❌'} **${requirements.fragments}x** FragmentOf1800s(R)\n` +
             `${hasNullified ? '✅' : '❌'} **${requirements.nullified}x** Nullified(?)`,
         inline: true
@@ -429,14 +431,14 @@ function createLimitBreakerEmbed(data) {
         const req = requiredFumos[i];
         const validation = fumoValidation[i];
         const status = validation?.found ? '✅' : '❌';
-        
+
         let displayName = req.name;
         if (req.allowAnyTrait) {
             displayName += ' *(any trait)*';
         } else if (req.allowHigherTrait) {
             displayName += ' *(or higher trait)*';
         }
-        
+
         fumoRequirementText += `${status} **1x** ${displayName}\n`;
     }
 
@@ -449,7 +451,7 @@ function createLimitBreakerEmbed(data) {
     // User inventory
     embed.addFields({
         name: '📦 Your Resources',
-        value: 
+        value:
             `Fragments: **${inventory.fragments}**\n` +
             `Nullified: **${inventory.nullified}**`,
         inline: false
@@ -475,13 +477,13 @@ function createLimitBreakerEmbed(data) {
         const tierKeys = Object.keys(TIER_CONFIG);
         const currentIdx = tierKeys.indexOf(tier.key);
         const nextTier = currentIdx < tierKeys.length - 1 ? TIER_CONFIG[tierKeys[currentIdx + 1]] : null;
-        
+
         let progressText = `**In ${tier.name}:** ${stagesInTier + 1}/${totalInTier} stages`;
         if (nextTier) {
             const stagesToNext = max - nextBreakNumber + 1;
             progressText += `\n**Next tier (${nextTier.emoji} ${nextTier.name}):** ${stagesToNext} stages away`;
         }
-        
+
         embed.addFields({
             name: '📈 Tier Progression',
             value: progressText,
@@ -489,10 +491,10 @@ function createLimitBreakerEmbed(data) {
         });
     }
 
-    embed.setFooter({ 
-        text: `⚡ ${tier.emoji} ${tier.name} Tier | Stage ${nextBreakNumber}/${MAX_LIMIT_BREAKS}` 
+    embed.setFooter({
+        text: `⚡ ${tier.emoji} ${tier.name} Tier | Stage ${nextBreakNumber}/${MAX_LIMIT_BREAKS}`
     });
-    
+
     embed.setTimestamp();
 
     return embed;
@@ -504,11 +506,11 @@ function getStageDescription(stage) {
 }
 
 function createLimitBreakerButtons(userId, data) {
-    const { 
+    const {
         currentBreaks, requirements, fumoValidation, inventory,
-        isFragmentPhase, canUseFragment, fragmentsRemaining 
+        isFragmentPhase, canUseFragment, fragmentsRemaining
     } = data;
-    
+
     const rows = [];
     const row1 = new ActionRowBuilder();
 
@@ -535,7 +537,7 @@ function createLimitBreakerButtons(userId, data) {
                     .setDisabled(!canUseFragment)
             );
         }
-    } 
+    }
     // ============================================================
     // LIMIT BREAK PHASE BUTTONS
     // ============================================================
@@ -553,7 +555,7 @@ function createLimitBreakerButtons(userId, data) {
                 .setDisabled(!canBreak)
         );
     }
-    
+
     // Back button always present
     row1.addComponents(
         new ButtonBuilder()
@@ -572,7 +574,7 @@ function createSuccessEmbed(newBreaks, totalLimit, reqs, requiredFumos) {
     const milestone = getMilestoneInfo(newBreaks);
     const previousTier = getTierInfo(newBreaks - 1);
     const tierAdvanced = tier.key !== previousTier.key;
-    
+
     const embed = new EmbedBuilder()
         .setTitle(milestone ? `🌟 MILESTONE ACHIEVED: ${milestone.name}!` : '⚡ LIMIT BREAK SUCCESSFUL!')
         .setColor(milestone ? MILESTONE_COLOR : (TIER_COLORS[tier.key] || 0x00FF00))
@@ -588,7 +590,7 @@ function createSuccessEmbed(newBreaks, totalLimit, reqs, requiredFumos) {
         )
         .setFooter({ text: `Progress: ${newBreaks} / ${MAX_LIMIT_BREAKS} | ${tier.emoji} ${tier.name} Tier` })
         .setTimestamp();
-    
+
     // Add milestone bonus info
     if (milestone) {
         embed.addFields({
@@ -597,7 +599,7 @@ function createSuccessEmbed(newBreaks, totalLimit, reqs, requiredFumos) {
             inline: false
         });
     }
-    
+
     // Add tier advancement notification
     if (tierAdvanced) {
         embed.addFields({
@@ -606,7 +608,7 @@ function createSuccessEmbed(newBreaks, totalLimit, reqs, requiredFumos) {
             inline: false
         });
     }
-    
+
     return embed;
 }
 
@@ -694,13 +696,13 @@ async function handleFragmentUse(interaction, userId, client) {
             .setDescription(
                 reachedMax
                     ? `**Congratulations!** You've used all ${MAX_FRAGMENT_USES} fragments!\n\n` +
-                      `🏡 **New Farm Limit:** ${newLimit} slots\n\n` +
-                      `⚡ **Limit Breaking is now unlocked!**\n` +
-                      `Continue upgrading by performing Limit Breaks.`
+                    `🏡 **New Farm Limit:** ${newLimit} slots\n\n` +
+                    `⚡ **Limit Breaking is now unlocked!**\n` +
+                    `Continue upgrading by performing Limit Breaks.`
                     : `**Fragment consumed!**\n\n` +
-                      `🔮 **Progress:** ${newUses} / ${MAX_FRAGMENT_USES}\n` +
-                      `🏡 **New Farm Limit:** ${newLimit} slots\n` +
-                      `📦 **Fragments remaining:** ${availableFragments - 1}`
+                    `🔮 **Progress:** ${newUses} / ${MAX_FRAGMENT_USES}\n` +
+                    `🏡 **New Farm Limit:** ${newLimit} slots\n` +
+                    `📦 **Fragments remaining:** ${availableFragments - 1}`
             )
             .setTimestamp();
 
@@ -860,13 +862,13 @@ async function handleFragmentModalSubmit(interaction, userId, client) {
             .setDescription(
                 reachedMax
                     ? `**Congratulations!** You've used all ${MAX_FRAGMENT_USES} fragments!\n\n` +
-                      `🔮 **Fragments Used:** ${quantity}\n` +
-                      `🏡 **New Farm Limit:** ${newLimit} slots\n\n` +
-                      `⚡ **Limit Breaking is now unlocked!**`
+                    `🔮 **Fragments Used:** ${quantity}\n` +
+                    `🏡 **New Farm Limit:** ${newLimit} slots\n\n` +
+                    `⚡ **Limit Breaking is now unlocked!**`
                     : `**${quantity} Fragment(s) consumed!**\n\n` +
-                      `🔮 **Progress:** ${newUses} / ${MAX_FRAGMENT_USES}\n` +
-                      `🏡 **New Farm Limit:** ${newLimit} slots\n` +
-                      `📦 **Fragments remaining:** ${available - quantity}`
+                    `🔮 **Progress:** ${newUses} / ${MAX_FRAGMENT_USES}\n` +
+                    `🏡 **New Farm Limit:** ${newLimit} slots\n` +
+                    `📦 **Fragments remaining:** ${available - quantity}`
             )
             .setTimestamp();
 

@@ -132,6 +132,68 @@ async function getUserBiomeData(userId) {
 }
 
 /**
+ * Get user's unlocked biomes
+ * @param {string} userId 
+ * @returns {Promise<string[]>}
+ */
+async function getUnlockedBiomes(userId) {
+    const row = await get(
+        `SELECT unlockedBiomes FROM userBiome WHERE userId = ?`,
+        [userId]
+    );
+    
+    if (row?.unlockedBiomes) {
+        try {
+            return JSON.parse(row.unlockedBiomes);
+        } catch (e) {
+            return ['GRASSLAND']; // Default always unlocked
+        }
+    }
+    
+    return ['GRASSLAND']; // Default always unlocked
+}
+
+/**
+ * Check if user has unlocked a biome
+ * @param {string} userId 
+ * @param {string} biomeId 
+ * @returns {Promise<boolean>}
+ */
+async function hasBiomeUnlocked(userId, biomeId) {
+    if (biomeId === 'GRASSLAND') return true; // Always unlocked
+    
+    const unlocked = await getUnlockedBiomes(userId);
+    return unlocked.includes(biomeId);
+}
+
+/**
+ * Unlock a biome for user (after payment)
+ * @param {string} userId 
+ * @param {string} biomeId 
+ * @returns {Promise<{success: boolean}>}
+ */
+async function unlockBiome(userId, biomeId) {
+    const unlocked = await getUnlockedBiomes(userId);
+    
+    if (unlocked.includes(biomeId)) {
+        return { success: true }; // Already unlocked
+    }
+    
+    unlocked.push(biomeId);
+    
+    await run(
+        `INSERT INTO userBiome (userId, unlockedBiomes)
+         VALUES (?, ?)
+         ON CONFLICT(userId) DO UPDATE SET
+            unlockedBiomes = excluded.unlockedBiomes`,
+        [userId, JSON.stringify(unlocked)]
+    );
+    
+    debugLog('BIOME', `User ${userId} unlocked biome ${biomeId}`);
+    return { success: true };
+}
+
+/**
  * Reset user biome to default (admin function or rebirth reset)
  * @param {string} userId 
  * @param {boolean} resetCooldown - Whether to also reset the cooldown
@@ -166,5 +228,8 @@ module.exports = {
     setUserBiome,
     canChangeBiome,
     getUserBiomeData,
+    getUnlockedBiomes,
+    hasBiomeUnlocked,
+    unlockBiome,
     resetUserBiome
 };

@@ -50,65 +50,60 @@ function createOverviewPage(targetUser, userData, farmingFumos, activeBoosts, we
     const rank = getPlayerRank(userData);
     const levelProgress = getLevelProgress(userData);
     
-    const weatherInfo = weather 
-        ? `🌤️ ${weather.weatherType}\n(${weather.multiplierCoin}x/${weather.multiplierGem}x)`
-        : '☁️ Clear skies';
-    
     const embed = new EmbedBuilder()
-        .setTitle(`${rank.emoji} ${targetUser.username}'s Profile`)
         .setColor(COLORS.DEFAULT)
-        .setThumbnail(targetUser.displayAvatarURL())
-        .addFields(
-            {
-                name: '💰 Coins',
-                value: `${formatNumber(userData.coins || 0)}`,
-                inline: true
-            },
-            {
-                name: '💎 Gems',
-                value: `${formatNumber(userData.gems || 0)}`,
-                inline: true
-            },
-            {
-                name: '🌸 Tokens',
-                value: `${formatNumber(userData.spiritTokens || 0)}`,
-                inline: true
-            },
-            {
-                name: '📊 Net Worth',
-                value: `💵 ${formatNumber(netWorth)}`,
-                inline: true
-            },
-            {
-                name: '🏆 Rank',
-                value: `${rank.rank}`,
-                inline: true
-            },
-            {
-                name: '📈 Level',
-                value: `Lv.${levelProgress.currentLevel} ♻️${userData.rebirth || 0}`,
-                inline: true
-            },
-            {
-                name: '📅 Daily Income',
-                value: `💰 ${formatNumber(dailyValue.coins)}\n💎 ${formatNumber(dailyValue.gems)}`,
-                inline: true
-            },
-            {
-                name: '⚡ Boosts',
-                value: (activeBoosts || []).length > 0 
-                    ? `${activeBoosts.length} active`
-                    : 'None',
-                inline: true
-            },
-            {
-                name: '🌤️ Weather',
-                value: weatherInfo,
-                inline: true
-            }
-        )
-        .setFooter({ text: `Page 1/${TOTAL_PAGES} - Overview | 🏠 Use buttons to navigate` })
-        .setTimestamp();
+        .setAuthor({ 
+            name: `${targetUser.username}'s Profile`, 
+            iconURL: targetUser.displayAvatarURL() 
+        })
+        .setThumbnail(targetUser.displayAvatarURL({ size: 256 }));
+    
+    // Main currency section - clean and compact
+    embed.setDescription([
+        `\`\`\`ansi`,
+        `\u001b[1;33m💰 ${formatCompactNumber(userData.coins || 0)}\u001b[0m  \u001b[1;36m💎 ${formatCompactNumber(userData.gems || 0)}\u001b[0m  \u001b[1;35m🌸 ${formatCompactNumber(userData.spiritTokens || 0)}\u001b[0m`,
+        `\`\`\``,
+        `${rank.emoji} **${rank.rank}** • Lv.**${levelProgress.currentLevel}** • ♻️ **${userData.rebirth || 0}**`
+    ].join('\n'));
+    
+    // Key stats in compact format
+    embed.addFields(
+        {
+            name: '📊 Net Worth',
+            value: `\`${formatCompactNumber(netWorth)}\``,
+            inline: true
+        },
+        {
+            name: '📈 Daily Income',
+            value: `💰\`${formatCompactNumber(dailyValue.coins)}\`\n💎\`${formatCompactNumber(dailyValue.gems)}\``,
+            inline: true
+        },
+        {
+            name: '⚡ Boosts',
+            value: `\`${(activeBoosts || []).length}\` active`,
+            inline: true
+        }
+    );
+    
+    // Farming info
+    const fumoCount = (farmingFumos || []).reduce((sum, f) => sum + (f.quantity || 1), 0);
+    embed.addFields({
+        name: '🌾 Farming',
+        value: `\`${fumoCount}\` Fumos • \`${formatCompactNumber(farmingRate.totalCoins)}\`💰/min • \`${formatCompactNumber(farmingRate.totalGems)}\`💎/min`,
+        inline: false
+    });
+    
+    // Weather (if available)
+    if (weather) {
+        embed.addFields({
+            name: '🌤️ Weather',
+            value: `${weather.weatherType} (\`${weather.multiplierCoin}x\`💰 / \`${weather.multiplierGem}x\`💎)`,
+            inline: false
+        });
+    }
+    
+    embed.setFooter({ text: `Page 1/${TOTAL_PAGES} • Use ◀ ▶ to navigate` })
+         .setTimestamp();
     
     return embed;
 }
@@ -125,66 +120,63 @@ function createEconomyPage(targetUser, userData, farmingFumos, activeBoosts) {
     
     const effectiveCoinsPerMin = Math.floor(farmingRate.totalCoins * boostMult.coinMultiplier);
     const effectiveGemsPerMin = Math.floor(farmingRate.totalGems * boostMult.gemMultiplier);
+    const totalFumoCount = (farmingFumos || []).reduce((sum, f) => sum + (f.quantity || 1), 0);
     
     return new EmbedBuilder()
-        .setTitle(`💰 ${targetUser.username}'s Economy`)
+        .setAuthor({ 
+            name: `${targetUser.username}'s Economy`, 
+            iconURL: targetUser.displayAvatarURL() 
+        })
         .setColor(COLORS.ECONOMY || COLORS.DEFAULT)
+        .setDescription([
+            `\`\`\`diff`,
+            `+ Net Worth: ${formatCompactNumber(netWorth)}`,
+            `\`\`\``
+        ].join('\n'))
         .addFields(
             {
-                name: '🏦 Currency Holdings',
-                value: [
-                    `${getCoinDescription(userData.coins || 0)}`,
-                    `💰 **Coins:** ${formatNumber(userData.coins || 0)}`,
-                    `${getGemDescription(userData.gems || 0)}`,
-                    `💎 **Gems:** ${formatNumber(userData.gems || 0)}`,
-                    `🌸 **Spirit Tokens:** ${formatNumber(userData.spiritTokens || 0)}`
-                ].join('\n'),
-                inline: false
+                name: '💰 Coins',
+                value: `\`${formatCompactNumber(userData.coins || 0)}\`\n${getCoinDescription(userData.coins || 0)}`,
+                inline: true
             },
             {
-                name: '📊 Net Worth Analysis',
-                value: [
-                    `💵 **Total Value:** ${formatNumber(netWorth)}`,
-                    `💰 Coin Value: ${formatNumber(userData.coins || 0)}`,
-                    `💎 Gem Value: ${formatNumber((userData.gems || 0) * 10)}`,
-                    `🌸 Token Value: ${formatNumber((userData.spiritTokens || 0) * 1000)}`
-                ].join('\n'),
-                inline: false
+                name: '💎 Gems',
+                value: `\`${formatCompactNumber(userData.gems || 0)}\`\n${getGemDescription(userData.gems || 0)}`,
+                inline: true
             },
             {
-                name: '⚙️ Farming Production',
-                value: (() => {
-                    const fumoList = farmingFumos || [];
-                    const totalFumoCount = fumoList.reduce((sum, f) => sum + (f.quantity || 1), 0);
-                    return [
-                        `🐾 **Fumos Farming:** ${totalFumoCount} (${fumoList.length} unique)`,
-                        `💰 **Base Rate:** ${formatNumber(farmingRate.totalCoins)}/min`,
-                        `💎 **Base Rate:** ${formatNumber(farmingRate.totalGems)}/min`,
-                        `📈 **Boosted:** ${formatNumber(effectiveCoinsPerMin)}💰/${formatNumber(effectiveGemsPerMin)}💎 /min`
-                    ].join('\n');
-                })(),
-                inline: false
+                name: '🌸 Tokens',
+                value: `\`${formatCompactNumber(userData.spiritTokens || 0)}\``,
+                inline: true
             },
             {
-                name: '📆 Daily Projections',
+                name: '⚙️ Farming',
                 value: [
-                    `💰 **Daily Coins:** ${formatNumber(dailyValue.coins)}`,
-                    `💎 **Daily Gems:** ${formatNumber(dailyValue.gems)}`,
-                    `📊 **Daily Total:** ${formatNumber(dailyValue.total)} value`
+                    `🐾 \`${totalFumoCount}\` Fumos`,
+                    `📊 Base: \`${formatCompactNumber(farmingRate.totalCoins)}\`💰/\`${formatCompactNumber(farmingRate.totalGems)}\`💎`,
+                    `📈 Boosted: \`${formatCompactNumber(effectiveCoinsPerMin)}\`💰/\`${formatCompactNumber(effectiveGemsPerMin)}\`💎`
                 ].join('\n'),
                 inline: true
             },
             {
-                name: '📈 Efficiency Stats',
+                name: '📆 Daily',
                 value: [
-                    `💰 **Coins/Roll:** ${formatNumber(Math.floor(efficiency.coinsPerRoll))}`,
-                    `💎 **Gems/Roll:** ${formatNumber(Math.floor(efficiency.gemsPerRoll))}`,
-                    `⚡ **Efficiency:** ${formatNumber(Math.floor(efficiency.totalEfficiency))}`
+                    `💰 \`${formatCompactNumber(dailyValue.coins)}\``,
+                    `💎 \`${formatCompactNumber(dailyValue.gems)}\``,
+                    `📊 \`${formatCompactNumber(dailyValue.total)}\` total`
+                ].join('\n'),
+                inline: true
+            },
+            {
+                name: '⚡ Efficiency',
+                value: [
+                    `💰 \`${formatCompactNumber(Math.floor(efficiency.coinsPerRoll))}\`/roll`,
+                    `💎 \`${formatCompactNumber(Math.floor(efficiency.gemsPerRoll))}\`/roll`
                 ].join('\n'),
                 inline: true
             }
         )
-        .setFooter({ text: `Page 2/${TOTAL_PAGES} - Economy | 💰` })
+        .setFooter({ text: `Page 2/${TOTAL_PAGES} • Economy` })
         .setTimestamp();
 }
 

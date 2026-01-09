@@ -14,6 +14,8 @@ const {
 const { get, run, withUserLock, atomicDeductCurrency } = require('../../../Core/database');
 const { getFarmStatusData, createFarmStatusEmbed } = require('../FarmStatusHelper');
 const { createCatchHandler } = require('../../../Ultility/errorHandler');
+const { FEATURE_UNLOCKS } = require('../../../Configuration/levelConfig');
+const { REBIRTH_FEATURE_UNLOCKS } = require('../../../Configuration/rebirthConfig');
 
 async function handleBuildingInteraction(interaction, userId, client) {
     const { customId } = interaction;
@@ -65,6 +67,20 @@ async function handleClose(interaction, userId) {
     try {
         const username = interaction.user.username;
         
+        // Get user level and rebirth for button states
+        const [levelData, rebirthData] = await Promise.all([
+            get(`SELECT level FROM userLevelProgress WHERE userId = ?`, [userId]),
+            get(`SELECT rebirthCount FROM userRebirthProgress WHERE userId = ?`, [userId])
+        ]);
+        const userLevel = levelData?.level || 1;
+        const userRebirth = rebirthData?.rebirthCount || 0;
+        
+        const BIOME_UNLOCK_LEVEL = FEATURE_UNLOCKS.BIOME_SYSTEM || 50;
+        const OTHER_PLACE_REBIRTH = REBIRTH_FEATURE_UNLOCKS?.OTHER_PLACE || 1;
+        
+        const isBiomeUnlocked = userLevel >= BIOME_UNLOCK_LEVEL;
+        const isOtherPlaceUnlocked = userRebirth >= OTHER_PLACE_REBIRTH;
+        
         const farmData = await getFarmStatusData(userId, username);
         const embed = createFarmStatusEmbed(farmData);
         
@@ -78,7 +94,15 @@ async function handleClose(interaction, userId) {
                 new ButtonBuilder()
                     .setCustomId(`open_limitbreaker_${userId}`)
                     .setLabel('⚡ Limit Breaker')
-                    .setStyle(ButtonStyle.Danger)
+                    .setStyle(ButtonStyle.Danger),
+                new ButtonBuilder()
+                    .setCustomId(isBiomeUnlocked ? `open_biome_${userId}` : `locked_biome_${userId}`)
+                    .setLabel(isBiomeUnlocked ? '🌍 Biome' : `🔒 Biome (Lv.${BIOME_UNLOCK_LEVEL})`)
+                    .setStyle(isBiomeUnlocked ? ButtonStyle.Success : ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId(isOtherPlaceUnlocked ? `open_otherplace_${userId}` : `locked_otherplace_${userId}`)
+                    .setLabel(isOtherPlaceUnlocked ? '🌌 Other Place' : '🔒 Other Place (♻️1)')
+                    .setStyle(isOtherPlaceUnlocked ? ButtonStyle.Success : ButtonStyle.Secondary)
             );
 
         await interaction.editReply({

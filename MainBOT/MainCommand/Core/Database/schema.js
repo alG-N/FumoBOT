@@ -691,9 +691,18 @@ function createIndexes() {
             db.run(`CREATE TABLE IF NOT EXISTS userBiome (
                 userId TEXT PRIMARY KEY,
                 biomeId TEXT DEFAULT 'GRASSLAND',
-                biomeChangedAt INTEGER DEFAULT NULL
+                biomeChangedAt INTEGER DEFAULT NULL,
+                unlockedBiomes TEXT DEFAULT '["GRASSLAND"]'
             )`, (err) => {
                 if (err) console.error('Error creating userBiome:', err.message);
+                res();
+            });
+        }));
+        
+        // Migration: Add unlockedBiomes column if missing
+        tables.push(new Promise((res) => {
+            db.run(`ALTER TABLE userBiome ADD COLUMN unlockedBiomes TEXT DEFAULT '["GRASSLAND"]'`, (err) => {
+                // Ignore error if column already exists
                 res();
             });
         }));

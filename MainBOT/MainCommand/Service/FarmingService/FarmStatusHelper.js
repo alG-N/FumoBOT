@@ -8,11 +8,13 @@ const { EmbedBuilder, Colors } = require('discord.js');
 const { formatNumber } = require('../../Ultility/formatting');
 const { RARITY_PRIORITY } = require('../../Configuration/rarity');
 const { getRarityFromName } = require('./FarmingCalculationService');
+const { getUserBiomeData } = require('./BiomeService/BiomeDatabaseService');
+const { getBiomeImage } = require('../../Configuration/biomeConfig');
 
 async function getFarmStatusData(userId, username) {
     const now = Date.now();
     
-    const [fragmentUses, farmingFumos, boosts, seasonalMults, activeSeasons, buildingLevels, upgradesRow] = 
+    const [fragmentUses, farmingFumos, boosts, seasonalMults, activeSeasons, buildingLevels, upgradesRow, biomeData] = 
         await Promise.all([
             getFarmLimit(userId),
             getUserFarmingFumos(userId),
@@ -20,7 +22,8 @@ async function getFarmStatusData(userId, username) {
             getCurrentMultipliers(),
             getActiveSeasonsList(),
             getBuildingLevels(userId),
-            get(`SELECT limitBreaks FROM userUpgrades WHERE userId = ?`, [userId])
+            get(`SELECT limitBreaks FROM userUpgrades WHERE userId = ?`, [userId]),
+            getUserBiomeData(userId)
         ]);
 
     const { coinMultiplier, gemMultiplier } = calculateMultipliers(boosts, seasonalMults, buildingLevels);
@@ -45,7 +48,8 @@ async function getFarmStatusData(userId, username) {
         seasons: {
             active: activeSeasons,
             multipliers: seasonalMults
-        }
+        },
+        biome: biomeData
     };
 }
 
@@ -114,10 +118,10 @@ function getBaseFumoName(fumoName) {
 }
 
 function getTrait(fumoName) {
-    if (fumoName.includes('[🌟alG]')) return '🌟alG';
-    if (fumoName.includes('[✨SHINY]')) return '✨SHINY';
-    if (fumoName.includes('[🔮GLITCHED]')) return '🔮GLITCHED';
-    if (fumoName.includes('[🌀VOID]')) return '🌀VOID';
+    if (fumoName.includes('[🌟alG]')) return '🌟';
+    if (fumoName.includes('[✨SHINY]')) return '✨';
+    if (fumoName.includes('[🔮GLITCHED]')) return '🔮';
+    if (fumoName.includes('[🌀VOID]')) return '🌀';
     return null;
 }
 
@@ -211,58 +215,93 @@ function formatFarmingNumber(num) {
 }
 
 function createFarmStatusEmbed(farmData) {
-    const { username, farmingFumos, farmLimit, totalFarmingCount, fragmentUses, limitBreaks, boosts, seasons } = farmData;
+    const { username, farmingFumos, farmLimit, totalFarmingCount, fragmentUses, limitBreaks, boosts, seasons, biome } = farmData;
 
     const grouped = groupByRarity(farmingFumos, boosts);
     const { totalCoins, totalGems } = calculateTotals(grouped);
+    
+    // Get biome image
+    const biomeImage = biome ? getBiomeImage(biome.biomeId) : null;
+    const biomeInfo = biome?.biome;
+    
+    // Calculate progress bar for farm slots
+    const slotProgress = Math.min(totalFarmingCount / farmLimit, 1);
+    const slotBar = createProgressBar(slotProgress, 10);
 
     const embed = new EmbedBuilder()
-        .setTitle('🌾 Fumo Farming Status')
-        .setColor(Colors.Blurple)
-        .setDescription(`🛠️ Your Fumos are working hard. Let's check how much loot they're bringing!`)
-        .setImage('https://tse4.mm.bing.net/th/id/OIP.uPn1KR9q8AKKhhJVCr1C4QHaDz?rs=1&pid=ImgDetMain&o=7&rm=3');
+        .setTitle(`🌾 ${username}'s Farm`)
+        .setColor(biomeInfo?.color || Colors.Blurple);
+    
+    // Biome section
+    if (biomeInfo) {
+        embed.setDescription([
+            `\`\`\`ansi`,
+            `\u001b[1;36m📍 ${biomeInfo.name}\u001b[0m`,
+            `\`\`\``,
+            `> ${biomeInfo.description}`,
+            ``,
+            `**Biome Bonus:** 💰 \`${biomeInfo.multipliers.coins}x\` | 💎 \`${biomeInfo.multipliers.gems}x\``
+        ].join('\n'));
+        
+        if (biomeImage) {
+            embed.setImage(biomeImage);
+        }
+    }
 
+    // Farm slots with progress bar
+    embed.addFields({
+        name: '📦 Farm Capacity',
+        value: [
+            `${slotBar} \`${totalFarmingCount}/${farmLimit}\``,
+            `🔮 Fragments: ${fragmentUses} | ⚡ Limit Breaks: ${limitBreaks}`
+        ].join('\n'),
+        inline: false
+    });
+
+    // Compact earnings summary
+    embed.addFields({
+        name: '💵 Total Income (with boosts)',
+        value: [
+            `💰 \`${formatFarmingNumber(totalCoins)}\`/min`,
+            `💎 \`${formatFarmingNumber(totalGems)}\`/min`
+        ].join('  •  '),
+        inline: false
+    });
+
+    // Group fumos by rarity in a more compact way
+    const rarityGroups = [];
     for (const rarity of RARITY_PRIORITY) {
         if (!grouped[rarity]) continue;
         const { fumos, totalCoins: rarityCoins, totalGems: rarityGems } = grouped[rarity];
         
-        embed.addFields({
-            name: `🔹 ${rarity}: ${formatFarmingNumber(rarityCoins)} coins/min, ${formatFarmingNumber(rarityGems)} gems/min`,
-            value: formatFumoList(fumos) || 'None'
+        // Format fumo names compactly: Arisu(✨) x5, Reimu(🌟) x2
+        const fumoNames = fumos.slice(0, 5).map(f => {
+            // Extract just the character name from baseName like "Arisu(TRANSCENDENT)"
+            const charName = f.baseName.replace(/\(.*?\)/, '').trim();
+            const traitDisplay = f.trait ? `(${f.trait})` : '';
+            const qtyStr = f.quantity > 1 ? ` x${f.quantity}` : '';
+            return `${charName}${traitDisplay}${qtyStr}`;
         });
-    }
-
-    embed.addFields(
-        {
-            name: '💰 Total Earnings (with all boosts)',
-            value: `${formatFarmingNumber(totalCoins)} coins/min | ${formatFarmingNumber(totalGems)} gems/min`,
-            inline: true
-        },
-        {
-            name: '📦 Max Farming Slots',
-            value: `${totalFarmingCount} / ${farmLimit}`,
-            inline: true
-        },
-        {
-            name: '🔮 Fragment of 1800s',
-            value: `${fragmentUses} used`,
-            inline: true
-        }
-    );
-
-    if (limitBreaks > 0) {
-        embed.addFields({
-            name: '⚡ Limit Breaks',
-            value: `Active: **${limitBreaks}** (+${limitBreaks} slots)`,
+        
+        const moreCount = fumos.length > 5 ? ` +${fumos.length - 5} more` : '';
+        
+        rarityGroups.push({
+            name: `${getRarityEmoji(rarity)} ${rarity}`,
+            value: `\`${formatFarmingNumber(rarityCoins)}💰/${formatFarmingNumber(rarityGems)}💎\`\n${fumoNames.join(', ')}${moreCount}`,
             inline: true
         });
     }
+    
+    // Add rarity groups in pairs
+    if (rarityGroups.length > 0) {
+        embed.addFields(rarityGroups.slice(0, 6)); // Max 6 inline fields
+    }
 
+    // Active effects section
+    const effects = [];
+    
     if (seasons?.active && seasons.active !== 'No active seasonal events') {
-        embed.addFields({
-            name: '🌤️ Active Seasonal Events',
-            value: seasons.active
-        });
+        effects.push(`🌤️ **Season:** ${seasons.active}`);
     }
 
     const relevantBoosts = boosts?.activeBoosts?.filter(b => 
@@ -270,20 +309,53 @@ function createFarmStatusEmbed(farmData) {
     );
 
     if (relevantBoosts?.length > 0) {
+        const boostText = relevantBoosts.slice(0, 3).map(b => 
+            `${b.source} x${b.multiplier}`
+        ).join(' | ');
+        effects.push(`⚡ **Boosts:** ${boostText}`);
+    }
+    
+    if (effects.length > 0) {
         embed.addFields({
-            name: '⚡ Active Personal Boosts',
-            value: relevantBoosts.map(b =>
-                `• **${b.type}** x${b.multiplier} from [${b.source}]${b.expiresAt ? ` (expires <t:${Math.floor(b.expiresAt / 1000)}:R>)` : ''}`
-            ).join('\n')
+            name: '✨ Active Effects',
+            value: effects.join('\n'),
+            inline: false
         });
     }
 
-    embed.addFields({
-        name: '📋 Notes:',
-        value: 'Use `.endfarm` to stop farming specific Fumos.\nCheck `.farminfo` for rarity stats.'
-    });
+    embed.setFooter({ 
+        text: '💡 Use the buttons below to manage your farm' 
+    }).setTimestamp();
 
     return embed;
+}
+
+function createProgressBar(progress, length = 10) {
+    const filled = Math.round(progress * length);
+    const empty = length - filled;
+    return '█'.repeat(filled) + '░'.repeat(empty);
+}
+
+// Rarity emojis - matches RARITY_PRIORITY casing
+const RARITY_EMOJIS = {
+    'Common': '⚪',
+    'UNCOMMON': '🟢',
+    'RARE': '🔵',
+    'EPIC': '🟣',
+    'OTHERWORLDLY': '🌌',
+    'LEGENDARY': '🟠',
+    'MYTHICAL': '🔴',
+    'EXCLUSIVE': '💎',
+    '???': '❓',
+    'ASTRAL': '🌠',
+    'CELESTIAL': '✨',
+    'INFINITE': '♾️',
+    'ETERNAL': '🪐',
+    'TRANSCENDENT': '🌈'
+};
+
+function getRarityEmoji(rarity) {
+    return RARITY_EMOJIS[rarity] || RARITY_EMOJIS[rarity?.toUpperCase()] || '⚪';
 }
 
 module.exports = {

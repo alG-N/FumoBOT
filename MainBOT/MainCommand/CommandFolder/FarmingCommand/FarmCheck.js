@@ -8,7 +8,8 @@ const { handleLimitBreakerInteraction, handleFragmentModalSubmit } = require('..
 const { get } = require('../../Core/database');
 const { FEATURE_UNLOCKS } = require('../../Configuration/levelConfig');
 const { REBIRTH_FEATURE_UNLOCKS } = require('../../Configuration/rebirthConfig');
-const { createBiomeSelectEmbed, handleBiomeChange } = require('../../Service/FarmingService/BiomeService/BiomeUIService');
+const { createBiomeSelectEmbed, handleBiomeChange, createBiomeDetailEmbed, handleBiomeUnlockConfirm } = require('../../Service/FarmingService/BiomeService/BiomeUIService');
+const { getUserBiomeData } = require('../../Service/FarmingService/BiomeService/BiomeDatabaseService');
 const { 
     handleOtherPlaceOpen, 
     handleSendFumo, 
@@ -204,11 +205,29 @@ function setupInteractionCollector(msg, userId, message, client, userLevel = 1, 
                     ephemeral: true
                 });
             }
-            else if (customId === 'biome_select') {
+            else if (customId.startsWith('biome_select_')) {
                 // Handle biome selection from dropdown
-                await handleBiomeChange(interaction, userId);
+                await handleBiomeChange(interaction, userId, message, userLevel, userRebirth);
             }
-            else if (customId === 'biome_back') {
+            else if (customId.startsWith('biome_info_')) {
+                // Show detailed biome info
+                await handleBiomeInfo(interaction);
+            }
+            else if (customId.startsWith('biome_refresh_')) {
+                // Refresh biome selection
+                await handleBiomeOpen(interaction, userId, userLevel, userRebirth);
+            }
+            else if (customId.startsWith('biome_confirm_unlock_')) {
+                // Handle biome unlock confirmation
+                const parts = customId.split('_');
+                const biomeId = parts[parts.length - 1];
+                await handleBiomeUnlockConfirm(interaction, userId, biomeId);
+            }
+            else if (customId.startsWith('biome_cancel_unlock_')) {
+                // Cancel unlock and return to biome selection
+                await handleBiomeOpen(interaction, userId, userLevel, userRebirth);
+            }
+            else if (customId.startsWith('biome_back_')) {
                 // Go back to farm status
                 await refreshFarmStatus(interaction, userId, message, userLevel, userRebirth);
             }
@@ -265,7 +284,7 @@ async function handleBiomeOpen(interaction, userId, userLevel, userRebirth) {
         
         // Add a back button to return to farm status
         const backButton = new ButtonBuilder()
-            .setCustomId('biome_back')
+            .setCustomId(`biome_back_${userId}`)
             .setLabel('⬅️ Back to Farm')
             .setStyle(ButtonStyle.Secondary);
         
@@ -284,6 +303,27 @@ async function handleBiomeOpen(interaction, userId, userLevel, userRebirth) {
         console.error('Error opening biome UI:', error);
         await interaction.followUp({
             content: '❌ Failed to load biome selection.',
+            ephemeral: true
+        });
+    }
+}
+
+async function handleBiomeInfo(interaction) {
+    // Get current selected biome from the dropdown if any, or show current biome
+    const userId = interaction.user.id;
+    
+    try {
+        const biomeData = await getUserBiomeData(userId);
+        const embed = createBiomeDetailEmbed(biomeData.biomeId);
+        
+        await interaction.reply({
+            embeds: [embed],
+            ephemeral: true
+        });
+    } catch (error) {
+        console.error('Error showing biome info:', error);
+        await interaction.reply({
+            content: '❌ Failed to load biome details.',
             ephemeral: true
         });
     }

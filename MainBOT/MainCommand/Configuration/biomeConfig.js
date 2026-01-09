@@ -6,25 +6,40 @@
  * - Each biome specializes in different rewards
  * - Some biomes synergize with specific fumo rarities or traits
  * - Can be changed once per day (or with cooldown)
+ * - Non-default biomes require purchase to unlock!
  * 
  * Design Philosophy:
  * - Basic biome is free and balanced
  * - Premium biomes offer trade-offs (more coins but less gems, etc.)
  * - Some biomes synergize with weather events
- * - Higher tier biomes require higher rebirth levels
+ * - Higher tier biomes require higher rebirth levels and more expensive unlocks
  */
+
+// Biome images for visual appeal
+const BIOME_IMAGES = {
+    GRASSLAND: 'https://tse4.mm.bing.net/th/id/OIP.VtwNGH4_8JBJKvAkUywN2AHaFj?cb=defcache2defcache=1&rs=1&pid=ImgDetMain&o=7&rm=3',
+    MOUNTAIN: 'https://tse1.mm.bing.net/th/id/OIP.Ln8t1GvCZYmR1x4AtZ17ywHaEo?cb=defcache2defcache=1&rs=1&pid=ImgDetMain&o=7&rm=3',
+    FOREST: 'https://www.sarakadeelite.com/wp-content/uploads/2024/01/forest-open.jpg',
+    BEACH: 'https://i.dailymail.co.uk/1s/2024/02/07/23/80990373-0-image-m-101_1707348446800.jpg',
+    VOLCANO: 'https://media.istockphoto.com/id/1124780295/photo/patterns-of-fertile-volcanic-farming-fields-next-to-a-volcano-by-atlantic-ocean-lanzarote.jpg?s=170667a&w=0&k=20&c=l9BMKZm2itwVOOifnLzCAv0oV2dMnPcLC3iznMn5euQ=',
+    GLACIER: 'https://images.squarespace-cdn.com/content/v1/5e00e1831871de3d6398dcf9/1616180614792-TCT1VYE826GWKVK4VB0J/mtnroots-660x330.jpg?format=1000w',
+    CELESTIAL_GARDEN: 'https://img.freepik.com/premium-photo/celestial-garden-where-beings-from-various-galaxie_1022456-49755.jpg',
+    VOID_REALM: 'https://i.pinimg.com/originals/2f/08/aa/2f08aaccd1483bd930a3e964a1a598c0.jpg',
+    TRANSCENDENT_PLAINS: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/3d733837-eae3-48b0-883b-955ce7172d8a/db6l7w6-98794d3f-2944-4191-9c43-97331aa9d9c2.jpg/v1/fill/w_1192,h_670,q_70,strp/farm_by_frankatt_db6l7w6-pre.jpg?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7ImhlaWdodCI6Ijw9OTAwIiwicGF0aCI6IlwvZlwvM2Q3MzM4MzctZWFlMy00OGIwLTg4M2ItOTU1Y2U3MTcyZDhhXC9kYjZsN3c2LTk4Nzk0ZDNmLTI5NDQtNDE5MS05YzQzLTk3MzMxYWE5ZDljMi5qcGciLCJ3aWR0aCI6Ijw9MTYwMCJ9XV0sImF1ZCI6WyJ1cm46c2VydmljZTppbWFnZS5vcGVyYXRpb25zIl19.nhGFTYD45FW7h6XWulI7SzCMEq5Rk6Zi7zvYeZ1SylM'
+};
 
 const BIOMES = {
     // ═══════════════════════════════════════════════════════════════
-    // DEFAULT BIOME - Available to all
+    // DEFAULT BIOME - Available to all (FREE)
     // ═══════════════════════════════════════════════════════════════
     GRASSLAND: {
         id: 'GRASSLAND',
         name: 'Grassland',
         emoji: '🌾',
-        description: 'A peaceful meadow with balanced rewards.',
+        description: 'A lush grassland, each fumo is slowly clearing the fields out. Perfect for balancing your farm!',
         requiredLevel: 0,
         requiredRebirth: 0,
+        unlockCost: null, // Free!
         multipliers: {
             coins: 1.0,
             gems: 1.0
@@ -38,15 +53,20 @@ const BIOMES = {
     },
 
     // ═══════════════════════════════════════════════════════════════
-    // LEVEL 50 BIOMES - Basic specialization
+    // LEVEL 50 BIOMES - Basic specialization (Entry cost)
     // ═══════════════════════════════════════════════════════════════
     MOUNTAIN: {
         id: 'MOUNTAIN',
         name: 'Crystal Mountain',
         emoji: '⛰️',
-        description: 'A towering mountain rich with gem deposits.',
+        description: 'A majestic mountain filled with sparkling crystals, your fumos are taking the pickaxe to mine gems. Great for gem hunting!',
         requiredLevel: 50,
         requiredRebirth: 0,
+        unlockCost: {
+            type: 'coins',
+            amount: 150_000_000, // 150M coins
+            display: '150M Coins'
+        },
         multipliers: {
             coins: 0.8,    // -20% coins
             gems: 1.5      // +50% gems
@@ -63,9 +83,14 @@ const BIOMES = {
         id: 'FOREST',
         name: 'Enchanted Forest',
         emoji: '🌲',
-        description: 'A magical forest overflowing with gold.',
+        description: 'A magical forest overflowing with such rare golden flora, your fumos are gathering them up. Excellent for coin farming!',
         requiredLevel: 50,
         requiredRebirth: 0,
+        unlockCost: {
+            type: 'gems',
+            amount: 50_000_000, // 50M gems
+            display: '50M Gems'
+        },
         multipliers: {
             coins: 1.5,    // +50% coins
             gems: 0.8      // -20% gems
@@ -82,9 +107,15 @@ const BIOMES = {
         id: 'BEACH',
         name: 'Sunset Beach',
         emoji: '🏖️',
-        description: 'A beautiful beach with treasures in the sand.',
+        description: 'A beautiful beach with treasures in the sand, your fumos are digging up hidden gems and coins. A balanced spot for farming!',
         requiredLevel: 50,
         requiredRebirth: 0,
+        unlockCost: {
+            type: 'percentage',
+            coinPercent: 10,  // 10% of total coins
+            gemPercent: 10,   // 10% of total gems
+            display: '10% of Coins & Gems'
+        },
         multipliers: {
             coins: 1.2,
             gems: 1.2
@@ -98,15 +129,20 @@ const BIOMES = {
     },
 
     // ═══════════════════════════════════════════════════════════════
-    // REBIRTH 1 BIOMES - Intermediate specialization
+    // REBIRTH 1 BIOMES - Intermediate specialization (Higher cost)
     // ═══════════════════════════════════════════════════════════════
     VOLCANO: {
         id: 'VOLCANO',
         name: 'Volcanic Forge',
         emoji: '🌋',
-        description: 'A dangerous but rewarding volcanic area.',
+        description: 'A dangerous but rewarding volcanic area, your fumos are braving the heat to extract valuable resources.',
         requiredLevel: 50,
         requiredRebirth: 1,
+        unlockCost: {
+            type: 'coins',
+            amount: 500_000_000_000, // 500B coins
+            display: '500B Coins'
+        },
         multipliers: {
             coins: 2.0,    // +100% coins
             gems: 0.5      // -50% gems
@@ -126,6 +162,11 @@ const BIOMES = {
         description: 'An icy landscape preserving ancient gems.',
         requiredLevel: 50,
         requiredRebirth: 1,
+        unlockCost: {
+            type: 'gems',
+            amount: 300_000_000_000, // 300B gems
+            display: '300B Gems'
+        },
         multipliers: {
             coins: 0.5,    // -50% coins
             gems: 2.0      // +100% gems
@@ -139,15 +180,21 @@ const BIOMES = {
     },
 
     // ═══════════════════════════════════════════════════════════════
-    // REBIRTH 3 BIOMES - Advanced specialization
+    // REBIRTH 3 BIOMES - Advanced specialization (Premium cost)
     // ═══════════════════════════════════════════════════════════════
     CELESTIAL_GARDEN: {
         id: 'CELESTIAL_GARDEN',
         name: 'Celestial Garden',
         emoji: '🌸',
-        description: 'A heavenly garden blessed by the stars.',
+        description: 'A heavenly garden blessed by the stars, your fumos are basking in celestial light to enhance their powers.',
         requiredLevel: 50,
         requiredRebirth: 3,
+        unlockCost: {
+            type: 'percentage',
+            coinPercent: 15, // 15% of total coins
+            gemPercent: 15,  // 15% of total gems
+            display: '15% of Coins & Gems'
+        },
         multipliers: {
             coins: 1.5,
             gems: 1.5
@@ -167,6 +214,12 @@ const BIOMES = {
         description: 'A mysterious dimension with unpredictable rewards.',
         requiredLevel: 50,
         requiredRebirth: 3,
+        unlockCost: {
+            type: 'both',
+            coins: 1_000_000_000_000, // 1T coins
+            gems: 500_000_000_000,    // 500B gems
+            display: '1T Coins + 500B Gems'
+        },
         multipliers: {
             coins: 1.3,
             gems: 1.3
@@ -182,15 +235,21 @@ const BIOMES = {
     },
 
     // ═══════════════════════════════════════════════════════════════
-    // REBIRTH 5 BIOMES - Mastery tier
+    // REBIRTH 5 BIOMES - Mastery tier (Ultimate cost)
     // ═══════════════════════════════════════════════════════════════
     TRANSCENDENT_PLAINS: {
         id: 'TRANSCENDENT_PLAINS',
         name: 'Transcendent Plains',
         emoji: '✨',
-        description: 'A realm beyond reality with incredible rewards.',
+        description: 'A realm beyond reality with incredible rewards, your fumos are transcending the ordinary to achieve greatness.',
         requiredLevel: 50,
         requiredRebirth: 5,
+        unlockCost: {
+            type: 'percentage',
+            coinPercent: 25, // 25% of total coins
+            gemPercent: 25,  // 25% of total gems
+            display: '25% of Coins & Gems'
+        },
         multipliers: {
             coins: 2.0,
             gems: 2.0
@@ -407,9 +466,64 @@ function getDefaultBiome() {
     return BIOMES.GRASSLAND;
 }
 
+/**
+ * Get biome image URL
+ * @param {string} biomeId 
+ * @returns {string}
+ */
+function getBiomeImage(biomeId) {
+    return BIOME_IMAGES[biomeId] || BIOME_IMAGES.GRASSLAND;
+}
+
+/**
+ * Calculate unlock cost for a biome
+ * @param {Object} biome 
+ * @param {number} userCoins 
+ * @param {number} userGems 
+ * @returns {{coins: number, gems: number, display: string} | null}
+ */
+function calculateUnlockCost(biome, userCoins = 0, userGems = 0) {
+    if (!biome.unlockCost) return null;
+    
+    const cost = biome.unlockCost;
+    
+    switch (cost.type) {
+        case 'coins':
+            return { coins: cost.amount, gems: 0, display: cost.display };
+        case 'gems':
+            return { coins: 0, gems: cost.amount, display: cost.display };
+        case 'percentage':
+            return {
+                coins: Math.floor(userCoins * (cost.coinPercent / 100)),
+                gems: Math.floor(userGems * (cost.gemPercent / 100)),
+                display: cost.display
+            };
+        case 'both':
+            return { coins: cost.coins, gems: cost.gems, display: cost.display };
+        default:
+            return null;
+    }
+}
+
+/**
+ * Check if user can afford biome unlock
+ * @param {Object} biome 
+ * @param {number} userCoins 
+ * @param {number} userGems 
+ * @returns {{canAfford: boolean, cost: Object | null}}
+ */
+function canAffordBiome(biome, userCoins, userGems) {
+    const cost = calculateUnlockCost(biome, userCoins, userGems);
+    if (!cost) return { canAfford: true, cost: null }; // Free biome
+    
+    const canAfford = userCoins >= cost.coins && userGems >= cost.gems;
+    return { canAfford, cost };
+}
+
 module.exports = {
     // Constants
     BIOMES,
+    BIOME_IMAGES,
     BIOME_CHANGE_COOLDOWN,
     WEATHER_SYNERGY_BONUS,
     
@@ -422,5 +536,8 @@ module.exports = {
     calculateBiomeMultipliers,
     getBiomeRequirementText,
     formatBiomeInfo,
-    getDefaultBiome
+    getDefaultBiome,
+    getBiomeImage,
+    calculateUnlockCost,
+    canAffordBiome
 };
