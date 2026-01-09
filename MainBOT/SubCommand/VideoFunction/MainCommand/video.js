@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { checkAccess, AccessType } = require('../../Middleware');
 const path = require('path');
 const fs = require('fs');
@@ -10,9 +10,7 @@ const progressAnimator = require('../Utility/progressAnimator');
 const { validateUrl } = require('../Middleware/urlValidator');
 const videoConfig = require('../Configuration/videoConfig');
 
-// ═══════════════════════════════════════════════════
-// Rate Limiting & Abuse Prevention
-// ═══════════════════════════════════════════════════
+// Rate Limiting
 const userCooldowns = new Map();
 const activeDownloads = new Set();
 
@@ -257,17 +255,26 @@ module.exports = {
                 await interaction.editReply({ embeds: [uploadEmbed] });
             } catch (err) {}
 
-            // Build simple success message (no embed to avoid chat flood)
+            // Build simple success message with Original button
             const successMessage = `✅ **${platform.name}** • ${result.size.toFixed(2)} MB • ${result.format}`;
+            
+            const originalButton = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setLabel('Original')
+                    .setStyle(ButtonStyle.Link)
+                    .setURL(url)
+                    .setEmoji('🔗')
+            );
 
-            // Upload the video with simple message
+            // Upload the video with Original button
             await interaction.editReply({ 
                 content: successMessage,
                 embeds: [],
                 files: [{
                     attachment: result.path,
                     name: fileName
-                }]
+                }],
+                components: [originalButton]
             });
 
             // Cleanup file after delay

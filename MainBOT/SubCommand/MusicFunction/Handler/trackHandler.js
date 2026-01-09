@@ -32,16 +32,10 @@ const LOOP_DISPLAY = {
 
 // Source platform styling
 const SOURCE_PLATFORM = {
-    youtube: { emoji: '<:youtube:1234567890>', fallback: '🔴', name: 'YouTube', color: '#FF0000' },
-    soundcloud: { emoji: '<:soundcloud:1234567890>', fallback: '🟠', name: 'SoundCloud', color: '#FF5500' },
-    spotify: { emoji: '<:spotify:1234567890>', fallback: '🟢', name: 'Spotify', color: '#1DB954' },
-    unknown: { emoji: '🎵', fallback: '🎵', name: 'Music', color: COLORS.info }
-};
-
-// Minimal decorations (for backwards compatibility)
-const DECORATIONS = {
-    line: '',
-    dotLine: ''
+    youtube: { emoji: '🔴', name: 'YouTube', color: '#FF0000' },
+    soundcloud: { emoji: '🟠', name: 'SoundCloud', color: '#FF5500' },
+    spotify: { emoji: '🟢', name: 'Spotify', color: '#1DB954' },
+    unknown: { emoji: '🎵', name: 'Music', color: COLORS.info }
 };
 
 class TrackHandler {
@@ -99,7 +93,7 @@ class TrackHandler {
         const descLines = [];
         descLines.push(`**Artist:** ${track.author || 'Unknown Artist'}`);
         descLines.push(`**Duration:** ${fmtDur(track.lengthSeconds)}`);
-        descLines.push(`**Source:** ${sourceInfo.fallback} ${sourceInfo.name}`);
+        descLines.push(`**Source:** ${sourceInfo.emoji} ${sourceInfo.name}`);
 
         embed.setDescription(descLines.join('\n'));
 
@@ -270,7 +264,7 @@ class TrackHandler {
             .setDescription(
                 `**Artist:** ${track.author || 'Unknown Artist'}\n` +
                 `**Duration:** ${fmtDur(track.lengthSeconds)}\n` +
-                `**Source:** ${sourceInfo.fallback} ${sourceInfo.name}`
+                `**Source:** ${sourceInfo.emoji} ${sourceInfo.name}`
             )
             .addFields({
                 name: 'Position',
@@ -308,7 +302,7 @@ class TrackHandler {
             .setDescription(
                 `**Artist:** ${track.author || 'Unknown Artist'}\n` +
                 `**Duration:** ${fmtDur(track.lengthSeconds)}\n` +
-                `**Source:** ${sourceInfo.fallback} ${sourceInfo.name}\n\n` +
+                `**Source:** ${sourceInfo.emoji} ${sourceInfo.name}\n\n` +
                 `*This track was added to the front of the queue.*`
             );
 

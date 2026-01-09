@@ -53,6 +53,16 @@ module.exports = {
       inline: false
     },
     {
+      name: '📈 `.level` | `.lvl`',
+      value: 'View your level, EXP progress, and milestones.',
+      inline: false
+    },
+    {
+      name: '♻️ `.rebirth` | `.rb`',
+      value: 'Reset progress for permanent bonuses.',
+      inline: false
+    },
+    {
       name: '🎒 `.items` | `.i`',
       value: 'View your item inventory.',
       inline: false

@@ -122,16 +122,4 @@ module.exports = (client) => {
             }
         }
     });
-
-    client.on('interactionCreate', async interaction => {
-        if (!interaction.isButton()) return;
-
-        const parts = interaction.customId.split('_');
-        const action = parts.slice(0, -1).join('_');
-        
-        if (!['prev_page', 'next_page'].includes(action)) {
-            return;
-        }
-        
-    });
 };

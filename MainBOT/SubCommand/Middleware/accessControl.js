@@ -1,23 +1,3 @@
-/**
- * Unified Access Control Middleware
- * Handles maintenance and ban checks across MainCommand and SubCommand
- * 
- * Features:
- * - Cross-system maintenance handling
- * - Global ban enforcement
- * - Smart suggestions when one system is down
- * - Caching for performance
- * 
- * Usage:
- *   const { checkAccess, AccessType } = require('../Middleware/accessControl');
- *   
- *   // In command execute:
- *   const access = await checkAccess(interaction, AccessType.SUB);
- *   if (access.blocked) {
- *       return interaction.reply({ embeds: [access.embed], ephemeral: true });
- *   }
- */
-
 const { EmbedBuilder, Colors } = require('discord.js');
 const path = require('path');
 
