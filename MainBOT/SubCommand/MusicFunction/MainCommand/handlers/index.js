@@ -9,8 +9,6 @@
 const playHandler = require('./playHandler');
 const controlHandler = require('./controlHandler');
 const queueHandler = require('./queueHandler');
-const favoritesHandler = require('./favoritesHandler');
-const historyHandler = require('./historyHandler');
 const buttonHandler = require('./buttonHandler');
 const settingsHandler = require('./settingsHandler');
 
@@ -41,19 +39,6 @@ module.exports = {
     handleClear: queueHandler.handleClear.bind(queueHandler),
     handleRecent: queueHandler.handleRecent.bind(queueHandler),
     
-    // Favorites handlers - bind to preserve 'this'
-    handleFavorites: favoritesHandler.handleFavorites.bind(favoritesHandler),
-    handleFavoritesList: favoritesHandler.handleFavoritesList.bind(favoritesHandler),
-    handleFavoritesPlay: favoritesHandler.handleFavoritesPlay.bind(favoritesHandler),
-    handleFavoritesRemove: favoritesHandler.handleFavoritesRemove.bind(favoritesHandler),
-    handleFavoritesClear: favoritesHandler.handleFavoritesClear.bind(favoritesHandler),
-    
-    // History handlers - bind to preserve 'this'
-    handleHistory: historyHandler.handleHistory.bind(historyHandler),
-    handleHistoryList: historyHandler.handleHistoryList.bind(historyHandler),
-    handleHistoryPlay: historyHandler.handleHistoryPlay.bind(historyHandler),
-    handleHistoryClear: historyHandler.handleHistoryClear.bind(historyHandler),
-    
     // Button handlers - bind to preserve 'this'
     handleButton: buttonHandler.handleButton.bind(buttonHandler),
     handleButtonPause: buttonHandler.handleButtonPause.bind(buttonHandler),
@@ -63,7 +48,6 @@ module.exports = {
     handleButtonShuffle: buttonHandler.handleButtonShuffle.bind(buttonHandler),
     handleButtonVolume: buttonHandler.handleButtonVolume.bind(buttonHandler),
     handleButtonQueue: buttonHandler.handleButtonQueue.bind(buttonHandler),
-    handleButtonFavorite: buttonHandler.handleButtonFavorite.bind(buttonHandler),
     handleButtonLyrics: buttonHandler.handleButtonLyrics.bind(buttonHandler),
     handleButtonVoteSkip: buttonHandler.handleButtonVoteSkip.bind(buttonHandler),
     handleButtonQueuePage: buttonHandler.handleButtonQueuePage.bind(buttonHandler),

@@ -1,8 +1,8 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { checkAccess, AccessType } = require('../../Middleware');
-const pixivService = require('./services/pixivService');
-const pixivCache = require('./repositories/pixivCache');
-const contentHandler = require('./handlers/contentHandler');
+const pixivService = require('../services/pixivService');
+const pixivCache = require('../repositories/pixivCache');
+const contentHandler = require('../handlers/pixivContentHandler');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -210,7 +210,7 @@ module.exports = {
             
             await interaction.respond(choices).catch(() => {});
         } catch (error) {
-            console.log('[Pixiv Autocomplete] Error, responding with user input');
+            // Silently handle autocomplete errors - respond with user input as fallback
             const focusedValue = interaction.options.getFocused() || '';
             await interaction.respond([
                 { name: `🔍 "${focusedValue.slice(0, 90)}"`, value: focusedValue.slice(0, 100) || 'search' }

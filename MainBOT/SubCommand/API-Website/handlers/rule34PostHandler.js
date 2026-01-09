@@ -1,7 +1,7 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require('discord.js');
 const rule34Service = require('../services/rule34Service');
 const rule34Cache = require('../repositories/rule34Cache');
-const { truncateText, formatNumber } = require('../../shared/utils/embed');
+const { truncateText, formatNumber } = require('../shared/utils/embed');
 
 // Rating colors
 const RATING_COLORS = {

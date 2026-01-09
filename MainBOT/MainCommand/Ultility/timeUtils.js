@@ -168,6 +168,14 @@ function shouldSendResetWarning(type = 'daily', warningTimeMs = 3600000) {
     const timeUntilReset = nextReset - now;
     return timeUntilReset <= warningTimeMs && timeUntilReset > 0;
 }
+
+/**
+ * Promise-based delay function for async/await usage
+ * @param {number} ms - Milliseconds to wait
+ * @returns {Promise<void>}
+ */
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
 module.exports = {
     getWeekIdentifier,
     getCurrentDate,
@@ -185,5 +193,6 @@ module.exports = {
     getEndOfWeek,
     isWithinTimeWindow,
     getNextResetTime,
-    shouldSendResetWarning
+    shouldSendResetWarning,
+    delay
 };

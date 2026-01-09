@@ -20,9 +20,10 @@ class LeaderboardCacheService {
 
             toDelete.forEach(key => this.cache.delete(key));
 
-            if (toDelete.length > 0) {
-                console.log(`[LeaderboardCache] Cleaned ${toDelete.length} expired entries`);
-            }
+            // Cleanup log disabled for cleaner console
+            // if (toDelete.length > 0) {
+            //     console.log(`[LeaderboardCache] Cleaned ${toDelete.length} expired entries`);
+            // }
         }, 60000);
     }
 

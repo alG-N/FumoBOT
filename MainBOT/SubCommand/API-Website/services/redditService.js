@@ -1,6 +1,6 @@
 const axios = require('axios');
 const { Buffer } = require('buffer');
-const config = require('../../shared/config/env');
+const config = require('../shared/config/env');
 
 class RedditService {
     constructor() {

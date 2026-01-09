@@ -1,8 +1,8 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { checkAccess, AccessType } = require('../../Middleware');
-const redditService = require('./services/redditService');
-const redditCache = require('./repositories/redditCache');
-const postHandler = require('./handlers/postHandler');
+const redditService = require('../services/redditService');
+const redditCache = require('../repositories/redditCache');
+const postHandler = require('../handlers/redditPostHandler');
 
 module.exports = {
     data: new SlashCommandBuilder()

@@ -381,7 +381,8 @@ class Rule34Cache {
             }
         }
 
-        console.log(`[Rule34 Cache] Cleanup complete. Sessions: ${this.userSessions.size}, Search: ${this.searchCache.size}`);
+        // Cleanup log disabled for cleaner console output
+        // console.log(`[Rule34 Cache] Cleanup complete. Sessions: ${this.userSessions.size}, Search: ${this.searchCache.size}`);
     }
 
     /**

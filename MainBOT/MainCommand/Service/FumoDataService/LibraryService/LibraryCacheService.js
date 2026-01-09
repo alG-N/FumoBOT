@@ -47,9 +47,10 @@ class LibraryCacheService {
             
             toDelete.forEach(userId => this.cache.delete(userId));
             
-            if (toDelete.length > 0) {
-                console.log(`[LibraryCache] Cleaned ${toDelete.length} expired entries`);
-            }
+            // Cleanup log disabled for cleaner console
+            // if (toDelete.length > 0) {
+            //     console.log(`[LibraryCache] Cleaned ${toDelete.length} expired entries`);
+            // }
         }, 60000);
     }
 

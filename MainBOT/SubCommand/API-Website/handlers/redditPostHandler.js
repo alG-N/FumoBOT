@@ -1,5 +1,5 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { formatNumber, truncateText } = require('../../shared/utils/embed');
+const { formatNumber, truncateText } = require('../shared/utils/embed');
 const redditCache = require('../repositories/redditCache');
 
 const POSTS_PER_PAGE = 5;

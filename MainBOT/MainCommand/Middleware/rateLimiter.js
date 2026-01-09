@@ -13,9 +13,10 @@ setInterval(() => {
     
     toDelete.forEach(key => cooldownMap.delete(key));
     
-    if (toDelete.length > 0) {
-        console.log(`[Rate Limiter] Cleaned up ${toDelete.length} expired cooldowns`);
-    }
+    // Cleanup log disabled for cleaner console
+    // if (toDelete.length > 0) {
+    //     console.log(`[Rate Limiter] Cleaned up ${toDelete.length} expired cooldowns`);
+    // }
 }, CLEANUP_INTERVAL);
 
 function checkCooldown(userId, action, cooldownMs) {

@@ -1,8 +1,8 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { checkAccess, AccessType } = require('../../Middleware');
-const rule34Service = require('./services/rule34Service');
-const rule34Cache = require('./repositories/rule34Cache');
-const postHandler = require('./handlers/postHandler');
+const rule34Service = require('../services/rule34Service');
+const rule34Cache = require('../repositories/rule34Cache');
+const postHandler = require('../handlers/rule34PostHandler');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -195,30 +195,10 @@ module.exports = {
                         .setDescription('Clear your entire blacklist')
                 )
         )
-        .addSubcommandGroup(group =>
-            group
-                .setName('favorites')
-                .setDescription('Manage your favorites')
-                .addSubcommand(subcommand =>
-                    subcommand
-                        .setName('view')
-                        .setDescription('View your favorited posts')
-                )
-                .addSubcommand(subcommand =>
-                    subcommand
-                        .setName('clear')
-                        .setDescription('Clear all favorites')
-                )
-        )
         .addSubcommand(subcommand =>
             subcommand
                 .setName('settings')
                 .setDescription('Configure your Rule34 preferences')
-        )
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('history')
-                .setDescription('View your recent view history')
         ),
 
     async autocomplete(interaction) {
@@ -300,9 +280,6 @@ module.exports = {
             if (subcommandGroup === 'blacklist') {
                 return await handleBlacklistCommands(interaction, subcommand, userId);
             }
-            if (subcommandGroup === 'favorites') {
-                return await handleFavoritesCommands(interaction, subcommand, userId);
-            }
 
             // Handle regular subcommands
             switch (subcommand) {
@@ -318,8 +295,6 @@ module.exports = {
                     return await handleRelated(interaction, userId);
                 case 'settings':
                     return await handleSettings(interaction, userId);
-                case 'history':
-                    return await handleHistory(interaction, userId);
                 default:
                     return interaction.reply({ content: '❌ Unknown command', ephemeral: true });
             }

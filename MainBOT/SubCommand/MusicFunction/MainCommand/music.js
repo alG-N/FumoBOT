@@ -1,6 +1,6 @@
 /**
  * Music Command
- * Comprehensive music bot with play, queue, controls, favorites, history, and settings
+ * Comprehensive music bot with play, queue, controls, and settings
  * 
  * Refactored: Handlers split into separate modules in ./handlers/
  */
@@ -160,76 +160,6 @@ module.exports = {
             .setDescription('Show recently played tracks')
         )
         
-        // Favorites group
-        .addSubcommandGroup(group => group
-            .setName('favorites')
-            .setDescription('Manage your favorite tracks')
-            .addSubcommand(sub => sub
-                .setName('list')
-                .setDescription('View your favorites')
-                .addIntegerOption(opt => opt
-                    .setName('page')
-                    .setDescription('Page number')
-                    .setRequired(false)
-                    .setMinValue(1)
-                )
-            )
-            .addSubcommand(sub => sub
-                .setName('play')
-                .setDescription('Play a track from favorites')
-                .addIntegerOption(opt => opt
-                    .setName('number')
-                    .setDescription('Favorite number to play')
-                    .setRequired(true)
-                    .setMinValue(1)
-                )
-            )
-            .addSubcommand(sub => sub
-                .setName('remove')
-                .setDescription('Remove a track from favorites')
-                .addIntegerOption(opt => opt
-                    .setName('number')
-                    .setDescription('Favorite number to remove')
-                    .setRequired(true)
-                    .setMinValue(1)
-                )
-            )
-            .addSubcommand(sub => sub
-                .setName('clear')
-                .setDescription('Clear all favorites')
-            )
-        )
-        
-        // History group
-        .addSubcommandGroup(group => group
-            .setName('history')
-            .setDescription('View listening history')
-            .addSubcommand(sub => sub
-                .setName('list')
-                .setDescription('View your listening history')
-                .addIntegerOption(opt => opt
-                    .setName('page')
-                    .setDescription('Page number')
-                    .setRequired(false)
-                    .setMinValue(1)
-                )
-            )
-            .addSubcommand(sub => sub
-                .setName('play')
-                .setDescription('Play a track from history')
-                .addIntegerOption(opt => opt
-                    .setName('number')
-                    .setDescription('History number to play')
-                    .setRequired(true)
-                    .setMinValue(1)
-                )
-            )
-            .addSubcommand(sub => sub
-                .setName('clear')
-                .setDescription('Clear listening history')
-            )
-        )
-        
         // Settings subcommand
         .addSubcommand(sub => sub
             .setName('settings')
@@ -252,20 +182,11 @@ module.exports = {
             return interaction.reply({ embeds: [access.embed], ephemeral: true });
         }
 
-        const subcommandGroup = interaction.options.getSubcommandGroup(false);
         const subcommand = interaction.options.getSubcommand();
         const guildId = interaction.guild.id;
         const userId = interaction.user.id;
 
         try {
-            // Handle subcommand groups
-            if (subcommandGroup === 'favorites') {
-                return await handlers.handleFavorites(interaction, subcommand, userId);
-            }
-            if (subcommandGroup === 'history') {
-                return await handlers.handleHistory(interaction, subcommand, userId);
-            }
-
             // Handle regular subcommands
             switch (subcommand) {
                 case 'play':

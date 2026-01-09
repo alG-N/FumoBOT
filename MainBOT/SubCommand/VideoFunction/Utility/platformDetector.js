@@ -133,9 +133,14 @@ class PlatformDetector {
             return this._formatPlatform(this.platforms.youtubeShorts);
         }
 
+        // Priority check for Reddit (check before Twitter due to 't.co' in 'content')
+        if (lowerUrl.includes('reddit.com') || lowerUrl.includes('redd.it') || lowerUrl.includes('v.redd.it')) {
+            return this._formatPlatform(this.platforms.reddit);
+        }
+
         // Check each platform
         for (const [key, platform] of Object.entries(this.platforms)) {
-            if (key === 'youtubeShorts') continue; // Already checked
+            if (key === 'youtubeShorts' || key === 'reddit') continue; // Already checked
             
             for (const pattern of platform.patterns) {
                 if (lowerUrl.includes(pattern)) {

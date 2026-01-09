@@ -1,6 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { checkAccess, AccessType } = require('../../Middleware');
-const { handleSaleCommand } = require('./handlers/saleHandler');
+const { handleSaleCommand } = require('../handlers/steamSaleHandler');
 
 module.exports = {
     data: new SlashCommandBuilder()

@@ -144,12 +144,12 @@ const commandModules = {
 };
 
 // Subcommand Modules
-const anime = require('./SubCommand/API-Website/Anime/anime');
+const anime = require('./SubCommand/API-Website/commands/anime');
 const afk = require('./SubCommand/BasicCommand/afk');
-const reddit = require('./SubCommand/API-Website/Reddit/reddit');
-const pixiv = require('./SubCommand/API-Website/Pixiv/pixiv');
-const steam = require('./SubCommand/API-Website/Steam/steam');
-const rule34 = require('./SubCommand/API-Website/Rule34/rule34');
+const reddit = require('./SubCommand/API-Website/commands/reddit');
+const pixiv = require('./SubCommand/API-Website/commands/pixiv');
+const steam = require('./SubCommand/API-Website/commands/steam');
+const rule34 = require('./SubCommand/API-Website/commands/rule34');
 
 // Admin commands
 const { botCheckCommand } = require('./MainCommand/Administrator');
@@ -420,8 +420,49 @@ migratePetsCommand(client);
 registerCodeRedemption(client);
 
 client.on('interactionCreate', async interaction => {
+    // Handle Modals
+    if (interaction.isModalSubmit()) {
+        // NHentai page jump modal
+        if (interaction.customId.startsWith('nhentai_jumpto_')) {
+            const nhentaiCommand = client.commands.get('nhentai');
+            if (nhentaiCommand && nhentaiCommand.handleModal) {
+                try {
+                    await nhentaiCommand.handleModal(interaction);
+                } catch (error) {
+                    console.error('NHentai modal handler error:', error);
+                    if (!interaction.replied && !interaction.deferred) {
+                        await interaction.reply({
+                            content: '❌ An error occurred. Please try again.',
+                            ephemeral: true
+                        }).catch(() => {});
+                    }
+                }
+            }
+            return;
+        }
+    }
+
     // Handle Select Menus FIRST (before buttons)
     if (interaction.isStringSelectMenu()) {
+
+        // Wikipedia search select menu
+        if (interaction.customId.startsWith('wiki_search_')) {
+            const wikiCommand = client.commands.get('wikipedia');
+            if (wikiCommand && wikiCommand.handleSelectMenu) {
+                try {
+                    await wikiCommand.handleSelectMenu(interaction);
+                } catch (error) {
+                    console.error('Wikipedia select menu handler error:', error);
+                    if (!interaction.replied && !interaction.deferred) {
+                        await interaction.reply({
+                            content: '❌ An error occurred.',
+                            ephemeral: true
+                        }).catch(() => {});
+                    }
+                }
+            }
+            return;
+        }
 
         // Rule34 settings select menus
         if (interaction.customId.startsWith('r34_setting_')) {
@@ -536,6 +577,19 @@ client.on('interactionCreate', async interaction => {
             return;
         }
 
+        // Wikipedia button handlers
+        if (interaction.customId.startsWith('wiki_')) {
+            const wikiCommand = client.commands.get('wikipedia');
+            if (wikiCommand && wikiCommand.handleButton) {
+                try {
+                    await wikiCommand.handleButton(interaction);
+                } catch (error) {
+                    console.error('Wikipedia button handler error:', error);
+                }
+            }
+            return;
+        }
+
         // Rule34 button handlers
         if (interaction.customId.startsWith('r34_') || interaction.customId.startsWith('rule34_')) {
             const rule34Command = client.commands.get('rule34');
@@ -544,6 +598,25 @@ client.on('interactionCreate', async interaction => {
                     await rule34Command.handleButton(interaction);
                 } catch (error) {
                     console.error('Rule34 button handler error:', error);
+                    if (!interaction.replied && !interaction.deferred) {
+                        await interaction.reply({
+                            content: '❌ An error occurred. Please try again.',
+                            ephemeral: true
+                        }).catch(() => {});
+                    }
+                }
+            }
+            return;
+        }
+
+        // NHentai button handlers
+        if (interaction.customId.startsWith('nhentai_')) {
+            const nhentaiCommand = client.commands.get('nhentai');
+            if (nhentaiCommand && nhentaiCommand.handleButton) {
+                try {
+                    await nhentaiCommand.handleButton(interaction);
+                } catch (error) {
+                    console.error('NHentai button handler error:', error);
                     if (!interaction.replied && !interaction.deferred) {
                         await interaction.reply({
                             content: '❌ An error occurred. Please try again.',
