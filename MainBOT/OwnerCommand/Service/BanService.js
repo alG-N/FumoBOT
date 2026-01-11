@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Ban Service
  * Handles bot-wide ban checking
  */

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Button Handler
  * Handles all button interactions for music controls
  */

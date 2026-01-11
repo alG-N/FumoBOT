@@ -1,4 +1,4 @@
-const { EmbedBuilder, Colors, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+﻿const { EmbedBuilder, Colors, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { run, get, all } = require('../../../../Core/database');
 const { formatNumber } = require('../../../../Ultility/formatting');
 const { buildSecureCustomId } = require('../../../../Middleware/buttonOwnership');

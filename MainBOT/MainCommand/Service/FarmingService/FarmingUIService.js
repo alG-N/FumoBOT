@@ -1,4 +1,4 @@
-const { EmbedBuilder, Colors } = require('discord.js');
+﻿const { EmbedBuilder, Colors } = require('discord.js');
 const { formatNumber } = require('../../Ultility/formatting');
 const { RARITY_PRIORITY } = require('../../Configuration/rarity');
 const { getRarityFromName } = require('./FarmingCalculationService');

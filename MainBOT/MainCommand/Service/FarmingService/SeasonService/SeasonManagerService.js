@@ -1,4 +1,4 @@
-const {
+﻿const {
     WEATHER_CONFIG,
     WEATHER_EVENTS,
     isWeekend,

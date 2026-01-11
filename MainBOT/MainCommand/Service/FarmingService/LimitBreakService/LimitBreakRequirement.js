@@ -1,4 +1,4 @@
-const fs = require('fs');
+﻿const fs = require('fs');
 const path = require('path');
 const FumoPool = require('../../../Data/FumoPool');
 
@@ -137,9 +137,7 @@ const MILESTONE_STAGES = {
     }
 };
 
-// ============================================================
 // UTILITY FUNCTIONS
-// ============================================================
 
 function initializeRequirementsFile() {
     if (!fs.existsSync(REQUIREMENTS_FILE)) {

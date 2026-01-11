@@ -1,4 +1,4 @@
-const db = require('../../../Core/database');
+﻿const db = require('../../../Core/database');
 const { RARITY_ORDER } = require('../../../Configuration/storageConfig');
 
 class StorageService {

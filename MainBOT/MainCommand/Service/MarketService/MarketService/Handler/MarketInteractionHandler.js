@@ -1,4 +1,4 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+﻿const { ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const { getCoinMarket, getGemMarket } = require('../MarketCacheService');
 const { getAllGlobalListings } = require('../MarketStorageService');
 const { formatNumber } = require('../../../../Ultility/formatting');

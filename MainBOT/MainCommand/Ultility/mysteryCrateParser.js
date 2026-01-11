@@ -1,4 +1,4 @@
-const { isValidCurrency, validateCrateCount } = require('../Configuration/mysteryCrateConfig');
+﻿const { isValidCurrency, validateCrateCount } = require('../Configuration/mysteryCrateConfig');
 
 function parseBetAmount(str) {
     if (!str) return NaN;

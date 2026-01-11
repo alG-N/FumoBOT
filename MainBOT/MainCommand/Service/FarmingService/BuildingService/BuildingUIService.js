@@ -1,4 +1,4 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Colors } = require('discord.js');
+﻿const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Colors } = require('discord.js');
 const { getAllBuildingsInfo, formatMultiplier, BUILDING_TYPES } = require('../../../Configuration/buildingConfig');
 
 // Helper function to format large numbers

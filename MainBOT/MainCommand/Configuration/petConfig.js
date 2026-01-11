@@ -1,4 +1,4 @@
-const PET_ABILITIES = {
+﻿const PET_ABILITIES = {
     Dog: {
         abilityName: "Loyal Companion",
         stat: 'Coin',

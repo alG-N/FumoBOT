@@ -1,4 +1,4 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+﻿const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { checkRestrictions } = require('../../../Middleware/restrictions');
 const { checkButtonOwnership, parseCustomId, buildSecureCustomId } = require('../../../Middleware/buttonOwnership');
 const { RARITY_ORDER } = require('../../../Configuration/itemConfig');

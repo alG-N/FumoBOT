@@ -1,4 +1,4 @@
-const SLOT_CONFIG = {
+﻿const SLOT_CONFIG = {
     reels: ['🍒', '🍋', '🔔', '💎', '7️⃣', '🍉', '🪙'],
     
     minBets: { 

@@ -1,4 +1,4 @@
-const { formatNumber } = require('../../../Ultility/formatting');
+﻿const { formatNumber } = require('../../../Ultility/formatting');
 
 function formatTime(ms) {
     if (!ms || ms === Infinity) return "∞ - Permanent";

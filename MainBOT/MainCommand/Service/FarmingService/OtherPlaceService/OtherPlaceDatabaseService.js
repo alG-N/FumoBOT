@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Other Place Database Service
  * 
  * Handles database operations for the Other Place farming feature.

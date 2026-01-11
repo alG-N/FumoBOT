@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Circuit Breaker Pattern Implementation
  * Prevents cascading failures when external services are down
  */

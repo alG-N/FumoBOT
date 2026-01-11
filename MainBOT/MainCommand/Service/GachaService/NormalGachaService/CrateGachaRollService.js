@@ -1,4 +1,4 @@
-const { get, run, withUserLock, atomicDeductCoins } = require('../../../Core/database');
+﻿const { get, run, withUserLock, atomicDeductCoins } = require('../../../Core/database');
 const { getUserBoosts, calculateTotalLuckMultiplier, consumeSanaeLuckRoll, consumeSanaeGuaranteedRoll } = require('./BoostService');
 const { calculateRarity, calculateRarityBatched, applyBatchedUpdates, updatePityCounters, updateBoostCharge, meetsMinimumRarity } = require('./RarityService');
 const { selectAndAddFumo, selectAndAddMultipleFumos } = require('./InventoryService');

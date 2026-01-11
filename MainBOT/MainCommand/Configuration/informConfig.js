@@ -1,4 +1,4 @@
-const coinBannerChances = {
+﻿const coinBannerChances = {
     'TRANSCENDENT': '0.0000667%',
     'ETERNAL': '0.0002%',
     'INFINITE': '0.0005%',

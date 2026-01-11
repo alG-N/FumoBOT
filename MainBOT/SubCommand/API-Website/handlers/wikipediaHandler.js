@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Wikipedia Handler
  * Creates embeds and buttons for Wikipedia articles
  */

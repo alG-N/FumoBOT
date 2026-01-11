@@ -1,4 +1,4 @@
-const db = require('./Database/dbSetting');
+﻿const db = require('./Database/dbSetting');
 
 const queryCache = new Map();
 const CACHE_TTL = 5000;

@@ -1,4 +1,4 @@
-const { 
+﻿const { 
     isValidChoice, 
     isValidCurrency, 
     isValidMultiplier 

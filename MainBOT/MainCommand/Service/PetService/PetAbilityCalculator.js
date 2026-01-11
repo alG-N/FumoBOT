@@ -1,4 +1,4 @@
-const { PET_ABILITIES } = require('../../Configuration/petConfig');
+﻿const { PET_ABILITIES } = require('../../Configuration/petConfig');
 
 class PetAbilityCalculator {
     static calculateCoinBoost(pet) {

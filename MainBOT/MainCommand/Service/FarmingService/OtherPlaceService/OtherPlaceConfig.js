@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Other Place Configuration
  * 
  * "Other Place" is an alternate dimension where you can send extra fumos

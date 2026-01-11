@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Google Search Handler
  * Creates embeds and buttons for search results
  */

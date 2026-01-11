@@ -1,4 +1,4 @@
-function getWeekIdentifier() {
+﻿function getWeekIdentifier() {
     const now = new Date();
     const firstDayOfYear = new Date(now.getFullYear(), 0, 1);
     const pastDaysOfYear = (now - firstDayOfYear) / 86400000;

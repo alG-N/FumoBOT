@@ -1,4 +1,4 @@
-const { RARITY_ORDER, RARITY_SUFFIX_MAP, getRarityFromItemName } = require('../Configuration/itemConfig');
+﻿const { RARITY_ORDER, RARITY_SUFFIX_MAP, getRarityFromItemName } = require('../Configuration/itemConfig');
 
 function groupItemsByRarity(items) {
     const grouped = {};

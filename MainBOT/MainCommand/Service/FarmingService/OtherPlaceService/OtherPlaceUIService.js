@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Other Place UI Service
  * 
  * Handles UI elements for the Other Place feature

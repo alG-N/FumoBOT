@@ -1,4 +1,4 @@
-const ITEM_RECIPES = {
+﻿const ITEM_RECIPES = {
     "ForgottenBook(C)": {
         category: "Tier 1",
         requires: { "Books(C)": 1, "FragmentOf1800s(R)": 1 },

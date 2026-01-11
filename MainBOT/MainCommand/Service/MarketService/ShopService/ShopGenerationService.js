@@ -1,4 +1,4 @@
-const { ITEM_DEFINITIONS, RARITY_THRESHOLDS, STOCK_RANGES } = require('../../../Configuration/shopConfig');
+﻿const { ITEM_DEFINITIONS, RARITY_THRESHOLDS, STOCK_RANGES } = require('../../../Configuration/shopConfig');
 const { debugLog } = require('../../../Core/logger');
 
 function getRandomInt(min, max) {

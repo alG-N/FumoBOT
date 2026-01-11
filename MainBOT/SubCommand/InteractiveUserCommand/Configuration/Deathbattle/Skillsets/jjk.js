@@ -1,4 +1,4 @@
-module.exports = {
+﻿module.exports = {
     name: 'jjk',
     displayName: 'Jujutsu Kaisen',
     thumbnail: 'https://steamuserimages-a.akamaihd.net/ugc/5107676531909210294/7A14253B35558071FBE17AD6F27C6158D078960C/?imw=5000&imh=5000&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false',

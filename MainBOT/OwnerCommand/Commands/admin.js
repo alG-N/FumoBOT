@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Admin Command - Bot Owner Only
  * Combined command for giving items, fumos, currency
  */

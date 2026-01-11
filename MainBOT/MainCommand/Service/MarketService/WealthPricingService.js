@@ -1,4 +1,4 @@
-const { get } = require('../../Core/database');
+﻿const { get } = require('../../Core/database');
 const { debugLog } = require('../../Core/logger');
 const {
     COIN_WEALTH_TIERS,

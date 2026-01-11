@@ -1,4 +1,4 @@
-function parseCraftCommand(args) {
+﻿function parseCraftCommand(args) {
     if (args.length === 0) {
         return {
             type: 'MENU',

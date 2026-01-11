@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Ticket Command - Bot Owner Only
  * View and manage user tickets/reports
  */

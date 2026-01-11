@@ -1,4 +1,4 @@
-const { run, transaction, get, all, withUserLock, atomicDeductCurrency } = require('../../Core/database');
+﻿const { run, transaction, get, all, withUserLock, atomicDeductCurrency } = require('../../Core/database');
 const { clearUserCache } = require('./CraftCacheService');
 const { getCraftTimer, CRAFT_CONFIG } = require('../../Configuration/craftConfig');
 const { incrementDailyCraft } = require('../../Ultility/weekly');

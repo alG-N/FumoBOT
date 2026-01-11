@@ -1,4 +1,4 @@
-/**
+﻿/**
  * /setting Command
  * Server owner settings configuration
  * Only server owners can access this command
@@ -20,9 +20,7 @@ const {
 const GuildSettingsService = require('../Service/GuildSettingsService');
 const adminConfig = require('../Config/adminConfig');
 
-// ═══════════════════════════════════════════════════════════════
 // SLASH COMMAND DEFINITION
-// ═══════════════════════════════════════════════════════════════
 
 const data = new SlashCommandBuilder()
     .setName('setting')
@@ -40,6 +38,15 @@ const data = new SlashCommandBuilder()
                     .setRequired(true)
                     .setMinValue(1)
                     .setMaxValue(50)))
+    .addSubcommand(sub =>
+        sub.setName('delete_limit')
+            .setDescription('Configure maximum messages that can be deleted at once')
+            .addIntegerOption(opt =>
+                opt.setName('limit')
+                    .setDescription('Maximum messages to delete (1-500)')
+                    .setRequired(true)
+                    .setMinValue(1)
+                    .setMaxValue(500)))
     .addSubcommand(sub =>
         sub.setName('announcement')
             .setDescription('Set the announcement channel')
@@ -88,9 +95,7 @@ const data = new SlashCommandBuilder()
         sub.setName('reset')
             .setDescription('Reset all settings to default'));
 
-// ═══════════════════════════════════════════════════════════════
 // COMMAND EXECUTION
-// ═══════════════════════════════════════════════════════════════
 
 async function execute(interaction) {
     // Only server owner can use this command
@@ -109,6 +114,8 @@ async function execute(interaction) {
                 return await handleView(interaction);
             case 'snipe':
                 return await handleSnipe(interaction);
+            case 'delete_limit':
+                return await handleDeleteLimit(interaction);
             case 'announcement':
                 return await handleAnnouncement(interaction);
             case 'log':
@@ -135,9 +142,7 @@ async function execute(interaction) {
     }
 }
 
-// ═══════════════════════════════════════════════════════════════
 // SUBCOMMAND HANDLERS
-// ═══════════════════════════════════════════════════════════════
 
 /**
  * View current server settings
@@ -170,7 +175,12 @@ async function handleView(interaction) {
                 inline: true 
             },
             { 
-                name: '📢 Announcement Channel', 
+                name: '�️ Delete Limit', 
+                value: `${settings.delete_limit || adminConfig.DELETE_CONFIG.DEFAULT_LIMIT} messages`, 
+                inline: true 
+            },
+            { 
+                name: '�📢 Announcement Channel', 
                 value: settings.announcement_channel 
                     ? `<#${settings.announcement_channel}>` 
                     : '*Not set*', 
@@ -210,6 +220,23 @@ async function handleSnipe(interaction) {
         .setColor(adminConfig.COLORS.SUCCESS)
         .setTitle('✅ Snipe Limit Updated')
         .setDescription(`The bot will now track the last **${limit}** deleted messages.`)
+        .setTimestamp();
+
+    return interaction.reply({ embeds: [embed], ephemeral: true });
+}
+
+/**
+ * Configure delete message limit
+ */
+async function handleDeleteLimit(interaction) {
+    const limit = interaction.options.getInteger('limit');
+
+    await GuildSettingsService.updateGuildSettings(interaction.guild.id, { delete_limit: limit });
+
+    const embed = new EmbedBuilder()
+        .setColor(adminConfig.COLORS.SUCCESS)
+        .setTitle('✅ Delete Limit Updated')
+        .setDescription(`Moderators can now delete up to **${limit}** messages at once using \`/delete\`.`)
         .setTimestamp();
 
     return interaction.reply({ embeds: [embed], ephemeral: true });
@@ -402,9 +429,7 @@ async function handleReset(interaction) {
     }
 }
 
-// ═══════════════════════════════════════════════════════════════
 // EXPORTS
-// ═══════════════════════════════════════════════════════════════
 
 module.exports = {
     data,

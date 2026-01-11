@@ -1,4 +1,4 @@
-module.exports = {
+﻿module.exports = {
     nodes: [
         {
             name: 'main-node',

@@ -1,4 +1,4 @@
-const { EmbedBuilder } = require('discord.js');
+﻿const { EmbedBuilder } = require('discord.js');
 const { PRAY_CHARACTERS, calculateScaledPrayCost } = require('../../../Configuration/prayConfig');
 const { formatNumber } = require('../../../Ultility/formatting');
 const {

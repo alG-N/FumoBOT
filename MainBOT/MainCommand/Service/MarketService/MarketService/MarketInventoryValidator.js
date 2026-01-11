@@ -1,4 +1,4 @@
-const { all } = require('../../../Core/database');
+﻿const { all } = require('../../../Core/database');
 const { debugLog } = require('../../../Core/logger');
 
 function getBaseFumoNameWithRarity(fumoName) {

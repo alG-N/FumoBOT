@@ -1,4 +1,4 @@
-const { checkRestrictions } = require('../../../Middleware/restrictions');
+﻿const { checkRestrictions } = require('../../../Middleware/restrictions');
 const { checkAndSetCooldown } = require('../../../Middleware/rateLimiter');
 const { claimDaily, getDailyStatus, getDailyLeaderboard } = require('../../../Service/UserDataService/DailyService/DailyService');
 const { 

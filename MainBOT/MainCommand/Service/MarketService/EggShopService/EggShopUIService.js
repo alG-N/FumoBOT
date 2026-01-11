@@ -1,4 +1,4 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+﻿const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { formatNumber } = require('../../../Ultility/formatting');
 const { getUserPurchases, getTimeUntilReset } = require('./EggShopCacheService');
 const { RARITY_INFO } = require('../../../Configuration/eggConfig');

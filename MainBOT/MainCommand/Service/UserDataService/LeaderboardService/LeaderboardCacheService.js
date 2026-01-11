@@ -1,14 +1,20 @@
-const LEADERBOARD_CONFIG = require('../../../Configuration/leaderboardConfig');
+﻿const LEADERBOARD_CONFIG = require('../../../Configuration/leaderboardConfig');
 
 class LeaderboardCacheService {
     constructor() {
         this.cache = new Map();
         this.userCache = new Map();
+        this._cleanupIntervalId = null;
         this.setupCleanup();
     }
 
     setupCleanup() {
-        setInterval(() => {
+        // Clear existing interval if any
+        if (this._cleanupIntervalId) {
+            clearInterval(this._cleanupIntervalId);
+        }
+        
+        this._cleanupIntervalId = setInterval(() => {
             const now = Date.now();
             const toDelete = [];
 
@@ -19,12 +25,19 @@ class LeaderboardCacheService {
             }
 
             toDelete.forEach(key => this.cache.delete(key));
-
-            // Cleanup log disabled for cleaner console
-            // if (toDelete.length > 0) {
-            //     console.log(`[LeaderboardCache] Cleaned ${toDelete.length} expired entries`);
-            // }
         }, 60000);
+    }
+
+    /**
+     * Shutdown the cache service - cleanup resources
+     */
+    shutdown() {
+        if (this._cleanupIntervalId) {
+            clearInterval(this._cleanupIntervalId);
+            this._cleanupIntervalId = null;
+        }
+        this.cache.clear();
+        this.userCache.clear();
     }
 
     getCacheKey(category, page = 0) {

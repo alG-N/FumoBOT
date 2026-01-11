@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Migration: Remove unused Sanae columns from userCoins table
  * 
  * These columns have been replaced by the separate sanaeBlessings table

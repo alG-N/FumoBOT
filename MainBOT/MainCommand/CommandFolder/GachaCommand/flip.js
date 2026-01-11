@@ -1,4 +1,4 @@
-const { checkRestrictions } = require('../../Middleware/restrictions');
+﻿const { checkRestrictions } = require('../../Middleware/restrictions');
 const { checkAndSetCooldown } = require('../../Middleware/rateLimiter');
 const { FLIP_COOLDOWN } = require('../../Configuration/flipConfig');
 const { parseFlipCommand, parseLeaderboardCommand } = require('../../Ultility/flipParser');

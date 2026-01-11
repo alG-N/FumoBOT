@@ -1,4 +1,4 @@
-const { all, run } = require('../../../Core/database');
+﻿const { all, run } = require('../../../Core/database');
 const { debugLog } = require('../../../Core/logger');
 
 async function recordExchange(userId, type, amount, taxedAmount, result, taxRate) {

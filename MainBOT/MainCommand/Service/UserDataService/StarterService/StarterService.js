@@ -1,4 +1,4 @@
-const db = require('../../../Core/database');
+﻿const db = require('../../../Core/database');
 const { STARTER_CONFIG } = require('../../../Configuration/starterConfig');
 const { logError } = require('../../../Core/logger');
 

@@ -1,4 +1,4 @@
-const CATEGORIES = [
+﻿const CATEGORIES = [
     'Common',
     'UNCOMMON',
     'RARE',

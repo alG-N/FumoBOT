@@ -1,4 +1,4 @@
-const { checkRestrictions } = require('../../Middleware/restrictions');
+﻿const { checkRestrictions } = require('../../Middleware/restrictions');
 const { createFarmInfoEmbed } = require('../../Service/FarmingService/FarmingUIService');
 
 module.exports = async (client) => {

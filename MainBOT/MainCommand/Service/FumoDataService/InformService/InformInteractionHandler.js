@@ -1,4 +1,4 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+﻿const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { format } = require('date-fns');
 const { VARIANT_CONFIG, SUMMON_PLACES, formatChanceAsOneInX, parsePercentage } = require('../../../Configuration/informConfig');
 const { calculateVariantChance } = require('./InformDataService');

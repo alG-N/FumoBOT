@@ -1,4 +1,4 @@
-const ItemQueryService = require('../../../Service/UserDataService/ItemService/ItemInfoService/ItemQueryService');
+﻿const ItemQueryService = require('../../../Service/UserDataService/ItemService/ItemInfoService/ItemQueryService');
 const ItemFormatter = require('../../../Service/UserDataService/ItemService/ItemInfoService/ItemFormatter');
 const { checkRestrictions } = require('../../../Middleware/restrictions');
 

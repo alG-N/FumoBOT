@@ -1,4 +1,4 @@
-const { EmbedBuilder } = require('discord.js');
+﻿const { EmbedBuilder } = require('discord.js');
 const { applyMultipleBoosts } = require('../UseBoostService');
 
 async function handleAncientRelic(message, itemName, quantity, userId) {

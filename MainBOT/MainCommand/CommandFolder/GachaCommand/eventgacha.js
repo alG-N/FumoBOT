@@ -1,4 +1,4 @@
-const { EmbedBuilder } = require('discord.js');
+﻿const { EmbedBuilder } = require('discord.js');
 const { get, run } = require('../../Core/database');
 const { logToDiscord } = require('../../Core/logger');
 const { checkRestrictions } = require('../../Middleware/restrictions');

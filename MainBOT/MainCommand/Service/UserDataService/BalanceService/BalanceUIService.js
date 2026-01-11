@@ -1,4 +1,4 @@
-const { EmbedBuilder } = require('discord.js');
+﻿const { EmbedBuilder } = require('discord.js');
 const { PAGES, COLORS, TOTAL_PAGES, PAGE_INFO } = require('../../../Configuration/balanceConfig');
 const { formatNumber } = require('../../../Ultility/formatting');
 const {
@@ -39,9 +39,7 @@ try {
     console.warn('[BalanceUI] petConfig not found, using defaults');
 }
 
-// ═══════════════════════════════════════════════════════════════════
 // PAGE 1: OVERVIEW - Main profile summary with key stats
-// ═══════════════════════════════════════════════════════════════════
 function createOverviewPage(targetUser, userData, farmingFumos, activeBoosts, weather) {
     const farmingRate = calculateTotalFarmingRate(farmingFumos || []);
     const boostMult = calculateBoostMultipliers(activeBoosts || []);
@@ -108,9 +106,7 @@ function createOverviewPage(targetUser, userData, farmingFumos, activeBoosts, we
     return embed;
 }
 
-// ═══════════════════════════════════════════════════════════════════
 // PAGE 2: ECONOMY - Detailed wealth breakdown
-// ═══════════════════════════════════════════════════════════════════
 function createEconomyPage(targetUser, userData, farmingFumos, activeBoosts, buildings = {}) {
     const farmingRate = calculateTotalFarmingRate(farmingFumos || []);
     const boostMult = calculateBoostMultipliers(activeBoosts || []);
@@ -191,9 +187,7 @@ function createEconomyPage(targetUser, userData, farmingFumos, activeBoosts, bui
         .setTimestamp();
 }
 
-// ═══════════════════════════════════════════════════════════════════
 // PAGE 3: PRAYER - Prayer & devotion statistics
-// ═══════════════════════════════════════════════════════════════════
 function createPrayerPage(targetUser, userData, sanaeData = {}) {
     const reimuProgress = formatProgressBar(userData.reimuPityCount || 0, 15);
     const marisaProgress = formatProgressBar(userData.marisaDonationCount || 0, 5);
@@ -259,9 +253,7 @@ function createPrayerPage(targetUser, userData, sanaeData = {}) {
         .setTimestamp();
 }
 
-// ═══════════════════════════════════════════════════════════════════
 // PAGE 4: STATS - Gacha stats and progression
-// ═══════════════════════════════════════════════════════════════════
 function createStatsPage(targetUser, userData) {
     const levelProgress = getLevelProgress(userData);
     const winLossEmoji = getWinLossEmoji(userData.wins || 0, userData.losses || 0);
@@ -315,9 +307,7 @@ function createStatsPage(targetUser, userData) {
         .setTimestamp();
 }
 
-// ═══════════════════════════════════════════════════════════════════
 // PAGE 5: PETS - Pet collection and bonuses
-// ═══════════════════════════════════════════════════════════════════
 function createPetsPage(targetUser, petData) {
     const { owned = [], hatching = [] } = petData || {};
     
@@ -395,9 +385,7 @@ function createPetsPage(targetUser, petData) {
         .setTimestamp();
 }
 
-// ═══════════════════════════════════════════════════════════════════
 // PAGE 6: BUILDINGS - Building upgrades and bonuses
-// ═══════════════════════════════════════════════════════════════════
 function createBuildingsPage(targetUser, buildings) {
     // buildings is now a single object with level fields
     const b = buildings || { coinBoostLevel: 0, gemBoostLevel: 0, criticalFarmingLevel: 0, eventBoostLevel: 0 };
@@ -474,9 +462,7 @@ function createBuildingsPage(targetUser, buildings) {
         .setTimestamp();
 }
 
-// ═══════════════════════════════════════════════════════════════════
 // PAGE 7: BOOSTS - Active boost effects
-// ═══════════════════════════════════════════════════════════════════
 function createBoostsPage(targetUser, activeBoosts, userData) {
     const boostMult = calculateBoostMultipliers(activeBoosts || []);
     
@@ -543,9 +529,7 @@ function createBoostsPage(targetUser, activeBoosts, userData) {
         .setTimestamp();
 }
 
-// ═══════════════════════════════════════════════════════════════════
 // PAGE 8: PITY - Gacha pity progression
-// ═══════════════════════════════════════════════════════════════════
 function createPityPage(targetUser, userData) {
     const pities = getPityProgress(userData);
     
@@ -583,9 +567,7 @@ function getRarityEmoji(rarity) {
     return emojis[rarity] || '⭐';
 }
 
-// ═══════════════════════════════════════════════════════════════════
 // PAGE 9: QUESTS - Quest progress summary
-// ═══════════════════════════════════════════════════════════════════
 function createQuestsPage(targetUser, questSummary) {
     const { ACHIEVEMENTS } = require('../../../Configuration/unifiedAchievementConfig');
     const { daily = { completed: 0, total: 5 }, weekly = { completed: 0, total: 7 }, achievements = [] } = questSummary || {};
@@ -674,9 +656,7 @@ function createQuestsPage(targetUser, questSummary) {
         .setTimestamp();
 }
 
-// ═══════════════════════════════════════════════════════════════════
 // PAGE 10: ACTIVITY - Recent activity log
-// ═══════════════════════════════════════════════════════════════════
 function createActivityPage(targetUser, activityData, achievements) {
     const recentSales = activityData?.recentSales || [];
     const recentCrafts = activityData?.recentCrafts || [];
@@ -739,9 +719,7 @@ function createActivityPage(targetUser, activityData, achievements) {
         .setTimestamp();
 }
 
-// ═══════════════════════════════════════════════════════════════════
 // GENERATE ALL PAGES
-// ═══════════════════════════════════════════════════════════════════
 async function generateAllPages(targetUser, userData, farmingFumos, activeBoosts, achievements, activityData, petData, buildings, questSummary, weather, sanaeData) {
     return [
         createOverviewPage(targetUser, userData, farmingFumos, activeBoosts, weather),

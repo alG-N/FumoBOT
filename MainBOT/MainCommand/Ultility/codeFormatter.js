@@ -1,4 +1,4 @@
-const { formatNumber } = require('./formatting');
+﻿const { formatNumber } = require('./formatting');
 const { CODE_CATEGORIES } = require('../Configuration/codeConfig');
 
 function formatReward(reward) {

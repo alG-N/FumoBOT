@@ -1,4 +1,4 @@
-const { get, all, run } = require('../../../Core/database');
+﻿const { get, all, run } = require('../../../Core/database');
 const { performEventSummon, getEventUserRollData } = require('./EventGachaService');
 const { 
     EVENT_AUTO_ROLL_INTERVAL, 

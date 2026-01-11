@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Google/Search Service
  * Handles Google Custom Search API and DuckDuckGo fallback
  */

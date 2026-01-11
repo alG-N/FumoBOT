@@ -1,4 +1,4 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+﻿const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { formatNumber } = require('../../../Ultility/formatting');
 const { formatProgressBar } = require('../../../Ultility/balanceFormatter');
 const { buildSecureCustomId } = require('../../../Middleware/buttonOwnership');

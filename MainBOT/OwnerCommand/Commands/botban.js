@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Bot Ban Command - Bot Owner Only
  * Ban users from using the bot entirely
  */

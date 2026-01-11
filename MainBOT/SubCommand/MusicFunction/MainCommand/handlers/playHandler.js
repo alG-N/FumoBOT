@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Play Handler
  * Handles play, playlist, and related functionality
  */

@@ -1,4 +1,4 @@
-const { checkButtonOwnership, buildSecureCustomId } = require('../../../Middleware/buttonOwnership');
+﻿const { checkButtonOwnership, buildSecureCustomId } = require('../../../Middleware/buttonOwnership');
 const { 
     handleShinyShardRaritySelection, 
     handleShinyShardFumoSelection, 

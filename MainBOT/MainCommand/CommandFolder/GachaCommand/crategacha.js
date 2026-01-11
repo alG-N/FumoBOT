@@ -1,4 +1,4 @@
-const { get } = require('../../Core/database');
+﻿const { get } = require('../../Core/database');
 const { logUserActivity, logError, logToDiscord } = require('../../Core/logger');
 const { checkRestrictions } = require('../../Middleware/restrictions');
 const { verifyButtonOwnership } = require('../../Middleware/buttonOwnership');

@@ -1,4 +1,4 @@
-const { RARITY_PRIORITY, compareFumos, isRarer } = require('../Configuration/rarity');
+﻿const { RARITY_PRIORITY, compareFumos, isRarer } = require('../Configuration/rarity');
 
 // Maximum safe integer for financial operations (prevent precision loss)
 const MAX_SAFE_CURRENCY = Number.MAX_SAFE_INTEGER; // 9,007,199,254,740,991

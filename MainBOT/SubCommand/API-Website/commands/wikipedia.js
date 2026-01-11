@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Wikipedia Command
  * Search and display Wikipedia articles with full features
  */

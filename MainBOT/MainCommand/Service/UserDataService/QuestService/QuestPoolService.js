@@ -1,4 +1,4 @@
-const db = require('../../../Core/Database/dbSetting');
+﻿const db = require('../../../Core/Database/dbSetting');
 const { getWeekIdentifier } = require('../../../Ultility/timeUtils');
 const { QUEST_POOLS, QUEST_CONFIG } = require('../../../Configuration/questConfig');
 

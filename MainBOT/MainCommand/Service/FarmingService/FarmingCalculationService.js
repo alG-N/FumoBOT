@@ -1,4 +1,4 @@
-const { RARITY_PRIORITY } = require('../../Configuration/rarity');
+﻿const { RARITY_PRIORITY } = require('../../Configuration/rarity');
 
 const FARMING_STATS = {
     'Common': { coins: 25, gems: 5 },

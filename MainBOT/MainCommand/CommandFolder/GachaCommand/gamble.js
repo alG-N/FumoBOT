@@ -1,4 +1,4 @@
-const { checkRestrictions } = require('../../Middleware/restrictions');
+﻿const { checkRestrictions } = require('../../Middleware/restrictions');
 const { checkAndSetCooldown } = require('../../Middleware/rateLimiter');
 const GambleService = require('../../Service/GachaService/GambleService/GambleService');
 const GambleUIService = require('../../Service/GachaService/GambleService/GambleUIService');

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Moderation Service
  * Handles kick, mute, and ban operations with logging
  */
@@ -7,9 +7,7 @@ const { EmbedBuilder } = require('discord.js');
 const GuildSettingsService = require('./GuildSettingsService');
 const adminConfig = require('../Config/adminConfig');
 
-// ═══════════════════════════════════════════════════════════════
 // MODERATION ACTIONS
-// ═══════════════════════════════════════════════════════════════
 
 /**
  * Kick a user from the server
@@ -314,9 +312,7 @@ async function unbanUser(guild, userId, moderator, reason = 'Unbanned by moderat
     }
 }
 
-// ═══════════════════════════════════════════════════════════════
 // LOGGING
-// ═══════════════════════════════════════════════════════════════
 
 /**
  * Log a moderation action to the guild's log channel
@@ -425,9 +421,7 @@ function createLogEmbed(action) {
     return embed;
 }
 
-// ═══════════════════════════════════════════════════════════════
 // UTILITY FUNCTIONS
-// ═══════════════════════════════════════════════════════════════
 
 /**
  * Parse duration string into milliseconds
@@ -480,9 +474,7 @@ function formatDuration(ms) {
     return `${seconds} second${seconds > 1 ? 's' : ''}`;
 }
 
-// ═══════════════════════════════════════════════════════════════
 // EXPORTS
-// ═══════════════════════════════════════════════════════════════
 
 module.exports = {
     // Actions

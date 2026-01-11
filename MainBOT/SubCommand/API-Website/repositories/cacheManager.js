@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Unified Cache Manager
  * Consolidates caching for all API commands
  */

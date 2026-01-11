@@ -1,4 +1,4 @@
-/**
+﻿/**
  * NHentai Handler
  * Creates embeds and buttons for nhentai command
  */

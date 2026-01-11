@@ -1,4 +1,4 @@
-const { get } = require('../../../Core/database');
+﻿const { get } = require('../../../Core/database');
 const { STORAGE_CONFIG } = require('../../../Configuration/storageConfig');
 const { EmbedBuilder, Colors } = require('discord.js');
 

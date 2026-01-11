@@ -1,4 +1,4 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+﻿const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { formatReward, formatCodeList, formatRedemptionHistory, getCategoryColor } = require('../../../Ultility/codeFormatter');
 const { buildSecureCustomId } = require('../../../Middleware/buttonOwnership');
 const CodeRedemptionService = require('./CodeRedemptionService');

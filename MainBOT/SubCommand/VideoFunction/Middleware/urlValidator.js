@@ -1,4 +1,4 @@
-const videoEmbedBuilder = require('../Utility/videoEmbedBuilder');
+﻿const videoEmbedBuilder = require('../Utility/videoEmbedBuilder');
 
 /**
  * Validate a video URL

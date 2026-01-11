@@ -1,4 +1,4 @@
-const rarityLevels = [
+﻿const rarityLevels = [
     { name: 'Common', chance: 0.45, minStock: 5, maxStock: 10, emoji: '⚪' },
     { name: 'UNCOMMON', chance: 0.30, minStock: 4, maxStock: 8, emoji: '🟢' },
     { name: 'RARE', chance: 0.15, minStock: 3, maxStock: 6, emoji: '🔵' },

@@ -1,4 +1,4 @@
-const { Events } = require('discord.js');
+﻿const { Events } = require('discord.js');
 const CodeRedemptionService = require('../../../Service/UserDataService/CodeRedemptionService/CodeRedemptionService');
 const CodeRedemptionUI = require('../../../Service/UserDataService/CodeRedemptionService/CodeRedemptionUI');
 const { checkRestrictions } = require('../../../Middleware/restrictions');

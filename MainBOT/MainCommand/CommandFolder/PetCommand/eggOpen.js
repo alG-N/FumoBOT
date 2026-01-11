@@ -1,4 +1,4 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
+﻿const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 const db = require('../../Core/Database/dbSetting');
 const { EGG_DATA } = require('../../Configuration/petConfig');
 const PetDatabase = require('../../Service/PetService/PetDatabaseService');

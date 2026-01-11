@@ -1,4 +1,4 @@
-const { get, run, all } = require('../../../Core/database');
+﻿const { get, run, all } = require('../../../Core/database');
 const { generateUserShop } = require('./ShopGenerationService');
 const { debugLog } = require('../../../Core/logger');
 

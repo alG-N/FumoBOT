@@ -1,4 +1,4 @@
-const { confirmSigilActivation, cancelSigilActivation } = require('./ItemUseHandler/SgilHandler');
+﻿const { confirmSigilActivation, cancelSigilActivation } = require('./ItemUseHandler/SgilHandler');
 const { checkButtonOwnership } = require('../../../Middleware/buttonOwnership');
 
 let isRegistered = false;

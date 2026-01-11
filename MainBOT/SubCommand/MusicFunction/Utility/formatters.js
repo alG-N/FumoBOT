@@ -1,4 +1,4 @@
-function fmtDur(sec) {
+﻿function fmtDur(sec) {
     sec = Number(sec) || 0;
     const h = Math.floor(sec / 3600);
     const m = Math.floor((sec % 3600) / 60);

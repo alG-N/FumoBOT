@@ -1,4 +1,4 @@
-module.exports = {
+﻿module.exports = {
     // Timeouts
     INACTIVITY_TIMEOUT: 3 * 60 * 1000,       // 3 minutes before auto-leave
     VC_CHECK_INTERVAL: 60_000,                // 1 minute VC monitoring interval

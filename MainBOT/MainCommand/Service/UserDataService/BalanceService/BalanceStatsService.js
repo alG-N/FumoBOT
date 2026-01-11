@@ -1,4 +1,4 @@
-const { getStatsByRarity } = require('../../../Ultility/characterStats');
+﻿const { getStatsByRarity } = require('../../../Ultility/characterStats');
 const { formatNumber } = require('../../../Ultility/formatting');
 
 function calculateTotalFarmingRate(farmingFumos) {

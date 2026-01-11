@@ -1,4 +1,4 @@
-const { get, all } = require('../../../Core/database');
+﻿const { get, all } = require('../../../Core/database');
 
 const informCache = new Map();
 const CACHE_TTL = 30000;

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Handler Index
  * Exports all music command handlers
  * 

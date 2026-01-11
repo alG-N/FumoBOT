@@ -1,4 +1,4 @@
-const { EmbedBuilder, Colors } = require('discord.js');
+﻿const { EmbedBuilder, Colors } = require('discord.js');
 const { DAILY_CONFIG } = require('../../../Configuration/dailyConfig');
 const { formatNumber } = require('../../../Ultility/formatting');
 const { formatDuration } = require('../../../Ultility/balanceFormatter');

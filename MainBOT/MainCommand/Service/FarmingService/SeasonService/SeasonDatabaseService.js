@@ -1,4 +1,4 @@
-const { get, all, run } = require('../../../Core/database');
+﻿const { get, all, run } = require('../../../Core/database');
 const { debugLog } = require('../../../Core/logger');
 
 async function getActiveSeasons() {

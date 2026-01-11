@@ -1,4 +1,4 @@
-module.exports = {
+﻿module.exports = {
     GACHA_COST: 100,
     GACHA_COOLDOWN: 4000,
     

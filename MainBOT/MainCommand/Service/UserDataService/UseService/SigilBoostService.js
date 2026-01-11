@@ -1,4 +1,4 @@
-const { get, all, run } = require('../../../Core/database');
+﻿const { get, all, run } = require('../../../Core/database');
 
 const SIGIL_SOURCES = ['S!gil', 'GoldenSigil', 'CrystalSigil', 'VoidCrystal', 'EternalEssence', 'CosmicCore'];
 

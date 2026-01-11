@@ -1,4 +1,4 @@
-const { getUserRerollData, updateRerollCount, updatePaidRerollCount, resetPaidRerollCount } = require('./ShopDatabaseService');
+﻿const { getUserRerollData, updateRerollCount, updatePaidRerollCount, resetPaidRerollCount } = require('./ShopDatabaseService');
 const { REROLL_COOLDOWN, MAX_REROLLS } = require('../../../Configuration/shopConfig');
 const { debugLog } = require('../../../Core/logger');
 

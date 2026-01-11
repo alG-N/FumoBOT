@@ -1,4 +1,4 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
+﻿const { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
 const { checkRestrictions } = require('../../../Middleware/restrictions');
 const { checkButtonOwnership } = require('../../../Middleware/buttonOwnership');
 const { get, run, all } = require('../../../Core/database');
@@ -20,9 +20,7 @@ const {
     getBaseNameWithoutTrait
 } = require('./LimitBreakRequirement');
 
-// ============================================================
 // TIER COLORS AND EMOJIS
-// ============================================================
 const TIER_COLORS = {
     NOVICE: 0x90EE90,      // Light green
     ADEPT: 0x4169E1,       // Royal blue

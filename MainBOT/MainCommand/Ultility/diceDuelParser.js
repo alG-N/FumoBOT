@@ -1,4 +1,4 @@
-const { validateBetAmount, isValidCurrency, isValidMode } = require('../../MainCommand/Configuration/diceDuelConfig');
+﻿const { validateBetAmount, isValidCurrency, isValidMode } = require('../../MainCommand/Configuration/diceDuelConfig');
 
 function parseBetAmount(str) {
     if (!str) return NaN;

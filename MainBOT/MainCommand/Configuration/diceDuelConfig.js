@@ -1,4 +1,4 @@
-const DICE_MODES = {
+﻿const DICE_MODES = {
     EASY: {
         name: 'Easy',
         playerDice: 2,

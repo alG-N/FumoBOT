@@ -1,4 +1,4 @@
-const { THRESHOLDS, DESCRIPTIONS } = require('../Configuration/balanceConfig');
+﻿const { THRESHOLDS, DESCRIPTIONS } = require('../Configuration/balanceConfig');
 const { formatNumber } = require('./formatting');
 
 function getCoinDescription(coins) {

@@ -1,4 +1,4 @@
-const { get, run } = require('../../../Core/database');
+﻿const { get, run } = require('../../../Core/database');
 const { debugLog } = require('../../../Core/logger');
 
 const EXCHANGE_RATE_ID = 1;

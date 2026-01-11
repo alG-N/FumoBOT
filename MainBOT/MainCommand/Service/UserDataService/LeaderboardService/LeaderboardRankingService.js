@@ -1,4 +1,4 @@
-const LEADERBOARD_CONFIG = require('../../../Configuration/leaderboardConfig');
+﻿const LEADERBOARD_CONFIG = require('../../../Configuration/leaderboardConfig');
 const dataService = require('./LeaderboardDataService');
 const { formatNumber } = require('../../../Ultility/formatting');
 

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * History Handler
  * Handles listening history
  */

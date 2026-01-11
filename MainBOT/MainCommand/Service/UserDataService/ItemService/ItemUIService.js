@@ -1,11 +1,9 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require('discord.js');
+﻿const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require('discord.js');
 const { buildSecureCustomId } = require('../../../Middleware/buttonOwnership');
 const { formatNumber } = require('../../../Ultility/formatting');
 const { RARITY_EMOJI, RARITY_COLORS, RARITY_ORDER } = require('../../../Configuration/itemConfig');
 
-// ═══════════════════════════════════════════════════════════════════
 // CONSTANTS & CONFIGURATION
-// ═══════════════════════════════════════════════════════════════════
 const INVENTORY_THEMES = {
     default: { name: 'Treasure Trove', emoji: '🎒', color: 0x5865F2 },
     dark: { name: 'Shadow Vault', emoji: '🌑', color: 0x2C2F33 },
@@ -26,9 +24,7 @@ const RARITY_DECORATIONS = {
     'Prime': { prefix: '👑', bar: '█', accent: '👑' }
 };
 
-// ═══════════════════════════════════════════════════════════════════
 // UTILITY FUNCTIONS
-// ═══════════════════════════════════════════════════════════════════
 
 /**
  * Create a visual progress bar
@@ -71,9 +67,7 @@ function getCollectionTier(uniqueItems) {
     return { emoji: '📦', title: 'Beginner Collector' };
 }
 
-// ═══════════════════════════════════════════════════════════════════
 // MAIN INVENTORY EMBED
-// ═══════════════════════════════════════════════════════════════════
 
 function createInventoryEmbed(user, pageData, stats, currentPage, totalPages, theme = 'default') {
     const themeConfig = INVENTORY_THEMES[theme] || INVENTORY_THEMES.default;
@@ -139,9 +133,7 @@ function createInventoryEmbed(user, pageData, stats, currentPage, totalPages, th
     return embed;
 }
 
-// ═══════════════════════════════════════════════════════════════════
 // NAVIGATION BUTTONS
-// ═══════════════════════════════════════════════════════════════════
 
 function createInventoryButtons(userId, currentPage, totalPages) {
     const row = new ActionRowBuilder();
@@ -221,9 +213,7 @@ function createRarityFilterMenu(userId, currentFilter = 'all') {
     return new ActionRowBuilder().addComponents(selectMenu);
 }
 
-// ═══════════════════════════════════════════════════════════════════
 // SUMMARY EMBED
-// ═══════════════════════════════════════════════════════════════════
 
 function createInventorySummaryEmbed(user, stats) {
     const collectionTier = getCollectionTier(stats.totalUniqueItems);
@@ -286,9 +276,7 @@ function createInventorySummaryEmbed(user, stats) {
     return embed;
 }
 
-// ═══════════════════════════════════════════════════════════════════
 // ERROR & EMPTY STATE EMBEDS
-// ═══════════════════════════════════════════════════════════════════
 
 function createInventoryErrorEmbed(message) {
     return new EmbedBuilder()
@@ -333,9 +321,7 @@ function createEmptyInventoryEmbed(user) {
         .setTimestamp();
 }
 
-// ═══════════════════════════════════════════════════════════════════
 // ITEM DETAIL EMBED
-// ═══════════════════════════════════════════════════════════════════
 
 function createItemDetailEmbed(itemName, itemData, quantity, user) {
     const rarityColor = RARITY_COLORS[itemData.rarity] || 0x808080;

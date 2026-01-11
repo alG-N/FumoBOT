@@ -1,4 +1,4 @@
-const { VALID_CODES, CODE_LIMITS, CODE_MESSAGES } = require('../../../Configuration/codeConfig');
+﻿const { VALID_CODES, CODE_LIMITS, CODE_MESSAGES } = require('../../../Configuration/codeConfig');
 const CodeRepository = require('./CodeRepository');
 const { run, get, withUserLock, transaction } = require('../../../Core/database');
 

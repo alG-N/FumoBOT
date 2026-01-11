@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Google Search Command
  * Search the web using Google Custom Search or DuckDuckGo fallback
  */

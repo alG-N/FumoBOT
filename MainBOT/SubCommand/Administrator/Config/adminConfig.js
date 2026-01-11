@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Server Administrator Configuration
  */
 
@@ -6,6 +6,7 @@ module.exports = {
     // Default settings for new guilds
     DEFAULT_GUILD_SETTINGS: {
         snipe_limit: 10,                    // Default number of messages to track for snipe
+        delete_limit: 100,                  // Default max messages to delete at once
         announcement_channel: null,          // Channel ID for bot announcements
         admin_roles: [],                    // Role IDs that can use admin commands
         mod_roles: [],                      // Role IDs that can use moderation commands
@@ -33,6 +34,15 @@ module.exports = {
         MAX_LIMIT: 50,
         DEFAULT_LIMIT: 10,
         MAX_MESSAGE_AGE_MS: 24 * 60 * 60 * 1000  // 24 hours
+    },
+
+    // Delete configuration
+    DELETE_CONFIG: {
+        MIN_LIMIT: 1,
+        MAX_LIMIT: 500,         // Server configurable max
+        DISCORD_LIMIT: 100,     // Discord's max per bulk delete
+        DEFAULT_LIMIT: 100,
+        MAX_MESSAGE_AGE_DAYS: 14  // Discord only allows bulk delete for messages < 14 days old
     },
 
     // Mute configuration

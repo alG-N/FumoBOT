@@ -1,4 +1,4 @@
-const { get, all, run, transaction, withUserLock, atomicDeductCurrency } = require('../../Core/database');
+﻿const { get, all, run, transaction, withUserLock, atomicDeductCurrency } = require('../../Core/database');
 const { getWeekIdentifier } = require('../../Ultility/weekly');
 const QuestMiddleware = require('../../Middleware/questMiddleware');
 

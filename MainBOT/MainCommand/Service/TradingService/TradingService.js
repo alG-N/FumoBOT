@@ -1,4 +1,4 @@
-const { get, all, run, transaction, withUserLock } = require('../../Core/database');
+﻿const { get, all, run, transaction, withUserLock } = require('../../Core/database');
 const TRADING_CONFIG = require('../../Configuration/tradingConfig');
 const QuestMiddleware = require('../../Middleware/questMiddleware');
 

@@ -1,4 +1,4 @@
-const skillsetService = require('./SkillsetService');
+﻿const skillsetService = require('./SkillsetService');
 
 class BattleService {
     constructor() {

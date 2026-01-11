@@ -1,4 +1,4 @@
-const { all, get } = require('../../Core/database');
+﻿const { all, get } = require('../../Core/database');
 const { getUserFarmingFumos, updateFarmingIncome, updateDailyQuest } = require('./FarmingDatabaseService');
 const { INCOME_INTERVAL } = require('./FarmingCalculationService');
 const { getCurrentMultipliers } = require('./SeasonService/SeasonManagerService');

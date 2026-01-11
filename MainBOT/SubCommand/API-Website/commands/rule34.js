@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+﻿const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { checkAccess, AccessType } = require('../../Middleware');
 const rule34Service = require('../services/rule34Service');
 const rule34Cache = require('../repositories/rule34Cache');

@@ -1,4 +1,4 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Colors } = require('discord.js');
+﻿const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Colors } = require('discord.js');
 const { SPECIAL_RARITIES, RARITY_PRIORITY, isRarer } = require('../../../Configuration/rarity');
 const { formatNumber } = require('../../../Ultility/formatting');
 const { getSanaeBoostDisplay, getTraitBoostDisplay, isSigilActive } = require('./BoostService');

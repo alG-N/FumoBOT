@@ -1,4 +1,4 @@
-const { all, run } = require('../../Core/database');
+﻿const { all, run } = require('../../Core/database');
 const { stopFarmingInterval } = require('./FarmingIntervalService');
 const { debugLog } = require('../../Core/logger');
 

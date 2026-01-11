@@ -1,4 +1,4 @@
-const { v4: uuidv4 } = require('uuid');
+﻿const { v4: uuidv4 } = require('uuid');
 const { EGG_DATA, EGG_POOLS } = require('../../Configuration/petConfig');
 const PetDatabase = require('./PetDatabaseService');
 const PetStats = require('./PetStatsService');

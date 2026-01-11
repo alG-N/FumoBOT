@@ -1,4 +1,4 @@
-const { checkRestrictions } = require('../../../Middleware/restrictions');
+﻿const { checkRestrictions } = require('../../../Middleware/restrictions');
 const { checkButtonOwnership } = require('../../../Middleware/buttonOwnership');
 const { getActiveBoosts } = require('../../../Service/UserDataService/BoostService/BoostQueryService');
 const { createBoostEmbed, createBoostButtons } = require('../../../Service/UserDataService/BoostService/BoostUIService');

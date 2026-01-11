@@ -1,4 +1,4 @@
-const { get, run } = require('../../../../Core/database');
+﻿const { get, run } = require('../../../../Core/database');
 
 const sanaeCache = new Map();
 const CACHE_TTL = 3000;

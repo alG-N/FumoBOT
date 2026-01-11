@@ -1,4 +1,4 @@
-const { EmbedBuilder } = require('discord.js');
+﻿const { EmbedBuilder } = require('discord.js');
 const { run, get } = require('../../../../Core/database');
 
 async function handleLumina(message, itemName, quantity, userId) {

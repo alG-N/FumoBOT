@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, Partials } = require('discord.js');
+﻿const { Client, GatewayIntentBits, Partials } = require('discord.js');
 
 const DEFAULT_INTENTS = [
     GatewayIntentBits.GuildMessages,

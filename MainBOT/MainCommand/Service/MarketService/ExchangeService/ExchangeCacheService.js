@@ -1,4 +1,4 @@
-const { debugLog } = require('../../../Core/logger');
+﻿const { debugLog } = require('../../../Core/logger');
 
 /**
  * Cache for pending exchange requests

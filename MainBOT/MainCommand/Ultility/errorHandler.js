@@ -1,4 +1,4 @@
-const { EmbedBuilder } = require('discord.js');
+﻿const { EmbedBuilder } = require('discord.js');
 const { logToDiscord, LogLevel } = require('../Core/logger');
 
 const ERROR_COUNTS = new Map();

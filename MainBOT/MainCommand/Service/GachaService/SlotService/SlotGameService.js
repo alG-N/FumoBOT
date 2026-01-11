@@ -1,4 +1,4 @@
-const { get, run } = require('../../../Core/database');
+﻿const { get, run } = require('../../../Core/database');
 const { SLOT_CONFIG, isValidCurrency, getMinBet } = require('../../../Configuration/slotConfig');
 const { incrementDailyGamble } = require('../../../Ultility/weekly');
 const { parseBet } = require('../../../Ultility/formatting');

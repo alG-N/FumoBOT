@@ -1,4 +1,4 @@
-const db = require('../../Core/database');
+﻿const db = require('../../Core/database');
 const PetCache = require('./PetCacheService');
 
 async function getUserPets(userId, useCache = true) {

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Starter Pack System Configuration
  * Reworked with path selection and welcome items
  */

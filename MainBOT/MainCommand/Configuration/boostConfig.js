@@ -1,4 +1,4 @@
-const BOOST_TYPES = {
+﻿const BOOST_TYPES = {
     COIN: 'coin',
     GEM: 'gem',
     LUCK: 'luck',

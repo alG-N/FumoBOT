@@ -1,4 +1,4 @@
-const { applyBoost, applyMultipleBoosts } = require('../UseBoostService');
+﻿const { applyBoost, applyMultipleBoosts } = require('../UseBoostService');
 const { EmbedBuilder } = require('discord.js');
 
 async function handleWeirdGrass(message, itemName, quantity, userId) {

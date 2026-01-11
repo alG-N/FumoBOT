@@ -1,4 +1,4 @@
-const { all, get } = require('../../../Core/database');
+﻿const { all, get } = require('../../../Core/database');
 const { formatNumber } = require('../../../Ultility/formatting');
 const { debugLog } = require('../../../Core/logger');
 

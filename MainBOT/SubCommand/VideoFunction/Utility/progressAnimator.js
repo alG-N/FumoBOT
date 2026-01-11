@@ -1,4 +1,4 @@
-const { EventEmitter } = require('events');
+﻿const { EventEmitter } = require('events');
 
 /**
  * ProgressAnimator - Handles animated progress bars and status updates for Discord embeds

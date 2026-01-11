@@ -1,4 +1,4 @@
-const CRATE_TIERS = {
+﻿const CRATE_TIERS = {
     WOODEN: {
         name: 'Wooden Crate',
         emoji: '📦',

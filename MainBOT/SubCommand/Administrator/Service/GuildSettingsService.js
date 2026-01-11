@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Guild Settings Service
  * Manages server-specific settings and configurations
  * Uses separate admin database
@@ -7,9 +7,7 @@
 const { run, get, all } = require('../Database/adminDatabase');
 const adminConfig = require('../Config/adminConfig');
 
-// ═══════════════════════════════════════════════════════════════
 // GET SETTINGS
-// ═══════════════════════════════════════════════════════════════
 
 /**
  * Get guild settings, creating default if not exists
@@ -38,14 +36,15 @@ async function getGuildSettings(guildId) {
 
         await run(`
             INSERT INTO guildSettings (
-                guildId, snipe_limit, announcement_channel, log_channel,
+                guildId, snipe_limit, delete_limit, announcement_channel, log_channel,
                 admin_roles, mod_roles, mute_role, auto_mod_enabled,
                 welcome_channel, welcome_message, goodbye_channel, goodbye_message,
                 created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
             guildId,
             defaults.snipe_limit,
+            defaults.delete_limit,
             defaults.announcement_channel,
             defaults.log_channel,
             JSON.stringify(defaults.admin_roles),
@@ -77,9 +76,7 @@ async function getGuildSettings(guildId) {
     }
 }
 
-// ═══════════════════════════════════════════════════════════════
 // UPDATE SETTINGS
-// ═══════════════════════════════════════════════════════════════
 
 /**
  * Update guild settings
@@ -92,7 +89,7 @@ async function updateGuildSettings(guildId, updates) {
     await getGuildSettings(guildId);
 
     const allowedFields = [
-        'snipe_limit', 'announcement_channel', 'log_channel',
+        'snipe_limit', 'delete_limit', 'announcement_channel', 'log_channel',
         'admin_roles', 'mod_roles', 'mute_role', 'auto_mod_enabled',
         'welcome_channel', 'welcome_message', 'goodbye_channel', 'goodbye_message'
     ];
@@ -128,9 +125,7 @@ async function updateGuildSettings(guildId, updates) {
     return getGuildSettings(guildId);
 }
 
-// ═══════════════════════════════════════════════════════════════
 // SPECIFIC SETTING HELPERS
-// ═══════════════════════════════════════════════════════════════
 
 /**
  * Get snipe limit for a guild
@@ -248,9 +243,7 @@ async function removeModRole(guildId, roleId) {
     return updateGuildSettings(guildId, { mod_roles: roles });
 }
 
-// ═══════════════════════════════════════════════════════════════
 // PERMISSION CHECKING
-// ═══════════════════════════════════════════════════════════════
 
 /**
  * Check if a member has admin permissions in the guild
@@ -309,9 +302,7 @@ function isServerOwner(member) {
     return member.guild.ownerId === member.id;
 }
 
-// ═══════════════════════════════════════════════════════════════
 // EXPORTS
-// ═══════════════════════════════════════════════════════════════
 
 module.exports = {
     // Main getters/setters

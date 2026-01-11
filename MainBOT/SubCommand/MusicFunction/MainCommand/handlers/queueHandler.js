@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Queue Handler
  * Handles queue viewing and management
  */

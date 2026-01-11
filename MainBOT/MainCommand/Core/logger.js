@@ -1,4 +1,4 @@
-const { EmbedBuilder, Colors } = require('discord.js');
+﻿const { EmbedBuilder, Colors } = require('discord.js');
 
 const LOG_CHANNEL_ID = '1411386632589807719';
 const LOG_ERROR_CHANNEL_ID = '1367886953286205530';

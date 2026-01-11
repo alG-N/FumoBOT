@@ -1,4 +1,4 @@
-const { EmbedBuilder } = require('discord.js');
+﻿const { EmbedBuilder } = require('discord.js');
 
 function createErrorEmbed(title, description, footerText = null) {
     const embed = new EmbedBuilder()

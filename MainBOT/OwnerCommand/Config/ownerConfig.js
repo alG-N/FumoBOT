@@ -1,13 +1,11 @@
-/**
+﻿/**
  * Owner Configuration
  * Central configuration file for all bot owner-related settings
  */
 
 const path = require('path');
 
-// ═══════════════════════════════════════════════════════════════
 // OWNER IDS & PERMISSIONS
-// ═══════════════════════════════════════════════════════════════
 
 /**
  * List of Discord user IDs with full owner/admin access
@@ -25,9 +23,7 @@ const OWNER_IDS = [
  */
 const DEVELOPER_ID = '1128296349566251068';
 
-// ═══════════════════════════════════════════════════════════════
 // CHANNEL IDS
-// ═══════════════════════════════════════════════════════════════
 
 /**
  * Channel where guild join/leave notifications are sent
@@ -44,9 +40,7 @@ const REPORT_CHANNEL_ID = '1362826913088799001';
  */
 const SUPPORT_GUILD_ID = '1255091916823986207';
 
-// ═══════════════════════════════════════════════════════════════
 // FILE PATHS
-// ═══════════════════════════════════════════════════════════════
 
 const DATA_DIR = path.join(__dirname, '../Data');
 
@@ -55,9 +49,7 @@ const FILE_PATHS = {
     TICKET_COUNTER: path.join(DATA_DIR, 'ticketCounter.txt')
 };
 
-// ═══════════════════════════════════════════════════════════════
 // TICKET CONFIGURATION
-// ═══════════════════════════════════════════════════════════════
 
 const TICKET_TYPES = {
     bug: {
@@ -109,9 +101,7 @@ const TICKET_TYPES = {
 
 const TICKET_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
-// ═══════════════════════════════════════════════════════════════
 // RARITY CONFIGURATION
-// ═══════════════════════════════════════════════════════════════
 
 const ITEM_RARITIES = [
     { label: 'Basic (B)', value: 'B' },
@@ -139,9 +129,7 @@ const CURRENCY_TYPES = [
     { label: 'Gems 💎', value: 'gems', emoji: '💎', column: 'gems' }
 ];
 
-// ═══════════════════════════════════════════════════════════════
 // AMOUNT PARSING CONFIGURATION
-// ═══════════════════════════════════════════════════════════════
 
 const AMOUNT_SUFFIXES = {
     'k': 1e3,
@@ -162,9 +150,7 @@ const AMOUNT_SUFFIXES = {
     'qid': 1e48
 };
 
-// ═══════════════════════════════════════════════════════════════
 // BAN DURATION CONFIGURATION
-// ═══════════════════════════════════════════════════════════════
 
 const BAN_DURATION_MULTIPLIERS = {
     s: 1000,
@@ -175,9 +161,7 @@ const BAN_DURATION_MULTIPLIERS = {
     y: 365 * 24 * 60 * 60 * 1000
 };
 
-// ═══════════════════════════════════════════════════════════════
 // GUILD TRACKING CONFIGURATION
-// ═══════════════════════════════════════════════════════════════
 
 const GUILD_FEATURES_MAP = {
     'ANIMATED_ICON': '🎬 Animated Icon',
@@ -202,9 +186,7 @@ const BOOST_TIERS = {
     names: ['None', 'Tier 1', 'Tier 2', 'Tier 3']
 };
 
-// ═══════════════════════════════════════════════════════════════
 // EMBED COLORS
-// ═══════════════════════════════════════════════════════════════
 
 const EMBED_COLORS = {
     SUCCESS: 'Green',
@@ -217,9 +199,7 @@ const EMBED_COLORS = {
     GUILD_LEAVE: 0xff0000
 };
 
-// ═══════════════════════════════════════════════════════════════
 // HELPER FUNCTIONS
-// ═══════════════════════════════════════════════════════════════
 
 function isOwner(userId) {
     return OWNER_IDS.includes(userId);

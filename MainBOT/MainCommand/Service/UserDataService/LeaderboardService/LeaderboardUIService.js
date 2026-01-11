@@ -1,4 +1,4 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+﻿const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const LEADERBOARD_CONFIG = require('../../../Configuration/leaderboardConfig');
 const rankingService = require('./LeaderboardRankingService');
 const { buildSecureCustomId } = require('../../../Middleware/buttonOwnership');

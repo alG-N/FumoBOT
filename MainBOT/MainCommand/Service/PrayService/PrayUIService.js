@@ -1,4 +1,4 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+﻿const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { getRarityColor, getRarityEmoji, PRAY_CHARACTERS, PRAY_FAILED_CONFIG } = require('../../Configuration/prayConfig');
 
 function createRitualWelcomeEmbed(hasBasicShards, hasEnhancedShards) {

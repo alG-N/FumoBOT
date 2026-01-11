@@ -1,4 +1,4 @@
-const { EmbedBuilder, Colors, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+﻿const { EmbedBuilder, Colors, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { STARTER_CONFIG } = require('../../../Configuration/starterConfig');
 const { formatNumber } = require('../../../Ultility/formatting');
 

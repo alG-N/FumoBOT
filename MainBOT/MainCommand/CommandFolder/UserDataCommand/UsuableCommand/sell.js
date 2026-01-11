@@ -1,4 +1,4 @@
-const SellService = require('../../../Service/UserDataService/SellService/SellService');
+﻿const SellService = require('../../../Service/UserDataService/SellService/SellService');
 const SellInteractiveService = require('../../../Service/UserDataService/SellService/SellInteractiveService');
 const { checkRestrictions } = require('../../../Middleware/restrictions');
 

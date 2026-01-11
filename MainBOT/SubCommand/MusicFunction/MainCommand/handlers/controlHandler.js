@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Control Handler
  * Handles playback controls: stop, skip, pause, vote skip
  */

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Daily Reward System Configuration
  * Reworked with milestone system, streak protection, and better scaling
  */

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Settings & Status Handler
  * Handles settings configuration and status display
  */

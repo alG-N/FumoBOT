@@ -1,4 +1,4 @@
-/**
+﻿/**
  * NHentai Command
  * Browse and read nhentai doujins with full page pagination
  * NSFW only - requires age verification channel

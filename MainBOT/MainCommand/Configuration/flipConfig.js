@@ -1,4 +1,4 @@
-const MULTIPLIERS = {
+﻿const MULTIPLIERS = {
     2: { win: 2, loss: 1 },
     3: { win: 3, loss: 1.5 },
     5: { win: 5, loss: 4 },

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Ticket Service
  * Handles ticket management
  */

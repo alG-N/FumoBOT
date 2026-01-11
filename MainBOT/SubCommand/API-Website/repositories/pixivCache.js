@@ -1,4 +1,4 @@
-class PixivCache {
+﻿class PixivCache {
     constructor() {
         this.searchCache = new Map();
         this.resultCache = new Map();

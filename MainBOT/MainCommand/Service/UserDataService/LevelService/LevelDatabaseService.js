@@ -1,4 +1,4 @@
-const { get, run, all, withUserLock } = require('../../../Core/database');
+﻿const { get, run, all, withUserLock } = require('../../../Core/database');
 const { debugLog } = require('../../../Core/logger');
 const { 
     getLevelFromExp, 

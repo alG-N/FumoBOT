@@ -1,4 +1,4 @@
-const { EmbedBuilder } = require('discord.js');
+﻿const { EmbedBuilder } = require('discord.js');
 const { PRAY_FAILED_CONFIG } = require('../../Configuration/prayConfig');
 const { formatNumber } = require('../../Ultility/formatting');
 const { run, all, get, transaction } = require('../../Core/database');

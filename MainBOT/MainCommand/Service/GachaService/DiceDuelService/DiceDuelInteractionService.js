@@ -1,4 +1,4 @@
-const { Events } = require('discord.js');
+﻿const { Events } = require('discord.js');
 const { checkButtonOwnership, sendOwnershipError } = require('../../../Middleware/buttonOwnership');
 const { DICE_TIMEOUTS } = require('../../../Configuration/diceDuelConfig');
 const { processDiceResult } = require('./DiceDuelGameService');

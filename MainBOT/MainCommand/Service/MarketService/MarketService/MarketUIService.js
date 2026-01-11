@@ -1,4 +1,4 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require('discord.js');
+﻿const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require('discord.js');
 const { get } = require('../../../Core/database');
 const { rarityLevels, gemShopRarityLevels, GLOBAL_SHOP_CONFIG } = require('../../../Configuration/marketConfig');
 const { formatNumber } = require('../../../Ultility/formatting');

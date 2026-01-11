@@ -1,4 +1,4 @@
-const { handleCoinPotion, handleGemPotion, handleBoostPotion, isCoinPotion, isGemPotion, isBoostPotion } = require('./PotionHandler');
+﻿const { handleCoinPotion, handleGemPotion, handleBoostPotion, isCoinPotion, isGemPotion, isBoostPotion } = require('./PotionHandler');
 const { handleGoldenSigil } = require('./GoldenSigilHandler');
 const { handleNullified } = require('./NullifiedHandler');
 const { handlePetFoob } = require('./PetFoobHandler');

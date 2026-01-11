@@ -1,4 +1,4 @@
-const db = require('../../../Core/Database/dbSetting');
+﻿const db = require('../../../Core/Database/dbSetting');
 const { getWeekIdentifier } = require('../../../Ultility/timeUtils');
 const QuestProgressService = require('./QuestProgressService');
 const QuestRewardService = require('./QuestRewardService');

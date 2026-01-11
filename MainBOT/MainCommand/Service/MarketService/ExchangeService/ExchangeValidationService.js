@@ -1,4 +1,4 @@
-const { get } = require('../../../Core/database');
+﻿const { get } = require('../../../Core/database');
 const { formatNumber } = require('../../../Ultility/formatting');
 
 const MIN_EXCHANGE = 10;

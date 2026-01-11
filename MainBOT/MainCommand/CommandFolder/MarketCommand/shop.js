@@ -1,4 +1,4 @@
-const { EmbedBuilder, Colors } = require('discord.js');
+﻿const { EmbedBuilder, Colors } = require('discord.js');
 const { checkRestrictions } = require('../../Middleware/restrictions');
 const { checkButtonOwnership } = require('../../Middleware/buttonOwnership');
 const { formatNumber } = require('../../Ultility/formatting');

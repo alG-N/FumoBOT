@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, ComponentType } = require('discord.js');
+﻿const { SlashCommandBuilder, EmbedBuilder, ComponentType } = require('discord.js');
 const { checkAccess, AccessType } = require('../../Middleware');
 const anilistService = require('../services/anilistService');
 const animeRepository = require('../repositories/animeRepository');

@@ -1,4 +1,4 @@
-const { get, all, run } = require('../../../Core/database');
+﻿const { get, all, run } = require('../../../Core/database');
 const { formatNumber } = require('../../../Ultility/formatting');
 
 async function addGlobalListing(userId, fumoName, coinPrice, gemPrice) {

@@ -1,4 +1,4 @@
-const { generateCoinMarket, generateGemMarket } = require('./MarketGenerationService');
+﻿const { generateCoinMarket, generateGemMarket } = require('./MarketGenerationService');
 const { 
     COIN_MARKET_RESET_INTERVAL, 
     GEM_MARKET_RESET_INTERVAL 

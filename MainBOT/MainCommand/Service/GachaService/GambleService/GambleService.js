@@ -1,4 +1,4 @@
-const { get, run } = require('../../../Core/database');
+﻿const { get, run } = require('../../../Core/database');
 const { doesCounter, validateBet, GAMBLE_CONFIG } = require('../../../Configuration/gambleConfig');
 const { incrementDailyGamble } = require('../../../Ultility/weekly');
 const QuestMiddleware = require('../../../Middleware/questMiddleware');

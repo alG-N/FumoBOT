@@ -1,4 +1,4 @@
-const { GraphQLClient, gql } = require('graphql-request');
+﻿const { GraphQLClient, gql } = require('graphql-request');
 
 class AnilistService {
     constructor() {

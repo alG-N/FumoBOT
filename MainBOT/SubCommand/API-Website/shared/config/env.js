@@ -1,4 +1,4 @@
-const path = require('path');
+﻿const path = require('path');
 
 // Load environment variables from .env files in the API-Website root
 // You can merge all env vars into a single .env file in the API-Website folder

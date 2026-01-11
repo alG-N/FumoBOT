@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Music Cache Manager
  * Handles caching for queue state, user sessions, preferences, and history
  */

@@ -1,4 +1,4 @@
-const { checkRestrictions } = require('../../../Middleware/restrictions');
+﻿const { checkRestrictions } = require('../../../Middleware/restrictions');
 const { createInventoryEmbed, createInventoryButtons } = require('../../../Service/UserDataService/ItemService/ItemUIService');
 const { getUserInventoryPaginated, getInventoryStats } = require('../../../Service/UserDataService/ItemService/ItemQueryService');
 const { handleInventoryInteraction } = require('../../../Service/UserDataService/ItemService/ItemInteractionService');

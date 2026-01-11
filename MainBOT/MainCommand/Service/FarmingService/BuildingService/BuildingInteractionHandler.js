@@ -1,4 +1,4 @@
-const { getBuildingLevels, upgradeBuilding } = require('./BuildingDatabaseService');
+﻿const { getBuildingLevels, upgradeBuilding } = require('./BuildingDatabaseService');
 const { 
     getAllBuildingsInfo, 
     calculateUpgradeCost, 

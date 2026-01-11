@@ -1,4 +1,4 @@
-const { EmbedBuilder, Colors } = require('discord.js');
+﻿const { EmbedBuilder, Colors } = require('discord.js');
 const { maintenance, developerID } = require('../Configuration/maintenanceConfig');
 const { isUserBanned } = require('../../OwnerCommand/Commands/botban');
 

@@ -1,4 +1,4 @@
-const RARITY_ORDER = ['Basic', 'Common', 'Rare', 'Epic', 'Legendary', 'Mythical', 'Divine', 'Secret', 'Unknown', 'Prime'];
+﻿const RARITY_ORDER = ['Basic', 'Common', 'Rare', 'Epic', 'Legendary', 'Mythical', 'Divine', 'Secret', 'Unknown', 'Prime'];
 
 const RARITY_SUFFIX_MAP = {
     '(B)': 'Basic',

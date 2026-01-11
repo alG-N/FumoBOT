@@ -1,4 +1,4 @@
-const { run, get, all } = require('../../../Core/database');
+﻿const { run, get, all } = require('../../../Core/database');
 const { incrementWeeklyShiny } = require('../../../Ultility/weekly');
 const { debugLog } = require('../../../Core/logger');
 

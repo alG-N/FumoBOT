@@ -1,4 +1,4 @@
-/**
+﻿/**
  * /ban Command
  * Ban a user from the server
  */
@@ -13,9 +13,7 @@ const ModerationService = require('../Service/ModerationService');
 const GuildSettingsService = require('../Service/GuildSettingsService');
 const adminConfig = require('../Config/adminConfig');
 
-// ═══════════════════════════════════════════════════════════════
 // SLASH COMMAND DEFINITION
-// ═══════════════════════════════════════════════════════════════
 
 const data = new SlashCommandBuilder()
     .setName('ban')
@@ -55,9 +53,7 @@ const data = new SlashCommandBuilder()
         sub.setName('list')
             .setDescription('View the server ban list'));
 
-// ═══════════════════════════════════════════════════════════════
 // COMMAND EXECUTION
-// ═══════════════════════════════════════════════════════════════
 
 async function execute(interaction) {
     // Check permissions
@@ -96,9 +92,7 @@ async function execute(interaction) {
     }
 }
 
-// ═══════════════════════════════════════════════════════════════
 // SUBCOMMAND HANDLERS
-// ═══════════════════════════════════════════════════════════════
 
 /**
  * Handle ban subcommand
@@ -262,9 +256,7 @@ async function handleList(interaction) {
     }
 }
 
-// ═══════════════════════════════════════════════════════════════
 // EXPORTS
-// ═══════════════════════════════════════════════════════════════
 
 module.exports = {
     data,

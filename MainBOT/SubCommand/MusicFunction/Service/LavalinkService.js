@@ -1,4 +1,4 @@
-const { Shoukaku, Connectors } = require('shoukaku');
+﻿const { Shoukaku, Connectors } = require('shoukaku');
 const lavalinkConfig = require('../Configuration/lavalinkConfig');
 
 class LavalinkService {

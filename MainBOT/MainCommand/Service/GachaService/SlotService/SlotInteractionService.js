@@ -1,4 +1,4 @@
-const { createAnimationEmbed, createResultEmbed, createPlayAgainButtons } = require('./SlotUIService');
+﻿const { createAnimationEmbed, createResultEmbed, createPlayAgainButtons } = require('./SlotUIService');
 
 async function playAnimationSequence(interaction, spinResult, isTextCommand) {
     const embeds = [

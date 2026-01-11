@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Shared Cooldown Manager
  * Handles rate limiting across all API commands
  */

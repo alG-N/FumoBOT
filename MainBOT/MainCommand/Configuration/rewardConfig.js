@@ -1,4 +1,4 @@
-const DAILY_REWARDS = {
+﻿const DAILY_REWARDS = {
     BASE_COINS: 25000,
     BASE_GEMS: 3500,
     BASE_ITEMS: [

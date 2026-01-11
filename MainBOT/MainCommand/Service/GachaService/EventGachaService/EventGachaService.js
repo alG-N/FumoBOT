@@ -1,4 +1,4 @@
-const { get, run } = require('../../../Core/database');
+﻿const { get, run } = require('../../../Core/database');
 const { EVENT_BASE_CHANCES, PITY_THRESHOLDS } = require('../../../Configuration/rarity');
 const { selectAndAddFumo, rollBaseVariant, rollSpecialVariant, applyVariantToName } = require('../NormalGachaService/InventoryService');
 const { updateQuestsAndAchievements } = require('../NormalGachaService/CrateGachaRollService');

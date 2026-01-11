@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Guild Tracking Service
  * Handles guild join/leave tracking and statistics
  */
@@ -6,9 +6,7 @@
 const { EmbedBuilder, Colors } = require('discord.js');
 const { GUILD_LOG_CHANNEL_ID, GUILD_FEATURES_MAP, BOOST_TIERS } = require('../Config/ownerConfig');
 
-// ═══════════════════════════════════════════════════════════════
 // HELPERS
-// ═══════════════════════════════════════════════════════════════
 
 function getAge(date) {
     const now = new Date();
@@ -57,9 +55,7 @@ function formatBoostInfo(guild) {
     };
 }
 
-// ═══════════════════════════════════════════════════════════════
 // EMBED CREATORS
-// ═══════════════════════════════════════════════════════════════
 
 function createGuildJoinEmbed(guild, client) {
     const age = getAge(guild.createdAt);
@@ -117,9 +113,7 @@ function createGuildStatsEmbed(client) {
     return embed;
 }
 
-// ═══════════════════════════════════════════════════════════════
 // NOTIFICATION
-// ═══════════════════════════════════════════════════════════════
 
 async function sendGuildNotification(client, embed) {
     if (!GUILD_LOG_CHANNEL_ID) return;
@@ -134,20 +128,51 @@ async function sendGuildNotification(client, embed) {
     }
 }
 
+// Track initialization state
+let isInitialized = false;
+let guildCreateHandler = null;
+let guildDeleteHandler = null;
+
 function initializeGuildTracking(client) {
-    client.on('guildCreate', async (guild) => {
+    // Prevent duplicate initialization
+    if (isInitialized) {
+        console.log('⚠️ Guild tracking already initialized, skipping...');
+        return;
+    }
+
+    guildCreateHandler = async (guild) => {
         console.log(`[Guild] Joined: ${guild.name} (${guild.id})`);
         const embed = createGuildJoinEmbed(guild, client);
         await sendGuildNotification(client, embed);
-    });
+    };
     
-    client.on('guildDelete', async (guild) => {
+    guildDeleteHandler = async (guild) => {
         console.log(`[Guild] Left: ${guild.name} (${guild.id})`);
         const embed = createGuildLeaveEmbed(guild, client);
         await sendGuildNotification(client, embed);
-    });
+    };
+
+    client.on('guildCreate', guildCreateHandler);
+    client.on('guildDelete', guildDeleteHandler);
     
+    isInitialized = true;
     console.log('✅ Guild tracking initialized');
+}
+
+/**
+ * Shutdown guild tracking - cleanup resources
+ */
+function shutdownGuildTracking(client) {
+    if (guildCreateHandler) {
+        client.off('guildCreate', guildCreateHandler);
+        guildCreateHandler = null;
+    }
+    if (guildDeleteHandler) {
+        client.off('guildDelete', guildDeleteHandler);
+        guildDeleteHandler = null;
+    }
+    isInitialized = false;
+    console.log('✅ Guild tracking shutdown');
 }
 
 function getGuildStatistics(client) {
@@ -162,6 +187,7 @@ function getGuildStatistics(client) {
 module.exports = {
     GUILD_LOG_CHANNEL_ID,
     initializeGuildTracking,
+    shutdownGuildTracking,
     sendGuildNotification,
     createGuildJoinEmbed,
     createGuildLeaveEmbed,

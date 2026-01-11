@@ -1,4 +1,4 @@
-const { EmbedBuilder, Colors } = require('discord.js');
+﻿const { EmbedBuilder, Colors } = require('discord.js');
 const { MULTIPLIERS } = require('../../../Configuration/flipConfig');
 const { formatNumber } = require('../../../Ultility/formatting');
 

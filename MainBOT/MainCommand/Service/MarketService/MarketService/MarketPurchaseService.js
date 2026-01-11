@@ -1,4 +1,4 @@
-const { get, run, withUserLock, atomicDeductCoins, atomicDeductGems, atomicDeductCurrency, transaction } = require('../../../Core/database');
+﻿const { get, run, withUserLock, atomicDeductCoins, atomicDeductGems, atomicDeductCurrency, transaction } = require('../../../Core/database');
 const { getCoinMarket, getGemMarket, updateCoinMarketStock, updateGemMarketStock } = require('./MarketCacheService');
 const { addFumoToInventory } = require('./MarketInventoryService');
 const { purchaseGlobalListing } = require('./MarketStorageService');

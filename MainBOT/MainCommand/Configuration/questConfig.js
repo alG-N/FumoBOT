@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Quest Configuration
  * 
  * Note: The ACHIEVEMENTS array has been moved to unifiedAchievementConfig.js

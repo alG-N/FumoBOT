@@ -1,4 +1,4 @@
-const { EmbedBuilder } = require('discord.js');
+﻿const { EmbedBuilder } = require('discord.js');
 
 class DeathBattleEmbedBuilder {
     buildCountdownEmbed(battle, countdown) {

@@ -1,4 +1,4 @@
-const { checkRestrictions } = require('../../Middleware/restrictions');
+﻿const { checkRestrictions } = require('../../Middleware/restrictions');
 const { checkButtonOwnership } = require('../../Middleware/buttonOwnership');
 const {
     createMainShopEmbed,

@@ -1,4 +1,4 @@
-const CARDS = [
+﻿const CARDS = [
     { id: 1, name: 'ReimuFumo', emoji: '⛩️' },
     { id: 2, name: 'SanaeFumo', emoji: '🐸' },
     { id: 3, name: 'MarisaFumo', emoji: '⭐' },

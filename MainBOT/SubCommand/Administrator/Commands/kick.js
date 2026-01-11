@@ -1,4 +1,4 @@
-/**
+﻿/**
  * /kick Command
  * Kick a user from the server
  */
@@ -13,9 +13,7 @@ const ModerationService = require('../Service/ModerationService');
 const GuildSettingsService = require('../Service/GuildSettingsService');
 const adminConfig = require('../Config/adminConfig');
 
-// ═══════════════════════════════════════════════════════════════
 // SLASH COMMAND DEFINITION
-// ═══════════════════════════════════════════════════════════════
 
 const data = new SlashCommandBuilder()
     .setName('kick')
@@ -31,9 +29,7 @@ const data = new SlashCommandBuilder()
             .setRequired(false)
             .setMaxLength(500));
 
-// ═══════════════════════════════════════════════════════════════
 // COMMAND EXECUTION
-// ═══════════════════════════════════════════════════════════════
 
 async function execute(interaction) {
     // Check permissions
@@ -114,9 +110,7 @@ async function execute(interaction) {
     }
 }
 
-// ═══════════════════════════════════════════════════════════════
 // EXPORTS
-// ═══════════════════════════════════════════════════════════════
 
 module.exports = {
     data,

@@ -1,4 +1,4 @@
-const CRAFT_TYPES = {
+﻿const CRAFT_TYPES = {
     ITEM: 'item',
     POTION: 'potion',
     FUMO: 'fumo',

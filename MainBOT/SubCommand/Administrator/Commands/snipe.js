@@ -1,4 +1,4 @@
-/**
+﻿/**
  * /snipe Command
  * Recover deleted messages
  */
@@ -13,9 +13,7 @@ const SnipeService = require('../Service/SnipeService');
 const GuildSettingsService = require('../Service/GuildSettingsService');
 const adminConfig = require('../Config/adminConfig');
 
-// ═══════════════════════════════════════════════════════════════
 // SLASH COMMAND DEFINITION
-// ═══════════════════════════════════════════════════════════════
 
 const data = new SlashCommandBuilder()
     .setName('snipe')
@@ -35,9 +33,7 @@ const data = new SlashCommandBuilder()
             .setDescription('Only show deleted messages from this user')
             .setRequired(false));
 
-// ═══════════════════════════════════════════════════════════════
 // COMMAND EXECUTION
-// ═══════════════════════════════════════════════════════════════
 
 async function execute(interaction) {
     // Check if user has mod permissions
@@ -108,9 +104,7 @@ async function execute(interaction) {
     }
 }
 
-// ═══════════════════════════════════════════════════════════════
 // HELPER FUNCTIONS
-// ═══════════════════════════════════════════════════════════════
 
 /**
  * Create an embed for a sniped message
@@ -209,9 +203,7 @@ function formatTimeAgo(timestamp) {
     return `${seconds}s ago`;
 }
 
-// ═══════════════════════════════════════════════════════════════
 // EXPORTS
-// ═══════════════════════════════════════════════════════════════
 
 module.exports = {
     data,

@@ -1,4 +1,4 @@
-const { PET_ABILITIES, HUNGER_CONFIG, RARITY_TIERS } = require('../../Configuration/petConfig');
+﻿const { PET_ABILITIES, HUNGER_CONFIG, RARITY_TIERS } = require('../../Configuration/petConfig');
 
 function calculateBoost(pet) {
     const quality = (pet.quality || 1) * (hasAlterGoldenBonus(pet.petName) ? 2 : 1);

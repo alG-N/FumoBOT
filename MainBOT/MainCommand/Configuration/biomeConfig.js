@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Biome System Configuration
  * 
  * Biomes are different farming zones that provide unique bonuses.
@@ -29,9 +29,7 @@ const BIOME_IMAGES = {
 };
 
 const BIOMES = {
-    // ═══════════════════════════════════════════════════════════════
     // DEFAULT BIOME - Available to all (FREE)
-    // ═══════════════════════════════════════════════════════════════
     GRASSLAND: {
         id: 'GRASSLAND',
         name: 'Grassland',
@@ -52,9 +50,7 @@ const BIOMES = {
         color: 0x7CFC00  // Lawn green
     },
 
-    // ═══════════════════════════════════════════════════════════════
     // LEVEL 50 BIOMES - Basic specialization (Entry cost)
-    // ═══════════════════════════════════════════════════════════════
     MOUNTAIN: {
         id: 'MOUNTAIN',
         name: 'Crystal Mountain',
@@ -128,9 +124,7 @@ const BIOMES = {
         color: 0xF4A460  // Sandy brown
     },
 
-    // ═══════════════════════════════════════════════════════════════
     // REBIRTH 1 BIOMES - Intermediate specialization (Higher cost)
-    // ═══════════════════════════════════════════════════════════════
     VOLCANO: {
         id: 'VOLCANO',
         name: 'Volcanic Forge',
@@ -179,9 +173,7 @@ const BIOMES = {
         color: 0x87CEEB  // Sky blue
     },
 
-    // ═══════════════════════════════════════════════════════════════
     // REBIRTH 3 BIOMES - Advanced specialization (Premium cost)
-    // ═══════════════════════════════════════════════════════════════
     CELESTIAL_GARDEN: {
         id: 'CELESTIAL_GARDEN',
         name: 'Celestial Garden',
@@ -234,9 +226,7 @@ const BIOMES = {
         color: 0x4B0082  // Indigo
     },
 
-    // ═══════════════════════════════════════════════════════════════
     // REBIRTH 5 BIOMES - Mastery tier (Ultimate cost)
-    // ═══════════════════════════════════════════════════════════════
     TRANSCENDENT_PLAINS: {
         id: 'TRANSCENDENT_PLAINS',
         name: 'Transcendent Plains',

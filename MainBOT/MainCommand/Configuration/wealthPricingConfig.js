@@ -1,4 +1,4 @@
-// Wealth pricing configuration for MarketService and ShopService
+﻿// Wealth pricing configuration for MarketService and ShopService
 const COIN_WEALTH_TIERS = [
     { threshold: 1_000_000_000_000_000_000_000n, multiplier: 1000.0 },
     { threshold: 1_000_000_000_000_000_000n, multiplier: 500.0 },

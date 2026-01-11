@@ -1,4 +1,4 @@
-const { resumeAllFarmingIntervals } = require('../../Service/FarmingService/FarmingIntervalService');
+﻿const { resumeAllFarmingIntervals } = require('../../Service/FarmingService/FarmingIntervalService');
 const { startCleanupJob } = require('../../Service/FarmingService/FarmingCleanupService');
 const { logToDiscord, LogLevel } = require('../../Core/logger');
 

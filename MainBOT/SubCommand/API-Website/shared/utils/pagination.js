@@ -1,4 +1,4 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+﻿const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 function createPaginationButtons(currentPage, totalPages, prefix, userId, disabled = false) {
     return new ActionRowBuilder().addComponents(

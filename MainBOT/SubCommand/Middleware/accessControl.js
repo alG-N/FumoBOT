@@ -1,9 +1,7 @@
-const { EmbedBuilder, Colors } = require('discord.js');
+﻿const { EmbedBuilder, Colors } = require('discord.js');
 const path = require('path');
 
-// ═══════════════════════════════════════════════════════════════
 // CONFIGURATION LOADING (uses existing MainCommand configs)
-// ═══════════════════════════════════════════════════════════════
 
 let maintenanceConfig = null;
 let banService = null;
@@ -60,9 +58,7 @@ function loadBanService() {
     return banService;
 }
 
-// ═══════════════════════════════════════════════════════════════
 // ACCESS TYPES
-// ═══════════════════════════════════════════════════════════════
 
 const AccessType = {
     MAIN: 'main',      // MainCommand (Fumo game, trading, etc.)
@@ -70,9 +66,7 @@ const AccessType = {
     BOTH: 'both'       // Requires both systems to be available
 };
 
-// ═══════════════════════════════════════════════════════════════
 // COMMAND SUGGESTIONS
-// ═══════════════════════════════════════════════════════════════
 
 const MAIN_COMMAND_SUGGESTIONS = [
     '`/fumo` - Fumo collection game',
@@ -95,9 +89,7 @@ const SUB_COMMAND_SUGGESTIONS = [
     '`/avatar` - View user avatars'
 ];
 
-// ═══════════════════════════════════════════════════════════════
 // CACHE MANAGEMENT
-// ═══════════════════════════════════════════════════════════════
 
 const accessCache = new Map();
 const CACHE_TTL = 30000; // 30 seconds
@@ -127,9 +119,7 @@ function clearCache(userId = null) {
     }
 }
 
-// ═══════════════════════════════════════════════════════════════
 // TIME FORMATTING
-// ═══════════════════════════════════════════════════════════════
 
 /**
  * Format remaining time in human readable format
@@ -151,9 +141,7 @@ function formatRemainingTime(remaining) {
     return parts.join(' ') || '< 1s';
 }
 
-// ═══════════════════════════════════════════════════════════════
 // EMBED BUILDERS
-// ═══════════════════════════════════════════════════════════════
 
 /**
  * Create ban embed with detailed information
@@ -266,9 +254,7 @@ function createBothMaintenanceEmbed(mainState, subState) {
         .setTimestamp();
 }
 
-// ═══════════════════════════════════════════════════════════════
 // MAIN ACCESS CHECK FUNCTION
-// ═══════════════════════════════════════════════════════════════
 
 /**
  * Check if a user has access to use bot features
@@ -310,9 +296,7 @@ async function checkAccess(context, accessType = AccessType.SUB, options = {}) {
         return result;
     }
     
-    // ─────────────────────────────────────────────────────────────
     // STEP 1: Check ban status (applies to ALL features)
-    // ─────────────────────────────────────────────────────────────
     const banData = ban.isBanned(userId);
     if (banData) {
         // Check if ban has expired
@@ -335,9 +319,7 @@ async function checkAccess(context, accessType = AccessType.SUB, options = {}) {
         }
     }
     
-    // ─────────────────────────────────────────────────────────────
     // STEP 2: Check maintenance status based on access type
-    // ─────────────────────────────────────────────────────────────
     const mainState = config.getSystemState ? config.getSystemState('main') : { enabled: false };
     const subState = config.getSystemState ? config.getSystemState('sub') : { enabled: false };
     
@@ -429,9 +411,7 @@ async function checkAccess(context, accessType = AccessType.SUB, options = {}) {
     return result;
 }
 
-// ═══════════════════════════════════════════════════════════════
 // QUICK CHECK FUNCTIONS
-// ═══════════════════════════════════════════════════════════════
 
 /**
  * Quick check for MainCommand access
@@ -506,9 +486,7 @@ function getCacheStats() {
     };
 }
 
-// ═══════════════════════════════════════════════════════════════
 // EXPORTS
-// ═══════════════════════════════════════════════════════════════
 
 module.exports = {
     // Main function

@@ -1,4 +1,4 @@
-const { checkRestrictions } = require('../../Middleware/restrictions');
+﻿const { checkRestrictions } = require('../../Middleware/restrictions');
 const { checkAndSetCooldown } = require('../../Middleware/rateLimiter');
 const { parseBet } = require('../../Ultility/formatting');
 const { getUserBalance, performSlotSpin } = require('../../Service/GachaService/SlotService/SlotGameService');

@@ -1,4 +1,4 @@
-const { run, get, all, transaction } = require('../../../Core/database');
+﻿const { run, get, all, transaction } = require('../../../Core/database');
 const { SHINY_CONFIG, SELL_REWARDS, VARIANT_CONFIG, ASTRAL_PLUS_RARITIES } = require('../../../Configuration/rarity');
 const { incrementWeeklyShiny } = require('../../../Ultility/weekly');
 const { debugLog } = require('../../../Core/logger');

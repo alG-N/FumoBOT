@@ -1,4 +1,4 @@
-const { EGG_POOL, SHOP_SIZE } = require('../../../Configuration/eggConfig');
+﻿const { EGG_POOL, SHOP_SIZE } = require('../../../Configuration/eggConfig');
 const { debugLog } = require('../../../Core/logger');
 
 function rollWeightedEgg() {

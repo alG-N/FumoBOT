@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Biome Database Service
  * 
  * Handles all database operations for the biome system.

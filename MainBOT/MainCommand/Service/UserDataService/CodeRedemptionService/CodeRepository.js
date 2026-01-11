@@ -1,4 +1,4 @@
-const { get, run, all } = require('../../../Core/database');
+﻿const { get, run, all } = require('../../../Core/database');
 
 class CodeRepository {
     static async hasRedeemed(userId, code) {

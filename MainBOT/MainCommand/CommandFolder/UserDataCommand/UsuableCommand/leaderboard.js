@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, Partials } = require('discord.js');
+﻿const { Client, GatewayIntentBits, Partials } = require('discord.js');
 const { checkRestrictions } = require('../../../Middleware/restrictions');
 const { checkAndSetCooldown } = require('../../../Middleware/rateLimiter');
 const { verifyButtonOwnership } = require('../../../Middleware/buttonOwnership');

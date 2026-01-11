@@ -1,4 +1,4 @@
-const BUILDING_TYPES = {
+﻿const BUILDING_TYPES = {
     COIN_BOOST: {
         id: 'coin_boost',
         name: 'Coin Production',

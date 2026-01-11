@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Base Cache Class with LRU eviction
  */
 

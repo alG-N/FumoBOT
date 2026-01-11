@@ -1,4 +1,4 @@
-module.exports = {
+﻿module.exports = {
     // Download Method Settings (Cobalt Only)
     COBALT_INSTANCES: [
         'http://localhost:9000'

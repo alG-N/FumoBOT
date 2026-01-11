@@ -1,4 +1,4 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+﻿const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { formatNumber } = require('../../../Ultility/formatting');
 const { getResetTimeText } = require('./ExchangeValidationService');
 const { MAX_EXCHANGES_PER_DAY } = require('./ExchangeValidationService');

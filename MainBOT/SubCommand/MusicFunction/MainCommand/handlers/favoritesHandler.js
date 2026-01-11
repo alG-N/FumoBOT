@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Favorites Handler
  * Handles favorites management
  */

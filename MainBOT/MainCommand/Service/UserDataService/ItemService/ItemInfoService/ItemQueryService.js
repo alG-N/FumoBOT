@@ -1,4 +1,4 @@
-const ITEM_DATABASE = require('./ItemDataRepository');
+﻿const ITEM_DATABASE = require('./ItemDataRepository');
 const { RARITY_SUFFIX_MAP } = require('../../../../Configuration/itemConfig');
 
 class ItemQueryService {

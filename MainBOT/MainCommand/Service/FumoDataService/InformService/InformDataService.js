@@ -1,4 +1,4 @@
-const FumoPool = require('../../../Data/FumoPool');
+﻿const FumoPool = require('../../../Data/FumoPool');
 const { coinBannerChances, gemBannerChances, ReimuChances, SUMMON_PLACES } = require('../../../Configuration/informConfig');
 
 function normalizeFumoName(input) {

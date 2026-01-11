@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @deprecated This file is deprecated. Please use unifiedAchievementConfig.js instead.
  * The ACHIEVEMENTS array and ACHIEVEMENT_TIERS have been moved to unifiedAchievementConfig.js
  * for better maintainability and to avoid duplication with questConfig.js.

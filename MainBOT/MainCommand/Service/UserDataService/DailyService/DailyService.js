@@ -1,4 +1,4 @@
-const db = require('../../../Core/database');
+﻿const db = require('../../../Core/database');
 const { DAILY_CONFIG } = require('../../../Configuration/dailyConfig');
 const { logError } = require('../../../Core/logger');
 const QuestMiddleware = require('../../../Middleware/questMiddleware');

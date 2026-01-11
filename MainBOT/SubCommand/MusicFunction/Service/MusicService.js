@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Music Service
  * Comprehensive music playback service combining queue, playback, and voice management
  */

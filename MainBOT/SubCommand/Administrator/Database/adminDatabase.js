@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Administrator Database
  * Separate SQLite database for server administration features
  */
@@ -29,9 +29,7 @@ const db = new sqlite3.Database(DB_PATH, (err) => {
 db.run('PRAGMA journal_mode = WAL');
 db.run('PRAGMA foreign_keys = ON');
 
-// ═══════════════════════════════════════════════════════════════
 // SCHEMA INITIALIZATION
-// ═══════════════════════════════════════════════════════════════
 
 function initializeSchema() {
     return new Promise((resolve, reject) => {
@@ -41,6 +39,7 @@ function initializeSchema() {
                 CREATE TABLE IF NOT EXISTS guildSettings (
                     guildId TEXT PRIMARY KEY,
                     snipe_limit INTEGER DEFAULT 10,
+                    delete_limit INTEGER DEFAULT 100,
                     announcement_channel TEXT,
                     log_channel TEXT,
                     admin_roles TEXT DEFAULT '[]',
@@ -56,6 +55,11 @@ function initializeSchema() {
                 )
             `, (err) => {
                 if (err) console.error('❌ [AdminDB] guildSettings table error:', err.message);
+            });
+
+            // Add delete_limit column if it doesn't exist (migration)
+            db.run(`ALTER TABLE guildSettings ADD COLUMN delete_limit INTEGER DEFAULT 100`, (err) => {
+                // Ignore error if column already exists
             });
 
             // Moderation Logs Table (optional - for persistent logging)
@@ -94,9 +98,7 @@ function initializeSchema() {
 // Initialize on load
 initializeSchema().catch(console.error);
 
-// ═══════════════════════════════════════════════════════════════
 // HELPER FUNCTIONS
-// ═══════════════════════════════════════════════════════════════
 
 /**
  * Run a query that doesn't return data
@@ -134,9 +136,7 @@ function all(sql, params = []) {
     });
 }
 
-// ═══════════════════════════════════════════════════════════════
 // EXPORTS
-// ═══════════════════════════════════════════════════════════════
 
 module.exports = {
     db,

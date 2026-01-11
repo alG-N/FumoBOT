@@ -1,4 +1,4 @@
-const { get, run } = require('../../../Core/database');
+﻿const { get, run } = require('../../../Core/database');
 const { parseAmount } = require('../../../Ultility/formatting');
 const { parseCustomId } = require('../../../Middleware/buttonOwnership');
 const { 

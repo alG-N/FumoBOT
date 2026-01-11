@@ -1,4 +1,4 @@
-const { debugLog } = require('../Core/logger');
+﻿const { debugLog } = require('../Core/logger');
 const crypto = require('crypto');
 
 const ID_REGEX = /^\d{17,19}$/;

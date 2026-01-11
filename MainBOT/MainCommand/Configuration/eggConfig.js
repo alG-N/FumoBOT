@@ -1,4 +1,4 @@
-const EGG_POOL = [
+﻿const EGG_POOL = [
     {
         name: "CommonEgg",
         emoji: "🥚",

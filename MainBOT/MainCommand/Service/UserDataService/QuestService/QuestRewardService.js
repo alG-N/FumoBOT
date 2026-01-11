@@ -1,4 +1,4 @@
-const db = require('../../../Core/Database/dbSetting');
+﻿const db = require('../../../Core/Database/dbSetting');
 const { DAILY_REWARDS, WEEKLY_REWARDS, ACHIEVEMENT_REWARDS } = require('../../../Configuration/rewardConfig');
 const { ACHIEVEMENTS } = require('../../../Configuration/unifiedAchievementConfig');
 

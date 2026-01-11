@@ -1,4 +1,4 @@
-const { EmbedBuilder } = require('discord.js');
+﻿const { EmbedBuilder } = require('discord.js');
 const { formatNumber } = require('../../../Ultility/formatting');
 
 class QuestNotificationService {

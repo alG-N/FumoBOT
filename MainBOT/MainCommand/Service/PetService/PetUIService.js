@@ -1,4 +1,4 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+﻿const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { RARITY_COLORS, PET_ABILITIES } = require('../../Configuration/petConfig');
 const { buildSecureCustomId } = require('../../Middleware/buttonOwnership');
 const PetStats = require('./PetStatsService');

@@ -1,4 +1,4 @@
-const RARITY_ICONS = {
+﻿const RARITY_ICONS = {
     Basic: "⚪",
     Common: "🟩",
     Rare: "🟦",

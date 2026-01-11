@@ -1,4 +1,4 @@
-module.exports = {
+﻿module.exports = {
     MAX_HP: 1000000,
     DEFAULT_HP: 150,
     COUNTDOWN_SECONDS: 5,

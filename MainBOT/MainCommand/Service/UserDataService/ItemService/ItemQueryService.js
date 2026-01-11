@@ -1,4 +1,4 @@
-const { all } = require('../../../Core/database');
+﻿const { all } = require('../../../Core/database');
 const { RARITY_ORDER, RARITY_SUFFIX_MAP } = require('../../../Configuration/itemConfig');
 const { debugLog } = require('../../../Core/logger');
 

@@ -1,4 +1,4 @@
-const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+﻿const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { buildSecureCustomId } = require('../../../Middleware/buttonOwnership');
 const ItemHandlers = require('./ItemUseHandler/SpecialItemHandler');
 const { all, get, run } = require('../../../Core/database');

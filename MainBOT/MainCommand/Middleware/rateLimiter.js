@@ -1,23 +1,39 @@
-const cooldownMap = new Map();
+﻿const cooldownMap = new Map();
 const CLEANUP_INTERVAL = 300000;
 
-setInterval(() => {
-    const now = Date.now();
-    const toDelete = [];
+// Store interval reference for cleanup
+let cleanupIntervalId = null;
+
+function startCleanupInterval() {
+    if (cleanupIntervalId) return; // Already started
     
-    for (const [key, timestamp] of cooldownMap.entries()) {
-        if (now - timestamp > 3600000) {
-            toDelete.push(key);
+    cleanupIntervalId = setInterval(() => {
+        const now = Date.now();
+        const toDelete = [];
+        
+        for (const [key, timestamp] of cooldownMap.entries()) {
+            if (now - timestamp > 3600000) {
+                toDelete.push(key);
+            }
         }
+        
+        toDelete.forEach(key => cooldownMap.delete(key));
+    }, CLEANUP_INTERVAL);
+}
+
+// Auto-start cleanup interval
+startCleanupInterval();
+
+/**
+ * Shutdown rate limiter - cleanup resources
+ */
+function shutdown() {
+    if (cleanupIntervalId) {
+        clearInterval(cleanupIntervalId);
+        cleanupIntervalId = null;
     }
-    
-    toDelete.forEach(key => cooldownMap.delete(key));
-    
-    // Cleanup log disabled for cleaner console
-    // if (toDelete.length > 0) {
-    //     console.log(`[Rate Limiter] Cleaned up ${toDelete.length} expired cooldowns`);
-    // }
-}, CLEANUP_INTERVAL);
+    cooldownMap.clear();
+}
 
 function checkCooldown(userId, action, cooldownMs) {
     const key = `${userId}_${action}`;
@@ -116,5 +132,6 @@ module.exports = {
     clearAllCooldowns,
     getRemainingCooldown,
     getCooldownStats,
-    checkMultipleCooldowns
+    checkMultipleCooldowns,
+    shutdown
 };

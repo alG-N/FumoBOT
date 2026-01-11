@@ -1,4 +1,4 @@
-const { checkRestrictions } = require('../../../Middleware/restrictions');
+﻿const { checkRestrictions } = require('../../../Middleware/restrictions');
 const { checkAndSetCooldown } = require('../../../Middleware/rateLimiter');
 const { claimStarter, getStarterStats, hasClaimedStarter } = require('../../../Service/UserDataService/StarterService/StarterService');
 const { 

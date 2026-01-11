@@ -1,4 +1,4 @@
-const {
+﻿const {
     EmbedBuilder,
     ActionRowBuilder,
     ButtonBuilder,

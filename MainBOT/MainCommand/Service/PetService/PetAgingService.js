@@ -1,4 +1,4 @@
-const db = require('../../Core/database');
+﻿const db = require('../../Core/database');
 const PetStats = require('./PetStatsService');
 const PetBoost = require('./PetBoostService');
 

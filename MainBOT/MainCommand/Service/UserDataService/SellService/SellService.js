@@ -1,4 +1,4 @@
-const { EmbedBuilder } = require('discord.js');
+﻿const { EmbedBuilder } = require('discord.js');
 const { checkRestrictions } = require('../../../Middleware/restrictions');
 const SellValidationService = require('./SellValidationService');
 const SellTransactionService = require('./SellTransactionService');

@@ -1,4 +1,4 @@
-class Validators {
+﻿class Validators {
     constructor() {
         // Pre-compile regex patterns for better performance
         this._youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/;

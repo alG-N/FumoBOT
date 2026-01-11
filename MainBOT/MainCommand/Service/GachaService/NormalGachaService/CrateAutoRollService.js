@@ -1,4 +1,4 @@
-const { get, run, all, transaction } = require('../../../Core/database');
+﻿const { get, run, all, transaction } = require('../../../Core/database');
 const { performMultiRoll } = require('./CrateGachaRollService');
 const { calculateCooldown } = require('./BoostService');
 const { SELL_REWARDS, SHINY_CONFIG, SPECIAL_RARITIES, compareFumos } = require('../../../Configuration/rarity');

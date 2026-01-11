@@ -1,4 +1,4 @@
-const { get, all, run, transaction } = require('../../../../Core/database');
+﻿const { get, all, run, transaction } = require('../../../../Core/database');
 const QuestMiddleware = require('../../../../Middleware/questMiddleware');
 
 function getMaxHunger(rarity) {

@@ -1,4 +1,4 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+﻿const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { getAllCards, getCard, getCounteredBy, GAMBLE_CONFIG } = require('../../../Configuration/gambleConfig');
 const { formatNumber } = require('../../../Ultility/formatting');
 

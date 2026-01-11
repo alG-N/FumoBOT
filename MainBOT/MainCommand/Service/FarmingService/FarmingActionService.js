@@ -1,4 +1,4 @@
-const { calculateFarmingStats, calculateFarmLimit, sortByIncome } = require('./FarmingCalculationService');
+﻿const { calculateFarmingStats, calculateFarmLimit, sortByIncome } = require('./FarmingCalculationService');
 const {
     getFarmLimit,
     getUserFarmingFumos,

@@ -1,4 +1,4 @@
-const fs = require('fs');
+﻿const fs = require('fs');
 const path = require('path');
 
 const MAINTENANCE_FILE = path.join(__dirname, 'maintenanceState.json');

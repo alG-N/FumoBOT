@@ -1,4 +1,4 @@
-const { checkRestrictions } = require('../../Middleware/restrictions');
+﻿const { checkRestrictions } = require('../../Middleware/restrictions');
 const { handleExchangeCommand, handleExchangeInteraction } = require('../../Service/MarketService/ExchangeService/ExchangeService');
 
 module.exports = async (discordClient) => {

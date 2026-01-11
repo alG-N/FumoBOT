@@ -1,4 +1,4 @@
-const https = require('https');
+﻿const https = require('https');
 const http = require('http');
 const { logToDiscord, LogLevel } = require('../../../Core/logger');
 

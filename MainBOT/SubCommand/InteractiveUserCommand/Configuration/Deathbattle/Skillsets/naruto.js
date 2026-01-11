@@ -1,4 +1,4 @@
-module.exports = {
+﻿module.exports = {
     name: 'naruto',
     displayName: 'Naruto',
     thumbnail: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/2f78d7b0-22ad-42da-b6cd-ce88f18e8123/dg5yyyl-f4c83fec-4b1d-4ad5-8dd4-09b3e3e0f4e9.png/v1/fill/w_894,h_894/naruto_icon_by_kotoamatsukami_dg5yyyl-pre.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7ImhlaWdodCI6Ijw9MTAyNCIsInBhdGgiOiJcL2ZcLzJmNzhkN2IwLTIyYWQtNDJkYS1iNmNkLWNlODhmMThlODEyM1wvZGc1eXl5bC1mNGM4M2ZlYy00YjFkLTRhZDUtOGRkNC0wOWIzZTNlMGY0ZTkucG5nIiwid2lkdGgiOiI8PTEwMjQifV1dLCJhdWQiOlsidXJuOnNlcnZpY2U6aW1hZ2Uub3BlcmF0aW9ucyJdfQ.lqzKG0H_LYKaQJvW9v-0M9MYNFBq3m_qG0YN9dJCq_Y',

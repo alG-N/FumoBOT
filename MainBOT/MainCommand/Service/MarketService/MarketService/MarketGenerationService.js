@@ -1,4 +1,4 @@
-const FumoPool = require('../../../Data/FumoPool');
+﻿const FumoPool = require('../../../Data/FumoPool');
 const { 
     rarityLevels,
     gemShopRarityLevels,

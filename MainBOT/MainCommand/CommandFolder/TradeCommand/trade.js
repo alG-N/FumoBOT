@@ -1,4 +1,4 @@
-const { checkRestrictions } = require('../../Middleware/restrictions');
+﻿const { checkRestrictions } = require('../../Middleware/restrictions');
 const TRADING_CONFIG = require('../../Configuration/tradingConfig');
 const { requireFeature } = require('../../Ultility/featureLock');
 

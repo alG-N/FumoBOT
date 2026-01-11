@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ═══════════════════════════════════════════════════════════════════
  * UNIFIED ACHIEVEMENT CONFIGURATION
  * ═══════════════════════════════════════════════════════════════════
@@ -14,9 +14,7 @@
  * achievementConfig.js or questConfig.js ACHIEVEMENTS.
  */
 
-// ═══════════════════════════════════════════════════════════════════
 // BADGE TIER DEFINITIONS
-// ═══════════════════════════════════════════════════════════════════
 const BADGE_TIERS = {
     C: { name: 'Common', color: 0x808080, emoji: '🥉', priority: 5 },
     R: { name: 'Rare', color: 0x0099FF, emoji: '🥈', priority: 4 },
@@ -27,9 +25,7 @@ const BADGE_TIERS = {
     '?': { name: 'Unknown', color: 0xFF00FF, emoji: '❓', priority: -1 }
 };
 
-// ═══════════════════════════════════════════════════════════════════
 // ACHIEVEMENT DISPLAY TIERS (for UI grouping)
-// ═══════════════════════════════════════════════════════════════════
 const ACHIEVEMENT_TIERS = {
     bronze: {
         name: 'Bronze',
@@ -68,9 +64,7 @@ const ACHIEVEMENT_TIERS = {
     }
 };
 
-// ═══════════════════════════════════════════════════════════════════
 // ACHIEVEMENT CATEGORIES
-// ═══════════════════════════════════════════════════════════════════
 const ACHIEVEMENT_CATEGORIES = {
     gacha: {
         name: 'Gacha',
@@ -164,14 +158,10 @@ const ACHIEVEMENT_CATEGORIES = {
     }
 };
 
-// ═══════════════════════════════════════════════════════════════════
 // UNIFIED ACHIEVEMENTS
 // Combines milestone rewards with display metadata
-// ═══════════════════════════════════════════════════════════════════
 const ACHIEVEMENTS = [
-    // ─────────────────────────────────────────────────────────────────
     // GACHA ACHIEVEMENTS
-    // ─────────────────────────────────────────────────────────────────
     {
         id: 'total_rolls',
         name: 'Roll Master',
@@ -243,9 +233,7 @@ const ACHIEVEMENTS = [
         infiniteScaling: true
     },
 
-    // ─────────────────────────────────────────────────────────────────
     // PRAYER ACHIEVEMENTS
-    // ─────────────────────────────────────────────────────────────────
     {
         id: 'total_prays',
         name: 'Devout Follower',
@@ -268,9 +256,7 @@ const ACHIEVEMENTS = [
         infiniteScaling: true
     },
 
-    // ─────────────────────────────────────────────────────────────────
     // ECONOMY ACHIEVEMENTS
-    // ─────────────────────────────────────────────────────────────────
     {
         id: 'lifetime_coins',
         name: 'Wealth Accumulator',
@@ -312,9 +298,7 @@ const ACHIEVEMENTS = [
         infiniteScaling: true
     },
 
-    // ─────────────────────────────────────────────────────────────────
     // CRAFTING ACHIEVEMENTS
-    // ─────────────────────────────────────────────────────────────────
     {
         id: 'total_crafts',
         name: 'Master Crafter',
@@ -336,9 +320,7 @@ const ACHIEVEMENTS = [
         infiniteScaling: true
     },
 
-    // ─────────────────────────────────────────────────────────────────
     // PET ACHIEVEMENTS
-    // ─────────────────────────────────────────────────────────────────
     {
         id: 'total_pet_hatches',
         name: 'Pet Breeder',
@@ -377,9 +359,7 @@ const ACHIEVEMENTS = [
         infiniteScaling: false
     },
 
-    // ─────────────────────────────────────────────────────────────────
     // BUILDING ACHIEVEMENTS
-    // ─────────────────────────────────────────────────────────────────
     {
         id: 'total_building_upgrades',
         name: 'Architect',
@@ -400,9 +380,7 @@ const ACHIEVEMENTS = [
         infiniteScaling: true
     },
 
-    // ─────────────────────────────────────────────────────────────────
     // GAMBLING ACHIEVEMENTS
-    // ─────────────────────────────────────────────────────────────────
     {
         id: 'total_gambles',
         name: 'Lucky Gambler',
@@ -441,9 +419,7 @@ const ACHIEVEMENTS = [
         infiniteScaling: true
     },
 
-    // ─────────────────────────────────────────────────────────────────
     // TRADING ACHIEVEMENTS
-    // ─────────────────────────────────────────────────────────────────
     {
         id: 'total_trades',
         name: 'Trader',
@@ -483,9 +459,7 @@ const ACHIEVEMENTS = [
         infiniteScaling: true
     },
 
-    // ─────────────────────────────────────────────────────────────────
     // QUEST ACHIEVEMENTS
-    // ─────────────────────────────────────────────────────────────────
     {
         id: 'daily_warrior',
         name: 'Daily Warrior',
@@ -524,9 +498,7 @@ const ACHIEVEMENTS = [
         infiniteScaling: true
     },
 
-    // ─────────────────────────────────────────────────────────────────
     // DEDICATION ACHIEVEMENTS
-    // ─────────────────────────────────────────────────────────────────
     {
         id: 'streak_master',
         name: 'Streak Master',
@@ -549,9 +521,7 @@ const ACHIEVEMENTS = [
         infiniteScaling: false // Streak has natural limits
     },
 
-    // ─────────────────────────────────────────────────────────────────
     // PROGRESSION ACHIEVEMENTS
-    // ─────────────────────────────────────────────────────────────────
     {
         id: 'rebirth_legend',
         name: 'Rebirth Legend',
@@ -591,9 +561,7 @@ const ACHIEVEMENTS = [
         infiniteScaling: true
     },
 
-    // ─────────────────────────────────────────────────────────────────
     // COLLECTION ACHIEVEMENTS
-    // ─────────────────────────────────────────────────────────────────
     {
         id: 'transcendent_owner',
         name: 'Transcendent Owner',
@@ -648,9 +616,7 @@ const ACHIEVEMENTS = [
         infiniteScaling: true
     },
 
-    // ─────────────────────────────────────────────────────────────────
     // CHALLENGE ACHIEVEMENTS
-    // ─────────────────────────────────────────────────────────────────
     {
         id: 'speed_roller',
         name: 'Speed Roller',
@@ -686,9 +652,7 @@ const ACHIEVEMENTS = [
         infiniteScaling: false
     },
 
-    // ─────────────────────────────────────────────────────────────────
     // HIDDEN ACHIEVEMENTS
-    // ─────────────────────────────────────────────────────────────────
     {
         id: 'secret_finder',
         name: 'Secret Finder',
@@ -707,9 +671,7 @@ const ACHIEVEMENTS = [
     }
 ];
 
-// ═══════════════════════════════════════════════════════════════════
 // HELPER FUNCTIONS
-// ═══════════════════════════════════════════════════════════════════
 
 /**
  * Get achievement by ID
@@ -849,9 +811,7 @@ function getCategoriesWithCounts() {
     return counts;
 }
 
-// ═══════════════════════════════════════════════════════════════════
 // EXPORTS
-// ═══════════════════════════════════════════════════════════════════
 module.exports = {
     // Data
     ACHIEVEMENTS,

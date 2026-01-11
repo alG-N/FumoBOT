@@ -1,4 +1,4 @@
-const PRAY_CHARACTERS = {
+﻿const PRAY_CHARACTERS = {
     YUYUKO: {
         id: 'yuyuko',
         name: 'Yuyuko',

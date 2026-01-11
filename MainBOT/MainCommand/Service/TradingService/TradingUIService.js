@@ -1,4 +1,4 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require('discord.js');
+﻿const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require('discord.js');
 const TRADING_CONFIG = require('../../Configuration/tradingConfig');
 const { RARITY_PRIORITY } = require('../../Configuration/rarity');
 const { formatNumber } = require('../../Ultility/formatting');

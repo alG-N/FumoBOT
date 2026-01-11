@@ -1,4 +1,4 @@
-const { applyMultipleBoosts } = require('../UseBoostService');
+﻿const { applyMultipleBoosts } = require('../UseBoostService');
 const { EmbedBuilder } = require('discord.js');
 const { run, get } = require('../../../../Core/database');
 

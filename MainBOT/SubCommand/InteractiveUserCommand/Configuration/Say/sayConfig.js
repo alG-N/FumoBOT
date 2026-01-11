@@ -1,4 +1,4 @@
-module.exports = {
+﻿module.exports = {
     OWNER_ID: "1128296349566251068",
     LOG_CHANNEL_ID: "1411386693499486429",
     TYPE_COLORS: {

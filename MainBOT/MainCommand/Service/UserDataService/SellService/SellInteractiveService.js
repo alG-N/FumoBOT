@@ -1,4 +1,4 @@
-const { 
+﻿const { 
     EmbedBuilder, 
     ActionRowBuilder, 
     ButtonBuilder, 
@@ -13,9 +13,7 @@ const { formatNumber } = require('../../../Ultility/formatting');
 const SellValidationService = require('./SellValidationService');
 const SellTransactionService = require('./SellTransactionService');
 
-// ============================================================
 // CONSTANTS
-// ============================================================
 const SELLABLE_RARITIES = ['Common', 'UNCOMMON', 'RARE', 'EPIC', 'OTHERWORLDLY', 'LEGENDARY', 'MYTHICAL', 'EXCLUSIVE', '???', 'ASTRAL', 'CELESTIAL', 'INFINITE'];
 const UNSELLABLE_RARITIES = ['ETERNAL', 'TRANSCENDENT'];
 const TRAITS = [
@@ -30,9 +28,7 @@ const INTERACTION_TIMEOUT = 120000; // 2 minutes
 // Store active sell sessions to prevent duplicates
 const activeSellSessions = new Map();
 
-// ============================================================
 // SELL MENU SERVICE
-// ============================================================
 class SellInteractiveService {
     /**
      * Open the main sell menu

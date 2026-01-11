@@ -1,4 +1,4 @@
-const { get, all } = require('../../Core/database');
+﻿const { get, all } = require('../../Core/database');
 const { CRAFT_CONFIG } = require('../../Configuration/craftConfig');
 
 const craftCache = new Map();

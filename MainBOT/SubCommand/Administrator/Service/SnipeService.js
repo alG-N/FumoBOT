@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Snipe Service
  * Tracks deleted messages for the /snipe command
  */
@@ -6,9 +6,7 @@
 const GuildSettingsService = require('./GuildSettingsService');
 const adminConfig = require('../Config/adminConfig');
 
-// ═══════════════════════════════════════════════════════════════
 // IN-MEMORY MESSAGE CACHE
-// ═══════════════════════════════════════════════════════════════
 
 // Map<guildId, Array<{message, deletedAt}>>
 const deletedMessages = new Map();
@@ -17,9 +15,11 @@ const deletedMessages = new Map();
 // Map<messageId, Array<{url, name, type}>>
 const attachmentCache = new Map();
 
-// ═══════════════════════════════════════════════════════════════
+// Track initialization state to prevent duplicate listeners
+let isInitialized = false;
+let cleanupIntervalId = null;
+
 // INITIALIZATION
-// ═══════════════════════════════════════════════════════════════
 
 /**
  * Initialize the snipe service with the Discord client
@@ -27,6 +27,12 @@ const attachmentCache = new Map();
  * @param {Client} client - Discord client
  */
 function initialize(client) {
+    // Prevent duplicate initialization
+    if (isInitialized) {
+        console.log('⚠️ Snipe service already initialized, skipping...');
+        return;
+    }
+
     // Listen for message deletions
     client.on('messageDelete', async (message) => {
         // Ignore bot messages and empty messages
@@ -57,14 +63,27 @@ function initialize(client) {
     });
 
     // Cleanup old messages periodically (every 10 minutes)
-    setInterval(cleanupOldMessages, 10 * 60 * 1000);
+    cleanupIntervalId = setInterval(cleanupOldMessages, 10 * 60 * 1000);
 
+    isInitialized = true;
     console.log('✅ Snipe service initialized');
 }
 
-// ═══════════════════════════════════════════════════════════════
+/**
+ * Shutdown the snipe service - cleanup resources
+ */
+function shutdown() {
+    if (cleanupIntervalId) {
+        clearInterval(cleanupIntervalId);
+        cleanupIntervalId = null;
+    }
+    deletedMessages.clear();
+    attachmentCache.clear();
+    isInitialized = false;
+    console.log('✅ Snipe service shutdown');
+}
+
 // MESSAGE TRACKING
-// ═══════════════════════════════════════════════════════════════
 
 /**
  * Track a deleted message
@@ -201,9 +220,7 @@ function cleanupOldMessages() {
     }
 }
 
-// ═══════════════════════════════════════════════════════════════
 // STATISTICS
-// ═══════════════════════════════════════════════════════════════
 
 /**
  * Get snipe statistics for a guild
@@ -230,12 +247,11 @@ function getGuildStats(guildId) {
     };
 }
 
-// ═══════════════════════════════════════════════════════════════
 // EXPORTS
-// ═══════════════════════════════════════════════════════════════
 
 module.exports = {
     initialize,
+    shutdown,
     trackDeletedMessage,
     getDeletedMessages,
     getDeletedMessageByIndex,

@@ -1,4 +1,4 @@
-const { get, run, all, withUserLock, transaction } = require('../../../Core/database');
+﻿const { get, run, all, withUserLock, transaction } = require('../../../Core/database');
 const { debugLog, logToDiscord, LogLevel } = require('../../../Core/logger');
 const {
     REBIRTH_LEVEL_REQUIREMENT,

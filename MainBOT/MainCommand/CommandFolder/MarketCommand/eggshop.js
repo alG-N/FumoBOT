@@ -1,4 +1,4 @@
-const { ComponentType } = require('discord.js');
+﻿const { ComponentType } = require('discord.js');
 const { checkRestrictions } = require('../../Middleware/restrictions');
 const { getGlobalShop } = require('../../Service/MarketService/EggShopService/EggShopCacheService');
 const { processPurchase } = require('../../Service/MarketService/EggShopService/EggShopPurchaseService');

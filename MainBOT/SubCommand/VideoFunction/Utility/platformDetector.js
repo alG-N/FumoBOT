@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Enhanced PlatformDetector with additional platform info and styling
  */
 class PlatformDetector {

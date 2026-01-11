@@ -1,4 +1,4 @@
-const { get, run } = require('../../../Core/database');
+﻿const { get, run } = require('../../../Core/database');
 const { 
     MULTIPLIERS, 
     WIN_PROBABILITY,

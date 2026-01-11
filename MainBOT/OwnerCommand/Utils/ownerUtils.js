@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Owner Utilities
  * Shared utility functions for owner commands
  */

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * NHentai Service
  * Handles all API interactions with nhentai
  */

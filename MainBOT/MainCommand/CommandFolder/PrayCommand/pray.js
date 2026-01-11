@@ -1,4 +1,4 @@
-const { checkRestrictions } = require('../../Middleware/restrictions');
+﻿const { checkRestrictions } = require('../../Middleware/restrictions');
 const { selectRandomCharacter } = require('../../Configuration/prayConfig');
 const {
     validatePrayRequest,

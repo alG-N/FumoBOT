@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Track Handler
  * Creates embeds, buttons, and handles track display
  * Enhanced UI with rich visuals and descriptive controls

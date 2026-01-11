@@ -1,4 +1,4 @@
-const { get, run } = require('../../../Core/database');
+﻿const { get, run } = require('../../../Core/database');
 
 async function getUserBalance(userId, currency) {
     const row = await get(

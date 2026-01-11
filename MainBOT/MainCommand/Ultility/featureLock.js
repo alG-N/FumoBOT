@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Feature Lock Utility
  * 
  * Centralized utility for checking if users have access to features

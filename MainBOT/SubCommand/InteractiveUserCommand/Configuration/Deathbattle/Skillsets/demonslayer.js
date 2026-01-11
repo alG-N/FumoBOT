@@ -1,4 +1,4 @@
-module.exports = {
+﻿module.exports = {
     name: 'demonslayer',
     displayName: 'Demon Slayer',
     thumbnail: 'https://i.pinimg.com/originals/27/7c/88/277c88c0c1c7e7e5b4f5e5d8f5c5c9d0.png',

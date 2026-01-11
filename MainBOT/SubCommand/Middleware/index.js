@@ -1,4 +1,4 @@
-/**
+﻿/**
  * SubCommand Middleware Module
  * Central export file for all middleware functionality
  * 
@@ -38,9 +38,7 @@ const maintenanceConfig = require('../../MainCommand/Configuration/maintenanceCo
 const errorHandler = require('../../MainCommand/Ultility/errorHandler');
 
 module.exports = {
-    // ═══════════════════════════════════════════════════════════════
     // ACCESS CONTROL (NEW)
-    // ═══════════════════════════════════════════════════════════════
     
     /**
      * Main access check function - checks maintenance & bans with smart suggestions
@@ -59,16 +57,12 @@ module.exports = {
     /** Access type constants */
     AccessType,
     
-    // ═══════════════════════════════════════════════════════════════
     // BAN FUNCTIONS (from MainCommand)
-    // ═══════════════════════════════════════════════════════════════
     
     /** Check if a user is banned (synchronous) */
     isBanned,
     
-    // ═══════════════════════════════════════════════════════════════
     // MAINTENANCE FUNCTIONS
-    // ═══════════════════════════════════════════════════════════════
     
     /** Get maintenance status for both systems */
     getMaintenanceStatus,
@@ -76,9 +70,7 @@ module.exports = {
     /** Full maintenance config module (from MainCommand) */
     maintenanceConfig,
     
-    // ═══════════════════════════════════════════════════════════════
     // ERROR HANDLING (from MainCommand)
-    // ═══════════════════════════════════════════════════════════════
     
     /** Full error handler module */
     errorHandler,
@@ -95,9 +87,7 @@ module.exports = {
     /** Register a recovery strategy */
     registerRecoveryStrategy: errorHandler.registerRecoveryStrategy,
     
-    // ═══════════════════════════════════════════════════════════════
     // UTILITY FUNCTIONS
-    // ═══════════════════════════════════════════════════════════════
     
     /** Format remaining time in human readable format */
     formatRemainingTime,
@@ -108,9 +98,7 @@ module.exports = {
     /** Get cache statistics */
     getCacheStats,
     
-    // ═══════════════════════════════════════════════════════════════
     // EMBED BUILDERS (for custom use)
-    // ═══════════════════════════════════════════════════════════════
     
     createBanEmbed,
     createMainMaintenanceEmbed,

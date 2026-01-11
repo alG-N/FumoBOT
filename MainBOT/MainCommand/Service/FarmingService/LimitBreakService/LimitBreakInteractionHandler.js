@@ -1,4 +1,4 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+﻿const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const { get, run } = require('../../../Core/database');
 const { logToDiscord, LogLevel } = require('../../../Core/logger');
 const {
@@ -326,9 +326,7 @@ function createLimitBreakerEmbed(data) {
         return embed;
     }
 
-    // ============================================================
     // FRAGMENT PHASE UI
-    // ============================================================
     if (isFragmentPhase) {
         const fragmentProgressBar = createProgressBar(fragmentUses, maxFragmentUses, 15);
 
@@ -385,9 +383,7 @@ function createLimitBreakerEmbed(data) {
         return embed;
     }
 
-    // ============================================================
     // LIMIT BREAK PHASE UI (existing logic)
-    // ============================================================
 
     // Build description
     let description = '';
@@ -514,9 +510,7 @@ function createLimitBreakerButtons(userId, data) {
     const rows = [];
     const row1 = new ActionRowBuilder();
 
-    // ============================================================
     // FRAGMENT PHASE BUTTONS
-    // ============================================================
     if (isFragmentPhase) {
         // Single use fragment button
         row1.addComponents(
@@ -538,9 +532,7 @@ function createLimitBreakerButtons(userId, data) {
             );
         }
     }
-    // ============================================================
     // LIMIT BREAK PHASE BUTTONS
-    // ============================================================
     else if (currentBreaks < MAX_LIMIT_BREAKS) {
         const hasFragments = inventory.fragments >= requirements.fragments;
         const hasNullified = inventory.nullified >= requirements.nullified;
@@ -612,9 +604,7 @@ function createSuccessEmbed(newBreaks, totalLimit, reqs, requiredFumos) {
     return embed;
 }
 
-// ============================================================
 // FRAGMENT HANDLING FUNCTIONS
-// ============================================================
 
 /**
  * Handle single fragment use

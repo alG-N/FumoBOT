@@ -1,4 +1,4 @@
-const { run } = require('../../../Core/database');
+﻿const { run } = require('../../../Core/database');
 const { GACHA_THRESHOLDS, PITY_THRESHOLDS } = require('../../../Configuration/rarity');
 const { calculateTotalLuckMultiplier } = require('./BoostService');
 const { 

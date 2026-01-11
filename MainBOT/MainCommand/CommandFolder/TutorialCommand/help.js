@@ -1,4 +1,4 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+﻿const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { checkRestrictions } = require('../../Middleware/restrictions');
 const tutorialCommands = require('../../Service/TutorialCommandService/helpCMD');
 

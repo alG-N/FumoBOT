@@ -1,4 +1,4 @@
-/**
+﻿/**
  * /mute Command
  * Timeout/mute a user in the server
  */
@@ -13,9 +13,7 @@ const ModerationService = require('../Service/ModerationService');
 const GuildSettingsService = require('../Service/GuildSettingsService');
 const adminConfig = require('../Config/adminConfig');
 
-// ═══════════════════════════════════════════════════════════════
 // SLASH COMMAND DEFINITION
-// ═══════════════════════════════════════════════════════════════
 
 const data = new SlashCommandBuilder()
     .setName('mute')
@@ -63,9 +61,7 @@ const data = new SlashCommandBuilder()
                     .setRequired(false)
                     .setMaxLength(500)));
 
-// ═══════════════════════════════════════════════════════════════
 // COMMAND EXECUTION
-// ═══════════════════════════════════════════════════════════════
 
 async function execute(interaction) {
     // Check permissions
@@ -87,9 +83,7 @@ async function execute(interaction) {
     }
 }
 
-// ═══════════════════════════════════════════════════════════════
 // SUBCOMMAND HANDLERS
-// ═══════════════════════════════════════════════════════════════
 
 /**
  * Handle mute subcommand
@@ -228,9 +222,7 @@ async function handleUnmute(interaction) {
     }
 }
 
-// ═══════════════════════════════════════════════════════════════
 // EXPORTS
-// ═══════════════════════════════════════════════════════════════
 
 module.exports = {
     data,

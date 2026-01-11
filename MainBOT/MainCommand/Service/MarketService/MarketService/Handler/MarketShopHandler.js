@@ -1,4 +1,4 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+﻿const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const { getCoinMarket, getGemMarket } = require('../MarketCacheService');
 const { validateShopPurchase, processShopPurchase } = require('../MarketPurchaseService');
 const { createPurchaseConfirmEmbed, createPurchaseSuccessEmbed, createErrorEmbed } = require('../MarketUIService');

@@ -1,4 +1,4 @@
-const validators = require('../Utility/validators');
+﻿const validators = require('../Utility/validators');
 const trackHandler = require('../Handler/trackHandler');
 
 async function checkVoiceChannel(interaction) {

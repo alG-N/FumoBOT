@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Validation Utility
  * 
  * Common validation functions to prevent bugs and ensure data integrity.

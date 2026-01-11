@@ -1,4 +1,4 @@
-const { Events } = require('discord.js');
+﻿const { Events } = require('discord.js');
 const { checkRestrictions } = require('../../Middleware/restrictions');
 const { checkAndSetCooldown } = require('../../Middleware/rateLimiter');
 const { parseMysteryCrateArgs } = require('../../Ultility/mysteryCrateParser');

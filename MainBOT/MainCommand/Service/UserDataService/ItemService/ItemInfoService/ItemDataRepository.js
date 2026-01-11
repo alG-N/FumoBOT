@@ -1,4 +1,4 @@
-const ITEM_DATABASE = {
+﻿const ITEM_DATABASE = {
     "Stone(B)": {
         rarity: "Basic",
         description: "A simple stone. Found everywhere, useful for nothing. Or is it?",

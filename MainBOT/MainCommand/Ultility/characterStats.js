@@ -1,4 +1,4 @@
-function getRarityFromFumoName(fumoName) {
+﻿function getRarityFromFumoName(fumoName) {
     if (!fumoName) return 'Common';
     const match = fumoName.match(/\((.*?)\)$/);
     if (!match) return 'Common';

@@ -1,4 +1,4 @@
-const VALID_CODES = {
+﻿const VALID_CODES = {
     "Welcome": {
         coins: 10000,
         gems: 500,

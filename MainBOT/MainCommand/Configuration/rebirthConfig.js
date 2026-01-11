@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Rebirth System Configuration
  * 
  * Rebirth allows players who reach Level 100 to reset their progress

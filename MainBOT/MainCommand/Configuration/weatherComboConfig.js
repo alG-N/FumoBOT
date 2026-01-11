@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Weather Combo Configuration
  * 
  * Weather combos trigger when specific weather combinations are active simultaneously.

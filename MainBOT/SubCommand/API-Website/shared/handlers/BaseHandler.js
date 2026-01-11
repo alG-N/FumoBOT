@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Base Handler Class
  */
 

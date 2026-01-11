@@ -1,4 +1,4 @@
-const fs = require('fs');
+﻿const fs = require('fs');
 const path = require('path');
 
 const CONFIG_PATH = path.join(__dirname, '../Data/eventTimer.json');

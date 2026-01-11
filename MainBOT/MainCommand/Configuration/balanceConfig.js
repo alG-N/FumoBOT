@@ -1,4 +1,4 @@
-module.exports = {
+﻿module.exports = {
     CACHE_TTL: 30000,
     
     INTERACTION_TIMEOUT: 180000,

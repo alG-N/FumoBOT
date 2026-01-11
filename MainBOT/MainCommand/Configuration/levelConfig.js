@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Level & Experience Configuration
  * 
  * EXP is earned through:

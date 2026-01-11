@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Other Place Handler Service
  * 
  * Handles interaction logic for the Other Place feature

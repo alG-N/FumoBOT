@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Music Command
  * Comprehensive music bot with play, queue, controls, and settings
  * 

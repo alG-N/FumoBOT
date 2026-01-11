@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Wikipedia Service
  * Handles all Wikipedia API interactions
  */

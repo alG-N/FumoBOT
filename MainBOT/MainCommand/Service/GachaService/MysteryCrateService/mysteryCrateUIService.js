@@ -1,4 +1,4 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Colors } = require('discord.js');
+﻿const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Colors } = require('discord.js');
 const { buildSecureCustomId } = require('../../../Middleware/buttonOwnership');
 const { formatNumber } = require('../../../Ultility/formatting');
 const { CRATE_TIERS } = require('../../../Configuration/mysteryCrateConfig');

@@ -1,4 +1,4 @@
-// MainBOT/MainCommand/Service/CraftService/CraftInteractionHandler.js
+﻿// MainBOT/MainCommand/Service/CraftService/CraftInteractionHandler.js
 const { getUserCraftData } = require('../CraftService/CraftCacheService');
 const { getAllRecipes } = require('../CraftService/CraftRecipeService');
 const { validateFullCraft } = require('../CraftService/CraftValidationService');

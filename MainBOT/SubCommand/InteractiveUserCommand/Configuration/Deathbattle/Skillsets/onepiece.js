@@ -1,4 +1,4 @@
-module.exports = {
+﻿module.exports = {
     name: 'onepiece',
     displayName: 'One Piece',
     thumbnail: 'https://i.pinimg.com/originals/3e/17/89/3e1789d8e4f5c4f5f5f5f5f5f5f5f5f5.png',

@@ -1,4 +1,4 @@
-const db = require('../dbSetting');
+﻿const db = require('../dbSetting');
 
 const CONFIG = {
     BASE_COIN_RATE: 150,

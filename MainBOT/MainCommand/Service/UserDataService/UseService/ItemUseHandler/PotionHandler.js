@@ -1,4 +1,4 @@
-const { applyBoost, applyMultipleBoosts } = require('../UseBoostService');
+﻿const { applyBoost, applyMultipleBoosts } = require('../UseBoostService');
 const { EmbedBuilder } = require('discord.js');
 
 function createBoostEmbed(color, title, itemName, quantity, boost, duration, source) {

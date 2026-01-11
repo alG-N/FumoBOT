@@ -1,4 +1,4 @@
-class RedditCache {
+﻿class RedditCache {
     constructor() {
         this.userPosts = new Map();
         this.galleryStates = new Map();

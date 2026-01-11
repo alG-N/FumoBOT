@@ -1,4 +1,4 @@
-const { get, all, run, transaction, withUserLock } = require('../../Core/database');
+﻿const { get, all, run, transaction, withUserLock } = require('../../Core/database');
 const { debugLog } = require('../../Core/logger');
 const QuestMiddleware = require('../../Middleware/questMiddleware');
 

@@ -1,4 +1,4 @@
-const { get, run, withUserLock, transaction } = require('../../../Core/database');
+﻿const { get, run, withUserLock, transaction } = require('../../../Core/database');
 const { hasUserPurchased, markEggPurchased } = require('./EggShopCacheService');
 const { debugLog } = require('../../../Core/logger');
 const { formatNumber } = require('../../../Ultility/formatting');

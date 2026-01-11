@@ -1,4 +1,4 @@
-/**
+﻿/**
  * System Diagnostics Utility
  * Provides real-time monitoring of bot health, errors, and performance
  * Integrates with ConnectionMonitor for comprehensive health tracking

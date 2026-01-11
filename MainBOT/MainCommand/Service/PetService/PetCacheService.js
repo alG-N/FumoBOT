@@ -1,4 +1,4 @@
-const petCache = new Map();
+﻿const petCache = new Map();
 const CACHE_TTL = 30000;
 
 setInterval(() => {

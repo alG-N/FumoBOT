@@ -1,4 +1,4 @@
-const { get, run, all, transaction, withUserLock, atomicDeductCoins, atomicDeductGems } = require('../../../Core/database');
+﻿const { get, run, all, transaction, withUserLock, atomicDeductCoins, atomicDeductGems } = require('../../../Core/database');
 const { debugLog } = require('../../../Core/logger');
 const { MAX_REROLLS } = require('../../../Configuration/shopConfig');
 

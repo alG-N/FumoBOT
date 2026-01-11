@@ -1,4 +1,4 @@
-const { get } = require('../../Core/database');
+﻿const { get } = require('../../Core/database');
 const { PRAY_LIMITS } = require('../../Configuration/prayConfig');
 
 // ========== BOUNDED MAPS WITH LRU-LIKE CLEANUP ==========

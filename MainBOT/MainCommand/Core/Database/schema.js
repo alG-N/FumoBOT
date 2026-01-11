@@ -1,4 +1,4 @@
-const db = require('./dbSetting');
+﻿const db = require('./dbSetting');
 
 function createIndexes() {
     console.log('📊 Creating database indexes...');

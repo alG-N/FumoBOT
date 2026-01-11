@@ -1,4 +1,4 @@
-const { getUserBalance, updateUserBalance } = require('./mysteryCrateStorageService');
+﻿const { getUserBalance, updateUserBalance } = require('./mysteryCrateStorageService');
 const { 
     getTierByBet, 
     rollCrateOutcome, 

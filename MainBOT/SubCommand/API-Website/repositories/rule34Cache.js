@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Rule34 Cache Manager
  * Handles caching for search results, user sessions, blacklists, and preferences
  */

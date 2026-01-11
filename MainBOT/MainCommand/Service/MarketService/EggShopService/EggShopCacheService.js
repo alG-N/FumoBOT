@@ -1,4 +1,4 @@
-const { generateGlobalEggShop } = require('./EggShopGenerationService');
+﻿const { generateGlobalEggShop } = require('./EggShopGenerationService');
 const { debugLog } = require('../../../Core/logger');
 
 const globalShop = {

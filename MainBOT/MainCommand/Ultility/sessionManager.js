@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Session Manager - Handles active user sessions with cleanup and recovery
  * Prevents memory leaks from unclosed sessions and allows recovery after bot restart
  */

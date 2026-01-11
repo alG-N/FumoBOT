@@ -1,4 +1,4 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+﻿const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { checkRestrictions } = require('../../Middleware/restrictions');
 const { checkButtonOwnership } = require('../../Middleware/buttonOwnership');
 const { createErrorEmbed } = require('../../Service/FarmingService/FarmingUIService');

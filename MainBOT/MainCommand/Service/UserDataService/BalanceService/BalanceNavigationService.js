@@ -1,4 +1,4 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require('discord.js');
+﻿const { ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require('discord.js');
 const { INTERACTION_TIMEOUT, PAGE_INFO, TOTAL_PAGES } = require('../../../Configuration/balanceConfig');
 const { buildSecureCustomId } = require('../../../Middleware/buttonOwnership');
 

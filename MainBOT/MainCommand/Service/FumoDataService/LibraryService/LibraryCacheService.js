@@ -1,4 +1,4 @@
-const { CACHE_TTL } = require('../../../Configuration/libraryConfig');
+﻿const { CACHE_TTL } = require('../../../Configuration/libraryConfig');
 
 class LibraryCacheService {
     constructor() {
@@ -50,7 +50,6 @@ class LibraryCacheService {
             // Cleanup log disabled for cleaner console
             // if (toDelete.length > 0) {
             //     console.log(`[LibraryCache] Cleaned ${toDelete.length} expired entries`);
-            // }
         }, 60000);
     }
 

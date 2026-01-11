@@ -1,4 +1,4 @@
-const jjkSkillset = require('../../Configuration/Deathbattle/Skillsets/jjk');
+﻿const jjkSkillset = require('../../Configuration/Deathbattle/Skillsets/jjk');
 const narutoSkillset = require('../../Configuration/Deathbattle/Skillsets/naruto');
 const demonSlayerSkillset = require('../../Configuration/Deathbattle/Skillsets/demonslayer');
 const onePieceSkillset = require('../../Configuration/Deathbattle/Skillsets/onepiece');

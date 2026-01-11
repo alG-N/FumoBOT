@@ -1,4 +1,4 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+﻿const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { get } = require('../../../../Core/database');
 const { validateGlobalPurchase, processGlobalPurchase } = require('../MarketPurchaseService');
 const { notifySellerOfSale } = require('../MarketStorageService');

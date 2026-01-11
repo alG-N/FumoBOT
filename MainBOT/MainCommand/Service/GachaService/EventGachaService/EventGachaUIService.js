@@ -1,4 +1,4 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Colors } = require('discord.js');
+﻿const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Colors } = require('discord.js');
 const { formatNumber } = require('../../../Ultility/formatting');
 const { PITY_THRESHOLDS } = require('../../../Configuration/rarity');
 

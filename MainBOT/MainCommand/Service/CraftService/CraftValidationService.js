@@ -1,4 +1,4 @@
-const { getRecipe } = require('./CraftRecipeService');
+﻿const { getRecipe } = require('./CraftRecipeService');
 const { CRAFT_CONFIG } = require('../../Configuration/craftConfig');
 
 function validateCraftAmount(amount) {

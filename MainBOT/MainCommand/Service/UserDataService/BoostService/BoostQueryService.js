@@ -1,4 +1,4 @@
-const { get, all } = require('../../../Core/database');
+﻿const { get, all } = require('../../../Core/database');
 const { BOOST_TYPES, SPECIAL_SOURCES } = require('../../../Configuration/boostConfig');
 
 /**
