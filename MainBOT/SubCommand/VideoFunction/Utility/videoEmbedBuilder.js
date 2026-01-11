@@ -193,10 +193,19 @@ class VideoEmbedBuilder {
         const errorMessages = {
             'private': 'The video appears to be private or restricted',
             'unavailable': 'The video is no longer available',
-            'geo': 'This video may be geo-restricted',
-            'age': 'This video requires age verification',
+            'geo-restricted': 'This video may be geo-restricted',
+            'geo-blocked': 'This video may be geo-restricted',
+            'age_gate': 'This video requires age verification',
+            'age-restricted': 'This video requires age verification',
+            'age restricted': 'This video requires age verification',
+            'sign in': 'This video requires age verification',
             'timeout': 'The download timed out - server may be slow',
-            'format': 'No compatible video format found',
+            'timed out': 'The download timed out - server may be slow',
+            'no compatible': 'No compatible video format found',
+            'format not': 'No compatible video format found',
+            'empty': 'Downloaded file was empty - video may be unavailable',
+            'not found': 'Video not found or has been removed',
+            'blocked': 'This video is blocked or restricted',
         };
 
         let friendlyError = error;
@@ -206,9 +215,12 @@ class VideoEmbedBuilder {
             'Use `/video method:link` for direct link'
         ];
 
-        // Check for common error patterns
+        // Check for common error patterns using word boundaries
+        const lowerError = error.toLowerCase();
         for (const [key, message] of Object.entries(errorMessages)) {
-            if (error.toLowerCase().includes(key)) {
+            // Use word boundary matching to avoid false positives like 'message' matching 'age'
+            const regex = new RegExp(`\\b${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+            if (regex.test(lowerError)) {
                 friendlyError = message;
                 break;
             }

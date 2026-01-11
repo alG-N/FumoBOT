@@ -53,6 +53,8 @@ module.exports = {
                 return await this.handleButtonLyrics(interaction, guildId);
             case 'music_qpage':
                 return await this.handleButtonQueuePage(interaction, guildId, parts[2]);
+            case 'music_confirm':
+                return await this.handleButtonConfirm(interaction, guildId, parts[2], parts[3]);
             default:
                 console.log(`Unknown music button: ${action}`);
         }
@@ -504,5 +506,66 @@ module.exports = {
 
     async handleButtonQueuePage(interaction, guildId, pageAction) {
         await interaction.deferUpdate();
+    },
+
+    /**
+     * Handle confirmation buttons (yes/no)
+     */
+    async handleButtonConfirm(interaction, guildId, action, choice) {
+        try {
+            await interaction.deferUpdate();
+            
+            const confirmed = choice === 'yes';
+            
+            // Handle different confirmation actions
+            switch (action) {
+                case 'clear_queue':
+                    if (confirmed) {
+                        const queue = musicCache.getQueue(guildId);
+                        if (queue) {
+                            queue.tracks = [];
+                            await interaction.editReply({
+                                content: '✅ Queue has been cleared!',
+                                embeds: [],
+                                components: []
+                            });
+                        }
+                    } else {
+                        await interaction.editReply({
+                            content: '❌ Action cancelled.',
+                            embeds: [],
+                            components: []
+                        });
+                    }
+                    break;
+                    
+                case 'stop':
+                    if (confirmed) {
+                        await musicService.cleanup(guildId);
+                        await interaction.editReply({
+                            content: '⏹️ Music stopped and queue cleared.',
+                            embeds: [],
+                            components: []
+                        });
+                    } else {
+                        await interaction.editReply({
+                            content: '❌ Action cancelled.',
+                            embeds: [],
+                            components: []
+                        });
+                    }
+                    break;
+                    
+                default:
+                    // Generic confirmation response
+                    await interaction.editReply({
+                        content: confirmed ? '✅ Confirmed!' : '❌ Cancelled.',
+                        embeds: [],
+                        components: []
+                    });
+            }
+        } catch (error) {
+            console.error('Confirm button error:', error);
+        }
     }
 };
