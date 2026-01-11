@@ -1,6 +1,6 @@
 ﻿const { checkRestrictions } = require('../../Middleware/restrictions');
 const { checkAndSetCooldown } = require('../../Middleware/rateLimiter');
-const { FLIP_COOLDOWN } = require('../../Configuration/flipConfig');
+const { FLIP_COOLDOWN } = require('../../Configuration/gamblingConfig');
 const { parseFlipCommand, parseLeaderboardCommand } = require('../../Ultility/flipParser');
 const { executeSingleFlip, getUserFlipStats } = require('../../Service/GachaService/FlipService/flipGameService');
 const {

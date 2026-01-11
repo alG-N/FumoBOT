@@ -6,6 +6,7 @@
 const { EmbedBuilder } = require('discord.js');
 const GuildSettingsService = require('./GuildSettingsService');
 const adminConfig = require('../Config/adminConfig');
+const { formatDuration } = require('../../../MainCommand/Ultility/timeUtils');
 
 // MODERATION ACTIONS
 
@@ -408,6 +409,19 @@ function createLogEmbed(action) {
                 );
             break;
 
+        case adminConfig.LOG_ACTIONS.DELETE:
+            embed.setTitle('🗑️ Messages Deleted')
+                .setColor(adminConfig.COLORS.WARNING)
+                .setDescription(`${action.count} message(s) deleted in ${action.channel}`)
+                .addFields(
+                    { name: 'Moderator', value: action.moderator?.tag || 'Unknown', inline: true },
+                    { name: 'Count', value: String(action.count), inline: true }
+                );
+            if (action.filters) {
+                embed.addFields({ name: 'Filters', value: action.filters, inline: false });
+            }
+            break;
+
         default:
             embed.setTitle('📋 Moderation Action')
                 .setDescription(`Action: ${action.type}`)
@@ -453,26 +467,7 @@ function parseDuration(durationStr) {
     return value * (multipliers[unit] || multipliers['m']);
 }
 
-/**
- * Format duration in milliseconds to human readable string
- * @param {number} ms - Duration in milliseconds
- * @returns {string} Formatted duration
- */
-function formatDuration(ms) {
-    if (ms < 1000) return `${ms}ms`;
-    
-    const seconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
-    const weeks = Math.floor(days / 7);
-
-    if (weeks > 0) return `${weeks} week${weeks > 1 ? 's' : ''}`;
-    if (days > 0) return `${days} day${days > 1 ? 's' : ''}`;
-    if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''}`;
-    if (minutes > 0) return `${minutes} minute${minutes > 1 ? 's' : ''}`;
-    return `${seconds} second${seconds > 1 ? 's' : ''}`;
-}
+// formatDuration is now imported from timeUtils
 
 // EXPORTS
 

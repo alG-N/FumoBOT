@@ -1,5 +1,6 @@
 ﻿const { getUserRerollData, updateRerollCount, updatePaidRerollCount, resetPaidRerollCount } = require('./ShopDatabaseService');
 const { REROLL_COOLDOWN, MAX_REROLLS } = require('../../../Configuration/shopConfig');
+const { formatTimeRemaining } = require('../../../Ultility/timeUtils');
 const { debugLog } = require('../../../Core/logger');
 
 async function getRerollData(userId) {
@@ -72,14 +73,7 @@ async function getRerollCooldownRemaining(userId) {
     return REROLL_COOLDOWN - timeSinceReset;
 }
 
-function formatTimeRemaining(milliseconds) {
-    if (milliseconds <= 0) return '0s';
-    
-    const hours = Math.floor(milliseconds / (1000 * 60 * 60));
-    const minutes = Math.floor((milliseconds % (1000 * 60 * 60)) / (1000 * 60));
-    const seconds = Math.floor((milliseconds % (1000 * 60)) / 1000);
-    return `${hours}h ${minutes}m ${seconds}s`;
-}
+// formatTimeRemaining is now imported from timeUtils
 
 async function canUseGemReroll(userId) {
     const data = await getRerollData(userId);

@@ -3,9 +3,9 @@ const {
     MULTIPLIERS, 
     WIN_PROBABILITY,
     getMultiplierConfig,
-    getMinBet,
-    getMaxBet
-} = require('../../../Configuration/flipConfig');
+    getFlipMinBet: getMinBet,
+    getFlipMaxBet: getMaxBet
+} = require('../../../Configuration/gamblingConfig');
 const { incrementDailyGamble } = require('../../../Ultility/weekly');
 const { debugLog } = require('../../../Core/logger');
 const QuestMiddleware = require('../../../Middleware/questMiddleware');

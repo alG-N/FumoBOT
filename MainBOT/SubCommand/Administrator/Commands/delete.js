@@ -132,10 +132,10 @@ async function execute(interaction) {
         embed.setFooter({ text: `Moderator: ${interaction.user.tag}` });
 
         // Log the action
-        await ModerationService.logAction(interaction.guildId, {
-            action: 'DELETE',
+        await ModerationService.logModAction(interaction.guild, {
+            type: 'DELETE',
             moderator: interaction.user,
-            channel: interaction.channel,
+            channel: `<#${interaction.channel.id}>`,
             count: deleted.size,
             filters: filters.join(', ') || 'None'
         });

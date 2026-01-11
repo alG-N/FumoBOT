@@ -1,21 +1,9 @@
 ﻿const { formatNumber } = require('../../../Ultility/formatting');
+const { formatDuration } = require('../../../Ultility/timeUtils');
 
 function formatTime(ms) {
     if (!ms || ms === Infinity) return "∞ - Permanent";
-    
-    const totalSec = Math.floor(ms / 1000);
-    const days = Math.floor(totalSec / 86400);
-    const hours = Math.floor((totalSec % 86400) / 3600);
-    const minutes = Math.floor((totalSec % 3600) / 60);
-    const seconds = totalSec % 60;
-    
-    let timeString = "";
-    if (days) timeString += `${days}d `;
-    if (hours) timeString += `${hours}h `;
-    if (minutes) timeString += `${minutes}m `;
-    if (!days && !hours && seconds) timeString += `${seconds}s`;
-    
-    return timeString.trim() || "< 1s";
+    return formatDuration(ms, { showSeconds: true }) || "< 1s";
 }
 
 function formatBoostPercentage(multiplier) {

@@ -1,5 +1,6 @@
 ﻿const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { checkAccess, AccessType } = require('../Middleware');
+const { formatDuration } = require('../../MainCommand/Ultility/timeUtils');
 const fs = require('fs');
 const path = require('path');
 const afkFilePath = path.join(__dirname, 'SillyAFK.json');
@@ -8,11 +9,9 @@ const afkFilePath = path.join(__dirname, 'SillyAFK.json');
 let afkCache = null;
 let isDirty = false;
 
+// Use formatDuration from timeUtils (convert seconds to ms)
 function formatTime(seconds) {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = seconds % 60;
-    return `${h}h ${m}m ${s}s`;
+    return formatDuration(seconds * 1000);
 }
 
 // Load once at startup, then use cache

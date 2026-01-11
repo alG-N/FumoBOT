@@ -217,12 +217,9 @@ module.exports = {
                 case 'prev':
                 case 'next':
                 case 'last': {
-                    const galleryId = parts[2];
-                    await interaction.deferUpdate();
-                    
                     const session = nhentaiHandler.getPageSession(interaction.user.id);
                     if (!session) {
-                        return interaction.followUp({
+                        return interaction.reply({
                             content: '❌ Session expired. Please use the command again.',
                             ephemeral: true
                         });
@@ -240,7 +237,8 @@ module.exports = {
                     const embed = nhentaiHandler.createPageEmbed(session.gallery, newPage);
                     const buttons = nhentaiHandler.createPageButtons(session.galleryId, interaction.user.id, newPage, session.totalPages);
                     
-                    await interaction.editReply({ embeds: [embed], components: buttons });
+                    // Use update() directly instead of deferUpdate + editReply for faster response
+                    await interaction.update({ embeds: [embed], components: buttons });
                     break;
                 }
 

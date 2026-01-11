@@ -2,7 +2,7 @@
 const { checkAndSetCooldown } = require('../../Middleware/rateLimiter');
 const GambleService = require('../../Service/GachaService/GambleService/GambleService');
 const GambleUIService = require('../../Service/GachaService/GambleService/GambleUIService');
-const { GAMBLE_CONFIG } = require('../../Configuration/gambleConfig');
+const { GAMBLE_CONFIG } = require('../../Configuration/gamblingConfig');
 
 module.exports = (client) => {
     if (!client.activeGambles) {

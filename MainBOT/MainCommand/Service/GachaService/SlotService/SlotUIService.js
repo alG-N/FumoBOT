@@ -1,5 +1,5 @@
 ﻿const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Colors } = require('discord.js');
-const { SLOT_CONFIG } = require('../../../Configuration/slotConfig');
+const { SLOT_CONFIG } = require('../../../Configuration/gamblingConfig');
 const { formatNumber } = require('../../../Ultility/formatting');
 
 function createTutorialEmbed(coins, gems) {

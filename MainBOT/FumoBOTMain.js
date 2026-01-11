@@ -430,6 +430,25 @@ registerCodeRedemption(client);
 client.on('interactionCreate', async interaction => {
     // Handle Modals
     if (interaction.isModalSubmit()) {
+        // Report modal
+        if (interaction.customId.startsWith('report_submit_')) {
+            const reportCommand = client.commands.get('report');
+            if (reportCommand && reportCommand.handleModal) {
+                try {
+                    await reportCommand.handleModal(interaction);
+                } catch (error) {
+                    console.error('Report modal handler error:', error);
+                    if (!interaction.replied && !interaction.deferred) {
+                        await interaction.reply({
+                            content: '❌ An error occurred. Please try again.',
+                            ephemeral: true
+                        }).catch(() => {});
+                    }
+                }
+            }
+            return;
+        }
+
         // NHentai page jump modal
         if (interaction.customId.startsWith('nhentai_jumpto_')) {
             const nhentaiCommand = client.commands.get('nhentai');

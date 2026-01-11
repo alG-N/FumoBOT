@@ -8,6 +8,7 @@ const musicService = require('../../Service/MusicService');
 const musicCache = require('../../Repository/MusicCache');
 const trackHandler = require('../../Handler/trackHandler');
 const { DEFAULT_VOLUME } = require('../../Configuration/musicConfig');
+const { formatTime } = require('../../../../MainCommand/Ultility/timeUtils');
 
 module.exports = {
     async handleSettings(interaction) {
@@ -165,17 +166,8 @@ function createProgressBar(percent, length = 20) {
     return '▓'.repeat(filled) + '░'.repeat(empty);
 }
 
-function formatDuration(ms) {
-    if (!ms || ms <= 0) return '0:00';
-    const seconds = Math.floor((ms / 1000) % 60);
-    const minutes = Math.floor((ms / (1000 * 60)) % 60);
-    const hours = Math.floor(ms / (1000 * 60 * 60));
-    
-    if (hours > 0) {
-        return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-    }
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-}
+// Use formatTime from timeUtils (alias as formatDuration for local usage)
+const formatDuration = formatTime;
 
 function formatLoopMode(mode) {
     switch (mode) {

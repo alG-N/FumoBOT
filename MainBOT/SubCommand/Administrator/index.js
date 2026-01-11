@@ -1,17 +1,4 @@
-﻿/**
- * SubCommand/Administrator Module
- * Server Administrator Commands (Server Owner & Authorized Roles)
- * 
- * Commands:
- * - /setting  - Server owner settings configuration
- * - /snipe    - Deleted message recovery
- * - /kick     - Kick users from server
- * - /mute     - Mute users (timeout)
- * - /ban      - Ban users from server
- * - /delete   - Bulk delete messages
- */
-
-// COMMANDS
+﻿// COMMANDS
 
 const settingCommand = require('./Commands/setting');
 const snipeCommand = require('./Commands/snipe');

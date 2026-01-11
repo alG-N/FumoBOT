@@ -1,5 +1,5 @@
 ﻿const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { getAllCards, getCard, getCounteredBy, GAMBLE_CONFIG } = require('../../../Configuration/gambleConfig');
+const { getAllCards, getCard, getCounteredBy, GAMBLE_CONFIG } = require('../../../Configuration/gamblingConfig');
 const { formatNumber } = require('../../../Ultility/formatting');
 
 function createUsageEmbed() {

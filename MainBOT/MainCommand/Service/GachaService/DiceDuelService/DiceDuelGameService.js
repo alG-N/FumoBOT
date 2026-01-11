@@ -1,5 +1,5 @@
 ﻿const { getUserBalance, updateUserBalance } = require('./diceDuelStorageService');
-const { getDiceResult } = require('../../../Configuration/diceDuelConfig');
+const { getDiceResult } = require('../../../Configuration/gamblingConfig');
 const { incrementDailyGamble } = require('../../../Ultility/weekly');
 const QuestMiddleware = require('../../../Middleware/questMiddleware');
 

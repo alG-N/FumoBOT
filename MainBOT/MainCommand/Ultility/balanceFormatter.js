@@ -1,5 +1,6 @@
 ﻿const { THRESHOLDS, DESCRIPTIONS } = require('../Configuration/balanceConfig');
 const { formatNumber } = require('./formatting');
+const { formatTimeAgo, formatDuration } = require('./timeUtils');
 
 function getCoinDescription(coins) {
     const { COIN } = DESCRIPTIONS;
@@ -54,36 +55,7 @@ function formatProgressBar(current, max, length = 10) {
     return `[${'▰'.repeat(filled)}${'▱'.repeat(empty)}] ${percentage}%`;
 }
 
-function formatTimeAgo(timestamp) {
-    if (!timestamp) return 'Never';
-    
-    const now = Date.now();
-    const diff = now - timestamp;
-    
-    const seconds = Math.floor(diff / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
-    
-    if (days > 0) return `${days}d ago`;
-    if (hours > 0) return `${hours}h ago`;
-    if (minutes > 0) return `${minutes}m ago`;
-    return `${seconds}s ago`;
-}
-
-function formatDuration(ms) {
-    const seconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
-    
-    const parts = [];
-    if (days > 0) parts.push(`${days}d`);
-    if (hours % 24 > 0) parts.push(`${hours % 24}h`);
-    if (minutes % 60 > 0) parts.push(`${minutes % 60}m`);
-    
-    return parts.join(' ') || '0m';
-}
+// formatTimeAgo and formatDuration are now imported from timeUtils
 
 function formatRatio(wins, losses) {
     const total = wins + losses;

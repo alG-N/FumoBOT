@@ -1,5 +1,5 @@
 ﻿const { get, run } = require('../../../Core/database');
-const { SLOT_CONFIG, isValidCurrency, getMinBet } = require('../../../Configuration/slotConfig');
+const { SLOT_CONFIG, isValidCurrency, getSlotMinBet: getMinBet } = require('../../../Configuration/gamblingConfig');
 const { incrementDailyGamble } = require('../../../Ultility/weekly');
 const { parseBet } = require('../../../Ultility/formatting');
 const { debugLog } = require('../../../Core/logger');

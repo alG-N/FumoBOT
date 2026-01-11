@@ -9,6 +9,7 @@ const {
     PermissionFlagsBits
 } = require('discord.js');
 const { OWNER_IDS, DEVELOPER_ID, BAN_DURATION_MULTIPLIERS, FILE_PATHS } = require('../Config/ownerConfig');
+const { formatDuration } = require('../../MainCommand/Ultility/timeUtils');
 const fs = require('fs');
 const path = require('path');
 
@@ -52,19 +53,7 @@ function parseDuration(durationStr) {
     return multiplier ? parseInt(amount) * multiplier : null;
 }
 
-function formatDuration(ms) {
-    if (!ms) return 'Permanent';
-    
-    const seconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
-    
-    if (days > 0) return `${days} day(s)`;
-    if (hours > 0) return `${hours} hour(s)`;
-    if (minutes > 0) return `${minutes} minute(s)`;
-    return `${seconds} second(s)`;
-}
+// formatDuration is now imported from timeUtils
 
 async function banUser(userId, reason, duration, bannedBy) {
     const data = getBans();

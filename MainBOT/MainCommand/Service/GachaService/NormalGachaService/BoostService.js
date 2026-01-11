@@ -1,5 +1,6 @@
 ﻿const { get, all, run } = require('../../../Core/database');
 const { debugLog } = require('../../../Core/logger');
+const { formatTimeRemaining } = require('../../../Ultility/timeUtils');
 
 /**
  * Check if S!gil is currently active for a user
@@ -596,30 +597,7 @@ async function getTraitBoostDisplay(userId) {
     return lines;
 }
 
-/**
- * Format milliseconds into a human-readable time string
- */
-function formatTimeRemaining(ms) {
-    if (ms <= 0) return 'Expired';
-    
-    const seconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
-    
-    if (days > 0) {
-        const remainingHours = hours % 24;
-        return `${days}d ${remainingHours}h`;
-    }
-    if (hours > 0) {
-        const remainingMinutes = minutes % 60;
-        return `${hours}h ${remainingMinutes}m`;
-    }
-    if (minutes > 0) {
-        return `${minutes}m`;
-    }
-    return `${seconds}s`;
-}
+// formatTimeRemaining is now imported from timeUtils
 
 /**
  * Check and consume a nullified roll (from S!gil or Nullified item)

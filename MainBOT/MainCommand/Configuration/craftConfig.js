@@ -1,4 +1,6 @@
-﻿const CRAFT_TYPES = {
+﻿const { formatTimeRemaining } = require('../Ultility/timeUtils');
+
+const CRAFT_TYPES = {
     ITEM: 'item',
     POTION: 'potion',
     FUMO: 'fumo',
@@ -84,26 +86,8 @@ function getCraftTimer(craftType, itemName, quantity = 1) {
     return (timers || 0) * quantity;
 }
 
-function formatTime(milliseconds) {
-    const seconds = Math.floor(milliseconds / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
-    
-    if (days > 0) {
-        const remainingHours = hours % 24;
-        const remainingMinutes = minutes % 60;
-        return `${days}d ${remainingHours}h ${remainingMinutes}m`;
-    } else if (hours > 0) {
-        const remainingMinutes = minutes % 60;
-        return `${hours}h ${remainingMinutes}m`;
-    } else if (minutes > 0) {
-        const remainingSeconds = seconds % 60;
-        return `${minutes}m ${remainingSeconds}s`;
-    } else {
-        return `${seconds}s`;
-    }
-}
+// Re-export formatTimeRemaining as formatTime for backward compatibility
+const formatTime = formatTimeRemaining;
 
 module.exports = {
     CRAFT_TYPES,

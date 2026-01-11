@@ -2,7 +2,7 @@
     isValidChoice, 
     isValidCurrency, 
     isValidMultiplier 
-} = require('../Configuration/flipConfig');
+} = require('../Configuration/gamblingConfig');
 
 function parseBetAmount(str) {
     if (!str) return NaN;

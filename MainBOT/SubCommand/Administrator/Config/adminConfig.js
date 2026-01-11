@@ -98,6 +98,7 @@ module.exports = {
         UNMUTE: 'UNMUTE',
         BAN: 'BAN',
         UNBAN: 'UNBAN',
+        DELETE: 'DELETE',
         SETTING_CHANGE: 'SETTING_CHANGE'
     }
 };

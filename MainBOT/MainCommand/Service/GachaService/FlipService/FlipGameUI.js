@@ -1,5 +1,5 @@
 ﻿const { EmbedBuilder, Colors } = require('discord.js');
-const { MULTIPLIERS } = require('../../../Configuration/flipConfig');
+const { MULTIPLIERS } = require('../../../Configuration/gamblingConfig');
 const { formatNumber } = require('../../../Ultility/formatting');
 
 function createHelpEmbed() {

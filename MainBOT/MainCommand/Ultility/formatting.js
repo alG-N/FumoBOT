@@ -1,4 +1,5 @@
 ﻿const { RARITY_PRIORITY, compareFumos, isRarer } = require('../Configuration/rarity');
+const { formatDuration, formatTimeRemaining, formatTimeAgo } = require('./timeUtils');
 
 // Maximum safe integer for financial operations (prevent precision loss)
 const MAX_SAFE_CURRENCY = Number.MAX_SAFE_INTEGER; // 9,007,199,254,740,991
@@ -129,67 +130,10 @@ function obscureChance(boostedChance) {
     return '?'.repeat(level) + '%';
 }
 
-function formatDuration(ms) {
-    const seconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
-    
-    if (days > 0) {
-        return `${days}d ${hours % 24}h`;
-    } else if (hours > 0) {
-        return `${hours}h ${minutes % 60}m`;
-    } else if (minutes > 0) {
-        return `${minutes}m ${seconds % 60}s`;
-    }
-    return `${seconds}s`;
-}
+// formatDuration and formatTimeRemaining are now imported from timeUtils
 
 function formatPercentage(value, decimals = 2) {
     return (value * 100).toFixed(decimals) + '%';
-}
-
-/**
- * Format time remaining in a human-readable format
- * @param {number} milliseconds - Time in milliseconds
- * @returns {string} Formatted time string
- */
-function formatTimeRemaining(milliseconds) {
-    // Handle edge cases
-    if (!milliseconds || milliseconds <= 0 || !isFinite(milliseconds)) {
-        return '0s';
-    }
-    
-    // Cap at 1 year to prevent display issues
-    const MAX_MS = 365 * 24 * 60 * 60 * 1000;
-    milliseconds = Math.min(milliseconds, MAX_MS);
-    
-    const seconds = Math.floor(milliseconds / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
-    
-    if (days > 0) {
-        const remainingHours = hours % 24;
-        if (remainingHours > 0) {
-            return `${days}d ${remainingHours}h`;
-        }
-        return `${days}d`;
-    } else if (hours > 0) {
-        const remainingMinutes = minutes % 60;
-        if (remainingMinutes > 0) {
-            return `${hours}h ${remainingMinutes}m`;
-        }
-        return `${hours}h`;
-    } else if (minutes > 0) {
-        const remainingSeconds = seconds % 60;
-        if (remainingSeconds > 0) {
-            return `${minutes}m ${remainingSeconds}s`;
-        }
-        return `${minutes}m`;
-    } else {
-        return `${seconds}s`;
-    }
 }
 
 /**
@@ -235,6 +179,7 @@ module.exports = {
     formatDuration,
     formatPercentage,
     formatTimeRemaining,
+    formatTimeAgo,
     safeCurrency,
     safeAdd,
     safeSubtract,

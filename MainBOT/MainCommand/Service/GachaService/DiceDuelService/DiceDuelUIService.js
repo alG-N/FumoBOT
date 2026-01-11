@@ -1,7 +1,7 @@
 ﻿const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Colors } = require('discord.js');
 const { buildSecureCustomId } = require('../../../Middleware/buttonOwnership');
 const { formatNumber } = require('../../../Ultility/formatting');
-const { DICE_MODES, formatDiceRolls } = require('../../../Configuration/diceDuelConfig');
+const { DICE_MODES, formatDiceRolls } = require('../../../Configuration/gamblingConfig');
 
 function createTutorialEmbed() {
     const modes = Object.entries(DICE_MODES).map(([key, config]) => 
