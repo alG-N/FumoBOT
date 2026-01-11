@@ -1,53 +1,11 @@
 /**
  * Guild Settings Service
  * Manages server-specific settings and configurations
+ * Uses separate admin database
  */
 
-const path = require('path');
-// Path: SubCommand/Administrator/Service -> MainCommand/Core/Database
-const db = require('../../../MainCommand/Core/Database/dbSetting');
+const { run, get, all } = require('../Database/adminDatabase');
 const adminConfig = require('../Config/adminConfig');
-
-// ═══════════════════════════════════════════════════════════════
-// TABLE INITIALIZATION
-// ═══════════════════════════════════════════════════════════════
-
-/**
- * Initialize the guild settings table in the database
- */
-async function initializeGuildSettingsTable() {
-    return new Promise((resolve, reject) => {
-        db.run(`
-            CREATE TABLE IF NOT EXISTS guildSettings (
-                guildId TEXT PRIMARY KEY,
-                snipe_limit INTEGER DEFAULT 10,
-                announcement_channel TEXT,
-                log_channel TEXT,
-                admin_roles TEXT DEFAULT '[]',
-                mod_roles TEXT DEFAULT '[]',
-                mute_role TEXT,
-                auto_mod_enabled INTEGER DEFAULT 0,
-                welcome_channel TEXT,
-                welcome_message TEXT,
-                goodbye_channel TEXT,
-                goodbye_message TEXT,
-                created_at INTEGER,
-                updated_at INTEGER
-            )
-        `, (err) => {
-            if (err) {
-                console.error('❌ Failed to create guildSettings table:', err);
-                reject(err);
-            } else {
-                console.log('✅ Guild settings table initialized');
-                resolve();
-            }
-        });
-    });
-}
-
-// Auto-initialize on module load
-initializeGuildSettingsTable().catch(console.error);
 
 // ═══════════════════════════════════════════════════════════════
 // GET SETTINGS
@@ -59,67 +17,64 @@ initializeGuildSettingsTable().catch(console.error);
  * @returns {Promise<Object>} Guild settings object
  */
 async function getGuildSettings(guildId) {
-    return new Promise((resolve, reject) => {
-        db.get('SELECT * FROM guildSettings WHERE guildId = ?', [guildId], (err, row) => {
-            if (err) {
-                reject(err);
-                return;
+    try {
+        const row = await get('SELECT * FROM guildSettings WHERE guildId = ?', [guildId]);
+
+        if (row) {
+            // Parse JSON fields
+            try {
+                row.admin_roles = JSON.parse(row.admin_roles || '[]');
+                row.mod_roles = JSON.parse(row.mod_roles || '[]');
+            } catch (e) {
+                row.admin_roles = [];
+                row.mod_roles = [];
             }
+            return row;
+        }
 
-            if (row) {
-                // Parse JSON fields
-                try {
-                    row.admin_roles = JSON.parse(row.admin_roles || '[]');
-                    row.mod_roles = JSON.parse(row.mod_roles || '[]');
-                } catch (e) {
-                    row.admin_roles = [];
-                    row.mod_roles = [];
-                }
-                resolve(row);
-            } else {
-                // Create default settings
-                const defaults = adminConfig.DEFAULT_GUILD_SETTINGS;
-                const now = Date.now();
+        // Create default settings
+        const defaults = adminConfig.DEFAULT_GUILD_SETTINGS;
+        const now = Date.now();
 
-                db.run(`
-                    INSERT INTO guildSettings (
-                        guildId, snipe_limit, announcement_channel, log_channel,
-                        admin_roles, mod_roles, mute_role, auto_mod_enabled,
-                        welcome_channel, welcome_message, goodbye_channel, goodbye_message,
-                        created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                `, [
-                    guildId,
-                    defaults.snipe_limit,
-                    defaults.announcement_channel,
-                    defaults.log_channel,
-                    JSON.stringify(defaults.admin_roles),
-                    JSON.stringify(defaults.mod_roles),
-                    defaults.mute_role,
-                    defaults.auto_mod_enabled ? 1 : 0,
-                    defaults.welcome_channel,
-                    defaults.welcome_message,
-                    defaults.goodbye_channel,
-                    defaults.goodbye_message,
-                    now,
-                    now
-                ], (insertErr) => {
-                    if (insertErr) {
-                        reject(insertErr);
-                        return;
-                    }
+        await run(`
+            INSERT INTO guildSettings (
+                guildId, snipe_limit, announcement_channel, log_channel,
+                admin_roles, mod_roles, mute_role, auto_mod_enabled,
+                welcome_channel, welcome_message, goodbye_channel, goodbye_message,
+                created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [
+            guildId,
+            defaults.snipe_limit,
+            defaults.announcement_channel,
+            defaults.log_channel,
+            JSON.stringify(defaults.admin_roles),
+            JSON.stringify(defaults.mod_roles),
+            defaults.mute_role,
+            defaults.auto_mod_enabled ? 1 : 0,
+            defaults.welcome_channel,
+            defaults.welcome_message,
+            defaults.goodbye_channel,
+            defaults.goodbye_message,
+            now,
+            now
+        ]);
 
-                    // Return the default settings with arrays already parsed
-                    resolve({
-                        guildId,
-                        ...defaults,
-                        created_at: now,
-                        updated_at: now
-                    });
-                });
-            }
-        });
-    });
+        // Return the default settings with arrays already parsed
+        return {
+            guildId,
+            ...defaults,
+            created_at: now,
+            updated_at: now
+        };
+    } catch (error) {
+        console.error('[GuildSettings] Error getting settings:', error);
+        // Return defaults on error
+        return {
+            guildId,
+            ...adminConfig.DEFAULT_GUILD_SETTINGS
+        };
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -165,19 +120,12 @@ async function updateGuildSettings(guildId, updates) {
     const setClause = fields.map(f => `${f} = ?`).join(', ');
     const values = [...fields.map(f => filteredUpdates[f]), Date.now(), guildId];
 
-    return new Promise((resolve, reject) => {
-        db.run(
-            `UPDATE guildSettings SET ${setClause}, updated_at = ? WHERE guildId = ?`,
-            values,
-            async (err) => {
-                if (err) {
-                    reject(err);
-                    return;
-                }
-                resolve(await getGuildSettings(guildId));
-            }
-        );
-    });
+    await run(
+        `UPDATE guildSettings SET ${setClause}, updated_at = ? WHERE guildId = ?`,
+        values
+    );
+
+    return getGuildSettings(guildId);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -366,9 +314,6 @@ function isServerOwner(member) {
 // ═══════════════════════════════════════════════════════════════
 
 module.exports = {
-    // Initialization
-    initializeGuildSettingsTable,
-    
     // Main getters/setters
     getGuildSettings,
     updateGuildSettings,
