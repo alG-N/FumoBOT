@@ -1,6 +1,17 @@
 const { EmbedBuilder, Colors } = require('discord.js');
 const { maintenance, developerID } = require('../Configuration/maintenanceConfig');
-const { isBanned } = require('../Administrator/Service/BanService');
+const { isUserBanned } = require('../../OwnerCommand/Commands/botban');
+
+// Wrapper for backward compatibility
+function isBanned(userId) {
+    const result = isUserBanned(userId);
+    if (!result.banned) return null;
+    return {
+        reason: result.reason,
+        expiresAt: result.expiresAt,
+        bannedAt: result.bannedAt
+    };
+}
 
 const restrictionCache = new Map();
 const CACHE_TTL = 30000;

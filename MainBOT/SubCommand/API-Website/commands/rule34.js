@@ -523,8 +523,10 @@ async function handleRandom(interaction, userId) {
     // Store session
     rule34Cache.setSession(userId, {
         type: 'random',
+        query: tags || '',
         posts: filteredPosts,
-        currentIndex: 0
+        currentIndex: 0,
+        currentPage: 1
     });
 
     const post = filteredPosts[0];
@@ -726,8 +728,10 @@ async function handleNavigation(interaction, action, userId) {
     const session = rule34Cache.getSession(userId);
     
     if (!session) {
+        // Log debug info
+        console.log(`[Rule34] Session not found for user ${userId}. Cache stats:`, rule34Cache.getStats());
         return interaction.reply({
-            content: '⏱️ Session expired. Please run the command again.',
+            content: '⏱️ Session expired (bot may have restarted). Please run the command again.',
             ephemeral: true
         });
     }
@@ -773,9 +777,11 @@ async function handleNavigation(interaction, action, userId) {
 async function handlePageNavigation(interaction, action, userId) {
     const session = rule34Cache.getSession(userId);
     
-    if (!session || session.type !== 'search') {
+    // Support both 'search' and 'random' session types
+    if (!session || (session.type !== 'search' && session.type !== 'random')) {
+        console.log(`[Rule34] Page nav session not found for user ${userId}. Session type: ${session?.type}`);
         return interaction.reply({
-            content: '⏱️ Session expired. Please run the command again.',
+            content: '⏱️ Session expired (bot may have restarted). Please run the command again.',
             ephemeral: true
         });
     }
@@ -785,36 +791,62 @@ async function handlePageNavigation(interaction, action, userId) {
     const currentPage = session.currentPage || 1;
     const newPage = action === 'nextpage' ? currentPage + 1 : Math.max(1, currentPage - 1);
 
-    // Fetch new page
-    const searchOptions = {
-        ...session.options,
-        page: newPage - 1
-    };
+    let posts = [];
+    let hasMore = false;
 
-    const result = await rule34Service.search(session.query, searchOptions);
+    // Handle differently based on session type
+    if (session.type === 'random') {
+        // For random, fetch new random posts
+        const prefs = rule34Cache.getPreferences(userId);
+        const blacklist = rule34Cache.getBlacklist(userId);
+        
+        const rawPosts = await rule34Service.getRandom({
+            tags: session.query || '',
+            count: session.posts?.length || 10,
+            excludeAi: prefs.aiFilter,
+            minScore: prefs.minScore
+        });
+        
+        // Filter blacklisted tags
+        posts = rawPosts.filter(post => {
+            const postTags = post.tags.split(' ');
+            return !postTags.some(t => blacklist.includes(t));
+        });
+        hasMore = posts.length > 0;
+    } else {
+        // For search, fetch specific page
+        const searchOptions = {
+            ...session.options,
+            page: newPage - 1
+        };
 
-    if (result.posts.length === 0) {
+        const result = await rule34Service.search(session.query, searchOptions);
+        posts = result.posts;
+        hasMore = result.hasMore;
+    }
+
+    if (posts.length === 0) {
         return interaction.followUp({
-            content: '❌ No more results on this page.',
+            content: '❌ No more results found.',
             ephemeral: true
         });
     }
 
     // Update session
     rule34Cache.updateSession(userId, {
-        posts: result.posts,
+        posts: posts,
         currentIndex: 0,
         currentPage: newPage,
-        hasMore: result.hasMore
+        hasMore: hasMore
     });
 
-    const post = result.posts[0];
+    const post = posts[0];
     rule34Cache.addToHistory(userId, post.id, { score: post.score });
 
     if (post.hasVideo) {
         const { embed, rows } = postHandler.createVideoEmbed(post, {
             resultIndex: 0,
-            totalResults: result.posts.length,
+            totalResults: posts.length,
             userId,
             searchPage: newPage
         });
@@ -823,8 +855,8 @@ async function handlePageNavigation(interaction, action, userId) {
 
     const { embed, rows } = await postHandler.createPostEmbed(post, {
         resultIndex: 0,
-        totalResults: result.posts.length,
-        query: session.query,
+        totalResults: posts.length,
+        query: session.query || 'random',
         userId,
         searchPage: newPage
     });

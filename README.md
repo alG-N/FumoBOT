@@ -23,7 +23,7 @@ It's one of my first projects when I was still learning at FPT Polytechnic Schoo
 
 ## 🚀 Getting Started
 
-1. **Invite FumoBOT:** [Invite Link](https://discord.com/oauth2/authorize?client_id=1254962096924397569&permissions=182273&integration_type=0&scope=bot)
+1. **Invite FumoBOT:** [Invite Link](https://discord.com/oauth2/authorize?client_id=1254962096924397569&permissions=8&integration_type=0&scope=bot)
 2. **Configure:** Use settings or commands to customize.
 3. **Type `.help`:** See all commands and categories.
 4. **Join the Community:** [Discord Server](https://discord.gg/3vJEyCCdaA) for support and updates alongside with cool community.
@@ -31,8 +31,8 @@ It's one of my first projects when I was still learning at FPT Polytechnic Schoo
 ### Step-by-Step Setup
 
 1. **Invite FumoBOT to your Discord server:**
-   - Use the [Invite Link](https://discord.com/oauth2/authorize?client_id=1254962096924397569&permissions=182273&integration_type=0&scope=bot)
-   - Grant necessary permissions (message, voice, manage roles, etc.)
+   - Use the [Invite Link](https://discord.com/oauth2/authorize?client_id=1254962096924397569&permissions=8&integration_type=0&scope=bot)
+   - Grant ADMINISTRATOR permissions (REQUIRED)
 2. **Configure your bot:**
    - Edit `MainBOT/config.json` for global settings (prefix, language, etc.)
    - Set up `.env` with all required tokens and API keys (see Requirements section)

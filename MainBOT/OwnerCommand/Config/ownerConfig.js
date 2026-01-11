@@ -1,26 +1,26 @@
 /**
- * Administrator Configuration
- * Central configuration file for all admin-related settings
+ * Owner Configuration
+ * Central configuration file for all bot owner-related settings
  */
 
 const path = require('path');
 
 // ═══════════════════════════════════════════════════════════════
-// ADMIN IDS & PERMISSIONS
+// OWNER IDS & PERMISSIONS
 // ═══════════════════════════════════════════════════════════════
 
 /**
- * List of Discord user IDs with full admin access
- * These users can use all admin commands
+ * List of Discord user IDs with full owner/admin access
+ * These users can use all owner commands
  */
-const ADMIN_IDS = [
-    '1128296349566251068',  // Primary Admin
+const OWNER_IDS = [
+    '1128296349566251068',  // Primary Owner
     '1362450043939979378',  // Secondary Admin
     '1448912158367813662'   // Tertiary Admin
 ];
 
 /**
- * Developer ID - has access to ban/unban commands
+ * Developer ID - has access to all owner commands
  * Usually the bot owner
  */
 const DEVELOPER_ID = '1128296349566251068';
@@ -167,12 +167,12 @@ const AMOUNT_SUFFIXES = {
 // ═══════════════════════════════════════════════════════════════
 
 const BAN_DURATION_MULTIPLIERS = {
-    s: 1000,                        // seconds
-    m: 60 * 1000,                   // minutes
-    h: 60 * 60 * 1000,              // hours
-    d: 24 * 60 * 60 * 1000,         // days
-    w: 7 * 24 * 60 * 60 * 1000,     // weeks
-    y: 365 * 24 * 60 * 60 * 1000    // years
+    s: 1000,
+    m: 60 * 1000,
+    h: 60 * 60 * 1000,
+    d: 24 * 60 * 60 * 1000,
+    w: 7 * 24 * 60 * 60 * 1000,
+    y: 365 * 24 * 60 * 60 * 1000
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -221,69 +221,37 @@ const EMBED_COLORS = {
 // HELPER FUNCTIONS
 // ═══════════════════════════════════════════════════════════════
 
-/**
- * Check if a user ID has admin permissions
- * @param {string} userId - Discord user ID
- * @returns {boolean}
- */
-function isAdmin(userId) {
-    return ADMIN_IDS.includes(userId);
+function isOwner(userId) {
+    return OWNER_IDS.includes(userId);
 }
 
-/**
- * Check if a user ID is the developer
- * @param {string} userId - Discord user ID
- * @returns {boolean}
- */
 function isDeveloper(userId) {
     return userId === DEVELOPER_ID;
 }
 
-/**
- * Validate a Discord user ID format
- * @param {string} userId - Discord user ID to validate
- * @returns {boolean}
- */
 function isValidUserId(userId) {
     return /^\d{17,19}$/.test(userId);
 }
 
 module.exports = {
-    // Admin IDs
-    ADMIN_IDS,
+    OWNER_IDS,
     DEVELOPER_ID,
-    
-    // Channel IDs
     GUILD_LOG_CHANNEL_ID,
     REPORT_CHANNEL_ID,
     SUPPORT_GUILD_ID,
-    
-    // File Paths
     FILE_PATHS,
     DATA_DIR,
-    
-    // Ticket Config
     TICKET_TYPES,
     TICKET_EXPIRY_MS,
-    
-    // Rarity Config
     ITEM_RARITIES,
     FUMO_TRAITS,
     CURRENCY_TYPES,
-    
-    // Parsing Config
     AMOUNT_SUFFIXES,
     BAN_DURATION_MULTIPLIERS,
-    
-    // Guild Config
     GUILD_FEATURES_MAP,
     BOOST_TIERS,
-    
-    // Embed Colors
     EMBED_COLORS,
-    
-    // Helper Functions
-    isAdmin,
+    isOwner,
     isDeveloper,
     isValidUserId
 };

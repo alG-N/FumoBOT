@@ -383,8 +383,8 @@ async function handleBiomeChange(interaction, userId, message, userLevel, userRe
             });
         }
         
-        // Set the new biome
-        await setUserBiome(userId, selectedBiomeId);
+        // Set the new biome (pass userLevel and userRebirth from handleBiomeChange params)
+        await setUserBiome(userId, selectedBiomeId, userLevel, userRebirth);
         
         // Show success embed with biome image
         const successEmbed = createBiomeChangeEmbed(newBiome, oldBiome);
@@ -407,7 +407,7 @@ async function handleBiomeChange(interaction, userId, message, userLevel, userRe
 /**
  * Handle biome unlock confirmation
  */
-async function handleBiomeUnlockConfirm(interaction, userId, biomeId) {
+async function handleBiomeUnlockConfirm(interaction, userId, biomeId, userLevel = 1, userRebirth = 0) {
     try {
         const newBiome = getBiome(biomeId);
         if (!newBiome) {
@@ -425,17 +425,17 @@ async function handleBiomeUnlockConfirm(interaction, userId, biomeId) {
             });
         }
         
-        // Deduct cost
+        // Deduct cost from userCoins table
         await run(
-            `UPDATE userData SET coins = coins - ?, gems = gems - ? WHERE odiscord = ?`,
+            `UPDATE userCoins SET coins = coins - ?, gems = gems - ? WHERE userId = ?`,
             [cost.coins, cost.gems, userId]
         );
         
         // Unlock biome
         await unlockBiome(userId, biomeId);
         
-        // Also set it as current biome
-        await setUserBiome(userId, biomeId);
+        // Also set it as current biome (pass level and rebirth)
+        await setUserBiome(userId, biomeId, userLevel, userRebirth);
         
         const oldBiomeData = await getUserBiomeData(userId);
         

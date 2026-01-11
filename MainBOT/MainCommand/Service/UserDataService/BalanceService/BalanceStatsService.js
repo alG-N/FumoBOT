@@ -131,7 +131,7 @@ function calculateDailyValue(farmingRate, boostMultipliers) {
 function getPityProgress(userData) {
     const pities = {
         transcendent: {
-            current: userData.rollsSinceLastQuestionMark || 0,
+            current: userData.pityTranscendent || 0,
             max: 1500000,
             name: 'Transcendent'
         },

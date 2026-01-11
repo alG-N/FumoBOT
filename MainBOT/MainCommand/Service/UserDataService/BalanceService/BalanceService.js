@@ -350,7 +350,13 @@ function sanitizeUserData(row) {
         boostActive: safe(row.boostActive),
         lastDailyBonus: row.lastDailyBonus,
         rollsSinceLastMythical: safe(row.rollsSinceLastMythical),
-        rollsSinceLastQuestionMark: safe(row.rollsSinceLastQuestionMark)
+        rollsSinceLastQuestionMark: safe(row.rollsSinceLastQuestionMark),
+        // Pity counters for accurate .bal pity display (matching .cg)
+        pityTranscendent: safe(row.pityTranscendent),
+        pityEternal: safe(row.pityEternal),
+        pityInfinite: safe(row.pityInfinite),
+        pityCelestial: safe(row.pityCelestial),
+        pityAstral: safe(row.pityAstral)
     };
 }
 

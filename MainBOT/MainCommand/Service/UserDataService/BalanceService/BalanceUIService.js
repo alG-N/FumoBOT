@@ -61,7 +61,7 @@ function createOverviewPage(targetUser, userData, farmingFumos, activeBoosts, we
     // Main currency section - clean and compact
     embed.setDescription([
         `\`\`\`ansi`,
-        `\u001b[1;33m💰 ${formatCompactNumber(userData.coins || 0)}\u001b[0m  \u001b[1;36m💎 ${formatCompactNumber(userData.gems || 0)}\u001b[0m  \u001b[1;35m🌸 ${formatCompactNumber(userData.spiritTokens || 0)}\u001b[0m`,
+        `\u001b[1;33m💰 ${formatNumber(userData.coins || 0)}\u001b[0m  \u001b[1;36m💎 ${formatNumber(userData.gems || 0)}\u001b[0m  \u001b[1;35m🌸 ${formatNumber(userData.spiritTokens || 0)}\u001b[0m`,
         `\`\`\``,
         `${rank.emoji} **${rank.rank}** • Lv.**${levelProgress.currentLevel}** • ♻️ **${userData.rebirth || 0}**`
     ].join('\n'));
@@ -70,12 +70,12 @@ function createOverviewPage(targetUser, userData, farmingFumos, activeBoosts, we
     embed.addFields(
         {
             name: '📊 Net Worth',
-            value: `\`${formatCompactNumber(netWorth)}\``,
+            value: `\`${formatNumber(netWorth)}\``,
             inline: true
         },
         {
             name: '📈 Daily Income',
-            value: `💰\`${formatCompactNumber(dailyValue.coins)}\`\n💎\`${formatCompactNumber(dailyValue.gems)}\``,
+            value: `💰\`${formatNumber(dailyValue.coins)}\`\n💎\`${formatNumber(dailyValue.gems)}\``,
             inline: true
         },
         {
@@ -89,7 +89,7 @@ function createOverviewPage(targetUser, userData, farmingFumos, activeBoosts, we
     const fumoCount = (farmingFumos || []).reduce((sum, f) => sum + (f.quantity || 1), 0);
     embed.addFields({
         name: '🌾 Farming',
-        value: `\`${fumoCount}\` Fumos • \`${formatCompactNumber(farmingRate.totalCoins)}\`💰/min • \`${formatCompactNumber(farmingRate.totalGems)}\`💎/min`,
+        value: `\`${fumoCount}\` Fumos • \`${formatNumber(farmingRate.totalCoins)}\`💰/min • \`${formatNumber(farmingRate.totalGems)}\`💎/min`,
         inline: false
     });
     
@@ -111,16 +111,27 @@ function createOverviewPage(targetUser, userData, farmingFumos, activeBoosts, we
 // ═══════════════════════════════════════════════════════════════════
 // PAGE 2: ECONOMY - Detailed wealth breakdown
 // ═══════════════════════════════════════════════════════════════════
-function createEconomyPage(targetUser, userData, farmingFumos, activeBoosts) {
+function createEconomyPage(targetUser, userData, farmingFumos, activeBoosts, buildings = {}) {
     const farmingRate = calculateTotalFarmingRate(farmingFumos || []);
     const boostMult = calculateBoostMultipliers(activeBoosts || []);
-    const dailyValue = calculateDailyValue(farmingRate, boostMult);
     const netWorth = calculateNetWorth(userData);
     const efficiency = calculateEfficiency(userData);
     
-    const effectiveCoinsPerMin = Math.floor(farmingRate.totalCoins * boostMult.coinMultiplier);
-    const effectiveGemsPerMin = Math.floor(farmingRate.totalGems * boostMult.gemMultiplier);
+    // Include building multipliers
+    const coinBuildingMult = 1 + ((buildings.coinBoostLevel || 0) * 0.05);
+    const gemBuildingMult = 1 + ((buildings.gemBoostLevel || 0) * 0.05);
+    
+    // Total multipliers including buildings
+    const totalCoinMult = boostMult.coinMultiplier * coinBuildingMult;
+    const totalGemMult = boostMult.gemMultiplier * gemBuildingMult;
+    
+    const effectiveCoinsPerMin = Math.floor(farmingRate.totalCoins * totalCoinMult);
+    const effectiveGemsPerMin = Math.floor(farmingRate.totalGems * totalGemMult);
     const totalFumoCount = (farmingFumos || []).reduce((sum, f) => sum + (f.quantity || 1), 0);
+    
+    // Calculate daily with all multipliers
+    const dailyCoins = Math.floor(farmingRate.totalCoins * 1440 * totalCoinMult);
+    const dailyGems = Math.floor(farmingRate.totalGems * 1440 * totalGemMult);
     
     return new EmbedBuilder()
         .setAuthor({ 
@@ -130,48 +141,48 @@ function createEconomyPage(targetUser, userData, farmingFumos, activeBoosts) {
         .setColor(COLORS.ECONOMY || COLORS.DEFAULT)
         .setDescription([
             `\`\`\`diff`,
-            `+ Net Worth: ${formatCompactNumber(netWorth)}`,
+            `+ Net Worth: ${formatNumber(netWorth)}`,
             `\`\`\``
         ].join('\n'))
         .addFields(
             {
                 name: '💰 Coins',
-                value: `\`${formatCompactNumber(userData.coins || 0)}\`\n${getCoinDescription(userData.coins || 0)}`,
+                value: `\`${formatNumber(userData.coins || 0)}\`\n${getCoinDescription(userData.coins || 0)}`,
                 inline: true
             },
             {
                 name: '💎 Gems',
-                value: `\`${formatCompactNumber(userData.gems || 0)}\`\n${getGemDescription(userData.gems || 0)}`,
+                value: `\`${formatNumber(userData.gems || 0)}\`\n${getGemDescription(userData.gems || 0)}`,
                 inline: true
             },
             {
                 name: '🌸 Tokens',
-                value: `\`${formatCompactNumber(userData.spiritTokens || 0)}\``,
+                value: `\`${formatNumber(userData.spiritTokens || 0)}\``,
                 inline: true
             },
             {
                 name: '⚙️ Farming',
                 value: [
                     `🐾 \`${totalFumoCount}\` Fumos`,
-                    `📊 Base: \`${formatCompactNumber(farmingRate.totalCoins)}\`💰/\`${formatCompactNumber(farmingRate.totalGems)}\`💎`,
-                    `📈 Boosted: \`${formatCompactNumber(effectiveCoinsPerMin)}\`💰/\`${formatCompactNumber(effectiveGemsPerMin)}\`💎`
+                    `📊 Base: \`${formatNumber(farmingRate.totalCoins)}\`💰/\`${formatNumber(farmingRate.totalGems)}\`💎/min`,
+                    `📈 Total: \`${formatNumber(effectiveCoinsPerMin)}\`💰/\`${formatNumber(effectiveGemsPerMin)}\`💎/min`,
+                    `🏗️ Building: x${coinBuildingMult.toFixed(2)}💰 x${gemBuildingMult.toFixed(2)}💎`
+                ].join('\n'),
+                inline: false
+            },
+            {
+                name: '📆 Daily Income',
+                value: [
+                    `💰 \`${formatNumber(dailyCoins)}\` coins/day`,
+                    `💎 \`${formatNumber(dailyGems)}\` gems/day`
                 ].join('\n'),
                 inline: true
             },
             {
-                name: '📆 Daily',
+                name: '⚡ Yukari Earnings',
                 value: [
-                    `💰 \`${formatCompactNumber(dailyValue.coins)}\``,
-                    `💎 \`${formatCompactNumber(dailyValue.gems)}\``,
-                    `📊 \`${formatCompactNumber(dailyValue.total)}\` total`
-                ].join('\n'),
-                inline: true
-            },
-            {
-                name: '⚡ Efficiency',
-                value: [
-                    `💰 \`${formatCompactNumber(Math.floor(efficiency.coinsPerRoll))}\`/roll`,
-                    `💎 \`${formatCompactNumber(Math.floor(efficiency.gemsPerRoll))}\`/roll`
+                    `💰 \`${formatNumber(Math.floor(efficiency.coinsPerRoll))}\` avg/roll`,
+                    `💎 \`${formatNumber(Math.floor(efficiency.gemsPerRoll))}\` avg/roll`
                 ].join('\n'),
                 inline: true
             }
@@ -238,9 +249,8 @@ function createPrayerPage(targetUser, userData, sanaeData = {}) {
             {
                 name: '🍀 Luck & Fortune',
                 value: [
-                    `✨ **ShinyMark+:** ${userData.luck || 0}/1`,
-                    `🎲 **Rolls Left:** ${formatNumber(userData.rollsLeft || 0)}`,
-                    `🔮 **Boost Charge:** ${userData.boostCharge || 0}%`
+                    `✨ **ShinyMark+:** ${((userData.luck || 0) * 100).toFixed(1)}%`,
+                    `🎲 **Bonus Rolls:** ${formatNumber(userData.rollsLeft || 0)}`
                 ].join('\n'),
                 inline: false
             }
@@ -400,9 +410,8 @@ function createBuildingsPage(targetUser, buildings) {
     buildingFields.push({
         name: '💰 Coin Boost',
         value: [
-            `📊 Level: ${coinLevel}/${maxLevel}`,
-            `${formatProgressBar(coinLevel, maxLevel, 8)}`,
-            `📈 +${(coinLevel * 5).toFixed(0)}% coin bonus`
+            `📊 Level: ${coinLevel}`,
+            `📈 x${(1 + (coinLevel * 0.05)).toFixed(2)} coin multiplier`
         ].join('\n'),
         inline: true
     });
@@ -412,9 +421,8 @@ function createBuildingsPage(targetUser, buildings) {
     buildingFields.push({
         name: '💎 Gem Boost',
         value: [
-            `📊 Level: ${gemLevel}/${maxLevel}`,
-            `${formatProgressBar(gemLevel, maxLevel, 8)}`,
-            `📈 +${(gemLevel * 5).toFixed(0)}% gem bonus`
+            `📊 Level: ${gemLevel}`,
+            `📈 x${(1 + (gemLevel * 0.05)).toFixed(2)} gem multiplier`
         ].join('\n'),
         inline: true
     });
@@ -424,9 +432,8 @@ function createBuildingsPage(targetUser, buildings) {
     buildingFields.push({
         name: '⚡ Critical Farming',
         value: [
-            `📊 Level: ${critLevel}/${maxLevel}`,
-            `${formatProgressBar(critLevel, maxLevel, 8)}`,
-            `📈 +${(critLevel * 2).toFixed(1)}% crit chance`
+            `📊 Level: ${critLevel}`,
+            `📈 ${(critLevel * 2).toFixed(1)}% crit chance`
         ].join('\n'),
         inline: true
     });
@@ -436,26 +443,25 @@ function createBuildingsPage(targetUser, buildings) {
     buildingFields.push({
         name: '🌟 Event Amplifier',
         value: [
-            `📊 Level: ${eventLevel}/${maxLevel}`,
-            `${formatProgressBar(eventLevel, maxLevel, 8)}`,
-            `📈 +${(eventLevel * 3).toFixed(0)}% event bonus`
+            `📊 Level: ${eventLevel}`,
+            `📈 x${(1 + (eventLevel * 0.03)).toFixed(2)} event multiplier`
         ].join('\n'),
         inline: true
     });
     
-    // Calculate total bonus
-    const totalCoinBonus = coinLevel * 5;
-    const totalGemBonus = gemLevel * 5;
+    // Calculate total bonus as multipliers
+    const totalCoinMult = 1 + (coinLevel * 0.05);
+    const totalGemMult = 1 + (gemLevel * 0.05);
     const critChance = critLevel * 2;
-    const eventBoost = eventLevel * 3;
+    const eventMult = 1 + (eventLevel * 0.03);
     
     buildingFields.push({
         name: '📊 Total Building Bonuses',
         value: [
-            `💰 Coin Production: +${totalCoinBonus.toFixed(0)}%`,
-            `💎 Gem Production: +${totalGemBonus.toFixed(0)}%`,
-            `⚡ Critical Chance: +${critChance.toFixed(1)}%`,
-            `🌟 Event Amplifier: +${eventBoost.toFixed(0)}%`
+            `💰 Coin Production: x${totalCoinMult.toFixed(2)}`,
+            `💎 Gem Production: x${totalGemMult.toFixed(2)}`,
+            `⚡ Critical Chance: ${critChance.toFixed(1)}%`,
+            `🌟 Event Amplifier: x${eventMult.toFixed(2)}`
         ].join('\n'),
         inline: false
     });
@@ -739,7 +745,7 @@ function createActivityPage(targetUser, activityData, achievements) {
 async function generateAllPages(targetUser, userData, farmingFumos, activeBoosts, achievements, activityData, petData, buildings, questSummary, weather, sanaeData) {
     return [
         createOverviewPage(targetUser, userData, farmingFumos, activeBoosts, weather),
-        createEconomyPage(targetUser, userData, farmingFumos, activeBoosts),
+        createEconomyPage(targetUser, userData, farmingFumos, activeBoosts, buildings),
         createPrayerPage(targetUser, userData, sanaeData),
         createStatsPage(targetUser, userData),
         createPetsPage(targetUser, petData || { owned: [], hatching: [] }),

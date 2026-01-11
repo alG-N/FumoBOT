@@ -38,7 +38,19 @@ function loadBanService() {
     if (banService) return banService;
     
     try {
-        banService = require(path.join(__dirname, '../../MainCommand/Administrator/Service/BanService.js'));
+        const { isUserBanned } = require(path.join(__dirname, '../../OwnerCommand/Commands/botban.js'));
+        // Wrap to maintain backward compatibility
+        banService = {
+            isBanned: (userId) => {
+                const result = isUserBanned(userId);
+                if (!result.banned) return null;
+                return {
+                    reason: result.reason,
+                    expiresAt: result.expiresAt,
+                    bannedAt: result.bannedAt
+                };
+            }
+        };
     } catch (err) {
         console.log('[AccessControl] Could not load BanService:', err.message);
         banService = {

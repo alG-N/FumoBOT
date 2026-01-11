@@ -38,6 +38,14 @@ const SOURCE_PLATFORM = {
     unknown: { emoji: '🎵', name: 'Music', color: COLORS.info }
 };
 
+// Decorative elements for embeds
+const DECORATIONS = {
+    line: '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+    dotLine: '• • • • • • • • • • • • • • • • • • • •',
+    sparkle: '✨',
+    music: '🎵'
+};
+
 class TrackHandler {
     /**
      * Get source info for a track

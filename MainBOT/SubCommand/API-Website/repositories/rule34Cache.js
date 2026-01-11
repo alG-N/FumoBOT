@@ -22,7 +22,7 @@ class Rule34Cache {
         
         // Cache durations
         this.SEARCH_CACHE_DURATION = 10 * 60 * 1000;      // 10 minutes
-        this.SESSION_DURATION = 30 * 60 * 1000;           // 30 minutes
+        this.SESSION_DURATION = 2 * 60 * 60 * 1000;       // 2 hours (increased from 30 min)
         this.AUTOCOMPLETE_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
         this.HISTORY_MAX_SIZE = 50;
 

@@ -221,7 +221,7 @@ function setupInteractionCollector(msg, userId, message, client, userLevel = 1, 
                 // Handle biome unlock confirmation
                 const parts = customId.split('_');
                 const biomeId = parts[parts.length - 1];
-                await handleBiomeUnlockConfirm(interaction, userId, biomeId);
+                await handleBiomeUnlockConfirm(interaction, userId, biomeId, userLevel, userRebirth);
             }
             else if (customId.startsWith('biome_cancel_unlock_')) {
                 // Cancel unlock and return to biome selection

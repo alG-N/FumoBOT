@@ -109,19 +109,44 @@ async function track(userId, trackingType, increment = 1) {
  * Track achievement progress based on trackingType
  */
 async function trackAchievement(userId, trackingType, increment = 1) {
-    // Map trackingType to achievement IDs
+    // Map trackingType to achievement IDs (must match unifiedAchievementConfig.js)
     const achievementMap = {
+        // Gacha
         'rolls': 'total_rolls',
         'multi_rolls': 'total_rolls',
-        'prays': 'total_prays',
+        
+        // Collection
         'shinies': 'total_shinies',
+        'astral_plus': 'astral_plus_collector',
+        'limit_breaks': 'total_limit_breaks',
+        
+        // Prayer
+        'prays': 'total_prays',
+        
+        // Economy
         'coins_earned': 'lifetime_coins',
+        'gems_earned': 'lifetime_gems',
+        
+        // Crafting
         'crafts': 'total_crafts',
+        
+        // Pets
         'pet_hatches': 'total_pet_hatches',
+        
+        // Buildings
         'building_upgrades': 'total_building_upgrades',
+        
+        // Gambling
         'gambles': 'total_gambles',
+        'gamble_wins': 'gamble_wins',
+        
+        // Trading
         'trades': 'total_trades',
-        'limit_breaks': 'total_limit_breaks'
+        'market_sales': 'market_sales',
+        
+        // Quests
+        'daily_completions': 'daily_warrior',
+        'weekly_quest_completed': 'weekly_champion'
     };
     
     const achievementId = achievementMap[trackingType];

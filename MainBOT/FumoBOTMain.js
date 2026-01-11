@@ -29,14 +29,16 @@ const PetIntervalManager = require('./MainCommand/Service/PetService/PetInterval
 const ConnectionMonitor = require('./MainCommand/Service/BotService/ConnectionHealthService/ConnectionMonitor');
 const { validateAllFumoImages } = require('./MainCommand/Service/BotService/ImageValidationService/ImageValidator');
 
-// Administrator Module
+// Owner Command Module (Bot Owner Only - Slash Commands)
 const {
-    registerAdminCommands,
-    registerBanSystem,
-    registerTicketSystem,
     initializeGuildTracking,
-    migratePetsCommand
-} = require('./MainCommand/Administrator');
+    slashCommands: ownerSlashCommands,
+    isUserBanned
+} = require('./OwnerCommand');
+
+// Server Administrator Module (Server Admin Commands)
+const serverAdminModule = require('./SubCommand/Administrator');
+const SnipeService = require('./SubCommand/Administrator/Service/SnipeService');
 
 // Data & Configuration
 const FumoPool = require('./MainCommand/Data/FumoPool');
@@ -59,7 +61,7 @@ const lavalinkService = require('./SubCommand/MusicFunction/Service/LavalinkServ
 lavalinkService.preInitialize(client);
 
 // Command Loader
-const SKIP_FOLDERS = ['handlers', 'node_modules', 'Test', 'backup'];
+const SKIP_FOLDERS = ['handlers', 'node_modules', 'Test', 'backup', 'Administrator', 'Service', 'Config', 'Utils', 'Data'];
 function loadCommandsRecursively(directory, depth = 0) {
     const items = fs.readdirSync(directory, { withFileTypes: true });
     for (const item of items) {
@@ -151,9 +153,6 @@ const pixiv = require('./SubCommand/API-Website/commands/pixiv');
 const steam = require('./SubCommand/API-Website/commands/steam');
 const rule34 = require('./SubCommand/API-Website/commands/rule34');
 
-// Admin commands
-const { botCheckCommand } = require('./MainCommand/Administrator');
-
 // Register API commands
 [reddit, pixiv, steam, rule34].forEach(cmd => {
     if (cmd?.data?.name) {
@@ -161,9 +160,18 @@ const { botCheckCommand } = require('./MainCommand/Administrator');
     }
 });
 
-// Register admin slash commands
-if (botCheckCommand?.data?.name) {
-    client.commands.set(botCheckCommand.data.name, botCheckCommand);
+// Register Owner slash commands (bot owner only)
+for (const cmd of ownerSlashCommands) {
+    if (cmd?.data?.name) {
+        client.commands.set(cmd.data.name, cmd);
+    }
+}
+
+// Register Server Administrator slash commands
+for (const cmd of serverAdminModule.slashCommands) {
+    if (cmd?.data?.name) {
+        client.commands.set(cmd.data.name, cmd);
+    }
 }
 
 // Load SubCommand folder
@@ -286,6 +294,10 @@ client.once('ready', async () => {
     setPresence(client, 'online', '.help and .starter', ActivityType.PLAYING);
     initializeSeasonSystem(client);
     initializeShop();
+    
+    // Initialize Snipe Service for deleted message tracking
+    SnipeService.initialize(client);
+    
     // Parallel initialization for faster startup
     await Promise.all([
         Promise.resolve(initializeShardHandler(client)),
@@ -412,11 +424,7 @@ Object.entries(commandModules).forEach(([name, loader]) => {
     }
 });
 
-// Admin & System Registration
-registerAdminCommands(client);
-registerBanSystem(client, developerID);
-registerTicketSystem(client);
-migratePetsCommand(client);
+// Admin & System Registration (only code redemption remains as prefix command)
 registerCodeRedemption(client);
 
 client.on('interactionCreate', async interaction => {

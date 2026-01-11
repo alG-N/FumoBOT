@@ -15,7 +15,7 @@ module.exports = {
             return interaction.reply({ embeds: [access.embed], ephemeral: true });
         }
 
-        const inviteURL = `https://discord.com/oauth2/authorize?client_id=1254962096924397569&permissions=4292493126401985&integration_type=0&scope=bot`;
+        const inviteURL = `https://discord.com/oauth2/authorize?client_id=1254962096924397569&permissions=8&integration_type=0&scope=bot`;
 
         let inviteEmbed = new EmbedBuilder()
             .setColor('#0099ff')

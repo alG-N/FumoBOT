@@ -248,13 +248,10 @@ function createFarmStatusEmbed(farmData) {
         }
     }
 
-    // Farm slots with progress bar
+    // Farm slots with progress bar on same line as capacity
     embed.addFields({
-        name: '📦 Farm Capacity',
-        value: [
-            `${slotBar} \`${totalFarmingCount}/${farmLimit}\``,
-            `🔮 Fragments: ${fragmentUses} | ⚡ Limit Breaks: ${limitBreaks}`
-        ].join('\n'),
+        name: `📦 Farm Capacity: ${slotBar} ${totalFarmingCount}/${farmLimit}`,
+        value: `🔮 Fragments: ${fragmentUses} | ⚡ Limit Breaks: ${limitBreaks}`,
         inline: false
     });
 
@@ -297,28 +294,47 @@ function createFarmStatusEmbed(farmData) {
         embed.addFields(rarityGroups.slice(0, 6)); // Max 6 inline fields
     }
 
-    // Active effects section
-    const effects = [];
+    // Active effects section - improved display
+    const effectsContent = [];
     
+    // Season section with detailed buffs
     if (seasons?.active && seasons.active !== 'No active seasonal events') {
-        effects.push(`🌤️ **Season:** ${seasons.active}`);
+        effectsContent.push(`**🌤️ Season:**`);
+        effectsContent.push(`- ${seasons.active}`);
+        if (seasons.multipliers) {
+            const coinMult = seasons.multipliers.coinMultiplier || 1;
+            const gemMult = seasons.multipliers.gemMultiplier || 1;
+            if (coinMult !== 1 || gemMult !== 1) {
+                effectsContent.push(`  💰 ${coinMult}x coins | 💎 ${gemMult}x gems`);
+            }
+        }
     }
 
+    // Boost section with clear type labels
     const relevantBoosts = boosts?.activeBoosts?.filter(b => 
         ['coin', 'coins', 'gem', 'gems', 'income'].includes((b.type || '').toLowerCase())
     );
 
     if (relevantBoosts?.length > 0) {
-        const boostText = relevantBoosts.slice(0, 3).map(b => 
-            `${b.source} x${b.multiplier}`
-        ).join(' | ');
-        effects.push(`⚡ **Boosts:** ${boostText}`);
+        effectsContent.push(`**⚡ Boost:**`);
+        relevantBoosts.slice(0, 5).forEach(b => {
+            const boostType = (b.type || '').toLowerCase();
+            let typeLabel = '';
+            if (boostType === 'coin' || boostType === 'coins') {
+                typeLabel = 'coins 💰';
+            } else if (boostType === 'gem' || boostType === 'gems') {
+                typeLabel = 'gems 💎';
+            } else if (boostType === 'income') {
+                typeLabel = 'income 💰💎';
+            }
+            effectsContent.push(`- ${b.source}: x${b.multiplier} ${typeLabel}`);
+        });
     }
     
-    if (effects.length > 0) {
+    if (effectsContent.length > 0) {
         embed.addFields({
             name: '✨ Active Effects',
-            value: effects.join('\n'),
+            value: effectsContent.join('\n'),
             inline: false
         });
     }

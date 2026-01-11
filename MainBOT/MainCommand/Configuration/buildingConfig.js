@@ -4,7 +4,7 @@ const BUILDING_TYPES = {
         name: 'Coin Production',
         emoji: '💰',
         description: 'Increase coin generation from farming',
-        maxLevel: 100,
+        maxLevel: Infinity, // Unlimited upgrades
         baseMultiplier: 0.05,
         baseCost: {
             coins: 500000,
@@ -17,7 +17,7 @@ const BUILDING_TYPES = {
         name: 'Gem Production',
         emoji: '💎',
         description: 'Increase gem generation from farming',
-        maxLevel: 100,
+        maxLevel: Infinity, // Unlimited upgrades
         baseMultiplier: 0.05,
         baseCost: {
             coins: 250000,
@@ -30,7 +30,7 @@ const BUILDING_TYPES = {
         name: 'Critical Farming',
         emoji: '⚡',
         description: 'Chance to get 3x rewards from farming ticks',
-        maxLevel: 30,
+        maxLevel: Infinity, // Unlimited upgrades
         baseChance: 0.02,
         baseCost: {
             coins: 1000000,
@@ -44,7 +44,7 @@ const BUILDING_TYPES = {
         name: 'Event Amplifier',
         emoji: '🌟',
         description: 'Amplify seasonal event multipliers',
-        maxLevel: 50,
+        maxLevel: Infinity, // Unlimited upgrades
         baseMultiplier: 0.03,
         baseCost: {
             coins: 15000000,
