@@ -77,7 +77,8 @@ module.exports = {
                     loopMode: musicService.getLoopMode(guildId),
                     isShuffled: musicService.isShuffled(guildId),
                     queueLength: queueList.length,
-                    nextTrack: queueList[0] || null
+                    nextTrack: queueList[0] || null,
+                    loopCount: musicService.getLoopCount(guildId)
                 });
 
                 const rows = trackHandler.createControlButtons(guildId, {
@@ -91,7 +92,12 @@ module.exports = {
                 await interaction.editReply({ embeds: [embed], components: rows });
             }
         } catch (error) {
-            console.error('Pause button error:', error);
+            // Handle expired interaction (10062) or deleted message (10008)
+            if (error.code === 10062 || error.code === 10008) {
+                console.log('[Button] Interaction expired or message deleted, ignoring...');
+            } else {
+                console.error('Pause button error:', error);
+            }
         }
     },
 
@@ -184,7 +190,8 @@ module.exports = {
                     loopMode: musicService.getLoopMode(guildId),
                     isShuffled: musicService.isShuffled(guildId),
                     queueLength: queueList.length,
-                    nextTrack: queueList[0] || null
+                    nextTrack: queueList[0] || null,
+                    loopCount: musicService.getLoopCount(guildId)
                 });
 
                 const rows = trackHandler.createControlButtons(guildId, {
@@ -198,7 +205,12 @@ module.exports = {
                 await interaction.editReply({ embeds: [embed], components: rows });
             }
         } catch (error) {
-            console.error('Loop button error:', error);
+            // Handle expired interaction (10062) or deleted message (10008)
+            if (error.code === 10062 || error.code === 10008) {
+                console.log('[Button] Interaction expired or message deleted, ignoring...');
+            } else {
+                console.error('Loop button error:', error);
+            }
         }
     },
 
@@ -219,7 +231,8 @@ module.exports = {
                     loopMode: musicService.getLoopMode(guildId),
                     isShuffled: musicService.isShuffled(guildId),
                     queueLength: queueList.length,
-                    nextTrack: queueList[0] || null
+                    nextTrack: queueList[0] || null,
+                    loopCount: musicService.getLoopCount(guildId)
                 });
 
                 const rows = trackHandler.createControlButtons(guildId, {
@@ -233,7 +246,12 @@ module.exports = {
                 await interaction.editReply({ embeds: [embed], components: rows });
             }
         } catch (error) {
-            console.error('Shuffle button error:', error);
+            // Handle expired interaction (10062) or deleted message (10008)
+            if (error.code === 10062 || error.code === 10008) {
+                console.log('[Button] Interaction expired or message deleted, ignoring...');
+            } else {
+                console.error('Shuffle button error:', error);
+            }
         }
     },
 
@@ -254,7 +272,8 @@ module.exports = {
                     loopMode: musicService.getLoopMode(guildId),
                     isShuffled: musicService.isShuffled(guildId),
                     queueLength: queueList.length,
-                    nextTrack: queueList[0] || null
+                    nextTrack: queueList[0] || null,
+                    loopCount: musicService.getLoopCount(guildId)
                 });
 
                 const rows = trackHandler.createControlButtons(guildId, {
@@ -268,7 +287,12 @@ module.exports = {
                 await interaction.editReply({ embeds: [embed], components: rows });
             }
         } catch (error) {
-            console.error('Volume button error:', error);
+            // Handle expired interaction (10062) or deleted message (10008)
+            if (error.code === 10062 || error.code === 10008) {
+                console.log('[Button] Interaction expired or message deleted, ignoring...');
+            } else {
+                console.error('Volume button error:', error);
+            }
         }
     },
 
@@ -313,7 +337,8 @@ module.exports = {
                 loopMode: musicService.getLoopMode(guildId),
                 isShuffled: musicService.isShuffled(guildId),
                 queueLength: queueList.length,
-                nextTrack: queueList[0] || null
+                nextTrack: queueList[0] || null,
+                loopCount: musicService.getLoopCount(guildId)
             });
 
             const rows = trackHandler.createControlButtons(guildId, {
@@ -326,7 +351,12 @@ module.exports = {
 
             await interaction.editReply({ embeds: [embed], components: rows });
         } catch (error) {
-            console.error('Favorite button error:', error);
+            // Handle expired interaction (10062) or deleted message (10008)
+            if (error.code === 10062 || error.code === 10008) {
+                console.log('[Button] Interaction expired or message deleted, ignoring...');
+            } else {
+                console.error('Favorite button error:', error);
+            }
         }
     },
 

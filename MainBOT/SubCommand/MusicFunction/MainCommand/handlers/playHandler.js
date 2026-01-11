@@ -189,26 +189,53 @@ module.exports = {
             const [, , , answer] = i.customId.split(':');
             collector.stop();
 
-            if (answer === 'yes') {
-                musicService.addTrack(guildId, trackData);
-                const position = musicService.getQueueLength(guildId);
-                const queuedEmbed = trackHandler.createQueuedEmbed(trackData, position, interaction.user);
-                await i.update({ embeds: [queuedEmbed], components: [] });
+            try {
+                if (answer === 'yes') {
+                    musicService.addTrack(guildId, trackData);
+                    
+                    // Start playing if nothing is currently playing
+                    const currentTrack = musicService.getCurrentTrack(guildId);
+                    if (!currentTrack) {
+                        const nextTrack = musicService.getQueueList(guildId)[0];
+                        if (nextTrack) {
+                            musicService.removeTrack(guildId, 0);
+                            await musicService.playTrack(guildId, nextTrack);
 
-                // Start playing if needed
-                const currentTrack = musicService.getCurrentTrack(guildId);
-                if (!currentTrack) {
-                    const nextTrack = musicService.getQueueList(guildId)[0];
-                    if (nextTrack) {
-                        musicService.removeTrack(guildId, 0);
-                        await musicService.playTrack(guildId, nextTrack);
+                            // Send now playing with controls
+                            const embed = trackHandler.createNowPlayingEmbed(nextTrack, {
+                                volume: musicService.getVolume(guildId),
+                                queueLength: musicService.getQueueLength(guildId)
+                            });
+                            const rows = trackHandler.createControlButtons(guildId, {
+                                trackUrl: nextTrack.url,
+                                userId: interaction.user.id
+                            });
+
+                            const message = await i.update({ embeds: [embed], components: rows, fetchReply: true });
+                            musicService.setNowPlayingMessage(guildId, message);
+                            
+                            // Start VC monitor
+                            musicService.startVCMonitor(guildId, interaction.guild);
+                        }
+                    } else {
+                        // Something is already playing, just show queued message
+                        const position = musicService.getQueueLength(guildId);
+                        const queuedEmbed = trackHandler.createQueuedEmbed(trackData, position, interaction.user);
+                        await i.update({ embeds: [queuedEmbed], components: [] });
                     }
+                } else {
+                    await i.update({
+                        embeds: [trackHandler.createInfoEmbed('❌ Cancelled', 'Track was not added.')],
+                        components: []
+                    });
                 }
-            } else {
-                await i.update({
-                    embeds: [trackHandler.createInfoEmbed('❌ Cancelled', 'Track was not added.')],
-                    components: []
-                });
+            } catch (error) {
+                // Handle expired interaction (10062) or deleted message (10008)
+                if (error.code === 10062 || error.code === 10008) {
+                    console.log('[Play] Interaction expired or message deleted, ignoring...');
+                } else {
+                    console.error('[Play] Error handling button:', error.message);
+                }
             }
         });
 
@@ -248,7 +275,8 @@ module.exports = {
                 loopMode: musicService.getLoopMode(guildId),
                 isShuffled: musicService.isShuffled(guildId),
                 queueLength: queueList.length,
-                nextTrack: queueList[0] || null
+                nextTrack: queueList[0] || null,
+                loopCount: musicService.getLoopCount(guildId)
             });
 
             const rows = trackHandler.createControlButtons(guildId, {
@@ -268,6 +296,7 @@ module.exports = {
     isPlaylistUrl(query) {
         if (query.includes('youtube.com') && query.includes('list=')) return true;
         if (query.includes('spotify.com/playlist/')) return true;
+        if (query.includes('spotify.com/album/')) return true;
         return false;
     }
 };

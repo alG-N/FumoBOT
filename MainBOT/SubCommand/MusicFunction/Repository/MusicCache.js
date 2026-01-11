@@ -72,6 +72,7 @@ class MusicCache {
             isPaused: false,
             isLooping: false,
             loopMode: 'off', // 'off', 'track', 'queue'
+            loopCount: 0,    // Track how many times current song has looped
             isShuffled: false,
             volume: 100,
             
@@ -312,9 +313,42 @@ class MusicCache {
         const nextIndex = (currentIndex + 1) % modes.length;
         queue.loopMode = modes[nextIndex];
         queue.isLooping = queue.loopMode !== 'off';
+        // Reset loop count when changing loop mode
+        queue.loopCount = 0;
         queue.updatedAt = Date.now();
         
         return queue.loopMode;
+    }
+
+    /**
+     * Get loop count
+     */
+    getLoopCount(guildId) {
+        const queue = this.getQueue(guildId);
+        return queue?.loopCount || 0;
+    }
+
+    /**
+     * Increment loop count
+     */
+    incrementLoopCount(guildId) {
+        const queue = this.getQueue(guildId);
+        if (!queue) return 0;
+        
+        queue.loopCount = (queue.loopCount || 0) + 1;
+        queue.updatedAt = Date.now();
+        return queue.loopCount;
+    }
+
+    /**
+     * Reset loop count
+     */
+    resetLoopCount(guildId) {
+        const queue = this.getQueue(guildId);
+        if (!queue) return;
+        
+        queue.loopCount = 0;
+        queue.updatedAt = Date.now();
     }
 
     /**

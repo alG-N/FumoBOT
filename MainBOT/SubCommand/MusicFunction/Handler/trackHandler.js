@@ -82,14 +82,19 @@ class TrackHandler {
             position = 0,
             player = null,
             requester = null,
-            nextTrack = null
+            nextTrack = null,
+            loopCount = 0
         } = options;
 
         const sourceInfo = this._getSourceInfo(track);
         const color = isPaused ? COLORS.paused : COLORS.playing;
         const loopInfo = LOOP_DISPLAY[loopMode];
 
-        const statusIcon = isPaused ? '⏸️ PAUSED' : '🎵 NOW PLAYING';
+        // Show loop count in status when track is looping
+        let statusIcon = isPaused ? '⏸️ PAUSED' : '🎵 NOW PLAYING';
+        if (loopMode === 'track' && loopCount > 0) {
+            statusIcon = `🔂 NOW PLAYING (Looped ${loopCount} time${loopCount !== 1 ? 's' : ''})`;
+        }
 
         const embed = new EmbedBuilder()
             .setColor(color)

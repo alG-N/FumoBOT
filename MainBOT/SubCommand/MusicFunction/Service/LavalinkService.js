@@ -140,6 +140,9 @@ class LavalinkService {
             } catch (e) {
                 // Use original query on parse failure
             }
+        } else if (this.isSpotifyUrl(query)) {
+            // Spotify URLs are handled directly by Lavalink plugins
+            searchQuery = query;
         } else {
             searchQuery = `${lavalinkConfig.defaultSearchPlatform}:${query}`;
         }
@@ -219,6 +222,23 @@ class LavalinkService {
         if (!url) return null;
         const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/);
         return match ? match[1] : null;
+    }
+
+    /**
+     * Check if URL is a Spotify URL
+     */
+    isSpotifyUrl(url) {
+        if (!url) return false;
+        return /^https?:\/\/(open\.)?spotify\.com\/(track|album|playlist|artist)\//.test(url);
+    }
+
+    /**
+     * Extract Spotify ID from URL
+     */
+    extractSpotifyId(url) {
+        if (!url) return null;
+        const match = url.match(/spotify\.com\/(track|album|playlist|artist)\/([a-zA-Z0-9]+)/);
+        return match ? { type: match[1], id: match[2] } : null;
     }
 
     async searchPlaylist(query, requester) {

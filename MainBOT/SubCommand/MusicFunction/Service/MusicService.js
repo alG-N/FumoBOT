@@ -113,16 +113,21 @@ class MusicService {
 
     /**
      * Play next track from queue
+     * @returns {Object} { track, isLooped } - track info and whether it's a loop replay
      */
     async playNext(guildId) {
         const queue = musicCache.getQueue(guildId);
         if (!queue) return null;
         
-        // Handle loop mode
+        // Handle track loop mode - replay same track
         if (queue.loopMode === 'track' && queue.currentTrack) {
             await this.playTrack(guildId, queue.currentTrack);
-            return queue.currentTrack;
+            // Return special object indicating this is a loop replay
+            return { track: queue.currentTrack, isLooped: true };
         }
+        
+        // Reset loop count when moving to next track
+        musicCache.resetLoopCount(guildId);
         
         // Get next track
         let nextTrack = musicCache.getNextTrack(guildId);
@@ -139,7 +144,7 @@ class MusicService {
         }
         
         await this.playTrack(guildId, nextTrack);
-        return nextTrack;
+        return { track: nextTrack, isLooped: false };
     }
 
     /**
@@ -385,12 +390,19 @@ class MusicService {
             if (queue) queue.isTransitioning = true;
             
             try {
-                await this.disableNowPlayingControls(guildId);
                 await new Promise(resolve => setTimeout(resolve, TRACK_TRANSITION_DELAY));
                 
-                const nextTrack = await this.playNext(guildId);
-                if (nextTrack) {
-                    await this.sendNowPlayingEmbed(guildId);
+                const result = await this.playNext(guildId);
+                if (result) {
+                    if (result.isLooped) {
+                        // Track is looping - increment loop count and update existing message
+                        const loopCount = this.incrementLoopCount(guildId);
+                        await this.updateNowPlayingForLoop(guildId, loopCount);
+                    } else {
+                        // New track - disable old controls and send new embed
+                        await this.disableNowPlayingControls(guildId);
+                        await this.sendNowPlayingEmbed(guildId);
+                    }
                 }
             } catch (error) {
                 console.error(`[MusicService] Error in end handler:`, error.message);
@@ -708,7 +720,8 @@ class MusicService {
                 loopMode: this.getLoopMode(guildId),
                 isShuffled: this.isShuffled(guildId),
                 queueLength: queueList.length,
-                nextTrack: queueList[0] || null
+                nextTrack: queueList[0] || null,
+                loopCount: 0
             });
             
             const rows = trackHandler.createControlButtons(guildId, {
@@ -723,6 +736,51 @@ class MusicService {
             this.setNowPlayingMessage(guildId, nowMessage);
         } catch (error) {
             // Silent fail - embed sending is best effort
+        }
+    }
+
+    /**
+     * Update now playing embed for loop replay (without sending new message)
+     */
+    async updateNowPlayingForLoop(guildId, loopCount) {
+        const message = this.getNowPlayingMessage(guildId);
+        if (!message) return;
+        
+        const currentTrack = this.getCurrentTrack(guildId);
+        if (!currentTrack) return;
+        
+        const queue = musicCache.getQueue(guildId);
+        if (!queue) return;
+        
+        try {
+            const queueList = this.getQueueList(guildId);
+            
+            const embed = trackHandler.createNowPlayingEmbed(currentTrack, {
+                volume: this.getVolume(guildId),
+                isPaused: queue.isPaused || false,
+                loopMode: this.getLoopMode(guildId),
+                isShuffled: this.isShuffled(guildId),
+                queueLength: queueList.length,
+                nextTrack: queueList[0] || null,
+                loopCount: loopCount
+            });
+            
+            const rows = trackHandler.createControlButtons(guildId, {
+                isPaused: queue.isPaused || false,
+                loopMode: this.getLoopMode(guildId),
+                isShuffled: this.isShuffled(guildId),
+                trackUrl: currentTrack.url,
+                userId: currentTrack.requestedBy?.id || ''
+            });
+            
+            await message.edit({ embeds: [embed], components: rows });
+        } catch (error) {
+            // If message was deleted or something went wrong, try to send a new one
+            if (error.code === 10008) { // Unknown Message
+                musicCache.setNowPlayingMessage(guildId, null);
+                await this.sendNowPlayingEmbed(guildId);
+            }
+            // Silent fail otherwise
         }
     }
 
@@ -764,6 +822,27 @@ class MusicService {
 
     getRecentlyPlayed(guildId, limit) {
         return musicCache.getRecentlyPlayed(guildId, limit);
+    }
+
+    /**
+     * Get loop count
+     */
+    getLoopCount(guildId) {
+        return musicCache.getLoopCount(guildId);
+    }
+
+    /**
+     * Increment loop count
+     */
+    incrementLoopCount(guildId) {
+        return musicCache.incrementLoopCount(guildId);
+    }
+
+    /**
+     * Reset loop count
+     */
+    resetLoopCount(guildId) {
+        musicCache.resetLoopCount(guildId);
     }
 
     /**
