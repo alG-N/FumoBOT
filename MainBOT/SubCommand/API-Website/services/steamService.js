@@ -66,9 +66,13 @@ class SteamService {
                 throw new Error('Failed to parse response');
             }
 
-        if (!data.results_html) return [];
+            if (!data.results_html) return [];
 
-        return this._parseGamesFromHtml(data.results_html, page);
+            return this._parseGamesFromHtml(data.results_html, page);
+        } catch (error) {
+            clearTimeout(timeoutId);
+            throw error;
+        }
     }
 
     _parseGamesFromHtml(html, page) {

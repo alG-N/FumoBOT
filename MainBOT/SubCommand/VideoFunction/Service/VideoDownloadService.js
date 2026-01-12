@@ -2,6 +2,7 @@
 const fs = require('fs');
 const { EventEmitter } = require('events');
 const cobaltService = require('./CobaltService');
+const ytDlpService = require('./YtDlpService');
 const ffmpegService = require('./FFmpegService');
 const videoConfig = require('../Configuration/videoConfig');
 
@@ -27,6 +28,12 @@ class VideoDownloadService extends EventEmitter {
         cobaltService.on('complete', (data) => this.emit('downloadComplete', { ...data, method: 'Cobalt' }));
         cobaltService.on('error', (data) => this.emit('downloadError', { ...data, method: 'Cobalt' }));
 
+        // Forward yt-dlp events
+        ytDlpService.on('stage', (data) => this.emit('stage', { ...data, method: 'yt-dlp' }));
+        ytDlpService.on('progress', (data) => this.emit('progress', { ...data, method: 'yt-dlp' }));
+        ytDlpService.on('complete', (data) => this.emit('downloadComplete', { ...data, method: 'yt-dlp' }));
+        ytDlpService.on('error', (data) => this.emit('downloadError', { ...data, method: 'yt-dlp' }));
+
         // Forward FFmpeg events
         ffmpegService.on('stage', (data) => this.emit('stage', { ...data, method: 'FFmpeg' }));
         ffmpegService.on('progress', (data) => this.emit('compressionProgress', data));
@@ -39,6 +46,9 @@ class VideoDownloadService extends EventEmitter {
         if (!fs.existsSync(this.tempDir)) {
             fs.mkdirSync(this.tempDir, { recursive: true });
         }
+
+        // Initialize yt-dlp as fallback
+        await ytDlpService.initialize();
 
         // FFmpeg is needed for compression
         await ffmpegService.initialize();
@@ -67,9 +77,25 @@ class VideoDownloadService extends EventEmitter {
             this.emit('stage', { stage: 'initializing', message: 'Initializing download...' });
             
             let videoPath;
+            let downloadMethod = 'Cobalt';
 
+            // Try Cobalt first
             this.emit('stage', { stage: 'connecting', message: 'Connecting to Cobalt...', method: 'Cobalt' });
-            videoPath = await cobaltService.downloadVideo(url, this.tempDir);
+            try {
+                videoPath = await cobaltService.downloadVideo(url, this.tempDir);
+            } catch (cobaltError) {
+                console.log(`⚠️ Cobalt failed: ${cobaltError.message}, trying yt-dlp fallback...`);
+                this.emit('stage', { stage: 'fallback', message: 'Cobalt failed, trying yt-dlp...', method: 'yt-dlp' });
+                
+                // Fallback to yt-dlp
+                try {
+                    videoPath = await ytDlpService.downloadVideo(url, this.tempDir);
+                    downloadMethod = 'yt-dlp';
+                } catch (ytdlpError) {
+                    // Both failed, throw combined error
+                    throw new Error(`Cobalt: ${cobaltError.message} | yt-dlp: ${ytdlpError.message}`);
+                }
+            }
             
             // Check video duration (5 minute limit for short videos only)
             const maxDurationSeconds = videoConfig.MAX_VIDEO_DURATION_SECONDS || 300;
@@ -115,7 +141,7 @@ class VideoDownloadService extends EventEmitter {
                 path: finalPath, 
                 size: finalSizeMB, 
                 format,
-                method: 'Cobalt',
+                method: downloadMethod,
                 wasCompressed,
                 originalSize: initialSizeMB,
                 duration: duration
@@ -175,7 +201,7 @@ class VideoDownloadService extends EventEmitter {
 
     async getDirectUrl(url) {
         try {
-            // Use Cobalt for direct URL
+            // Try Cobalt first for direct URL
             const info = await cobaltService.getVideoInfo(url);
             
             if (info.url) {
@@ -183,15 +209,31 @@ class VideoDownloadService extends EventEmitter {
                     directUrl: info.url,
                     size: 'Unknown',
                     title: 'Video',
-                    thumbnail: null
+                    thumbnail: null,
+                    method: 'Cobalt'
                 };
             }
-
-            return null;
-        } catch (error) {
-            console.error('❌ URL extraction error:', error.message);
-            return null;
+        } catch (cobaltError) {
+            console.log(`⚠️ Cobalt URL extraction failed: ${cobaltError.message}, trying yt-dlp...`);
+            
+            // Fallback to yt-dlp
+            try {
+                const info = await ytDlpService.getVideoInfo(url);
+                if (info.url) {
+                    return {
+                        directUrl: info.url,
+                        size: 'Unknown',
+                        title: info.title || 'Video',
+                        thumbnail: info.thumbnail,
+                        method: 'yt-dlp'
+                    };
+                }
+            } catch (ytdlpError) {
+                console.error('❌ yt-dlp URL extraction failed:', ytdlpError.message);
+            }
         }
+
+        return null;
     }
 
     cleanupTempFiles() {
