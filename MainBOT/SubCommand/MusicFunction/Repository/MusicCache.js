@@ -442,6 +442,27 @@ class MusicCache {
         return queue.skipVotes.size >= this.getRequiredVotes(queue.skipVoteListenerCount);
     }
 
+    /**
+     * Get current vote skip status for display
+     */
+    getVoteSkipStatus(guildId, listenerCount = 0) {
+        const queue = this.getQueue(guildId);
+        if (!queue) return { count: 0, required: 0 };
+        
+        if (queue.skipVoteActive) {
+            return {
+                count: queue.skipVotes.size,
+                required: this.getRequiredVotes(queue.skipVoteListenerCount)
+            };
+        }
+        
+        // Return the required votes based on current listener count
+        return {
+            count: 0,
+            required: listenerCount > 0 ? this.getRequiredVotes(listenerCount) : 0
+        };
+    }
+
     // ========== USER PREFERENCES ==========
 
     /**
@@ -755,6 +776,60 @@ class MusicCache {
         this.deleteQueue(guildId);
         this.recentlyPlayed.delete(guildId);
         this.djLockState.delete(guildId);
+        this.guildSettings.delete(guildId);
+    }
+    
+    /**
+     * Guild settings storage
+     */
+    guildSettings = new Map();
+
+    /**
+     * Get default guild settings
+     */
+    getDefaultGuildSettings() {
+        return {
+            defaultVolume: 100,
+            autoPlay: false,
+            announceNowPlaying: true,
+            twentyFourSeven: false,
+            djRole: null,
+            textChannelLock: null,
+            maxQueueSize: 500,
+            voteSkipEnabled: true,
+            voteSkipThreshold: 0.5
+        };
+    }
+
+    /**
+     * Get guild settings
+     * @param {string} guildId - The guild ID
+     * @returns {Object} Guild settings
+     */
+    getGuildSettings(guildId) {
+        const settings = this.guildSettings.get(guildId);
+        return { ...this.getDefaultGuildSettings(), ...settings };
+    }
+
+    /**
+     * Set guild settings
+     * @param {string} guildId - The guild ID
+     * @param {Object} settings - Settings to merge
+     */
+    setGuildSettings(guildId, settings) {
+        const current = this.getGuildSettings(guildId);
+        const updated = { ...current, ...settings };
+        this.guildSettings.set(guildId, updated);
+        return updated;
+    }
+
+    /**
+     * Reset guild settings to defaults
+     * @param {string} guildId - The guild ID
+     */
+    resetGuildSettings(guildId) {
+        this.guildSettings.delete(guildId);
+        return this.getDefaultGuildSettings();
     }
 }
 

@@ -9,7 +9,13 @@ const trackHandler = require('../../Handler/trackHandler');
 const { checkVoiceChannel, checkVoicePermissions } = require('../../Middleware/voiceChannelCheck');
 const { MAX_TRACK_DURATION, CONFIRMATION_TIMEOUT, MIN_VOTES_REQUIRED } = require('../../Configuration/musicConfig');
 
+// Store pending long track confirmations (cleared after timeout)
+const pendingLongTracks = new Map();
+
 module.exports = {
+    // Expose pendingLongTracks for buttonHandler
+    pendingLongTracks,
+    
     async handlePlay(interaction, guildId, userId) {
         // Check Lavalink
         if (!musicService.isLavalinkReady()) {
@@ -77,14 +83,22 @@ module.exports = {
                     musicService.removeTrack(guildId, 0);
                     await musicService.playTrack(guildId, nextTrack);
 
+                    // Get listener count and vote skip status for embed
+                    const listenerCount = musicService.getListenerCount(guildId, interaction.guild);
+                    const voteSkipStatus = musicCache.getVoteSkipStatus(guildId, listenerCount);
+
                     // Send now playing with controls
                     const embed = trackHandler.createNowPlayingEmbed(nextTrack, {
                         volume: musicService.getVolume(guildId),
-                        queueLength: musicService.getQueueLength(guildId)
+                        queueLength: musicService.getQueueLength(guildId),
+                        voteSkipCount: voteSkipStatus.count,
+                        voteSkipRequired: voteSkipStatus.required,
+                        listenerCount: listenerCount
                     });
                     const rows = trackHandler.createControlButtons(guildId, {
                         trackUrl: nextTrack.url,
-                        userId
+                        userId,
+                        listenerCount: listenerCount
                     });
 
                     const message = await interaction.editReply({ embeds: [embed], components: rows });
@@ -103,7 +117,7 @@ module.exports = {
                 await interaction.editReply({ embeds: [embed] });
                 
                 // QoL: Update the now playing embed to show updated queue/next up info
-                await this.refreshNowPlayingMessage(guildId, interaction.user.id);
+                await this.refreshNowPlayingMessage(guildId, interaction.user.id, interaction.guild);
             }
         } catch (error) {
             console.error('[Play Error]', error);
@@ -164,7 +178,7 @@ module.exports = {
                 await interaction.editReply({ embeds: [embed] });
                 
                 // QoL: Update the now playing embed to show updated queue/next up info
-                await this.refreshNowPlayingMessage(guildId, interaction.user.id);
+                await this.refreshNowPlayingMessage(guildId, interaction.user.id, interaction.guild);
             }
         } catch (error) {
             console.error('[Playlist Error]', error);
@@ -175,78 +189,126 @@ module.exports = {
     },
 
     async handleLongTrackConfirmation(interaction, trackData, guildId, maxDuration) {
-        const embed = trackHandler.createLongVideoConfirmEmbed(trackData, maxDuration);
-        const row = trackHandler.createConfirmButtons(guildId, 'longtrack');
-
-        const response = await interaction.editReply({ embeds: [embed], components: [row] });
-
-        const collector = response.createMessageComponentCollector({
-            filter: i => i.user.id === interaction.user.id,
-            time: CONFIRMATION_TIMEOUT
+        // Generate unique confirmation ID
+        const confirmId = `${guildId}_${Date.now()}`;
+        
+        // Store the pending track data
+        pendingLongTracks.set(confirmId, {
+            trackData,
+            guildId,
+            userId: interaction.user.id,
+            channelId: interaction.channel.id,
+            guild: interaction.guild,
+            expiresAt: Date.now() + CONFIRMATION_TIMEOUT
         });
+        
+        // Auto-cleanup after timeout
+        setTimeout(() => {
+            pendingLongTracks.delete(confirmId);
+        }, CONFIRMATION_TIMEOUT + 1000);
+        
+        const embed = trackHandler.createLongVideoConfirmEmbed(trackData, maxDuration);
+        const row = trackHandler.createConfirmButtons(confirmId, 'longtrack');
 
-        collector.on('collect', async i => {
-            const [, , , answer] = i.customId.split(':');
-            collector.stop();
+        await interaction.editReply({ embeds: [embed], components: [row] });
+    },
 
-            try {
-                if (answer === 'yes') {
-                    musicService.addTrack(guildId, trackData);
-                    
-                    // Start playing if nothing is currently playing
-                    const currentTrack = musicService.getCurrentTrack(guildId);
-                    if (!currentTrack) {
-                        const nextTrack = musicService.getQueueList(guildId)[0];
-                        if (nextTrack) {
-                            musicService.removeTrack(guildId, 0);
-                            await musicService.playTrack(guildId, nextTrack);
+    /**
+     * Handle long track confirmation button press
+     * Called from buttonHandler
+     */
+    async handleLongTrackButton(interaction, confirmId, answer) {
+        const pending = pendingLongTracks.get(confirmId);
+        
+        if (!pending) {
+            return interaction.reply({
+                content: '⏱️ This confirmation has expired. Please use `/music play` again.',
+                ephemeral: true
+            });
+        }
+        
+        // Check if same user
+        if (pending.userId !== interaction.user.id) {
+            return interaction.reply({
+                content: '❌ Only the person who requested this track can confirm.',
+                ephemeral: true
+            });
+        }
+        
+        // Remove from pending
+        pendingLongTracks.delete(confirmId);
+        
+        const { trackData, guildId, guild } = pending;
+        
+        try {
+            if (answer === 'yes') {
+                // Defer the update first
+                await interaction.deferUpdate();
+                
+                musicService.addTrack(guildId, trackData);
+                
+                // Start playing if nothing is currently playing
+                const currentTrack = musicService.getCurrentTrack(guildId);
+                if (!currentTrack) {
+                    const nextTrack = musicService.getQueueList(guildId)[0];
+                    if (nextTrack) {
+                        musicService.removeTrack(guildId, 0);
+                        
+                        // Update the confirmation message
+                        await interaction.editReply({ 
+                            content: '✅ **Track added!** Starting playback...',
+                            embeds: [], 
+                            components: [] 
+                        });
 
-                            // Send now playing with controls
-                            const embed = trackHandler.createNowPlayingEmbed(nextTrack, {
-                                volume: musicService.getVolume(guildId),
-                                queueLength: musicService.getQueueLength(guildId)
-                            });
-                            const rows = trackHandler.createControlButtons(guildId, {
-                                trackUrl: nextTrack.url,
-                                userId: interaction.user.id
-                            });
+                        // Start playback
+                        await musicService.playTrack(guildId, nextTrack);
 
-                            const message = await i.update({ embeds: [embed], components: rows, fetchReply: true });
-                            musicService.setNowPlayingMessage(guildId, message);
-                            
-                            // Start VC monitor
-                            musicService.startVCMonitor(guildId, interaction.guild);
-                        }
-                    } else {
-                        // Something is already playing, just show queued message
-                        const position = musicService.getQueueLength(guildId);
-                        const queuedEmbed = trackHandler.createQueuedEmbed(trackData, position, interaction.user);
-                        await i.update({ embeds: [queuedEmbed], components: [] });
+                        // Send now playing as a new message
+                        const queueList = musicService.getQueueList(guildId);
+                        const listenerCount = musicService.getListenerCount(guildId, guild);
+                        const voteSkipStatus = musicCache.getVoteSkipStatus(guildId, listenerCount);
+
+                        const embed = trackHandler.createNowPlayingEmbed(nextTrack, {
+                            volume: musicService.getVolume(guildId),
+                            queueLength: queueList.length,
+                            nextTrack: queueList[0] || null,
+                            voteSkipCount: voteSkipStatus.count,
+                            voteSkipRequired: voteSkipStatus.required,
+                            listenerCount: listenerCount
+                        });
+                        const rows = trackHandler.createControlButtons(guildId, {
+                            trackUrl: nextTrack.url,
+                            userId: interaction.user.id,
+                            listenerCount: listenerCount
+                        });
+
+                        const nowPlayingMessage = await interaction.channel.send({ embeds: [embed], components: rows });
+                        musicService.setNowPlayingMessage(guildId, nowPlayingMessage);
+                        
+                        // Start VC monitor
+                        musicService.startVCMonitor(guildId, guild);
                     }
                 } else {
-                    await i.update({
-                        embeds: [trackHandler.createInfoEmbed('❌ Cancelled', 'Track was not added.')],
-                        components: []
-                    });
+                    // Something is already playing, just show queued message
+                    const position = musicService.getQueueLength(guildId);
+                    const queuedEmbed = trackHandler.createQueuedEmbed(trackData, position, interaction.user);
+                    await interaction.editReply({ embeds: [queuedEmbed], components: [] });
                 }
-            } catch (error) {
-                // Handle expired interaction (10062) or deleted message (10008)
-                if (error.code === 10062 || error.code === 10008) {
-                    console.log('[Play] Interaction expired or message deleted, ignoring...');
-                } else {
-                    console.error('[Play] Error handling button:', error.message);
-                }
-            }
-        });
-
-        collector.on('end', async (_, reason) => {
-            if (reason === 'time') {
-                await interaction.editReply({
-                    embeds: [trackHandler.createInfoEmbed('⏱️ Timeout', 'Confirmation timed out.')],
+            } else {
+                await interaction.update({
+                    embeds: [trackHandler.createInfoEmbed('❌ Cancelled', 'Track was not added.')],
                     components: []
-                }).catch(() => {});
+                });
             }
-        });
+        } catch (error) {
+            console.error('[Play] Error handling long track button:', error.message);
+            await interaction.editReply({
+                content: '❌ An error occurred. Please try again.',
+                embeds: [],
+                components: []
+            }).catch(() => {});
+        }
     },
 
     async handlePriorityVote(interaction, trackData, guildId) {
@@ -258,7 +320,7 @@ module.exports = {
     },
 
     // Helper to refresh now playing message
-    async refreshNowPlayingMessage(guildId, userId) {
+    async refreshNowPlayingMessage(guildId, userId, guild = null) {
         try {
             const nowPlayingMsg = musicService.getNowPlayingMessage(guildId);
             if (!nowPlayingMsg) return;
@@ -268,6 +330,8 @@ module.exports = {
 
             const queue = musicCache.getQueue(guildId);
             const queueList = musicService.getQueueList(guildId);
+            const listenerCount = guild ? musicService.getListenerCount(guildId, guild) : 0;
+            const voteSkipStatus = musicCache.getVoteSkipStatus(guildId, listenerCount);
 
             const embed = trackHandler.createNowPlayingEmbed(currentTrack, {
                 volume: musicService.getVolume(guildId),
@@ -276,7 +340,11 @@ module.exports = {
                 isShuffled: musicService.isShuffled(guildId),
                 queueLength: queueList.length,
                 nextTrack: queueList[0] || null,
-                loopCount: musicService.getLoopCount(guildId)
+                loopCount: musicService.getLoopCount(guildId),
+                voteSkipCount: voteSkipStatus.count,
+                voteSkipCount: voteSkipStatus.count,
+                voteSkipRequired: voteSkipStatus.required,
+                listenerCount: listenerCount
             });
 
             const rows = trackHandler.createControlButtons(guildId, {
@@ -284,7 +352,8 @@ module.exports = {
                 loopMode: musicService.getLoopMode(guildId),
                 isShuffled: musicService.isShuffled(guildId),
                 trackUrl: currentTrack.url,
-                userId: userId
+                userId: userId,
+                listenerCount: listenerCount
             });
 
             await nowPlayingMsg.edit({ embeds: [embed], components: rows }).catch(() => {});

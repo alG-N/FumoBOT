@@ -39,6 +39,8 @@ module.exports = {
 
         const queueList = musicService.getQueueList(guildId);
         const nextTrack = queueList.length > 0 ? queueList[0] : null;
+        const listenerCount = musicService.getListenerCount(guildId, interaction.guild);
+        const voteSkipStatus = musicCache.getVoteSkipStatus(guildId, listenerCount);
 
         const embed = trackHandler.createNowPlayingEmbed(currentTrack, {
             volume: musicService.getVolume(guildId),
@@ -46,7 +48,11 @@ module.exports = {
             loopMode: musicService.getLoopMode(guildId),
             isShuffled: musicService.isShuffled(guildId),
             queueLength: queueList.length,
-            nextTrack
+            nextTrack,
+            loopCount: musicService.getLoopCount(guildId),
+            voteSkipCount: voteSkipStatus.count,
+            voteSkipRequired: voteSkipStatus.required,
+            listenerCount: listenerCount
         });
 
         const rows = trackHandler.createControlButtons(guildId, {
@@ -54,7 +60,8 @@ module.exports = {
             loopMode: musicService.getLoopMode(guildId),
             isShuffled: musicService.isShuffled(guildId),
             trackUrl: currentTrack.url,
-            userId: interaction.user.id
+            userId: interaction.user.id,
+            listenerCount: listenerCount
         });
 
         await interaction.reply({ embeds: [embed], components: rows });

@@ -1,8 +1,32 @@
-﻿const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+﻿const { EmbedBuilder } = require('discord.js');
 const anilistService = require('../services/anilistService');
-const animeRepository = require('../repositories/animeRepository');
 
-async function createAnimeEmbed(anime) {
+// Media type labels and colors
+const MEDIA_CONFIG = {
+    anime: { emoji: '📺', color: '#3498db', label: 'Anime' },
+    manga: { emoji: '📚', color: '#e74c3c', label: 'Manga' },
+    lightnovel: { emoji: '📖', color: '#9b59b6', label: 'Light Novel' },
+    webnovel: { emoji: '💻', color: '#2ecc71', label: 'Web Novel' },
+    oneshot: { emoji: '📄', color: '#f39c12', label: 'One-shot' }
+};
+
+/**
+ * Create embed based on media type and source
+ */
+async function createMediaEmbed(media, source = 'anilist', mediaType = 'anime') {
+    if (source === 'mal' && mediaType !== 'anime') {
+        return createMALMangaEmbed(media, mediaType);
+    } else if (source === 'mal') {
+        return createMALAnimeEmbed(media);
+    } else {
+        return createAniListEmbed(media);
+    }
+}
+
+/**
+ * Create AniList anime embed (original design)
+ */
+async function createAniListEmbed(anime) {
     const title = anime.title.romaji || anime.title.english || anime.title.native;
     const description = anime.description
         ? anilistService.truncate(anime.description.replace(/<\/?[^>]+(>|$)/g, ''), 500)
@@ -44,7 +68,7 @@ async function createAnimeEmbed(anime) {
     const trailerUrl = anilistService.getTrailerUrl(anime.trailer);
 
     return new EmbedBuilder()
-        .setTitle(`${title} (${anime.format || 'Unknown'})`)
+        .setTitle(`📘 ${title} (${anime.format || 'Unknown'})`)
         .setURL(anime.siteUrl)
         .setColor(anime.coverImage?.color || '#3498db')
         .setThumbnail(anime.coverImage?.large)
@@ -68,132 +92,145 @@ async function createAnimeEmbed(anime) {
         .setFooter({ text: 'Powered by AniList' });
 }
 
-function createActionRow(userId, animeId, favourited, notifyEnabled, siteUrl) {
-    return new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-            .setCustomId(`anime_fav_${userId}_${animeId}`)
-            .setLabel(favourited ? 'Unfavourite' : 'Favourite')
-            .setEmoji('❤️')
-            .setStyle(favourited ? ButtonStyle.Danger : ButtonStyle.Success),
-        new ButtonBuilder()
-            .setCustomId(`anime_notify_${userId}_${animeId}`)
-            .setLabel(favourited ? (notifyEnabled ? 'Stop Notifying' : 'Notify') : 'Notify')
-            .setStyle(ButtonStyle.Primary)
-            .setDisabled(!favourited),
-        new ButtonBuilder()
-            .setCustomId(`anime_favlist_${userId}`)
-            .setLabel('Favourite List')
-            .setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder()
-            .setLabel('More Info')
-            .setStyle(ButtonStyle.Link)
-            .setURL(siteUrl)
-    );
-}
+/**
+ * Create MAL anime embed (unique design for MAL)
+ */
+async function createMALAnimeEmbed(anime) {
+    const title = anime.title.romaji || anime.title.english || anime.title.native;
+    const description = anime.description
+        ? anilistService.truncate(anime.description.replace(/<\/?[^>]+(>|$)/g, ''), 400)
+        : 'No description available.';
 
-function createNotifyPromptRow(userId, animeId) {
-    return new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-            .setCustomId(`anime_notifyyes_${userId}_${animeId}`)
-            .setLabel('Yes, notify me!')
-            .setEmoji('🔔')
-            .setStyle(ButtonStyle.Success),
-        new ButtonBuilder()
-            .setCustomId(`anime_notifyno_${userId}_${animeId}`)
-            .setLabel('No, thanks')
-            .setStyle(ButtonStyle.Secondary)
-    );
-}
+    const startDate = anilistService.formatDate(anime.startDate);
+    const endDate = anime.endDate?.year
+        ? anilistService.formatDate(anime.endDate)
+        : anime.status === 'RELEASING' ? 'Ongoing' : 'Unknown';
 
-function createMoviePromptRow(userId, animeId) {
-    return new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-            .setCustomId(`anime_watchyes_${userId}_${animeId}`)
-            .setLabel('Yes, I want to watch it!')
-            .setEmoji('🍿')
-            .setStyle(ButtonStyle.Success),
-        new ButtonBuilder()
-            .setCustomId(`anime_watchno_${userId}_${animeId}`)
-            .setLabel('Not now')
-            .setStyle(ButtonStyle.Secondary)
-    );
-}
+    const episodeText = anime.episodes ? `${anime.episodes} episodes` : 'Unknown';
+    
+    // MAL-specific stats
+    const scoreText = anime.score ? `⭐ ${anime.score}/10` : 'N/A';
+    const memberText = anime.members ? formatNumber(anime.members) : 'N/A';
+    const favoritesText = anime.favorites ? formatNumber(anime.favorites) : 'N/A';
+    const rankText = anime.rank ? `#${anime.rank}` : 'N/A';
+    const popularityText = anime.popularity_rank ? `#${anime.popularity_rank}` : 'N/A';
 
-async function createFavouriteListEmbed(userId, username) {
-    const favs = await animeRepository.getUserFavourites(userId);
-
-    if (!favs.length) {
-        return new EmbedBuilder()
-            .setTitle(`${username}'s Favourite Anime`)
-            .setDescription('No favourites yet. Use the Favourite button to add anime!')
-            .setColor('#e67e22');
-    }
-
-    const favDetails = [];
-    for (const fav of favs.slice(0, 10)) {
-        try {
-            const anime = await anilistService.searchAnime(fav.anime_title);
-            if (anime) {
-                favDetails.push({
-                    name: anime.title.romaji || anime.title.english || anime.title.native,
-                    value: `Score: ${anime.averageScore || '?'} | Episodes: ${anime.episodes || '?'} | [AniList](${anime.siteUrl})`
-                });
-            } else {
-                favDetails.push({ name: fav.anime_title, value: 'Details unavailable.' });
-            }
-        } catch {
-            favDetails.push({ name: fav.anime_title, value: 'Details unavailable.' });
-        }
-    }
+    const trailerUrl = anime.trailer?.id 
+        ? `[Watch Trailer](https://youtube.com/watch?v=${anime.trailer.id})`
+        : 'N/A';
 
     return new EmbedBuilder()
-        .setTitle(`${username}'s Favourite Anime`)
-        .setColor('#e67e22')
-        .addFields(favDetails)
-        .setFooter({ text: favs.length > 10 ? `Showing 10 of ${favs.length}` : `Total: ${favs.length}` });
+        .setTitle(`📗 ${title}`)
+        .setURL(anime.siteUrl)
+        .setColor('#2E51A2') // MAL blue
+        .setThumbnail(anime.coverImage?.large)
+        .setDescription(description)
+        .addFields(
+            { name: '📊 Score', value: scoreText, inline: true },
+            { name: '📈 Ranked', value: rankText, inline: true },
+            { name: '🔥 Popularity', value: popularityText, inline: true },
+            { name: '📺 Episodes', value: episodeText, inline: true },
+            { name: '⏱️ Duration', value: anime.duration ? `${anime.duration} min/ep` : 'N/A', inline: true },
+            { name: '📅 Aired', value: `${startDate} → ${endDate}`, inline: true },
+            { name: '🎬 Type', value: anime.format || 'Unknown', inline: true },
+            { name: '📡 Status', value: anime.status || 'Unknown', inline: true },
+            { name: '🎬 Rating', value: anime.rating || 'N/A', inline: true },
+            { name: '🎵 Studio', value: anime.studios?.nodes?.[0]?.name || 'Unknown', inline: true },
+            { name: '📺 Broadcast', value: anime.broadcast || 'N/A', inline: true },
+            { name: '🎥 Trailer', value: trailerUrl, inline: true },
+            { name: '🏷️ Genres', value: anime.genres?.join(', ') || 'None', inline: false },
+            { name: '👥 Community', value: `${memberText} members • ${favoritesText} favorites`, inline: false }
+        )
+        .setFooter({ text: `MyAnimeList • Scored by ${anime.scoredBy ? formatNumber(anime.scoredBy) : '?'} users` });
 }
 
-function createNotificationEmbed(title, type) {
-    const configs = {
-        enabled: {
-            title: '✅ Notifications Enabled',
-            description: `You will now be notified about new episodes of **${title}**.`,
-            color: '#2ecc71'
-        },
-        disabled: {
-            title: '🚫 Notifications Disabled',
-            description: `You won't be notified about **${title}**.`,
-            color: '#95a5a6'
-        },
-        timeout: {
-            title: "⌛ Time's up",
-            description: "You didn't respond in time.",
-            color: '#e67e22'
-        },
-        nextSeason: {
-            title: '📺 Next Ongoing Season Found!',
-            description: `You will be notified for the next season instead, since the anime you favourited has already ended.`,
-            color: '#2ecc71'
-        },
-        noSeason: {
-            title: '⏳ No Ongoing Season Found',
-            description: 'The anime has already ended, and no sequel with ongoing episodes was found.',
-            color: '#f1c40f'
-        }
-    };
+/**
+ * Create MAL manga/lightnovel/webnovel embed
+ */
+async function createMALMangaEmbed(manga, mediaType = 'manga') {
+    const config = MEDIA_CONFIG[mediaType] || MEDIA_CONFIG.manga;
+    const title = manga.title.romaji || manga.title.english || manga.title.native;
+    const description = manga.description
+        ? anilistService.truncate(manga.description.replace(/<\/?[^>]+(>|$)/g, ''), 400)
+        : 'No description available.';
 
-    const config = configs[type] || configs.disabled;
+    const startDate = anilistService.formatDate(manga.startDate);
+    const endDate = manga.endDate?.year
+        ? anilistService.formatDate(manga.endDate)
+        : manga.status === 'RELEASING' ? 'Ongoing' : 'Unknown';
+
+    // Progress info
+    const chaptersText = manga.chapters ? `${manga.chapters} chapters` : 'Unknown';
+    const volumesText = manga.volumes ? `${manga.volumes} volumes` : 'Unknown';
+    
+    // MAL-specific stats
+    const scoreText = manga.score ? `⭐ ${manga.score}/10` : 'N/A';
+    const memberText = manga.members ? formatNumber(manga.members) : 'N/A';
+    const favoritesText = manga.favorites ? formatNumber(manga.favorites) : 'N/A';
+    const rankText = manga.rank ? `#${manga.rank}` : 'N/A';
+    const popularityText = manga.popularity_rank ? `#${manga.popularity_rank}` : 'N/A';
+
+    // Authors
+    const authorsText = manga.authors?.length > 0
+        ? manga.authors.map(a => `${a.name} (${a.role})`).join(', ')
+        : 'Unknown';
+
+    // Serialization
+    const serializationText = manga.serialization?.length > 0
+        ? manga.serialization.join(', ')
+        : 'N/A';
+
+    // Themes & Demographics
+    const themesText = [...(manga.themes || []), ...(manga.demographics || [])].join(', ') || 'None';
+
     return new EmbedBuilder()
-        .setTitle(config.title)
-        .setDescription(config.description)
-        .setColor(config.color);
+        .setTitle(`${config.emoji} ${title}`)
+        .setURL(manga.siteUrl)
+        .setColor(config.color)
+        .setThumbnail(manga.coverImage?.large)
+        .setDescription(description)
+        .addFields(
+            { name: '📊 Score', value: scoreText, inline: true },
+            { name: '📈 Ranked', value: rankText, inline: true },
+            { name: '🔥 Popularity', value: popularityText, inline: true },
+            { name: '📖 Chapters', value: chaptersText, inline: true },
+            { name: '📚 Volumes', value: volumesText, inline: true },
+            { name: '📅 Published', value: `${startDate} → ${endDate}`, inline: true },
+            { name: '📝 Type', value: manga.format || config.label, inline: true },
+            { name: '📡 Status', value: manga.status || 'Unknown', inline: true },
+            { name: '📰 Serialization', value: serializationText, inline: true },
+            { name: '✍️ Authors', value: anilistService.truncate(authorsText, 100), inline: false },
+            { name: '🏷️ Genres', value: manga.genres?.join(', ') || 'None', inline: false },
+            { name: '🎯 Themes', value: themesText, inline: false },
+            { name: '👥 Community', value: `${memberText} members • ${favoritesText} favorites`, inline: false }
+        )
+        .setFooter({ text: `MyAnimeList ${config.label} • Scored by ${manga.scoredBy ? formatNumber(manga.scoredBy) : '?'} users` });
+}
+
+/**
+ * Legacy function for backward compatibility
+ */
+async function createAnimeEmbed(anime, source = 'anilist') {
+    return createMediaEmbed(anime, source, 'anime');
+}
+
+/**
+ * Format large numbers (e.g., 1234567 -> 1.2M)
+ */
+function formatNumber(num) {
+    if (num >= 1000000) {
+        return (num / 1000000).toFixed(1) + 'M';
+    }
+    if (num >= 1000) {
+        return (num / 1000).toFixed(1) + 'K';
+    }
+    return num.toString();
 }
 
 module.exports = {
+    createMediaEmbed,
     createAnimeEmbed,
-    createActionRow,
-    createNotifyPromptRow,
-    createMoviePromptRow,
-    createFavouriteListEmbed,
-    createNotificationEmbed
+    createAniListEmbed,
+    createMALAnimeEmbed,
+    createMALMangaEmbed
 };

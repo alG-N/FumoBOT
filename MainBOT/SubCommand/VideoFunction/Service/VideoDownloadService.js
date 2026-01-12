@@ -128,21 +128,48 @@ class VideoDownloadService extends EventEmitter {
             console.error('❌ Download error:', error.message);
             this.emit('error', { message: error.message });
             
-            // Cleanup any partial files
-            if (fs.existsSync(this.tempDir)) {
-                const files = fs.readdirSync(this.tempDir).filter(f => f.startsWith(`video_${timestamp}`));
-                files.forEach(file => {
-                    try {
-                        fs.unlinkSync(path.join(this.tempDir, file));
-                    } catch (e) {}
-                });
-            }
+            // Cleanup any partial files - more comprehensive cleanup
+            this.cleanupPartialDownloads(timestamp);
             
-            throw new Error('Failed to download video. Make sure Cobalt is running and the link is valid.');
+            // Provide more specific error messages
+            const errorMsg = error.message.includes('empty') 
+                ? 'Downloaded file is empty. The video may be unavailable or protected.'
+                : error.message.includes('timeout')
+                ? 'Download timed out. Try again or use a shorter video.'
+                : `Download failed: ${error.message}`;
+            
+            throw new Error(errorMsg);
         } finally {
             // Remove temporary event listeners
             if (progressHandler) this.off('progress', progressHandler);
             if (stageHandler) this.off('stage', stageHandler);
+        }
+    }
+
+    /**
+     * Cleanup partial downloads from a specific timestamp
+     */
+    cleanupPartialDownloads(timestamp) {
+        try {
+            if (!fs.existsSync(this.tempDir)) return;
+            
+            const files = fs.readdirSync(this.tempDir);
+            files.forEach(file => {
+                // Clean up files starting with video_ or that match the timestamp
+                if (file.startsWith('video_') || file.includes(String(timestamp))) {
+                    try {
+                        const filePath = path.join(this.tempDir, file);
+                        const stats = fs.statSync(filePath);
+                        // Delete if older than 5 minutes or matches timestamp
+                        if (Date.now() - stats.mtimeMs > 5 * 60 * 1000 || file.includes(String(timestamp))) {
+                            fs.unlinkSync(filePath);
+                            console.log(`🗑️ Cleaned up partial file: ${file}`);
+                        }
+                    } catch (e) {}
+                }
+            });
+        } catch (e) {
+            console.error('Cleanup partial downloads error:', e.message);
         }
     }
 

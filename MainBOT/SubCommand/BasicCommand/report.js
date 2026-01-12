@@ -4,7 +4,9 @@ const {
     ActionRowBuilder,
     ModalBuilder,
     TextInputBuilder,
-    TextInputStyle
+    TextInputStyle,
+    ButtonBuilder,
+    ButtonStyle
 } = require('discord.js');
 const { checkAccess, AccessType } = require('../Middleware');
 const fs = require('fs');
@@ -208,13 +210,32 @@ module.exports = {
                 reportEmbed.addFields({ name: 'Command', value: command, inline: true });
             }
 
+            // Create response button for admins
+            const adminRow = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`report_respond_${ticketNumber}_${interaction.user.id}`)
+                    .setLabel('Respond to User')
+                    .setStyle(ButtonStyle.Primary)
+                    .setEmoji('💬'),
+                new ButtonBuilder()
+                    .setCustomId(`report_resolve_${ticketNumber}_${interaction.user.id}`)
+                    .setLabel('Mark Resolved')
+                    .setStyle(ButtonStyle.Success)
+                    .setEmoji('✅'),
+                new ButtonBuilder()
+                    .setCustomId(`report_reject_${ticketNumber}_${interaction.user.id}`)
+                    .setLabel('Reject')
+                    .setStyle(ButtonStyle.Danger)
+                    .setEmoji('❌')
+            );
+
             // Try to send to report channel
             let sent = false;
             if (REPORT_CHANNEL_ID) {
                 try {
                     const reportChannel = await interaction.client.channels.fetch(REPORT_CHANNEL_ID);
                     if (reportChannel) {
-                        await reportChannel.send({ embeds: [reportEmbed] });
+                        await reportChannel.send({ embeds: [reportEmbed], components: [adminRow] });
                         sent = true;
                     }
                 } catch (err) {
@@ -261,6 +282,162 @@ module.exports = {
                     content: '❌ An error occurred while processing your report. Please try again later.'
                 });
             } catch {}
+            return true;
+        }
+    },
+
+    // Handle button interactions for admin responses
+    async handleButton(interaction) {
+        if (!interaction.customId.startsWith('report_')) return false;
+
+        const parts = interaction.customId.split('_');
+        const action = parts[1];
+        const ticketNumber = parts[2];
+        const reporterUserId = parts[3];
+
+        // Check if user has permission (admin or bot owner)
+        const hasPermission = interaction.member?.permissions?.has('Administrator') || 
+            ['1128296349566251068', '1362450043939979378', '1448912158367813662'].includes(interaction.user.id);
+        
+        if (!hasPermission) {
+            return interaction.reply({ content: '❌ You need Administrator permissions to respond to reports.', ephemeral: true });
+        }
+
+        try {
+            if (action === 'respond') {
+                // Show modal for response
+                const modal = new ModalBuilder()
+                    .setCustomId(`report_response_modal_${ticketNumber}_${reporterUserId}`)
+                    .setTitle(`Respond to Report #${ticketNumber}`);
+
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('response')
+                            .setLabel('Your Response')
+                            .setStyle(TextInputStyle.Paragraph)
+                            .setPlaceholder('Write your response to the user...')
+                            .setRequired(true)
+                            .setMaxLength(1500)
+                    ),
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('status')
+                            .setLabel('Status (resolved/pending/investigating)')
+                            .setStyle(TextInputStyle.Short)
+                            .setPlaceholder('resolved')
+                            .setRequired(false)
+                            .setMaxLength(20)
+                    )
+                );
+
+                await interaction.showModal(modal);
+                return true;
+            }
+
+            if (action === 'resolve') {
+                // Update the embed to show resolved
+                const embed = EmbedBuilder.from(interaction.message.embeds[0])
+                    .setColor(0x57F287)
+                    .setTitle(`✅ ${interaction.message.embeds[0].title?.replace(/^.* /, '')} - RESOLVED`)
+                    .addFields({ name: '📋 Status', value: `Resolved by ${interaction.user.tag}`, inline: false });
+
+                await interaction.update({ embeds: [embed], components: [] });
+                
+                // Try to DM the reporter
+                try {
+                    const reporter = await interaction.client.users.fetch(reporterUserId);
+                    const dmEmbed = new EmbedBuilder()
+                        .setColor(0x57F287)
+                        .setTitle(`✅ Report #${ticketNumber} Resolved`)
+                        .setDescription('Your report has been resolved by our team. Thank you for your feedback!')
+                        .setFooter({ text: 'FumoBOT Support Team' })
+                        .setTimestamp();
+                    await reporter.send({ embeds: [dmEmbed] });
+                } catch {}
+                return true;
+            }
+
+            if (action === 'reject') {
+                // Update the embed to show rejected
+                const embed = EmbedBuilder.from(interaction.message.embeds[0])
+                    .setColor(0xED4245)
+                    .setTitle(`❌ ${interaction.message.embeds[0].title?.replace(/^.* /, '')} - REJECTED`)
+                    .addFields({ name: '📋 Status', value: `Rejected by ${interaction.user.tag}`, inline: false });
+
+                await interaction.update({ embeds: [embed], components: [] });
+                return true;
+            }
+
+        } catch (error) {
+            console.error('[Report Button Error]', error);
+            if (!interaction.replied && !interaction.deferred) {
+                await interaction.reply({ content: '❌ An error occurred.', ephemeral: true }).catch(() => {});
+            }
+        }
+        return true;
+    },
+
+    // Handle response modal submission
+    async handleResponseModal(interaction) {
+        if (!interaction.customId.startsWith('report_response_modal_')) return false;
+
+        const parts = interaction.customId.split('_');
+        const ticketNumber = parts[3];
+        const reporterUserId = parts[4];
+
+        try {
+            await interaction.deferUpdate();
+
+            const response = interaction.fields.getTextInputValue('response');
+            const status = interaction.fields.getTextInputValue('status') || 'responded';
+
+            // Update the original embed
+            const originalEmbed = interaction.message.embeds[0];
+            const statusColor = status.toLowerCase() === 'resolved' ? 0x57F287 : 
+                               status.toLowerCase() === 'pending' ? 0xFEE75C : 0x5865F2;
+
+            const updatedEmbed = EmbedBuilder.from(originalEmbed)
+                .setColor(statusColor)
+                .setTitle(`💬 ${originalEmbed.title?.replace(/^.* /, '')} - ${status.toUpperCase()}`)
+                .addFields(
+                    { name: '💬 Admin Response', value: response, inline: false },
+                    { name: '👤 Responded By', value: interaction.user.tag, inline: true },
+                    { name: '📋 Status', value: status.charAt(0).toUpperCase() + status.slice(1), inline: true }
+                );
+
+            // Disable buttons after response
+            await interaction.editReply({ embeds: [updatedEmbed], components: [] });
+
+            // Send DM to reporter
+            try {
+                const reporter = await interaction.client.users.fetch(reporterUserId);
+                
+                const dmEmbed = new EmbedBuilder()
+                    .setColor(statusColor)
+                    .setTitle(`📬 Response to Report #${ticketNumber}`)
+                    .setDescription(response)
+                    .addFields(
+                        { name: '📋 Status', value: status.charAt(0).toUpperCase() + status.slice(1), inline: true },
+                        { name: '👤 From', value: 'FumoBOT Support Team', inline: true }
+                    )
+                    .setFooter({ text: 'Thank you for using FumoBOT!' })
+                    .setTimestamp();
+
+                await reporter.send({ embeds: [dmEmbed] });
+                
+                // Update embed to show DM was sent
+                updatedEmbed.addFields({ name: '📨 DM Status', value: '✅ Sent to user', inline: true });
+                await interaction.editReply({ embeds: [updatedEmbed], components: [] });
+            } catch (dmError) {
+                console.log('[Report] Could not DM reporter:', dmError.message);
+                updatedEmbed.addFields({ name: '📨 DM Status', value: '❌ Could not DM user', inline: true });
+                await interaction.editReply({ embeds: [updatedEmbed], components: [] });
+            }
+
+            return true;
+        } catch (error) {
+            console.error('[Report Response Modal Error]', error);
             return true;
         }
     }

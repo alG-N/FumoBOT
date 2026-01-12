@@ -1,9 +1,4 @@
-﻿/**
- * Wikipedia Service
- * Handles all Wikipedia API interactions
- */
-
-const axios = require('axios');
+﻿const axios = require('axios');
 
 // Wikipedia API endpoints
 const WIKIPEDIA_API = 'https://en.wikipedia.org/w/api.php';

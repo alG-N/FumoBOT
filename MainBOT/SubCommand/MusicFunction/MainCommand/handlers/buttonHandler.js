@@ -6,8 +6,32 @@
 const musicService = require('../../Service/MusicService');
 const musicCache = require('../../Repository/MusicCache');
 const trackHandler = require('../../Handler/trackHandler');
+const playHandler = require('./playHandler');
 const { checkSameVoiceChannel } = require('../../Middleware/voiceChannelCheck');
 const { SKIP_VOTE_TIMEOUT, MIN_VOTES_REQUIRED } = require('../../Configuration/musicConfig');
+
+/**
+ * Helper to build now playing embed options consistently
+ */
+function buildNowPlayingOptions(guildId, interaction) {
+    const queue = musicCache.getQueue(guildId);
+    const queueList = musicService.getQueueList(guildId);
+    const listenerCount = musicService.getListenerCount(guildId, interaction.guild);
+    const voteSkipStatus = musicCache.getVoteSkipStatus(guildId, listenerCount);
+    
+    return {
+        volume: musicService.getVolume(guildId),
+        isPaused: queue?.isPaused || false,
+        loopMode: musicService.getLoopMode(guildId),
+        isShuffled: musicService.isShuffled(guildId),
+        queueLength: queueList.length,
+        nextTrack: queueList[0] || null,
+        loopCount: musicService.getLoopCount(guildId),
+        voteSkipCount: voteSkipStatus.count,
+        voteSkipRequired: voteSkipStatus.required,
+        listenerCount: listenerCount
+    };
+}
 
 module.exports = {
     async handleButton(interaction) {
@@ -68,25 +92,16 @@ module.exports = {
             
             const currentTrack = musicService.getCurrentTrack(guildId);
             if (currentTrack) {
-                const queue = musicCache.getQueue(guildId);
-                const queueList = musicService.getQueueList(guildId);
-
-                const embed = trackHandler.createNowPlayingEmbed(currentTrack, {
-                    volume: musicService.getVolume(guildId),
-                    isPaused: queue?.isPaused || false,
-                    loopMode: musicService.getLoopMode(guildId),
-                    isShuffled: musicService.isShuffled(guildId),
-                    queueLength: queueList.length,
-                    nextTrack: queueList[0] || null,
-                    loopCount: musicService.getLoopCount(guildId)
-                });
+                const options = buildNowPlayingOptions(guildId, interaction);
+                const embed = trackHandler.createNowPlayingEmbed(currentTrack, options);
 
                 const rows = trackHandler.createControlButtons(guildId, {
-                    isPaused: queue?.isPaused || false,
-                    loopMode: musicService.getLoopMode(guildId),
-                    isShuffled: musicService.isShuffled(guildId),
+                    isPaused: options.isPaused,
+                    loopMode: options.loopMode,
+                    isShuffled: options.isShuffled,
                     trackUrl: currentTrack.url,
-                    userId: interaction.user.id
+                    userId: interaction.user.id,
+                    listenerCount: options.listenerCount
                 });
 
                 await interaction.editReply({ embeds: [embed], components: rows });
@@ -151,6 +166,9 @@ module.exports = {
             // Disable buttons on the old message
             await musicService.disableNowPlayingControls(guildId);
             
+            // Get current track before skipping (for queue finished message)
+            const currentTrack = musicService.getCurrentTrack(guildId);
+            
             // Skip returns the next track
             const nextTrack = await musicService.skip(guildId);
             
@@ -164,7 +182,7 @@ module.exports = {
                 const queue = musicCache.getQueue(guildId);
                 if (queue?.textChannel) {
                     await queue.textChannel.send({
-                        embeds: [trackHandler.createQueueFinishedEmbed()]
+                        embeds: [trackHandler.createQueueFinishedEmbed(currentTrack)]
                     }).catch(() => {});
                 }
             }
@@ -181,25 +199,16 @@ module.exports = {
             
             const currentTrack = musicService.getCurrentTrack(guildId);
             if (currentTrack) {
-                const queue = musicCache.getQueue(guildId);
-                const queueList = musicService.getQueueList(guildId);
-
-                const embed = trackHandler.createNowPlayingEmbed(currentTrack, {
-                    volume: musicService.getVolume(guildId),
-                    isPaused: queue?.isPaused || false,
-                    loopMode: musicService.getLoopMode(guildId),
-                    isShuffled: musicService.isShuffled(guildId),
-                    queueLength: queueList.length,
-                    nextTrack: queueList[0] || null,
-                    loopCount: musicService.getLoopCount(guildId)
-                });
+                const options = buildNowPlayingOptions(guildId, interaction);
+                const embed = trackHandler.createNowPlayingEmbed(currentTrack, options);
 
                 const rows = trackHandler.createControlButtons(guildId, {
-                    isPaused: queue?.isPaused || false,
-                    loopMode: musicService.getLoopMode(guildId),
-                    isShuffled: musicService.isShuffled(guildId),
+                    isPaused: options.isPaused,
+                    loopMode: options.loopMode,
+                    isShuffled: options.isShuffled,
                     trackUrl: currentTrack.url,
-                    userId: interaction.user.id
+                    userId: interaction.user.id,
+                    listenerCount: options.listenerCount
                 });
 
                 await interaction.editReply({ embeds: [embed], components: rows });
@@ -222,25 +231,16 @@ module.exports = {
             
             const currentTrack = musicService.getCurrentTrack(guildId);
             if (currentTrack) {
-                const queue = musicCache.getQueue(guildId);
-                const queueList = musicService.getQueueList(guildId);
-
-                const embed = trackHandler.createNowPlayingEmbed(currentTrack, {
-                    volume: musicService.getVolume(guildId),
-                    isPaused: queue?.isPaused || false,
-                    loopMode: musicService.getLoopMode(guildId),
-                    isShuffled: musicService.isShuffled(guildId),
-                    queueLength: queueList.length,
-                    nextTrack: queueList[0] || null,
-                    loopCount: musicService.getLoopCount(guildId)
-                });
+                const options = buildNowPlayingOptions(guildId, interaction);
+                const embed = trackHandler.createNowPlayingEmbed(currentTrack, options);
 
                 const rows = trackHandler.createControlButtons(guildId, {
-                    isPaused: queue?.isPaused || false,
-                    loopMode: musicService.getLoopMode(guildId),
-                    isShuffled: musicService.isShuffled(guildId),
+                    isPaused: options.isPaused,
+                    loopMode: options.loopMode,
+                    isShuffled: options.isShuffled,
                     trackUrl: currentTrack.url,
-                    userId: interaction.user.id
+                    userId: interaction.user.id,
+                    listenerCount: options.listenerCount
                 });
 
                 await interaction.editReply({ embeds: [embed], components: rows });
@@ -263,25 +263,16 @@ module.exports = {
             
             const currentTrack = musicService.getCurrentTrack(guildId);
             if (currentTrack) {
-                const queue = musicCache.getQueue(guildId);
-                const queueList = musicService.getQueueList(guildId);
-
-                const embed = trackHandler.createNowPlayingEmbed(currentTrack, {
-                    volume: musicService.getVolume(guildId),
-                    isPaused: queue?.isPaused || false,
-                    loopMode: musicService.getLoopMode(guildId),
-                    isShuffled: musicService.isShuffled(guildId),
-                    queueLength: queueList.length,
-                    nextTrack: queueList[0] || null,
-                    loopCount: musicService.getLoopCount(guildId)
-                });
+                const options = buildNowPlayingOptions(guildId, interaction);
+                const embed = trackHandler.createNowPlayingEmbed(currentTrack, options);
 
                 const rows = trackHandler.createControlButtons(guildId, {
-                    isPaused: queue?.isPaused || false,
-                    loopMode: musicService.getLoopMode(guildId),
-                    isShuffled: musicService.isShuffled(guildId),
+                    isPaused: options.isPaused,
+                    loopMode: options.loopMode,
+                    isShuffled: options.isShuffled,
                     trackUrl: currentTrack.url,
-                    userId: interaction.user.id
+                    userId: interaction.user.id,
+                    listenerCount: options.listenerCount
                 });
 
                 await interaction.editReply({ embeds: [embed], components: rows });
@@ -328,25 +319,16 @@ module.exports = {
                 musicService.addFavorite(userId, currentTrack);
             }
 
-            const queue = musicCache.getQueue(guildId);
-            const queueList = musicService.getQueueList(guildId);
-
-            const embed = trackHandler.createNowPlayingEmbed(currentTrack, {
-                volume: musicService.getVolume(guildId),
-                isPaused: queue?.isPaused || false,
-                loopMode: musicService.getLoopMode(guildId),
-                isShuffled: musicService.isShuffled(guildId),
-                queueLength: queueList.length,
-                nextTrack: queueList[0] || null,
-                loopCount: musicService.getLoopCount(guildId)
-            });
+            const options = buildNowPlayingOptions(guildId, interaction);
+            const embed = trackHandler.createNowPlayingEmbed(currentTrack, options);
 
             const rows = trackHandler.createControlButtons(guildId, {
-                isPaused: queue?.isPaused || false,
-                loopMode: musicService.getLoopMode(guildId),
-                isShuffled: musicService.isShuffled(guildId),
+                isPaused: options.isPaused,
+                loopMode: options.loopMode,
+                isShuffled: options.isShuffled,
                 trackUrl: currentTrack.url,
-                userId: interaction.user.id
+                userId: interaction.user.id,
+                listenerCount: options.listenerCount
             });
 
             await interaction.editReply({ embeds: [embed], components: rows });
@@ -540,8 +522,15 @@ module.exports = {
 
     /**
      * Handle confirmation buttons (yes/no)
+     * Longtrack confirmations are handled by playHandler.handleLongTrackButton
      */
     async handleButtonConfirm(interaction, guildId, action, choice) {
+        // Route longtrack to playHandler
+        if (action === 'longtrack') {
+            // guildId here is actually the confirmId for longtrack
+            return await playHandler.handleLongTrackButton(interaction, guildId, choice);
+        }
+        
         try {
             await interaction.deferUpdate();
             

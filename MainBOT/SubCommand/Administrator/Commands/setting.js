@@ -175,12 +175,12 @@ async function handleView(interaction) {
                 inline: true 
             },
             { 
-                name: '�️ Delete Limit', 
+                name: '🗑️ Delete Limit', 
                 value: `${settings.delete_limit || adminConfig.DELETE_CONFIG.DEFAULT_LIMIT} messages`, 
                 inline: true 
             },
             { 
-                name: '�📢 Announcement Channel', 
+                name: '📢 Announcement Channel', 
                 value: settings.announcement_channel 
                     ? `<#${settings.announcement_channel}>` 
                     : '*Not set*', 

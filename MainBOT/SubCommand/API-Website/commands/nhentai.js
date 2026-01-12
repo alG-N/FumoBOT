@@ -27,6 +27,30 @@ module.exports = {
             )
         )
         .addSubcommand(sub => sub
+            .setName('search')
+            .setDescription('Search for doujins by name or tag')
+            .addStringOption(option =>
+                option.setName('query')
+                    .setDescription('Search query (name, tag, character, parody)')
+                    .setRequired(true)
+                    .setAutocomplete(true)
+            )
+            .addStringOption(option =>
+                option.setName('sort')
+                    .setDescription('Sort results')
+                    .addChoices(
+                        { name: '🔥 Popular (Default)', value: 'popular' },
+                        { name: '🆕 Recent', value: 'recent' }
+                    )
+            )
+            .addIntegerOption(option =>
+                option.setName('page')
+                    .setDescription('Page number (default: 1)')
+                    .setMinValue(1)
+                    .setMaxValue(50)
+            )
+        )
+        .addSubcommand(sub => sub
             .setName('random')
             .setDescription('Get a random doujin')
         )
@@ -51,6 +75,37 @@ module.exports = {
                     .setMinValue(1)
             )
         ),
+
+    async autocomplete(interaction) {
+        const focused = interaction.options.getFocused();
+        
+        if (!focused || focused.length < 2) {
+            return interaction.respond([]).catch(() => {});
+        }
+
+        try {
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Timeout')), 2500)
+            );
+
+            const searchPromise = nhentaiService.getSearchSuggestions(focused);
+            const suggestions = await Promise.race([searchPromise, timeoutPromise]);
+
+            const choices = [
+                { name: `🔍 "${focused}"`.slice(0, 100), value: focused.slice(0, 100) },
+                ...suggestions.map(s => ({
+                    name: s.slice(0, 100),
+                    value: s.slice(0, 100)
+                }))
+            ].slice(0, 25);
+
+            await interaction.respond(choices).catch(() => {});
+        } catch (error) {
+            await interaction.respond([
+                { name: `🔍 "${focused.slice(0, 90)}"`, value: focused.slice(0, 100) }
+            ]).catch(() => {});
+        }
+    },
 
     async execute(interaction) {
         // Access control
@@ -89,6 +144,38 @@ module.exports = {
                     const code = interaction.options.getInteger('id');
                     result = await nhentaiService.fetchGallery(code);
                     break;
+                }
+                case 'search': {
+                    const query = interaction.options.getString('query');
+                    const sort = interaction.options.getString('sort') || 'popular';
+                    const page = interaction.options.getInteger('page') || 1;
+                    
+                    const searchResult = await nhentaiService.searchGalleries(query, page, sort);
+                    
+                    if (!searchResult.success) {
+                        return interaction.editReply({ embeds: [nhentaiHandler.createErrorEmbed(searchResult.error)] });
+                    }
+                    
+                    if (!searchResult.data.results || searchResult.data.results.length === 0) {
+                        return interaction.editReply({ 
+                            embeds: [nhentaiHandler.createErrorEmbed(`No results found for: **${query}**\n\nTry a different search term or tag.`)] 
+                        });
+                    }
+                    
+                    // Create search results embed
+                    const embed = nhentaiHandler.createSearchResultsEmbed(query, searchResult.data, page, sort);
+                    const buttons = nhentaiHandler.createSearchButtons(query, searchResult.data, page, interaction.user.id);
+                    
+                    // Store search results for pagination
+                    nhentaiHandler.setSearchSession(interaction.user.id, {
+                        query,
+                        sort,
+                        results: searchResult.data.results,
+                        currentPage: page,
+                        totalPages: searchResult.data.numPages
+                    });
+                    
+                    return interaction.editReply({ embeds: [embed], components: buttons });
                 }
                 case 'random': {
                     result = await nhentaiService.fetchRandomGallery();
@@ -293,6 +380,84 @@ module.exports = {
                     const embed = nhentaiHandler.createGalleryEmbed(session.gallery);
                     const buttons = nhentaiHandler.createMainButtons(session.galleryId, interaction.user.id, session.totalPages);
                     
+                    await interaction.editReply({ embeds: [embed], components: buttons });
+                    break;
+                }
+
+                // Search result navigation
+                case 'view': {
+                    const galleryId = parts[2];
+                    await interaction.deferUpdate();
+                    
+                    const result = await nhentaiService.fetchGallery(galleryId);
+                    if (!result.success) {
+                        return interaction.followUp({
+                            embeds: [nhentaiHandler.createErrorEmbed(result.error)],
+                            ephemeral: true
+                        });
+                    }
+                    
+                    nhentaiHandler.setPageSession(interaction.user.id, result.data, 1);
+                    const embed = nhentaiHandler.createGalleryEmbed(result.data);
+                    const buttons = nhentaiHandler.createMainButtons(result.data.id, interaction.user.id, result.data.num_pages);
+                    
+                    await interaction.editReply({ embeds: [embed], components: buttons });
+                    break;
+                }
+
+                case 'sprev':
+                case 'snext': {
+                    const searchSession = nhentaiHandler.getSearchSession(interaction.user.id);
+                    if (!searchSession) {
+                        return interaction.reply({
+                            content: '❌ Search session expired. Please search again.',
+                            ephemeral: true
+                        });
+                    }
+
+                    await interaction.deferUpdate();
+
+                    let newPage = searchSession.currentPage;
+                    if (action === 'sprev') {
+                        newPage = Math.max(1, searchSession.currentPage - 1);
+                    } else {
+                        newPage = Math.min(searchSession.totalPages, searchSession.currentPage + 1);
+                    }
+
+                    const searchResult = await nhentaiService.searchGalleries(
+                        searchSession.query,
+                        newPage,
+                        searchSession.sort
+                    );
+
+                    if (!searchResult.success) {
+                        return interaction.followUp({
+                            embeds: [nhentaiHandler.createErrorEmbed(searchResult.error)],
+                            ephemeral: true
+                        });
+                    }
+
+                    nhentaiHandler.setSearchSession(interaction.user.id, {
+                        query: searchSession.query,
+                        sort: searchSession.sort,
+                        results: searchResult.data.results,
+                        currentPage: newPage,
+                        totalPages: searchResult.data.numPages
+                    });
+
+                    const embed = nhentaiHandler.createSearchResultsEmbed(
+                        searchSession.query,
+                        searchResult.data,
+                        newPage,
+                        searchSession.sort
+                    );
+                    const buttons = nhentaiHandler.createSearchButtons(
+                        searchSession.query,
+                        searchResult.data,
+                        newPage,
+                        interaction.user.id
+                    );
+
                     await interaction.editReply({ embeds: [embed], components: buttons });
                     break;
                 }

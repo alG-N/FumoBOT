@@ -197,6 +197,9 @@ class LavalinkService {
                             track.pluginInfo?.playCount || 
                             track.info?.viewCount ||
                             null;
+            
+            // Determine if this was a direct link search
+            const isLinkSearch = /^https?:\/\//.test(query) || this.isSpotifyUrl(query);
 
             return {
                 track: track,
@@ -209,7 +212,9 @@ class LavalinkService {
                 requestedBy: requester,
                 source: track.info.sourceName || 'Unknown',
                 viewCount: viewCount,
-                identifier: youtubeId || track.info.identifier
+                identifier: youtubeId || track.info.identifier,
+                searchedByLink: isLinkSearch,
+                originalQuery: isLinkSearch ? null : query
             };
 
         } catch (error) {

@@ -102,7 +102,8 @@ module.exports = {
         const embed = trackHandler.createSkipVoteEmbed(currentTrack, voteResult.voteCount, voteResult.required, SKIP_VOTE_TIMEOUT);
         const row = trackHandler.createSkipVoteButton(guildId, voteResult.voteCount, voteResult.required);
 
-        const message = await interaction.reply({ embeds: [embed], components: [row], fetchReply: true });
+        const response = await interaction.reply({ embeds: [embed], components: [row], withResponse: true });
+        const message = response?.resource?.message || await interaction.fetchReply();
 
         // Set timeout
         const queue2 = musicCache.getQueue(guildId);

@@ -37,26 +37,34 @@ class SteamService {
         // Force US region with cc=us parameter
         const searchUrl = `https://store.steampowered.com/search/results/?query&start=${start}&count=${resultsPerPage}&dynamic_data=&sort_by=_ASC&specials=1&snr=1_7_7_151_7&filter=topsellers&infinite=1&cc=us`;
 
-        const response = await fetch(searchUrl, {
-            headers: {
-                'Accept': 'application/json, text/plain, */*',
-                'User-Agent': this.userAgent,
-                'Accept-Language': 'en-US,en;q=0.9'
-            }
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-        }
-
-        const html = await response.text();
-        let data;
+        // Create abort controller for timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
 
         try {
-            data = JSON.parse(html);
-        } catch {
-            throw new Error('Failed to parse response');
-        }
+            const response = await fetch(searchUrl, {
+                headers: {
+                    'Accept': 'application/json, text/plain, */*',
+                    'User-Agent': this.userAgent,
+                    'Accept-Language': 'en-US,en;q=0.9'
+                },
+                signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const html = await response.text();
+            let data;
+
+            try {
+                data = JSON.parse(html);
+            } catch {
+                throw new Error('Failed to parse response');
+            }
 
         if (!data.results_html) return [];
 
@@ -124,15 +132,22 @@ class SteamService {
             const appIds = batch.map(g => g.id).join(',');
 
             try {
+                // Create abort controller for timeout
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000);
+
                 const response = await fetch(
                     `https://store.steampowered.com/api/appdetails?appids=${appIds}&cc=us&filters=price_overview`,
                     {
                         headers: {
                             'User-Agent': this.userAgent,
                             'Accept-Language': 'en-US,en;q=0.9'
-                        }
+                        },
+                        signal: controller.signal
                     }
                 );
+
+                clearTimeout(timeoutId);
 
                 if (response.ok) {
                     const data = await response.json();

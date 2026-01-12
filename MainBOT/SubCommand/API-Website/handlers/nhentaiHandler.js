@@ -15,6 +15,7 @@ const COLORS = {
 class NHentaiHandler {
     constructor() {
         this.pageCache = new Map(); // userId -> { galleryId, currentPage, totalPages, gallery }
+        this.searchCache = new Map(); // userId -> { query, sort, results, currentPage, totalPages }
         this.cacheExpiry = 600000; // 10 minutes
         
         // Auto-cleanup every 5 minutes to prevent memory leaks
@@ -27,6 +28,12 @@ class NHentaiHandler {
         for (const [userId, session] of this.pageCache) {
             if (now > session.expiresAt) {
                 this.pageCache.delete(userId);
+                cleaned++;
+            }
+        }
+        for (const [userId, session] of this.searchCache) {
+            if (now > session.expiresAt) {
+                this.searchCache.delete(userId);
                 cleaned++;
             }
         }
@@ -266,6 +273,114 @@ class NHentaiHandler {
         this.pageCache.delete(userId);
     }
 
+    // Search session management
+    setSearchSession(userId, data) {
+        this.searchCache.set(userId, {
+            ...data,
+            expiresAt: Date.now() + this.cacheExpiry
+        });
+    }
+
+    getSearchSession(userId) {
+        const session = this.searchCache.get(userId);
+        if (!session || Date.now() > session.expiresAt) {
+            this.searchCache.delete(userId);
+            return null;
+        }
+        return session;
+    }
+
+    /**
+     * Create search results embed
+     */
+    createSearchResultsEmbed(query, data, page, sort) {
+        const { results, numPages, totalResults } = data;
+        
+        const embed = new EmbedBuilder()
+            .setColor(COLORS.NHENTAI)
+            .setTitle(`🔍 Search Results: "${query}"`)
+            .setDescription(`Found **${totalResults}+** results • Page **${page}** of **${numPages}** • Sorted by **${sort === 'recent' ? 'Recent' : 'Popular'}**`)
+            .setFooter({ text: 'Select a gallery to view more details' });
+
+        // Show first 10 results
+        const displayResults = results.slice(0, 10);
+        let resultsList = '';
+        
+        displayResults.forEach((gallery, index) => {
+            const title = this._truncate(this._getTitle(gallery.title), 50);
+            const pages = gallery.num_pages || '?';
+            const id = gallery.id;
+            resultsList += `**${index + 1}.** \`${id}\` - ${title} (${pages}p)\n`;
+        });
+
+        if (resultsList) {
+            embed.addFields({ name: '📚 Results', value: resultsList, inline: false });
+        }
+
+        return embed;
+    }
+
+    /**
+     * Create search navigation buttons
+     */
+    createSearchButtons(query, data, page, userId) {
+        const { results, numPages } = data;
+        
+        const row1 = new ActionRowBuilder();
+        
+        // Add buttons for first 5 results
+        const firstFive = results.slice(0, 5);
+        firstFive.forEach((gallery, index) => {
+            row1.addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`nhentai_view_${gallery.id}_${userId}`)
+                    .setLabel(`${index + 1}`)
+                    .setStyle(ButtonStyle.Secondary)
+            );
+        });
+
+        const row2 = new ActionRowBuilder();
+        
+        // Add buttons for results 6-10
+        const secondFive = results.slice(5, 10);
+        if (secondFive.length > 0) {
+            secondFive.forEach((gallery, index) => {
+                row2.addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`nhentai_view_${gallery.id}_${userId}`)
+                        .setLabel(`${index + 6}`)
+                        .setStyle(ButtonStyle.Secondary)
+                );
+            });
+        }
+
+        const row3 = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId(`nhentai_sprev_${userId}`)
+                .setLabel('Prev Page')
+                .setStyle(ButtonStyle.Primary)
+                .setEmoji('◀️')
+                .setDisabled(page <= 1),
+            new ButtonBuilder()
+                .setCustomId(`nhentai_spage_${userId}`)
+                .setLabel(`${page}/${numPages}`)
+                .setStyle(ButtonStyle.Secondary)
+                .setDisabled(true),
+            new ButtonBuilder()
+                .setCustomId(`nhentai_snext_${userId}`)
+                .setLabel('Next Page')
+                .setStyle(ButtonStyle.Primary)
+                .setEmoji('▶️')
+                .setDisabled(page >= numPages)
+        );
+
+        const rows = [row1];
+        if (secondFive.length > 0) rows.push(row2);
+        rows.push(row3);
+        
+        return rows;
+    }
+
     // Private helper methods
     _getTitle(title) {
         return title.english || title.japanese || title.pretty || 'Unknown Title';
@@ -279,14 +394,25 @@ class NHentaiHandler {
         });
     }
 
+    /**
+     * Get thumbnail URL using multiple CDN mirrors
+     * nhentai uses different CDN servers, try alternatives if main fails
+     */
     _getThumbnailUrl(mediaId, coverType) {
         const ext = { 'j': 'jpg', 'p': 'png', 'g': 'gif' }[coverType] || 'jpg';
-        return `https://t.nhentai.net/galleries/${mediaId}/cover.${ext}`;
+        // Use t2/t3/t5 CDN which tends to work better with Discord embeds
+        // Main CDN: t.nhentai.net often gets blocked
+        // Alternative CDNs: t2, t3, t5.nhentai.net
+        return `https://t3.nhentai.net/galleries/${mediaId}/cover.${ext}`;
     }
 
+    /**
+     * Get page image URL using multiple CDN mirrors
+     */
     _getPageImageUrl(mediaId, pageNum, pageType) {
         const ext = { 'j': 'jpg', 'p': 'png', 'g': 'gif' }[pageType] || 'jpg';
-        return `https://i.nhentai.net/galleries/${mediaId}/${pageNum}.${ext}`;
+        // Use i2/i3/i5/i7 CDN which tends to work better with Discord embeds
+        return `https://i3.nhentai.net/galleries/${mediaId}/${pageNum}.${ext}`;
     }
 
     _parseTags(tags) {

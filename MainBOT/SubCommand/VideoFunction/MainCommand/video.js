@@ -267,23 +267,36 @@ module.exports = {
             );
 
             // Upload the video with Original button
-            await interaction.editReply({ 
-                content: successMessage,
-                embeds: [],
-                files: [{
-                    attachment: result.path,
-                    name: fileName
-                }],
-                components: [originalButton]
-            });
+            try {
+                await interaction.editReply({ 
+                    content: successMessage,
+                    embeds: [],
+                    files: [{
+                        attachment: result.path,
+                        name: fileName
+                    }],
+                    components: [originalButton]
+                });
+            } catch (uploadError) {
+                console.error('❌ Upload error:', uploadError.message);
+                // Clean up file immediately on upload failure
+                if (fs.existsSync(result.path)) {
+                    try { fs.unlinkSync(result.path); } catch {}
+                }
+                const uploadErrorEmbed = videoEmbedBuilder.buildDownloadFailedEmbed(
+                    `Upload failed: ${uploadError.message}. The file may be too large or Discord had an issue.`
+                );
+                await interaction.editReply({ embeds: [uploadErrorEmbed] }).catch(() => {});
+                return;
+            }
 
-            // Cleanup file after delay
+            // Cleanup file after delay (only if upload succeeded)
             videoDownloadService.deleteFile(result.path);
 
         } catch (error) {
             console.error('❌ Download/Upload error:', error.message);
             const errorEmbed = videoEmbedBuilder.buildDownloadFailedEmbed(error.message);
-            await interaction.editReply({ embeds: [errorEmbed] });
+            await interaction.editReply({ embeds: [errorEmbed] }).catch(() => {});
         } finally {
             // Cleanup event listeners
             videoDownloadService.off('stage', stageHandler);

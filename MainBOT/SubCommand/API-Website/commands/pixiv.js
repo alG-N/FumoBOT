@@ -97,9 +97,9 @@ module.exports = {
                 return interaction.respond(cached).catch(() => {});
             }
 
-            // Set a strict timeout
+            // Set a strict timeout - Discord requires response within 3 seconds
             const timeoutPromise = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('Timeout')), 2000)
+                setTimeout(() => reject(new Error('Timeout')), 2200)
             );
 
             const searchPromise = (async () => {
@@ -112,84 +112,45 @@ module.exports = {
                     value: focusedValue.slice(0, 100)
                 });
 
-                if (isEnglish) {
-                    // English input - also offer translation
-                    try {
-                        const translated = await pixivService.translateToJapanese(focusedValue);
-                        if (translated && translated !== focusedValue) {
+                // Get suggestions directly without translation first for speed
+                try {
+                    const suggestions = await pixivService.getAutocompleteSuggestions(focusedValue);
+                    
+                    if (suggestions.length > 0) {
+                        // Limit suggestions to prevent slowdown
+                        const limitedSuggestions = suggestions.slice(0, 15);
+                        
+                        for (const keyword of limitedSuggestions) {
+                            if (keyword.toLowerCase() === focusedValue.toLowerCase()) {
+                                continue;
+                            }
+
                             choices.push({
+                                name: keyword.slice(0, 100),
+                                value: keyword.slice(0, 100)
+                            });
+                        }
+                    }
+                } catch {}
+
+                // If English text and we have time, try translation
+                if (isEnglish && choices.length < 5) {
+                    try {
+                        const translated = await Promise.race([
+                            pixivService.translateToJapanese(focusedValue),
+                            new Promise((_, reject) => setTimeout(() => reject(new Error('Translation timeout')), 1000))
+                        ]);
+                        
+                        if (translated && translated !== focusedValue) {
+                            choices.splice(1, 0, {
                                 name: `🌐 ${translated} (${focusedValue})`.slice(0, 100),
                                 value: translated.slice(0, 100)
                             });
-                        }
 
-                        // Get suggestions based on translated query
-                        const suggestions = await pixivService.getAutocompleteSuggestions(translated);
-                        
-                        if (suggestions.length > 0) {
-                            // Translate suggestions to English for display
-                            const limitedSuggestions = suggestions.slice(0, 12);
-                            
-                            for (const keyword of limitedSuggestions) {
-                                if (keyword.toLowerCase() === focusedValue.toLowerCase() || 
-                                    keyword.toLowerCase() === translated?.toLowerCase()) {
-                                    continue;
-                                }
-
-                                try {
-                                    const englishTranslation = await pixivService.translateToEnglish(keyword);
-                                    if (englishTranslation && englishTranslation !== keyword) {
-                                        choices.push({
-                                            name: `${keyword} (${englishTranslation})`.slice(0, 100),
-                                            value: keyword.slice(0, 100)
-                                        });
-                                    } else {
-                                        choices.push({
-                                            name: keyword.slice(0, 100),
-                                            value: keyword.slice(0, 100)
-                                        });
-                                    }
-                                } catch {
-                                    choices.push({
-                                        name: keyword.slice(0, 100),
-                                        value: keyword.slice(0, 100)
-                                    });
-                                }
-                            }
-                        }
-                    } catch {}
-                } else {
-                    // Japanese/non-English input - get suggestions and translate them
-                    try {
-                        const suggestions = await pixivService.getAutocompleteSuggestions(focusedValue);
-                        
-                        if (suggestions.length > 0) {
-                            // Translate each suggestion to English for better understanding
-                            const limitedSuggestions = suggestions.slice(0, 18);
-                            
-                            for (const keyword of limitedSuggestions) {
-                                // Skip if same as user input
-                                if (keyword.toLowerCase() === focusedValue.toLowerCase()) {
-                                    continue;
-                                }
-
-                                try {
-                                    const englishTranslation = await pixivService.translateToEnglish(keyword);
-                                    if (englishTranslation && englishTranslation !== keyword) {
-                                        // Show as "巫女 (shrine maiden)" but value is just "巫女"
-                                        choices.push({
-                                            name: `${keyword} (${englishTranslation})`.slice(0, 100),
-                                            value: keyword.slice(0, 100)
-                                        });
-                                    } else {
-                                        // Translation failed or same - just show keyword
-                                        choices.push({
-                                            name: keyword.slice(0, 100),
-                                            value: keyword.slice(0, 100)
-                                        });
-                                    }
-                                } catch {
-                                    // Translation error - just show keyword
+                            // Get suggestions for translated query
+                            const translatedSuggestions = await pixivService.getAutocompleteSuggestions(translated);
+                            for (const keyword of translatedSuggestions.slice(0, 8)) {
+                                if (!choices.some(c => c.value === keyword)) {
                                     choices.push({
                                         name: keyword.slice(0, 100),
                                         value: keyword.slice(0, 100)

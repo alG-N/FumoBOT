@@ -37,7 +37,7 @@ function saveAfkUsers(data) {
 }
 
 // Periodic async save (every 30s if dirty)
-setInterval(async () => {
+const saveInterval = setInterval(async () => {
     if (isDirty && afkCache !== null) {
         try {
             await fs.promises.writeFile(afkFilePath, JSON.stringify(afkCache, null, 2));
@@ -47,6 +47,19 @@ setInterval(async () => {
         }
     }
 }, 30000);
+
+// Cleanup on process exit
+process.on('exit', () => {
+    clearInterval(saveInterval);
+    // Final synchronous save if dirty
+    if (isDirty && afkCache !== null) {
+        try {
+            fs.writeFileSync(afkFilePath, JSON.stringify(afkCache, null, 2));
+        } catch (err) {
+            console.error('[AFK] Failed to save on exit:', err);
+        }
+    }
+});
 
 module.exports = {
     data: new SlashCommandBuilder()

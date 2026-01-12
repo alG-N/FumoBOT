@@ -211,7 +211,7 @@
       inline: false
     },
     {
-      name: '📝 `.report` `<message>`',
+      name: '📝 `/report`',
       value: 'Report bugs or issues to developers.',
       inline: false
     },

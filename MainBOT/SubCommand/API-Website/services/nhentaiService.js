@@ -109,6 +109,87 @@ class NHentaiService {
     }
 
     /**
+     * Search galleries by query
+     */
+    async searchGalleries(query, page = 1, sort = 'popular') {
+        const cacheKey = `search_${query}_${page}_${sort}`;
+        const cached = this._getFromCache(cacheKey);
+        if (cached) return { success: true, data: cached, fromCache: true };
+
+        try {
+            // URL encode the query and sort
+            const encodedQuery = encodeURIComponent(query);
+            const sortParam = sort === 'recent' ? 'date' : 'popular';
+            
+            const response = await axios.get(
+                `${API_BASE}/galleries/search?query=${encodedQuery}&page=${page}&sort=${sortParam}`,
+                REQUEST_CONFIG
+            );
+            
+            const data = {
+                results: response.data.result || [],
+                numPages: response.data.num_pages || 1,
+                perPage: response.data.per_page || 25,
+                totalResults: (response.data.num_pages || 1) * (response.data.per_page || 25)
+            };
+            
+            this._setCache(cacheKey, data);
+            
+            return { success: true, data };
+        } catch (error) {
+            return this._handleError(error);
+        }
+    }
+
+    /**
+     * Get autocomplete suggestions for search
+     */
+    async getSearchSuggestions(query) {
+        if (!query || query.length < 2) return [];
+        
+        const cacheKey = `suggest_${query.toLowerCase()}`;
+        const cached = this._getFromCache(cacheKey);
+        if (cached) return cached;
+
+        try {
+            // Use the search API to get suggestions
+            const response = await axios.get(
+                `${API_BASE}/galleries/search?query=${encodeURIComponent(query)}&page=1`,
+                { ...REQUEST_CONFIG, timeout: 3000 }
+            );
+            
+            const results = response.data.result || [];
+            
+            // Extract unique tags from results
+            const tagSet = new Set();
+            results.forEach(gallery => {
+                gallery.tags?.forEach(tag => {
+                    if (tag.type === 'tag' || tag.type === 'character' || tag.type === 'parody') {
+                        if (tag.name.toLowerCase().includes(query.toLowerCase())) {
+                            tagSet.add(tag.name);
+                        }
+                    }
+                });
+            });
+            
+            // Also add titles that match
+            const titleMatches = results
+                .filter(g => g.title?.english?.toLowerCase().includes(query.toLowerCase()) ||
+                            g.title?.japanese?.toLowerCase().includes(query.toLowerCase()))
+                .slice(0, 5)
+                .map(g => g.title.english || g.title.japanese);
+            
+            const suggestions = [...new Set([...tagSet, ...titleMatches])].slice(0, 15);
+            this._setCache(cacheKey, suggestions);
+            
+            return suggestions;
+        } catch (error) {
+            console.error('[NHentai Autocomplete Error]', error.message);
+            return [];
+        }
+    }
+
+    /**
      * Get page image URLs for a gallery
      */
     getPageUrls(gallery, startPage = 1, endPage = null) {

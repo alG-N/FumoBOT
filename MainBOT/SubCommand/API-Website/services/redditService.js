@@ -98,7 +98,8 @@ class RedditService {
                         'Authorization': `Bearer ${token}`,
                         'User-Agent': 'DiscordBot/1.0'
                     },
-                    params
+                    params,
+                    timeout: 10000
                 }
             );
 
@@ -142,6 +143,74 @@ class RedditService {
         } catch (error) {
             console.error('Error fetching similar subreddits:', error.message);
             return [];
+        }
+    }
+
+    /**
+     * Fetch trending/popular posts from Reddit
+     * @param {string} region - Region filter (global, us, uk, etc)
+     * @param {number} limit - Number of posts to fetch
+     */
+    async fetchTrendingPosts(region = 'global', limit = 10) {
+        const token = await this.getAccessToken();
+
+        try {
+            // Use /r/popular for trending content
+            const endpoint = region === 'global' 
+                ? 'https://oauth.reddit.com/r/popular/hot'
+                : `https://oauth.reddit.com/r/popular/hot?geo_filter=${region.toUpperCase()}`;
+
+            const response = await axios.get(endpoint, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'User-Agent': 'DiscordBot/1.0'
+                },
+                params: { limit }
+            });
+
+            if (!response.data?.data?.children) {
+                return { error: 'no_posts' };
+            }
+
+            return {
+                posts: response.data.data.children.map(child => this._parsePost(child.data))
+            };
+        } catch (error) {
+            console.error('Error fetching trending posts:', error.message);
+            return { error: 'fetch_failed' };
+        }
+    }
+
+    /**
+     * Fetch posts from r/all (everything trending)
+     * @param {string} sortBy - Sort method
+     * @param {number} limit - Number of posts
+     */
+    async fetchAllPosts(sortBy = 'hot', limit = 10) {
+        const token = await this.getAccessToken();
+
+        try {
+            const response = await axios.get(
+                `https://oauth.reddit.com/r/all/${sortBy}`,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'User-Agent': 'DiscordBot/1.0'
+                    },
+                    params: { limit }
+                }
+            );
+
+            if (!response.data?.data?.children) {
+                return { error: 'no_posts' };
+            }
+
+            return {
+                posts: response.data.data.children.map(child => this._parsePost(child.data))
+            };
+        } catch (error) {
+            console.error('Error fetching r/all posts:', error.message);
+            return { error: 'fetch_failed' };
         }
     }
 

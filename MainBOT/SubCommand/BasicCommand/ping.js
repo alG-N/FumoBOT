@@ -17,7 +17,8 @@ module.exports = {
         }
 
         // Latency calculation
-        const sent = await interaction.reply({ content: 'Pinging...', fetchReply: true });
+        const response = await interaction.reply({ content: 'Pinging...', withResponse: true });
+        const sent = response?.resource?.message || await interaction.fetchReply();
         const latency = Math.abs(sent.createdTimestamp - interaction.createdTimestamp);
         const apiLatency = Math.round(interaction.client.ws.ping);
         const uptime = Math.floor(interaction.client.uptime / 1000);

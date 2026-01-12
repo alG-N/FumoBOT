@@ -157,8 +157,21 @@ class MusicService {
         // Clear skip votes
         musicCache.endSkipVote(guildId);
         
+        // Temporarily save and disable track loop to allow skip
+        const queue = musicCache.getQueue(guildId);
+        const wasTrackLoop = queue?.loopMode === 'track';
+        if (wasTrackLoop) {
+            // Temporarily set to 'off' so getNextTrack works
+            queue.loopMode = 'off';
+        }
+        
         // Get next track from queue
         const nextTrack = musicCache.getNextTrack(guildId);
+        
+        // Restore track loop mode after getting next track
+        if (wasTrackLoop && queue) {
+            queue.loopMode = 'track';
+        }
         
         if (nextTrack && nextTrack.track?.encoded) {
             // Set the new current track
@@ -560,6 +573,9 @@ class MusicService {
      * Handle queue end
      */
     async handleQueueEnd(guildId) {
+        // Get the last track before clearing
+        const lastTrack = this.getCurrentTrack(guildId);
+        
         musicCache.setCurrentTrack(guildId, null);
         
         // Disable old now playing buttons
@@ -568,7 +584,7 @@ class MusicService {
         // Send queue finished message
         const queue = musicCache.getQueue(guildId);
         if (queue?.textChannel) {
-            const finishedEmbed = trackHandler.createQueueFinishedEmbed?.() || 
+            const finishedEmbed = trackHandler.createQueueFinishedEmbed?.(lastTrack) || 
                 trackHandler.createInfoEmbed?.('Queue Finished', 'All songs have been played!') ||
                 { description: '✅ Queue finished! Add more songs to keep the party going.' };
             
@@ -713,6 +729,8 @@ class MusicService {
             await this.disableNowPlayingControls(guildId);
             
             const queueList = this.getQueueList(guildId);
+            const listenerCount = this.getListenerCount(guildId, queue.textChannel?.guild);
+            const voteSkipStatus = musicCache.getVoteSkipStatus(guildId, listenerCount);
             
             const embed = trackHandler.createNowPlayingEmbed(currentTrack, {
                 volume: this.getVolume(guildId),
@@ -721,7 +739,10 @@ class MusicService {
                 isShuffled: this.isShuffled(guildId),
                 queueLength: queueList.length,
                 nextTrack: queueList[0] || null,
-                loopCount: 0
+                loopCount: 0,
+                voteSkipCount: voteSkipStatus.count,
+                voteSkipRequired: voteSkipStatus.required,
+                listenerCount: listenerCount
             });
             
             const rows = trackHandler.createControlButtons(guildId, {
@@ -729,7 +750,8 @@ class MusicService {
                 loopMode: this.getLoopMode(guildId),
                 isShuffled: this.isShuffled(guildId),
                 trackUrl: currentTrack.url,
-                userId: currentTrack.requestedBy?.id || ''
+                userId: currentTrack.requestedBy?.id || '',
+                listenerCount: listenerCount
             });
             
             const nowMessage = await queue.textChannel.send({ embeds: [embed], components: rows });
@@ -754,6 +776,8 @@ class MusicService {
         
         try {
             const queueList = this.getQueueList(guildId);
+            const listenerCount = this.getListenerCount(guildId, queue.textChannel?.guild);
+            const voteSkipStatus = musicCache.getVoteSkipStatus(guildId, listenerCount);
             
             const embed = trackHandler.createNowPlayingEmbed(currentTrack, {
                 volume: this.getVolume(guildId),
@@ -762,7 +786,10 @@ class MusicService {
                 isShuffled: this.isShuffled(guildId),
                 queueLength: queueList.length,
                 nextTrack: queueList[0] || null,
-                loopCount: loopCount
+                loopCount: loopCount,
+                voteSkipCount: voteSkipStatus.count,
+                voteSkipRequired: voteSkipStatus.required,
+                listenerCount: listenerCount
             });
             
             const rows = trackHandler.createControlButtons(guildId, {
@@ -770,7 +797,8 @@ class MusicService {
                 loopMode: this.getLoopMode(guildId),
                 isShuffled: this.isShuffled(guildId),
                 trackUrl: currentTrack.url,
-                userId: currentTrack.requestedBy?.id || ''
+                userId: currentTrack.requestedBy?.id || '',
+                listenerCount: listenerCount
             });
             
             await message.edit({ embeds: [embed], components: rows });

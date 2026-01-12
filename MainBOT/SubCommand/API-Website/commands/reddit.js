@@ -7,33 +7,61 @@ const postHandler = require('../handlers/redditPostHandler');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('reddit')
-        .setDescription('Fetches top posts from a subreddit')
-        .addStringOption(option =>
-            option.setName('subreddit')
-                .setDescription('The subreddit to fetch')
-                .setRequired(true)
-                .setAutocomplete(true)
-        )
-        .addStringOption(option =>
-            option.setName('sort')
-                .setDescription('How to sort the posts')
-                .setRequired(false)
-                .addChoices(
-                    { name: '🔥 Hot', value: 'hot' },
-                    { name: '⭐ Best', value: 'best' },
-                    { name: '🏆 Top', value: 'top' },
-                    { name: '🆕 New', value: 'new' },
-                    { name: '📈 Rising', value: 'rising' }
+        .setDescription('Fetches posts from Reddit')
+        .addSubcommand(sub =>
+            sub.setName('browse')
+                .setDescription('Browse a specific subreddit')
+                .addStringOption(option =>
+                    option.setName('subreddit')
+                        .setDescription('The subreddit to fetch')
+                        .setRequired(true)
+                        .setAutocomplete(true)
+                )
+                .addStringOption(option =>
+                    option.setName('sort')
+                        .setDescription('How to sort the posts')
+                        .setRequired(false)
+                        .addChoices(
+                            { name: '🔥 Hot', value: 'hot' },
+                            { name: '⭐ Best', value: 'best' },
+                            { name: '🏆 Top', value: 'top' },
+                            { name: '🆕 New', value: 'new' },
+                            { name: '📈 Rising', value: 'rising' }
+                        )
+                )
+                .addStringOption(option =>
+                    option.setName('count')
+                        .setDescription('Number of posts to fetch (default: 5)')
+                        .setRequired(false)
+                        .addChoices(
+                            { name: '5 posts', value: '5' },
+                            { name: '10 posts', value: '10' },
+                            { name: '15 posts', value: '15' }
+                        )
                 )
         )
-        .addStringOption(option =>
-            option.setName('count')
-                .setDescription('Number of posts to fetch (default: 5)')
-                .setRequired(false)
-                .addChoices(
-                    { name: '5 posts', value: '5' },
-                    { name: '10 posts', value: '10' },
-                    { name: '15 posts', value: '15' }
+        .addSubcommand(sub =>
+            sub.setName('trending')
+                .setDescription('See what\'s trending on Reddit right now')
+                .addStringOption(option =>
+                    option.setName('source')
+                        .setDescription('Where to get trending posts from')
+                        .setRequired(false)
+                        .addChoices(
+                            { name: '🌍 r/popular (Global)', value: 'popular' },
+                            { name: '🌐 r/all (Everything)', value: 'all' }
+                        )
+                )
+                .addStringOption(option =>
+                    option.setName('count')
+                        .setDescription('Number of posts to fetch (default: 10)')
+                        .setRequired(false)
+                        .addChoices(
+                            { name: '5 posts', value: '5' },
+                            { name: '10 posts', value: '10' },
+                            { name: '15 posts', value: '15' },
+                            { name: '20 posts', value: '20' }
+                        )
                 )
         ),
 
@@ -74,6 +102,17 @@ module.exports = {
             return interaction.reply({ embeds: [access.embed], ephemeral: true });
         }
 
+        const subcommand = interaction.options.getSubcommand();
+
+        if (subcommand === 'trending') {
+            return this.handleTrending(interaction);
+        }
+
+        // Default: browse subcommand
+        return this.handleBrowse(interaction);
+    },
+
+    async handleBrowse(interaction) {
         const subreddit = interaction.options.getString('subreddit').replace(/\s/g, '').trim();
         const sortBy = interaction.options.getString('sort') || 'top';
         const count = parseInt(interaction.options.getString('count') || '5');
@@ -132,9 +171,72 @@ module.exports = {
         redditCache.setPosts(interaction.user.id, filteredPosts);
         redditCache.setPage(interaction.user.id, 0);
         redditCache.setSort(interaction.user.id, sortBy);
-        redditCache.setNsfwChannel(interaction.user.id, isNsfwChannel); // Store NSFW status
+        redditCache.setNsfwChannel(interaction.user.id, isNsfwChannel);
 
         await postHandler.sendPostListEmbed(interaction, subreddit, filteredPosts, sortBy, 0, isNsfwChannel);
+    },
+
+    async handleTrending(interaction) {
+        const source = interaction.options.getString('source') || 'popular';
+        const count = parseInt(interaction.options.getString('count') || '10');
+        
+        const isNsfwChannel = interaction.channel?.nsfw || false;
+
+        await interaction.deferReply();
+
+        const sourceNames = {
+            popular: 'r/popular',
+            all: 'r/all'
+        };
+
+        const loadingEmbed = new EmbedBuilder()
+            .setTitle('🔥 Fetching Trending Posts...')
+            .setDescription(`Getting **${count}** hot posts from **${sourceNames[source]}**\n\nThis may take a moment...`)
+            .setColor('#FF4500')
+            .setThumbnail('https://www.redditstatic.com/desktop2x/img/favicon/android-icon-192x192.png')
+            .setFooter({ text: 'Powered by FumoBOT' })
+            .setTimestamp();
+
+        await interaction.editReply({ embeds: [loadingEmbed] });
+
+        await new Promise(resolve => setTimeout(resolve, Math.random() * 1000 + 1500));
+
+        let result;
+        if (source === 'all') {
+            result = await redditService.fetchAllPosts('hot', count);
+        } else {
+            result = await redditService.fetchTrendingPosts('global', count);
+        }
+
+        if (result.error || !result.posts || result.posts.length === 0) {
+            return interaction.editReply({
+                content: `⚠️ **Failed to fetch trending posts**\nPlease try again later.`
+            });
+        }
+
+        // Filter NSFW
+        let filteredPosts = result.posts;
+        if (!isNsfwChannel) {
+            filteredPosts = result.posts.filter(post => !post.nsfw);
+            if (filteredPosts.length === 0) {
+                const nsfwEmbed = new EmbedBuilder()
+                    .setTitle('🔞 NSFW Content Filtered')
+                    .setDescription(`Most trending posts are currently NSFW.\n\nTo view NSFW content, use this command in an **age-restricted channel**.`)
+                    .setColor('#ED4245')
+                    .setFooter({ text: 'Channel must be marked as NSFW in Discord settings' });
+                return interaction.editReply({ embeds: [nsfwEmbed] });
+            }
+        }
+
+        // Store in cache
+        redditCache.setPosts(interaction.user.id, filteredPosts);
+        redditCache.setPage(interaction.user.id, 0);
+        redditCache.setSort(interaction.user.id, 'hot');
+        redditCache.setNsfwChannel(interaction.user.id, isNsfwChannel);
+
+        // Use 'trending' as subreddit name for display
+        const displayName = source === 'all' ? 'all (Trending)' : 'popular (Trending)';
+        await postHandler.sendPostListEmbed(interaction, displayName, filteredPosts, 'hot', 0, isNsfwChannel);
     },
 
     async handleButton(interaction) {

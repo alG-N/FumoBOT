@@ -6,7 +6,7 @@
 
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require('discord.js');
 const musicCache = require('../Repository/MusicCache');
-const { fmtDur, formatViewCount } = require('../Utility/formatters');
+const { fmtDur } = require('../Utility/formatters');
 
 // Enhanced color scheme
 const COLORS = {
@@ -43,8 +43,13 @@ const DECORATIONS = {
     line: '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
     dotLine: '• • • • • • • • • • • • • • • • • • • •',
     sparkle: '✨',
-    music: '🎵'
+    music: '🎵',
+    disc: '💿'
 };
+
+// NOW PLAYING as emoji letters
+const NOW_PLAYING_EMOJI = '🇳 🇴 🇼  🇵 🇱 🇦 🇾 🇮 🇳 🇬';
+const PAUSED_EMOJI = '⏸️ 🇵 🇦 🇺 🇸 🇪 🇩';
 
 class TrackHandler {
     /**
@@ -70,7 +75,7 @@ class TrackHandler {
     }
 
     /**
-     * Create now playing embed - Clean version
+     * Create now playing embed - Clean version with 3 fields per row
      */
     createNowPlayingEmbed(track, options = {}) {
         const {
@@ -83,17 +88,19 @@ class TrackHandler {
             player = null,
             requester = null,
             nextTrack = null,
-            loopCount = 0
+            loopCount = 0,
+            voteSkipCount = 0,
+            voteSkipRequired = 0
         } = options;
 
         const sourceInfo = this._getSourceInfo(track);
         const color = isPaused ? COLORS.paused : COLORS.playing;
         const loopInfo = LOOP_DISPLAY[loopMode];
 
-        // Show loop count in status when track is looping
-        let statusIcon = isPaused ? '⏸️ PAUSED' : '🎵 NOW PLAYING';
+        // Spinning disc + NOW PLAYING as emoji letters
+        let statusIcon = isPaused ? PAUSED_EMOJI : `${DECORATIONS.disc} ${NOW_PLAYING_EMOJI}`;
         if (loopMode === 'track' && loopCount > 0) {
-            statusIcon = `🔂 NOW PLAYING (Looped ${loopCount} time${loopCount !== 1 ? 's' : ''})`;
+            statusIcon = `🔂 ${NOW_PLAYING_EMOJI} (Looped ${loopCount}x)`;
         }
 
         const embed = new EmbedBuilder()
@@ -102,39 +109,59 @@ class TrackHandler {
             .setTitle(track.title)
             .setURL(track.url);
 
-        // Build clean description
-        const descLines = [];
-        descLines.push(`**Artist:** ${track.author || 'Unknown Artist'}`);
-        descLines.push(`**Duration:** ${fmtDur(track.lengthSeconds)}`);
-        descLines.push(`**Source:** ${sourceInfo.emoji} ${sourceInfo.name}`);
+        // Determine search type (Link or Name search)
+        const searchTypeText = track.searchedByLink 
+            ? '[Link]' 
+            : track.originalQuery 
+                ? `[🔍 ${this._truncate(track.originalQuery, 20)}]`
+                : '[Search]';
 
-        embed.setDescription(descLines.join('\n'));
+        // Row 1: Artist, Duration, Source (3 inline)
+        embed.addFields(
+            { name: '🎤 Artist', value: track.author || 'Unknown Artist', inline: true },
+            { name: '⏱️ Duration', value: fmtDur(track.lengthSeconds), inline: true },
+            { name: `${sourceInfo.emoji} Source`, value: `${sourceInfo.name} ${searchTypeText}`, inline: true }
+        );
 
-        // Playback Settings - compact inline format
+        // Row 2: Volume, Playback (Loop mode), Shuffle (3 inline)
         const volBar = this._createVolumeBar(volume);
-        embed.addFields({
-            name: 'Playback Settings',
-            value: [
-                `${volBar} ${volume}%`,
-                `**Loop:** ${loopInfo.label}`,
-                `**Shuffle:** ${isShuffled ? 'On' : 'Off'}`
-            ].join('\n'),
-            inline: true
-        });
+        embed.addFields(
+            { name: '🔊 Volume', value: `${volBar} ${volume}%`, inline: true },
+            { name: '🔁 Playback', value: `${loopInfo.emoji} ${loopInfo.label}`, inline: true },
+            { name: '🔀 Shuffle', value: isShuffled ? '✅ On' : '➡️ Off', inline: true }
+        );
 
-        // Queue info - only if there's a queue
-        if (queueLength > 0 || nextTrack) {
-            const queueLines = [];
-            queueLines.push(`**${queueLength}** song${queueLength !== 1 ? 's' : ''} in queue`);
-            
-            if (nextTrack) {
-                queueLines.push(`**Up Next:** ${this._truncate(nextTrack.title, 30)}`);
-            }
-            
-            embed.addFields({
-                name: 'Queue',
-                value: queueLines.join('\n'),
-                inline: true
+        // Row 3: Looped count, Vote-skip, Queue size (3 inline)
+        let loopedText = '—';
+        if (loopMode === 'track') {
+            loopedText = loopCount > 0 ? `🔂 ${loopCount}x` : '🔂 Active';
+        } else if (loopMode === 'queue') {
+            loopedText = '🔁 Queue';
+        }
+        
+        // Vote skip display logic
+        let voteSkipText;
+        if (voteSkipRequired <= 1) {
+            voteSkipText = '✅ Skippable';
+        } else {
+            voteSkipText = `${voteSkipCount} / ${voteSkipRequired}`;
+        }
+        
+        // Queue size text
+        const queueSizeText = queueLength > 0 ? `${queueLength} song${queueLength !== 1 ? 's' : ''}` : 'Empty';
+        
+        embed.addFields(
+            { name: '🔂 Looped', value: loopedText, inline: true },
+            { name: '🗳️ Vote-skip', value: voteSkipText, inline: true },
+            { name: '📋 Queue', value: queueSizeText, inline: true }
+        );
+
+        // Up Next info - only if there's a next track (single row)
+        if (nextTrack) {
+            embed.addFields({ 
+                name: '⏭️ Up Next', 
+                value: `${this._truncate(nextTrack.title, 50)} • ${nextTrack.author || 'Unknown'}`, 
+                inline: false 
             });
         }
 
@@ -228,12 +255,7 @@ class TrackHandler {
                 .setCustomId(`music_queue:${guildId}`)
                 .setLabel('Queue')
                 .setEmoji('📋')
-                .setStyle(ButtonStyle.Primary),
-            new ButtonBuilder()
-                .setCustomId(`music_fav:${guildId}:${userId}`)
-                .setLabel('Favorite')
-                .setEmoji(musicCache.isFavorited(userId, trackUrl) ? '💖' : '🤍')
-                .setStyle(musicCache.isFavorited(userId, trackUrl) ? ButtonStyle.Success : ButtonStyle.Secondary)
+                .setStyle(ButtonStyle.Primary)
         );
         rows.push(volumeRow);
 
@@ -250,13 +272,23 @@ class TrackHandler {
                     .setCustomId(`music_lyrics:${guildId}`)
                     .setLabel('Lyrics')
                     .setEmoji('📝')
-                    .setStyle(ButtonStyle.Primary),
-                new ButtonBuilder()
-                    .setCustomId(`music_voteskip:${guildId}`)
-                    .setLabel('Vote Skip')
-                    .setEmoji('🗳️')
-                    .setStyle(ButtonStyle.Secondary)
+                    .setStyle(ButtonStyle.Primary)
             );
+            
+            // Vote skip button - disabled if only 1 listener (can skip directly)
+            const voteSkipButton = new ButtonBuilder()
+                .setCustomId(`music_voteskip:${guildId}`)
+                .setEmoji('🗳️')
+                .setStyle(ButtonStyle.Secondary);
+            
+            if (options.listenerCount <= 1) {
+                voteSkipButton.setLabel('Vote Skip')
+                    .setDisabled(true);
+            } else {
+                voteSkipButton.setLabel('Vote Skip');
+            }
+            extraRow.addComponents(voteSkipButton);
+            
             rows.push(extraRow);
         }
 
@@ -597,16 +629,18 @@ class TrackHandler {
     /**
      * Create queue finished embed - Enhanced
      */
-    createQueueFinishedEmbed() {
+    createQueueFinishedEmbed(lastTrack = null) {
+        const songFinishedText = lastTrack 
+            ? `**${this._truncate(lastTrack.title, 50)}** has finished playing.`
+            : 'All songs have finished playing.';
+        
         return new EmbedBuilder()
             .setColor(COLORS.info)
             .setAuthor({ name: '📋 Queue Complete' })
-            .setTitle('🎵 All done!')
             .setDescription(
-                `${DECORATIONS.line}\n\n` +
+                `${songFinishedText}\n\n` +
                 `The queue is now empty.\n` +
-                `Use \`/music play\` to add more songs!\n\n` +
-                `${DECORATIONS.line}`
+                `Use \`/music play\` to add more songs!`
             )
             .setTimestamp();
     }
@@ -831,11 +865,9 @@ class TrackHandler {
             .setTitle(track.title)
             .setURL(track.url)
             .setDescription(
-                `${DECORATIONS.line}\n\n` +
                 `This track is **${fmtDur(track.lengthSeconds)}** long!\n\n` +
                 `Your current limit is set to **${fmtDur(maxDuration)}**.\n\n` +
-                `Do you want to add it anyway?\n\n` +
-                `${DECORATIONS.line}`
+                `Do you want to add it anyway?`
             );
 
         if (track.thumbnail) {

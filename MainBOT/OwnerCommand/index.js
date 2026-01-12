@@ -16,7 +16,7 @@ const GuildTrackingService = require('./Service/GuildTrackingService');
 const botcheckCommand = require('./Commands/botcheck');
 const adminCommand = require('./Commands/admin');
 const botbanCommand = require('./Commands/botban');
-const ticketCommand = require('./Commands/ticket');
+const announcementCommand = require('./Commands/announcement');
 
 // UTILITIES
 
@@ -44,7 +44,7 @@ const slashCommands = [
     botcheckCommand,
     adminCommand,
     botbanCommand,
-    ticketCommand
+    announcementCommand
 ].filter(cmd => cmd?.data?.name);
 
 // MODULE EXPORTS
@@ -58,7 +58,7 @@ module.exports = {
     botcheckCommand,
     adminCommand,
     botbanCommand,
-    ticketCommand,
+    announcementCommand,
     
     // Guild Tracking
     initializeGuildTracking,
@@ -72,6 +72,10 @@ module.exports = {
     // Ban Functions
     isUserBanned,
     isBanned: isUserBanned,
+    
+    // Maintenance Mode
+    isMaintenanceModeEnabled: () => announcementCommand.isMaintenanceModeEnabled(),
+    getMaintenanceInfo: () => announcementCommand.getMaintenanceInfo(),
     
     // Utilities
     ownerUtils
