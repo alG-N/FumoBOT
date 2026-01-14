@@ -15,6 +15,7 @@ class VideoDownloadService extends EventEmitter {
         super();
         this.tempDir = path.join(__dirname, '..', 'temp');
         this.currentDownload = null;
+        this.initialized = false;
         this._setupEventForwarding();
     }
 
@@ -42,6 +43,8 @@ class VideoDownloadService extends EventEmitter {
     }
 
     async initialize() {
+        if (this.initialized) return;
+        
         // Ensure temp directory exists
         if (!fs.existsSync(this.tempDir)) {
             fs.mkdirSync(this.tempDir, { recursive: true });
@@ -54,6 +57,8 @@ class VideoDownloadService extends EventEmitter {
         await ffmpegService.initialize();
         
         this.startCleanupInterval();
+        this.initialized = true;
+        console.log('✅ VideoDownloadService initialized');
     }
 
     /**
@@ -63,8 +68,16 @@ class VideoDownloadService extends EventEmitter {
      * @returns {Promise<Object>} Download result
      */
     async downloadVideo(url, options = {}) {
+        // Auto-initialize on first use
+        if (!this.initialized) {
+            await this.initialize();
+        }
+        
         const timestamp = Date.now();
-        const { onProgress, onStage } = options;
+        const { onProgress, onStage, compress = false, quality } = options;
+        
+        // Use provided quality or fall back to config default
+        const videoQuality = quality || videoConfig.COBALT_VIDEO_QUALITY || '720';
         
         // Setup temporary event listeners if callbacks provided
         const progressHandler = onProgress ? (data) => onProgress(data) : null;
@@ -82,14 +95,14 @@ class VideoDownloadService extends EventEmitter {
             // Try Cobalt first
             this.emit('stage', { stage: 'connecting', message: 'Connecting to Cobalt...', method: 'Cobalt' });
             try {
-                videoPath = await cobaltService.downloadVideo(url, this.tempDir);
+                videoPath = await cobaltService.downloadVideo(url, this.tempDir, { quality: videoQuality });
             } catch (cobaltError) {
                 console.log(`⚠️ Cobalt failed: ${cobaltError.message}, trying yt-dlp fallback...`);
                 this.emit('stage', { stage: 'fallback', message: 'Cobalt failed, trying yt-dlp...', method: 'yt-dlp' });
                 
                 // Fallback to yt-dlp
                 try {
-                    videoPath = await ytDlpService.downloadVideo(url, this.tempDir);
+                    videoPath = await ytDlpService.downloadVideo(url, this.tempDir, { quality: videoQuality });
                     downloadMethod = 'yt-dlp';
                 } catch (ytdlpError) {
                     // Both failed, throw combined error
@@ -114,14 +127,15 @@ class VideoDownloadService extends EventEmitter {
             const initialStats = fs.statSync(videoPath);
             const initialSizeMB = initialStats.size / (1024 * 1024);
 
-            // Try to compress if needed (will skip if FFmpeg unavailable)
+            // Compress only if user explicitly requested
             let finalPath = videoPath;
             let wasCompressed = false;
             
-            if (initialSizeMB > videoConfig.TARGET_COMPRESSION_MB) {
+            if (compress) {
                 try {
                     this.emit('stage', { stage: 'compressing', message: 'Compressing video...', method: 'FFmpeg' });
-                    finalPath = await ffmpegService.compressVideo(videoPath, videoConfig.TARGET_COMPRESSION_MB);
+                    // Target 24MB for compression to fit under standard Discord limit
+                    finalPath = await ffmpegService.compressVideo(videoPath, 24);
                     wasCompressed = finalPath !== videoPath;
                 } catch (compressError) {
                     console.log('⚠️ Compression skipped:', compressError.message);

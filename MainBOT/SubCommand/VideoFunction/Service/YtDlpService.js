@@ -84,7 +84,7 @@ class YtDlpService extends EventEmitter {
      * @param {string} tempDir - Temp directory path (used for final file location)
      * @returns {Promise<string>} - Path to downloaded file
      */
-    async downloadVideo(url, tempDir) {
+    async downloadVideo(url, tempDir, options = {}) {
         if (!this.initialized) {
             await this.initialize();
         }
@@ -106,8 +106,8 @@ class YtDlpService extends EventEmitter {
         this.emit('stage', { stage: 'analyzing', message: 'Analyzing video with yt-dlp...' });
 
         return new Promise((resolve, reject) => {
-            // Build quality format string based on config
-            const quality = videoConfig.COBALT_VIDEO_QUALITY || '480';
+            // Build quality format string - use provided quality or fall back to config
+            const quality = options.quality || videoConfig.YTDLP_VIDEO_QUALITY || videoConfig.COBALT_VIDEO_QUALITY || '720';
             const formatString = `bestvideo[height<=${quality}]+bestaudio/best[height<=${quality}]/best`;
             
             // Use docker exec on persistent container
@@ -128,7 +128,7 @@ class YtDlpService extends EventEmitter {
                 '--newline',
             ];
 
-            console.log(`🔗 yt-dlp (Docker) downloading: ${url}`);
+            console.log(`📥 yt-dlp downloading (${quality}p): ${url.substring(0, 50)}...`);
             this.emit('stage', { stage: 'downloading', message: 'Downloading with yt-dlp...' });
 
             const dockerProcess = spawn('docker', dockerArgs, {

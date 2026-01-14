@@ -674,6 +674,25 @@ client.on('interactionCreate', async interaction => {
             return;
         }
 
+        // Video button handlers (compress retry)
+        if (interaction.customId.startsWith('video_')) {
+            const videoCommand = client.commands.get('video');
+            if (videoCommand && videoCommand.handleButton) {
+                try {
+                    await videoCommand.handleButton(interaction);
+                } catch (error) {
+                    console.error('Video button handler error:', error);
+                    if (!interaction.replied && !interaction.deferred) {
+                        await interaction.reply({
+                            content: '❌ An error occurred. Please try again.',
+                            ephemeral: true
+                        }).catch(() => {});
+                    }
+                }
+            }
+            return;
+        }
+
         return;
     }
 

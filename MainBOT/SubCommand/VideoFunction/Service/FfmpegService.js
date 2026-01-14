@@ -121,13 +121,24 @@ class FFmpegService extends EventEmitter {
 
             process.on('close', (code) => {
                 if (code === 0 && fs.existsSync(outputPath)) {
+                    const compressedStats = fs.statSync(outputPath);
+                    const compressedSizeMB = compressedStats.size / (1024 * 1024);
+                    
+                    // Check if compression actually made it smaller
+                    if (compressedSizeMB >= currentSizeMB) {
+                        console.log(`⚠️ Compression didn't reduce size (${compressedSizeMB.toFixed(2)}MB >= ${currentSizeMB.toFixed(2)}MB), using original`);
+                        try {
+                            fs.unlinkSync(outputPath);
+                        } catch (e) {}
+                        resolve(inputPath);
+                        return;
+                    }
+                    
                     try {
                         fs.unlinkSync(inputPath);
                     } catch (e) {}
 
-                    const compressedStats = fs.statSync(outputPath);
-                    const compressedSizeMB = compressedStats.size / (1024 * 1024);
-                    console.log(`✅ Compressed to ${compressedSizeMB.toFixed(2)}MB`);
+                    console.log(`✅ Compressed from ${currentSizeMB.toFixed(2)}MB to ${compressedSizeMB.toFixed(2)}MB`);
                     
                     this.emit('compressionComplete', { 
                         originalSize: currentSizeMB, 

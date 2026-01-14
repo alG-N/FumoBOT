@@ -66,6 +66,11 @@ module.exports = {
                     { name: '🎬 Full HD (1080p) - Best quality', value: '1080' }
                 )
                 .setRequired(false)
+        )
+        .addBooleanOption(option =>
+            option.setName('compress')
+                .setDescription('Compress video to fit Discord limit (slower but ensures upload)')
+                .setRequired(false)
         ),
 
     async execute(interaction) {
@@ -170,7 +175,8 @@ module.exports = {
     /**
      * Handle download with progress updates
      */
-    async handleDownload(interaction, url, platform, quality) {
+    async handleDownload(interaction, url, platform, quality, forceCompress = false) {
+        const compress = forceCompress || interaction.options?.getBoolean('compress') || false;
         let lastUpdateTime = 0;
         const UPDATE_INTERVAL = 1500; // Update embed every 1.5 seconds to avoid rate limits
         let currentStage = 'initializing';
@@ -230,14 +236,35 @@ module.exports = {
             // Show connecting stage
             await updateProgress('connecting');
 
-            const result = await videoDownloadService.downloadVideo(url);
+            const result = await videoDownloadService.downloadVideo(url, { compress, quality });
 
-            // Check file size
+            // Check file size - offer compression retry if too large and wasn't already compressed
             if (result.size > videoConfig.MAX_FILE_SIZE_MB) {
                 if (fs.existsSync(result.path)) {
                     fs.unlinkSync(result.path);
                 }
 
+                // If compression wasn't used, offer retry with compression
+                if (!compress) {
+                    const tooLargeEmbed = new EmbedBuilder()
+                        .setColor('#FFA500')
+                        .setTitle('📦 File Too Large')
+                        .setDescription(`The video is **${result.size.toFixed(2)} MB** but max allowed is **${videoConfig.MAX_FILE_SIZE_MB} MB**.\n\nClick the button below to compress and try again.`)
+                        .setFooter({ text: 'Compression may take a moment' });
+
+                    const retryButton = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder()
+                            .setCustomId(`video_compress_retry:${url}`)
+                            .setLabel('Compress & Retry')
+                            .setStyle(ButtonStyle.Primary)
+                            .setEmoji('🗜️')
+                    );
+
+                    await interaction.editReply({ embeds: [tooLargeEmbed], components: [retryButton] });
+                    return;
+                }
+
+                // If already compressed but still too large
                 const errorEmbed = videoEmbedBuilder.buildFileTooLargeEmbed(
                     result.size, 
                     videoConfig.MAX_FILE_SIZE_MB
@@ -302,6 +329,45 @@ module.exports = {
             videoDownloadService.off('stage', stageHandler);
             videoDownloadService.off('progress', progressHandler);
             videoDownloadService.off('compressionProgress', compressionHandler);
+        }
+    },
+
+    /**
+     * Handle button interactions (compress retry)
+     */
+    async handleButton(interaction) {
+        if (!interaction.customId.startsWith('video_compress_retry:')) {
+            return;
+        }
+
+        // Check if user is the original requester
+        if (interaction.user.id !== interaction.message.interaction?.user?.id) {
+            return interaction.reply({
+                content: '❌ Only the original requester can use this button.',
+                ephemeral: true
+            });
+        }
+
+        const url = interaction.customId.replace('video_compress_retry:', '');
+        const platform = platformDetector.detect(url);
+
+        await interaction.deferUpdate();
+
+        // Update message to show compressing
+        const compressingEmbed = new EmbedBuilder()
+            .setColor('#00BFFF')
+            .setTitle('🗜️ Compressing Video...')
+            .setDescription('Downloading and compressing. This may take a moment.')
+            .setFooter({ text: `Platform: ${platform.name}` });
+
+        await interaction.editReply({ embeds: [compressingEmbed], components: [] });
+
+        // Re-run download with compression forced
+        activeDownloads.add(interaction.user.id);
+        try {
+            await this.handleDownload(interaction, url, platform, null, true);
+        } finally {
+            activeDownloads.delete(interaction.user.id);
         }
     }
 };

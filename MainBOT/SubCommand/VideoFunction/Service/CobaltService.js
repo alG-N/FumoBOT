@@ -28,13 +28,14 @@ class CobaltService extends EventEmitter {
         this.emit('apiSwitch', { api: this.apiUrl });
     }
 
-    async downloadVideo(url, tempDir) {
+    async downloadVideo(url, tempDir, options = {}) {
         if (!fs.existsSync(tempDir)) {
             fs.mkdirSync(tempDir, { recursive: true });
         }
 
         const timestamp = Date.now();
         let lastError = null;
+        this.currentQuality = options.quality || videoConfig.COBALT_VIDEO_QUALITY || '720';
 
         this.emit('stage', { stage: 'connecting', message: 'Connecting to Cobalt API...' });
 
@@ -46,7 +47,7 @@ class CobaltService extends EventEmitter {
                 return result;
             } catch (error) {
                 lastError = error;
-                console.error(`❌ Cobalt API ${this.apiUrl} failed:`, error.message);
+                console.log(`⚠️ Cobalt failed: ${error.message}`);
                 this.emit('error', { api: this.apiUrl, error: error.message });
                 this.switchApi();
             }
@@ -97,9 +98,11 @@ class CobaltService extends EventEmitter {
     _requestDownload(url) {
         return new Promise((resolve, reject) => {
             // Cobalt API format - use configured quality
+            // Note: audioBitrate requires audioFormat to be set
             const requestBody = JSON.stringify({
                 url: url,
-                videoQuality: videoConfig.COBALT_VIDEO_QUALITY || '480',
+                videoQuality: this.currentQuality || videoConfig.COBALT_VIDEO_QUALITY || '720',
+                audioFormat: 'mp3',
                 audioBitrate: videoConfig.COBALT_AUDIO_BITRATE || '128',
                 filenameStyle: 'basic'
             });
