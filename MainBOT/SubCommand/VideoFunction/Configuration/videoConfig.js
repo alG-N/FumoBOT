@@ -6,11 +6,19 @@
 
     // Quality Settings
     COBALT_VIDEO_QUALITY: '720',     // 720p for good balance of quality/size
-    COBALT_AUDIO_BITRATE: '192',     // Good audio quality
 
     // yt-dlp Quality Settings (fallback downloader)
     YTDLP_VIDEO_QUALITY: '720',      // Max video height for yt-dlp
     YTDLP_AUDIO_QUALITY: '192',      // Audio bitrate for yt-dlp
+
+    // Mobile Compatibility Settings
+    // Converts videos to H.264+AAC for proper playback on phones
+    // Without this, some videos show only thumbnail on mobile devices
+    ENABLE_MOBILE_PROCESSING: true,  // Enable FFmpeg re-encoding for mobile
+    MOBILE_VIDEO_CODEC: 'libx264',   // H.264 codec (universal support)
+    MOBILE_AUDIO_CODEC: 'aac',       // AAC audio codec
+    MOBILE_CRF: '23',                // Quality (18-28, lower = better)
+    MOBILE_PRESET: 'fast',           // Encoding speed (ultrafast, fast, medium, slow)
 
     // File Size Settings
     MAX_FILE_SIZE_MB: 500,            // Max file size (for boosted servers)
@@ -44,7 +52,7 @@
 
     // Messages
     MESSAGES: {
-        DOWNLOAD_TIP: ' *Tip: Use /video method:link for direct links (faster but may expire)*',
+        DOWNLOAD_TIP: ' *Tip: Lower quality = faster download & smaller file size*',
         SUCCESS_TIP: '> *Video will be attached below* ',
     },
 

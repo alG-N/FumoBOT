@@ -69,8 +69,6 @@ class VideoEmbedBuilder {
                 `\`${progressBar}\``,
                 '',
                 `${currentStage.text}`,
-                '',
-                '> 💡 *Tip: Use `/video method:link` for direct links (faster but may expire)*'
             ].join('\n'))
             .setColor(color)
             .setFooter({ text: '🎬 Video Downloader • Processing your request' })
@@ -100,14 +98,16 @@ class VideoEmbedBuilder {
             processing: '⚙️',
             compressing: '📦',
             uploading: '☁️',
+            fallback: '🔄',
         };
 
         const stageTexts = {
             connecting: 'Connecting...',
             downloading: 'Downloading...',
-            processing: 'Processing...',
+            processing: 'Optimizing for mobile...',
             compressing: 'Compressing...',
             uploading: 'Uploading...',
+            fallback: 'Trying alternate method...',
         };
 
         const description = [

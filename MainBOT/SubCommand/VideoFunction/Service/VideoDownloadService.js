@@ -3,6 +3,7 @@ const fs = require('fs');
 const { EventEmitter } = require('events');
 const cobaltService = require('./CobaltService');
 const ytDlpService = require('./YtDlpService');
+const videoProcessingService = require('./VideoProcessingService');
 const videoConfig = require('../Configuration/videoConfig');
 
 /**
@@ -33,6 +34,10 @@ class VideoDownloadService extends EventEmitter {
         ytDlpService.on('progress', (data) => this.emit('progress', { ...data, method: 'yt-dlp' }));
         ytDlpService.on('complete', (data) => this.emit('downloadComplete', { ...data, method: 'yt-dlp' }));
         ytDlpService.on('error', (data) => this.emit('downloadError', { ...data, method: 'yt-dlp' }));
+
+        // Forward video processing events
+        videoProcessingService.on('stage', (data) => this.emit('stage', { ...data, method: 'Processing' }));
+        videoProcessingService.on('progress', (data) => this.emit('progress', { ...data, method: 'Processing' }));
     }
 
     async initialize() {
@@ -45,6 +50,9 @@ class VideoDownloadService extends EventEmitter {
 
         // Initialize yt-dlp as fallback
         await ytDlpService.initialize();
+        
+        // Initialize video processing service for mobile compatibility
+        await videoProcessingService.initialize();
         
         this.startCleanupInterval();
         this.initialized = true;
@@ -106,13 +114,30 @@ class VideoDownloadService extends EventEmitter {
             }
             
             // Get file size
-            const stats = fs.statSync(videoPath);
-            const fileSizeMB = stats.size / (1024 * 1024);
+            let stats = fs.statSync(videoPath);
+            let fileSizeMB = stats.size / (1024 * 1024);
             
             // Check if file is empty
             if (fileSizeMB === 0) {
                 fs.unlinkSync(videoPath);
                 throw new Error('Downloaded file is empty. The video may be unavailable or protected.');
+            }
+
+            // Process video for mobile compatibility (converts WebM/VP9/AV1 to H.264+AAC)
+            // This ensures videos play properly on phones instead of showing just thumbnail
+            this.emit('stage', { stage: 'processing', message: 'Optimizing for mobile...', method: 'Processing' });
+            try {
+                const processedPath = await videoProcessingService.processForMobile(videoPath);
+                if (processedPath !== videoPath) {
+                    videoPath = processedPath;
+                    // Update file size after processing
+                    stats = fs.statSync(videoPath);
+                    fileSizeMB = stats.size / (1024 * 1024);
+                    console.log(`✅ Video converted for mobile compatibility`);
+                }
+            } catch (processError) {
+                console.warn(`⚠️ Mobile processing failed, using original: ${processError.message}`);
+                // Continue with original file if processing fails
             }
 
             const extension = path.extname(videoPath).toLowerCase();
@@ -179,8 +204,13 @@ class VideoDownloadService extends EventEmitter {
         }
     }
 
-    async getDirectUrl(url) {
+    async getDirectUrl(url, options = {}) {
+        const quality = options.quality || videoConfig.COBALT_VIDEO_QUALITY || '720';
+        
         try {
+            // Set quality for Cobalt before requesting
+            cobaltService.currentQuality = quality;
+            
             // Try Cobalt first for direct URL
             const info = await cobaltService.getVideoInfo(url);
             

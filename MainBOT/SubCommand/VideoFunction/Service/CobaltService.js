@@ -93,13 +93,11 @@ class CobaltService extends EventEmitter {
 
     _requestDownload(url) {
         return new Promise((resolve, reject) => {
-            // Cobalt API format - use configured quality
-            // Note: audioBitrate requires audioFormat to be set
+            // Cobalt API format (v10+ compatible)
+            // Note: audioBitrate is NOT supported in newer Cobalt versions
             const requestBody = JSON.stringify({
                 url: url,
                 videoQuality: this.currentQuality || videoConfig.COBALT_VIDEO_QUALITY || '720',
-                audioFormat: 'mp3',
-                audioBitrate: videoConfig.COBALT_AUDIO_BITRATE || '128',
                 filenameStyle: 'basic'
             });
 

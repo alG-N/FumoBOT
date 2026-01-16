@@ -48,16 +48,6 @@ module.exports = {
                 .setRequired(true)
         )
         .addStringOption(option =>
-            option.setName('method')
-                .setDescription('Delivery method')
-                .addChoices(
-                    { name: '📥 Auto (Download and upload)', value: 'auto' },
-                    { name: '🔗 Direct Link (may expire quickly)', value: 'link' },
-                    { name: '💾 Download File', value: 'download' }
-                )
-                .setRequired(false)
-        )
-        .addStringOption(option =>
             option.setName('quality')
                 .setDescription('Video quality preference')
                 .addChoices(
@@ -101,7 +91,6 @@ module.exports = {
         await interaction.deferReply();
 
         const url = interaction.options.getString('url');
-        const method = interaction.options.getString('method') || 'auto';
         const quality = interaction.options.getString('quality') || videoConfig.COBALT_VIDEO_QUALITY;
         const platform = platformDetector.detect(url);
 
@@ -114,19 +103,13 @@ module.exports = {
         const loadingEmbed = videoEmbedBuilder.buildLoadingEmbed(platform.name, platform.id, 'initializing');
         await interaction.editReply({ embeds: [loadingEmbed] });
 
-        // Handle direct link method (no cooldown for links)
-        if (method === 'link') {
-            await this.handleDirectLink(interaction, url, platform);
-            return;
-        }
-
         // Set cooldown and track active download
         setCooldown(userId);
         activeDownloads.add(userId);
 
         try {
-            // Handle download methods (auto and download)
-            await this.handleDownload(interaction, url, platform, quality);
+            // Download and upload to Discord
+            await this.handleUpload(interaction, url, platform, quality);
         } finally {
             // Always remove from active downloads
             activeDownloads.delete(userId);
@@ -134,43 +117,9 @@ module.exports = {
     },
 
     /**
-     * Handle direct link request
+     * Handle video download and upload to Discord
      */
-    async handleDirectLink(interaction, url, platform) {
-        try {
-            const analyzeEmbed = videoEmbedBuilder.buildLoadingEmbed(platform.name, platform.id, 'analyzing');
-            await interaction.editReply({ embeds: [analyzeEmbed] });
-
-            const directInfo = await videoDownloadService.getDirectUrl(url);
-            
-            if (directInfo) {
-                const embed = videoEmbedBuilder.buildDirectLinkEmbed(
-                    directInfo.title,
-                    directInfo.directUrl,
-                    directInfo.size,
-                    directInfo.thumbnail
-                );
-
-                await interaction.editReply({ 
-                    content: `⚠️ **Direct links expire quickly!**\n${directInfo.directUrl}`,
-                    embeds: [embed]
-                });
-                return;
-            }
-
-            const errorEmbed = videoEmbedBuilder.buildDirectLinkNotAvailableEmbed();
-            await interaction.editReply({ embeds: [errorEmbed] });
-        } catch (error) {
-            console.error('❌ Direct link error:', error.message);
-            const errorEmbed = videoEmbedBuilder.buildDownloadFailedEmbed(error.message);
-            await interaction.editReply({ embeds: [errorEmbed] });
-        }
-    },
-
-    /**
-     * Handle download with progress updates
-     */
-    async handleDownload(interaction, url, platform, quality) {
+    async handleUpload(interaction, url, platform, quality) {
         let lastUpdateTime = 0;
         const UPDATE_INTERVAL = 1500; // Update embed every 1.5 seconds to avoid rate limits
         let currentStage = 'initializing';
@@ -275,11 +224,11 @@ module.exports = {
                         .setColor('#FF6B6B')
                         .setTitle('📦 File Too Large')
                         .setDescription(
-                            `The video is **${result.size.toFixed(2)} MB** which exceeds your upload limit.\n\n` +
-                            `⭐ **Discord Nitro** users can upload files up to **500 MB**!\n\n` +
-                            `💡 **Tip:** Use \`/video method:link\` to get a direct download link instead!`
+                            `The video is **${result.size.toFixed(2)} MB** which exceeds Discord's upload limit.\n\n` +
+                            `💡 **Try:** Lower quality (480p) for smaller file size\n` +
+                            `⭐ **Discord Nitro** users can upload files up to **500 MB**!`
                         )
-                        .setFooter({ text: 'Upload limits are based on your Nitro status' });
+                        .setFooter({ text: 'Upload limits are based on server boost level & Nitro status' });
                 } else {
                     errorEmbed = videoEmbedBuilder.buildDownloadFailedEmbed(
                         `Upload failed: ${uploadError.message}`
