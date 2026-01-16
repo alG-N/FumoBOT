@@ -88,10 +88,6 @@ class CobaltService extends EventEmitter {
             filename: downloadInfo.filename 
         });
 
-        if (fileSizeInMB > videoConfig.MAX_FILE_SIZE_MB) {
-            console.log(`⚠️ Video is ${fileSizeInMB.toFixed(2)}MB, will attempt compression`);
-        }
-
         return outputPath;
     }
 

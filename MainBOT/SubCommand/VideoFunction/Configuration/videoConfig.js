@@ -13,10 +13,10 @@
     YTDLP_AUDIO_QUALITY: '192',      // Audio bitrate for yt-dlp
 
     // File Size Settings
-    MAX_FILE_SIZE_MB: 50,            // Max file size (Discord Nitro limit)
+    MAX_FILE_SIZE_MB: 500,            // Max file size (for boosted servers)
 
     // Duration & Abuse Prevention
-    MAX_VIDEO_DURATION_SECONDS: 300,
+    MAX_VIDEO_DURATION_SECONDS: 600, // 10 minutes max
     MAX_CONCURRENT_DOWNLOADS: 3,
     USER_COOLDOWN_SECONDS: 30,
 
@@ -32,12 +32,6 @@
     BUFFER_SIZE: '8M',               // Increased from 4M to 8M
     CONCURRENT_FRAGMENTS: 8,
 
-    // FFmpeg Compression Settings - Optimized for speed
-    FFMPEG_PRESET: 'veryfast',       // Fast compression (options: ultrafast, superfast, veryfast, faster, fast, medium)
-    FFMPEG_CRF: '28',                // Higher CRF = smaller file, lower quality (23-28 is good range)
-    AUDIO_BITRATE: '128k',           // Audio bitrate for compression
-    VIDEO_BITRATE: '1500k',          // Max video bitrate for compression
-
     // UI Settings
     UI: {
         PROGRESS_UPDATE_INTERVAL: 1500,
@@ -51,7 +45,6 @@
     // Messages
     MESSAGES: {
         DOWNLOAD_TIP: ' *Tip: Use /video method:link for direct links (faster but may expire)*',
-        COMPRESSION_TIP: ' *Video is being compressed to fit Discord\'s file limit*',
         SUCCESS_TIP: '> *Video will be attached below* ',
     },
 

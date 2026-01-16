@@ -3,11 +3,10 @@ const fs = require('fs');
 const { EventEmitter } = require('events');
 const cobaltService = require('./CobaltService');
 const ytDlpService = require('./YtDlpService');
-const ffmpegService = require('./FFmpegService');
 const videoConfig = require('../Configuration/videoConfig');
 
 /**
- * VideoDownloadService - Cobalt-only implementation
+ * VideoDownloadService - Cobalt with yt-dlp fallback
  * Uses self-hosted Cobalt API for video downloads
  */
 class VideoDownloadService extends EventEmitter {
@@ -34,12 +33,6 @@ class VideoDownloadService extends EventEmitter {
         ytDlpService.on('progress', (data) => this.emit('progress', { ...data, method: 'yt-dlp' }));
         ytDlpService.on('complete', (data) => this.emit('downloadComplete', { ...data, method: 'yt-dlp' }));
         ytDlpService.on('error', (data) => this.emit('downloadError', { ...data, method: 'yt-dlp' }));
-
-        // Forward FFmpeg events
-        ffmpegService.on('stage', (data) => this.emit('stage', { ...data, method: 'FFmpeg' }));
-        ffmpegService.on('progress', (data) => this.emit('compressionProgress', data));
-        ffmpegService.on('compressionStart', (data) => this.emit('compressionStart', data));
-        ffmpegService.on('compressionComplete', (data) => this.emit('compressionComplete', data));
     }
 
     async initialize() {
@@ -52,9 +45,6 @@ class VideoDownloadService extends EventEmitter {
 
         // Initialize yt-dlp as fallback
         await ytDlpService.initialize();
-
-        // FFmpeg is needed for compression
-        await ffmpegService.initialize();
         
         this.startCleanupInterval();
         this.initialized = true;
@@ -74,7 +64,7 @@ class VideoDownloadService extends EventEmitter {
         }
         
         const timestamp = Date.now();
-        const { onProgress, onStage, compress = false, quality } = options;
+        const { onProgress, onStage, quality } = options;
         
         // Use provided quality or fall back to config default
         const videoQuality = quality || videoConfig.COBALT_VIDEO_QUALITY || '720';
@@ -110,55 +100,31 @@ class VideoDownloadService extends EventEmitter {
                 }
             }
             
-            // Check video duration (5 minute limit for short videos only)
-            const maxDurationSeconds = videoConfig.MAX_VIDEO_DURATION_SECONDS || 300;
-            const duration = await ffmpegService._getVideoDuration(videoPath);
-            
-            if (duration > maxDurationSeconds) {
-                // Delete the downloaded file
-                if (fs.existsSync(videoPath)) {
-                    fs.unlinkSync(videoPath);
-                }
-                const maxMinutes = Math.floor(maxDurationSeconds / 60);
-                throw new Error(`Video too long! Max duration is ${maxMinutes} minutes. This video is ${Math.floor(duration / 60)} minutes.`);
+            // Verify file exists and get size
+            if (!fs.existsSync(videoPath)) {
+                throw new Error('Download completed but file not found');
             }
             
-            // Get initial file size
-            const initialStats = fs.statSync(videoPath);
-            const initialSizeMB = initialStats.size / (1024 * 1024);
-
-            // Compress only if user explicitly requested
-            let finalPath = videoPath;
-            let wasCompressed = false;
+            // Get file size
+            const stats = fs.statSync(videoPath);
+            const fileSizeMB = stats.size / (1024 * 1024);
             
-            if (compress) {
-                try {
-                    this.emit('stage', { stage: 'compressing', message: 'Compressing video...', method: 'FFmpeg' });
-                    // Target 24MB for compression to fit under standard Discord limit
-                    finalPath = await ffmpegService.compressVideo(videoPath, 24);
-                    wasCompressed = finalPath !== videoPath;
-                } catch (compressError) {
-                    console.log('⚠️ Compression skipped:', compressError.message);
-                    finalPath = videoPath;
-                }
+            // Check if file is empty
+            if (fileSizeMB === 0) {
+                fs.unlinkSync(videoPath);
+                throw new Error('Downloaded file is empty. The video may be unavailable or protected.');
             }
-            
-            const finalStats = fs.statSync(finalPath);
-            const finalSizeMB = finalStats.size / (1024 * 1024);
 
-            const extension = path.extname(finalPath).toLowerCase();
+            const extension = path.extname(videoPath).toLowerCase();
             const format = extension === '.webm' ? 'WebM' : extension === '.mp4' ? 'MP4' : extension.toUpperCase().replace('.', '');
 
             this.emit('stage', { stage: 'complete', message: 'Download complete!' });
 
             const result = { 
-                path: finalPath, 
-                size: finalSizeMB, 
+                path: videoPath, 
+                size: fileSizeMB, 
                 format,
-                method: downloadMethod,
-                wasCompressed,
-                originalSize: initialSizeMB,
-                duration: duration
+                method: downloadMethod
             };
 
             this.emit('complete', result);
@@ -168,7 +134,7 @@ class VideoDownloadService extends EventEmitter {
             console.error('❌ Download error:', error.message);
             this.emit('error', { message: error.message });
             
-            // Cleanup any partial files - more comprehensive cleanup
+            // Cleanup any partial files
             this.cleanupPartialDownloads(timestamp);
             
             // Provide more specific error messages
@@ -258,28 +224,42 @@ class VideoDownloadService extends EventEmitter {
             const now = Date.now();
 
             files.forEach(file => {
-                const filePath = path.join(this.tempDir, file);
-                const stats = fs.statSync(filePath);
-                
-                if (now - stats.mtimeMs > videoConfig.TEMP_FILE_MAX_AGE) {
-                    fs.unlinkSync(filePath);
+                try {
+                    const filePath = path.join(this.tempDir, file);
+                    const stats = fs.statSync(filePath);
+                    
+                    if (now - stats.mtimeMs > videoConfig.TEMP_FILE_MAX_AGE) {
+                        fs.unlinkSync(filePath);
+                        console.log(`🗑️ Cleaned up old temp file: ${file}`);
+                    }
+                } catch (fileErr) {
+                    // Ignore individual file errors
                 }
             });
         } catch (error) {
-            console.error('Cleanup error:', error);
+            console.error('Cleanup error:', error.message);
         }
     }
 
     startCleanupInterval() {
-        setInterval(() => {
+        // Only start one cleanup interval
+        if (this.cleanupIntervalId) return;
+        
+        this.cleanupIntervalId = setInterval(() => {
             this.cleanupTempFiles();
         }, videoConfig.TEMP_FILE_CLEANUP_INTERVAL);
     }
 
-    deleteFile(filePath, delay = 5000) {
+    deleteFile(filePath, delay = videoConfig.FILE_DELETE_DELAY || 5000) {
+        if (!filePath) return;
+        
         setTimeout(() => {
-            if (fs.existsSync(filePath)) {
-                fs.unlinkSync(filePath);
+            try {
+                if (fs.existsSync(filePath)) {
+                    fs.unlinkSync(filePath);
+                }
+            } catch (err) {
+                console.error(`Failed to delete file ${filePath}:`, err.message);
             }
         }, delay);
     }

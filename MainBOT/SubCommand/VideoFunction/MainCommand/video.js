@@ -66,11 +66,6 @@ module.exports = {
                     { name: '🎬 Full HD (1080p) - Best quality', value: '1080' }
                 )
                 .setRequired(false)
-        )
-        .addBooleanOption(option =>
-            option.setName('compress')
-                .setDescription('Compress video to fit Discord limit (slower but ensures upload)')
-                .setRequired(false)
         ),
 
     async execute(interaction) {
@@ -175,8 +170,7 @@ module.exports = {
     /**
      * Handle download with progress updates
      */
-    async handleDownload(interaction, url, platform, quality, forceCompress = false) {
-        const compress = forceCompress || interaction.options?.getBoolean('compress') || false;
+    async handleDownload(interaction, url, platform, quality) {
         let lastUpdateTime = 0;
         const UPDATE_INTERVAL = 1500; // Update embed every 1.5 seconds to avoid rate limits
         let currentStage = 'initializing';
@@ -222,56 +216,15 @@ module.exports = {
             await updateProgress(currentStage, data);
         };
 
-        const compressionHandler = async (data) => {
-            currentStage = 'compressing';
-            await updateProgress('compressing', { percent: data.percent || 0 });
-        };
-
         // Subscribe to events
         videoDownloadService.on('stage', stageHandler);
         videoDownloadService.on('progress', progressHandler);
-        videoDownloadService.on('compressionProgress', compressionHandler);
 
         try {
             // Show connecting stage
             await updateProgress('connecting');
 
-            const result = await videoDownloadService.downloadVideo(url, { compress, quality });
-
-            // Check file size - offer compression retry if too large and wasn't already compressed
-            if (result.size > videoConfig.MAX_FILE_SIZE_MB) {
-                if (fs.existsSync(result.path)) {
-                    fs.unlinkSync(result.path);
-                }
-
-                // If compression wasn't used, offer retry with compression
-                if (!compress) {
-                    const tooLargeEmbed = new EmbedBuilder()
-                        .setColor('#FFA500')
-                        .setTitle('📦 File Too Large')
-                        .setDescription(`The video is **${result.size.toFixed(2)} MB** but max allowed is **${videoConfig.MAX_FILE_SIZE_MB} MB**.\n\nClick the button below to compress and try again.`)
-                        .setFooter({ text: 'Compression may take a moment' });
-
-                    const retryButton = new ActionRowBuilder().addComponents(
-                        new ButtonBuilder()
-                            .setCustomId(`video_compress_retry:${url}`)
-                            .setLabel('Compress & Retry')
-                            .setStyle(ButtonStyle.Primary)
-                            .setEmoji('🗜️')
-                    );
-
-                    await interaction.editReply({ embeds: [tooLargeEmbed], components: [retryButton] });
-                    return;
-                }
-
-                // If already compressed but still too large
-                const errorEmbed = videoEmbedBuilder.buildFileTooLargeEmbed(
-                    result.size, 
-                    videoConfig.MAX_FILE_SIZE_MB
-                );
-                await interaction.editReply({ embeds: [errorEmbed] });
-                return;
-            }
+            const result = await videoDownloadService.downloadVideo(url, { quality });
 
             // Prepare file info
             const fileName = `${platform.id}_video${path.extname(result.path)}`;
@@ -310,15 +263,37 @@ module.exports = {
                 if (fs.existsSync(result.path)) {
                     try { fs.unlinkSync(result.path); } catch {}
                 }
-                const uploadErrorEmbed = videoEmbedBuilder.buildDownloadFailedEmbed(
-                    `Upload failed: ${uploadError.message}. The file may be too large or Discord had an issue.`
-                );
-                await interaction.editReply({ embeds: [uploadErrorEmbed] }).catch(() => {});
+                
+                // Check if it's a file size issue (Request entity too large)
+                const isFileTooLarge = uploadError.message.toLowerCase().includes('too large') || 
+                                       uploadError.message.toLowerCase().includes('entity') ||
+                                       uploadError.code === 40005;
+                
+                let errorEmbed;
+                if (isFileTooLarge) {
+                    errorEmbed = new EmbedBuilder()
+                        .setColor('#FF6B6B')
+                        .setTitle('📦 File Too Large')
+                        .setDescription(
+                            `The video is **${result.size.toFixed(2)} MB** which exceeds your upload limit.\n\n` +
+                            `⭐ **Discord Nitro** users can upload files up to **500 MB**!\n\n` +
+                            `💡 **Tip:** Use \`/video method:link\` to get a direct download link instead!`
+                        )
+                        .setFooter({ text: 'Upload limits are based on your Nitro status' });
+                } else {
+                    errorEmbed = videoEmbedBuilder.buildDownloadFailedEmbed(
+                        `Upload failed: ${uploadError.message}`
+                    );
+                }
+                
+                await interaction.editReply({ embeds: [errorEmbed] }).catch(() => {});
                 return;
             }
 
             // Cleanup file after delay (only if upload succeeded)
-            videoDownloadService.deleteFile(result.path);
+            if (result.path) {
+                videoDownloadService.deleteFile(result.path);
+            }
 
         } catch (error) {
             console.error('❌ Download/Upload error:', error.message);
@@ -328,46 +303,6 @@ module.exports = {
             // Cleanup event listeners
             videoDownloadService.off('stage', stageHandler);
             videoDownloadService.off('progress', progressHandler);
-            videoDownloadService.off('compressionProgress', compressionHandler);
-        }
-    },
-
-    /**
-     * Handle button interactions (compress retry)
-     */
-    async handleButton(interaction) {
-        if (!interaction.customId.startsWith('video_compress_retry:')) {
-            return;
-        }
-
-        // Check if user is the original requester
-        if (interaction.user.id !== interaction.message.interaction?.user?.id) {
-            return interaction.reply({
-                content: '❌ Only the original requester can use this button.',
-                ephemeral: true
-            });
-        }
-
-        const url = interaction.customId.replace('video_compress_retry:', '');
-        const platform = platformDetector.detect(url);
-
-        await interaction.deferUpdate();
-
-        // Update message to show compressing
-        const compressingEmbed = new EmbedBuilder()
-            .setColor('#00BFFF')
-            .setTitle('🗜️ Compressing Video...')
-            .setDescription('Downloading and compressing. This may take a moment.')
-            .setFooter({ text: `Platform: ${platform.name}` });
-
-        await interaction.editReply({ embeds: [compressingEmbed], components: [] });
-
-        // Re-run download with compression forced
-        activeDownloads.add(interaction.user.id);
-        try {
-            await this.handleDownload(interaction, url, platform, null, true);
-        } finally {
-            activeDownloads.delete(interaction.user.id);
         }
     }
 };
