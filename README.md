@@ -1,5 +1,5 @@
 
-# FumoBOT – Complete Overview & User Guide
+# FumoBOT – Complete Overview & User Guide (DECARPTED)
 
 FumoBOT is a versatile, feature-rich Discord bot designed to enhance your server experience with fun, economy systems, customization, utilities, and more. This document merges both the feature overview and tutorial commands into one unified reference.
 
